@@ -1,0 +1,941 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AdminRoleCode {
+  SUPER_ADMIN
+  ADMIN
+  REVIEWER
+  VIEWER
+}
+
+enum QualificationRecordStatus {
+  ACTIVE
+  REPLACED
+}
+
+enum UpdateRequestStatus {
+  PENDING
+  APPROVED
+  RETURNED
+}
+
+enum VerificationStatus {
+  MATCHED
+  MISMATCH
+  UNCERTAIN
+  UNAVAILABLE
+}
+
+enum RecognitionTaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum RecognitionTaskType {
+  EXTRACTION
+}
+
+enum ImageOptimizationTaskStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum BackupSource {
+  GALLERY
+  DATABASE
+}
+
+enum BackupMode {
+  FULL
+  INCREMENTAL
+}
+
+enum BackupTargetType {
+  LOCAL
+  SMB
+  FTP
+  WEBDAV
+  S3
+}
+
+enum BackupRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum UpgradePlanType {
+  CAPTAIN_UPGRADE
+  LEVEL_UPGRADE
+  QUALIFICATION_RECOVERY
+  INSTRUCTOR_UPGRADE
+  TYPE_RATING
+}
+
+enum UpgradePlanStatus {
+  DRAFT
+  NOT_STARTED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum UpgradeStageStatus {
+  COMPLETED
+  IN_PROGRESS
+  DELAYED
+  SCHEDULED
+  NOT_STARTED
+}
+
+enum UpgradeInspectionItemStatus {
+  PENDING
+  COMPLETED
+}
+
+enum NotificationChannel {
+  FEISHU
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+}
+
+enum NotificationType {
+  QUALIFICATION_EXPIRY
+  UPGRADE_STAGE_REMINDER
+  STAGE_DATE_CHANGED
+  STAGE_COMPLETED
+  REVIEW_RETURNED
+  REVIEW_APPROVED
+  UPGRADE_CREATED
+  UPGRADE_RESUMED
+  DELIVERY_FAILED
+  PILOT_ACCESS_LINK
+}
+
+enum PositionAssignmentStatus {
+  ACTIVE
+  ENDED
+}
+
+enum QualificationAssignmentSource {
+  POSITION_REQUIREMENT
+  MANUAL
+  LEGACY_RECORD
+}
+
+enum TemplateInstallationStatus {
+  SUCCEEDED
+  NOOP
+  PARTIAL
+  FAILED
+}
+
+model Organization {
+  id                 String                           @id @default(uuid()) @db.Uuid
+  code               String                           @unique
+  name               String
+  defaultLocale      String                           @default("zh-CN")
+  active             Boolean                          @default(true)
+  version            Int                              @default(1)
+  createdAt          DateTime                         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime                         @updatedAt @db.Timestamptz(3)
+  units              OrganizationUnit[]
+  people             Person[]
+  positions          Position[]
+  qualificationDefinitions QualificationDefinition[]
+  templateInstallations OrganizationTemplateInstallation[]
+  admins             AdminUser[]
+
+  @@index([active, name])
+}
+
+model OrganizationUnit {
+  id                       String      @id @default(uuid()) @db.Uuid
+  code                     String      @unique
+  name                     String
+  timezone                 String      @default("Asia/Shanghai")
+  contactName              String      @default("")
+  contactEmail             String      @default("")
+  contactPhone             String      @default("")
+  active                   Boolean     @default(true)
+  notificationRouting      Json        @default("[]")
+  notificationChannelState Json        @default("{\"inApp\":true,\"sms\":false,\"feishu\":false}")
+  version                  Int         @default(1)
+  organizationId          String?     @db.Uuid
+  parentId                String?     @db.Uuid
+  createdAt                DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime    @updatedAt @db.Timestamptz(3)
+  pilots                   Pilot[]
+  people                   Person[]
+  admins                   AdminUser[]
+  organization            Organization? @relation(fields: [organizationId], references: [id])
+  parent                  OrganizationUnit? @relation("OrganizationUnitTree", fields: [parentId], references: [id])
+  children                OrganizationUnit[] @relation("OrganizationUnitTree")
+
+  @@index([organizationId, parentId, active])
+}
+
+model Person {
+  id             String                    @id @default(uuid()) @db.Uuid
+  organizationId String                    @db.Uuid
+  unitId         String?                   @db.Uuid
+  employeeNumber String                    @unique
+  mobile         String
+  displayName    String
+  initials       String
+  active         Boolean                   @default(true)
+  version        Int                       @default(1)
+  createdAt      DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                  @updatedAt @db.Timestamptz(3)
+  organization   Organization              @relation(fields: [organizationId], references: [id])
+  unit           OrganizationUnit?         @relation(fields: [unitId], references: [id])
+  pilotProfile   PilotProfile?
+  positionAssignments PersonPositionAssignment[]
+  qualificationAssignments QualificationAssignment[]
+  qualificationRecords QualificationRecord[]
+  qualificationUpdateRequests QualificationUpdateRequest[]
+  evidenceImages EvidenceImage[]
+  upgradePlans UpgradePlan[]
+  notifications NotificationDelivery[]
+  auditEvents AuditEvent[]
+  legacyPilot  Pilot?
+
+  @@index([organizationId, active, displayName])
+  @@index([unitId, active])
+}
+
+model Pilot {
+  id             String                       @id @default(uuid()) @db.Uuid
+  employeeNumber String                       @unique
+  mobile         String
+  displayName    String
+  initials       String
+  role           String
+  aircraftType   String
+  rankLabel      String
+  unitId         String                       @db.Uuid
+  active         Boolean                      @default(true)
+  version        Int                          @default(1)
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                     @updatedAt @db.Timestamptz(3)
+  personId       String?                      @unique @db.Uuid
+  unit           OrganizationUnit             @relation(fields: [unitId], references: [id])
+  qualifications QualificationRecord[]
+  updateRequests QualificationUpdateRequest[]
+  accessTokens   PilotAccessToken[]
+  sessions       PilotSession[]
+  upgradePlans   UpgradePlan[]
+  notifications  NotificationDelivery[]
+  evidenceImages EvidenceImage[]
+  auditEvents    AuditEvent[]
+  person         Person?                      @relation(fields: [personId], references: [id])
+  profile        PilotProfile?
+}
+
+model PilotProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  personId       String   @unique @db.Uuid
+  legacyPilotId  String?  @unique @db.Uuid
+  aircraftType   String
+  dutyLabel      String
+  rankLabel      String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  legacyPilot    Pilot?   @relation(fields: [legacyPilotId], references: [id])
+}
+
+model Position {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  organizationId     String                    @db.Uuid
+  code               String
+  name               String
+  description        String                    @default("")
+  translations       Json                      @default("{}")
+  active             Boolean                   @default(true)
+  sortOrder          Int                       @default(0)
+  sourcePackCode     String?
+  sourcePackVersion  Int?
+  customizedAt       DateTime?                 @db.Timestamptz(3)
+  version            Int                       @default(1)
+  createdAt          DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime                  @updatedAt @db.Timestamptz(3)
+  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments        PersonPositionAssignment[]
+  requirements       QualificationRequirement[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, active, sortOrder])
+}
+
+model PersonPositionAssignment {
+  id             String                   @id @default(uuid()) @db.Uuid
+  personId       String                   @db.Uuid
+  positionId     String                   @db.Uuid
+  status         PositionAssignmentStatus @default(ACTIVE)
+  isPrimary      Boolean                  @default(false)
+  effectiveFrom  DateTime                 @default(now()) @db.Date
+  effectiveTo    DateTime?                @db.Date
+  version        Int                      @default(1)
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                 @updatedAt @db.Timestamptz(3)
+  person         Person                   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  position       Position                 @relation(fields: [positionId], references: [id])
+  qualificationAssignments QualificationAssignment[]
+  upgradePlans   UpgradePlan[]
+
+  @@unique([personId, positionId, effectiveFrom])
+  @@index([personId, status, isPrimary])
+  @@index([positionId, status])
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        AdminRoleCode    @unique
+  name        String
+  users       AdminUserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  description String
+  roles       RolePermission[]
+}
+
+model AdminUser {
+  id                   String            @id @default(uuid()) @db.Uuid
+  email                String            @unique
+  displayName          String
+  passwordHash         String
+  totpSecretCiphertext String            @db.Text
+  active               Boolean           @default(true)
+  failedAttempts       Int               @default(0)
+  lockedUntil          DateTime?         @db.Timestamptz(3)
+  unitId               String?           @db.Uuid
+  organizationId       String?           @db.Uuid
+  version              Int               @default(1)
+  createdAt            DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime          @updatedAt @db.Timestamptz(3)
+  unit                 OrganizationUnit? @relation(fields: [unitId], references: [id])
+  organization         Organization?     @relation(fields: [organizationId], references: [id])
+  roles                AdminUserRole[]
+  sessions             AdminSession[]
+}
+
+model AdminUserRole {
+  userId String    @db.Uuid
+  roleId String    @db.Uuid
+  user   AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AdminSession {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  tokenHash     String    @unique
+  csrfTokenHash String
+  expiresAt     DateTime  @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt    DateTime  @default(now()) @db.Timestamptz(3)
+  user          AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model PilotAccessToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  pilotId    String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  pilot      Pilot     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  @@index([pilotId, expiresAt])
+}
+
+model PilotSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  pilotId       String   @db.Uuid
+  tokenHash     String   @unique
+  csrfTokenHash String
+  expiresAt     DateTime @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt    DateTime @default(now()) @db.Timestamptz(3)
+  pilot         Pilot    @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model QualificationType {
+  id                   String                       @id @default(uuid()) @db.Uuid
+  code                 String                       @unique
+  name                 String
+  core                 Boolean                      @default(false)
+  active               Boolean                      @default(true)
+  parameterRestriction Json
+  validityRule         Json
+  reminders            Json
+  ocrChecks            Json
+  version              Int                          @default(1)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  records              QualificationRecord[]
+  updateRequests       QualificationUpdateRequest[]
+}
+
+model QualificationDefinition {
+  id                    String                         @id @default(uuid()) @db.Uuid
+  organizationId        String                         @db.Uuid
+  code                  String
+  name                  String
+  description           String                         @default("")
+  translations          Json                           @default("{}")
+  category              String                         @default("aviation")
+  active                Boolean                        @default(true)
+  requiresEvidence      Boolean                        @default(true)
+  requiresHumanReview   Boolean                        @default(true)
+  allowAutoApproval     Boolean                        @default(false)
+  fieldSchema           Json                           @default("{}")
+  validityRule          Json
+  reminders             Json
+  ocrChecks             Json
+  parameterRestriction  Json
+  sortOrder             Int                            @default(0)
+  sourcePackCode        String?
+  sourcePackVersion     Int?
+  legacyQualificationTypeId String?                    @db.Uuid
+  customizedAt          DateTime?                      @db.Timestamptz(3)
+  version               Int                            @default(1)
+  createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                       @updatedAt @db.Timestamptz(3)
+  organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requirements          QualificationRequirement[]
+  assignments           QualificationAssignment[]
+  records               QualificationRecord[]
+  updateRequests        QualificationUpdateRequest[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, active, sortOrder])
+}
+
+model QualificationRequirement {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  positionId            String                  @db.Uuid
+  qualificationDefinitionId String               @db.Uuid
+  required              Boolean                 @default(true)
+  upgradePrerequisite   Boolean                 @default(false)
+  active                Boolean                 @default(true)
+  sortOrder             Int                     @default(0)
+  sourcePackCode        String?
+  sourcePackVersion     Int?
+  customizedAt          DateTime?               @db.Timestamptz(3)
+  version               Int                     @default(1)
+  createdAt             DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
+  position              Position                @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  qualificationDefinition QualificationDefinition @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
+  assignments           QualificationAssignment[]
+
+  @@unique([positionId, qualificationDefinitionId])
+  @@index([positionId, active, sortOrder])
+}
+
+model QualificationAssignment {
+  id                    String                        @id @default(uuid()) @db.Uuid
+  personId              String                        @db.Uuid
+  qualificationDefinitionId String                     @db.Uuid
+  requirementId         String?                       @db.Uuid
+  positionAssignmentId  String?                       @db.Uuid
+  source                QualificationAssignmentSource
+  active                Boolean                       @default(true)
+  assignedAt            DateTime                      @default(now()) @db.Timestamptz(3)
+  endedAt               DateTime?                     @db.Timestamptz(3)
+  version               Int                           @default(1)
+  createdAt             DateTime                      @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                      @updatedAt @db.Timestamptz(3)
+  person                Person                        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  qualificationDefinition QualificationDefinition    @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
+  requirement           QualificationRequirement?    @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  positionAssignment   PersonPositionAssignment?    @relation(fields: [positionAssignmentId], references: [id], onDelete: SetNull)
+
+  @@unique([positionAssignmentId, requirementId])
+  @@index([personId, active, qualificationDefinitionId])
+  @@index([qualificationDefinitionId, active])
+}
+
+model TemplatePack {
+  id                String                         @id @default(uuid()) @db.Uuid
+  code              String
+  version           Int
+  industryCode      String                         @default("aviation")
+  name              String
+  description       String                         @default("")
+  translations      Json                           @default("{}")
+  payload           Json
+  checksum          String
+  active            Boolean                        @default(true)
+  createdAt         DateTime                       @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                       @updatedAt @db.Timestamptz(3)
+  installations     OrganizationTemplateInstallation[]
+
+  @@unique([code, version])
+  @@index([industryCode, active])
+}
+
+model OrganizationTemplateInstallation {
+  id               String                    @id @default(uuid()) @db.Uuid
+  organizationId   String                    @db.Uuid
+  templatePackId   String                    @db.Uuid
+  status           TemplateInstallationStatus
+  result           Json                      @default("{}")
+  installedAt      DateTime                  @default(now()) @db.Timestamptz(3)
+  installedBy      String?                   @db.Uuid
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  templatePack     TemplatePack              @relation(fields: [templatePackId], references: [id])
+
+  @@unique([organizationId, templatePackId])
+  @@index([organizationId, installedAt])
+}
+
+model QualificationRecord {
+  id                        String                      @id @default(uuid()) @db.Uuid
+  pilotId                   String                      @db.Uuid
+  personId                  String?                     @db.Uuid
+  qualificationTypeId       String                      @db.Uuid
+  qualificationDefinitionId String?                     @db.Uuid
+  credentialNumber          String
+  issueDate                 DateTime                    @db.Date
+  trainingDate              DateTime?                   @db.Date
+  expiryDate                DateTime?                   @db.Date
+  issuingAuthority          String
+  levelOrParameter          String
+  qualificationRuleSnapshot Json
+  status                    QualificationRecordStatus   @default(ACTIVE)
+  lastVerifiedAt            DateTime?                   @db.Timestamptz(3)
+  version                   Int                         @default(1)
+  createdAt                 DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                    @updatedAt @db.Timestamptz(3)
+  pilot                     Pilot                       @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  person                    Person?                     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  qualificationType         QualificationType           @relation(fields: [qualificationTypeId], references: [id])
+  qualificationDefinition  QualificationDefinition?    @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
+  updateRequest             QualificationUpdateRequest?
+  evidence                  QualificationEvidence[]
+
+  @@index([pilotId, status])
+  @@index([qualificationTypeId, expiryDate])
+  @@index([personId, status])
+  @@index([qualificationDefinitionId, expiryDate])
+}
+
+model EvidenceImage {
+  id               String                  @id @default(uuid()) @db.Uuid
+  pilotId          String?                 @db.Uuid
+  personId         String?                 @db.Uuid
+  objectKey        String                  @unique
+  mimeType         String
+  width            Int
+  height           Int
+  byteSize         Int
+  sha256           String
+  status           String                  @default("orphaned")
+  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime                @updatedAt @db.Timestamptz(3)
+  linkedAt         DateTime?               @db.Timestamptz(3)
+  expiresAt        DateTime                @db.Timestamptz(3)
+  evidence         QualificationEvidence[]
+  recognitionTasks RecognitionTask[]
+  optimizationTask ImageOptimizationTask?
+  pilot            Pilot?                  @relation(fields: [pilotId], references: [id], onDelete: SetNull)
+  person           Person?                 @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+}
+
+model ImageOptimizationTask {
+  id               String                      @id @default(uuid()) @db.Uuid
+  evidenceImageId  String                      @unique @db.Uuid
+  sourceObjectKey  String
+  targetObjectKey  String?
+  status           ImageOptimizationTaskStatus @default(QUEUED)
+  attemptCount     Int                         @default(0)
+  errorMessage     String?
+  createdAt        DateTime                    @default(now()) @db.Timestamptz(3)
+  startedAt        DateTime?                   @db.Timestamptz(3)
+  completedAt      DateTime?                   @db.Timestamptz(3)
+  evidenceImage    EvidenceImage               @relation(fields: [evidenceImageId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model MediaOptimizationSetting {
+  id            String   @id @default("global")
+  enabled       Boolean  @default(false)
+  idleMinutes   Int      @default(5)
+  batchSize     Int      @default(5)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model BackupTarget {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String
+  type             BackupTargetType
+  endpoint         String
+  basePath         String
+  secretCiphertext String?          @db.Text
+  encryptionEnabled Boolean         @default(true)
+  active           Boolean          @default(true)
+  version          Int              @default(1)
+  lastTestedAt     DateTime?        @db.Timestamptz(3)
+  lastTestMessage  String           @default("")
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+  plans            BackupPlan[]
+}
+
+model BackupPlan {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  source          BackupSource
+  mode            BackupMode
+  targetId        String       @db.Uuid
+  cron            String
+  timezone        String       @default("Asia/Shanghai")
+  retentionCount  Int          @default(30)
+  retentionDays   Int          @default(90)
+  enabled         Boolean      @default(true)
+  version         Int          @default(1)
+  lastSuccessfulAt DateTime?   @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
+  target          BackupTarget @relation(fields: [targetId], references: [id])
+  runs            BackupRun[]
+  @@index([enabled, source])
+}
+
+model BackupRun {
+  id             String         @id @default(uuid()) @db.Uuid
+  planId         String         @db.Uuid
+  status         BackupRunStatus @default(QUEUED)
+  mode           BackupMode
+  startedAt      DateTime?      @db.Timestamptz(3)
+  completedAt    DateTime?      @db.Timestamptz(3)
+  artifactPath   String?
+  manifestSha256 String?
+  bytesWritten   BigInt         @default(0)
+  errorMessage   String?
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  plan           BackupPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  @@index([planId, createdAt])
+  @@index([status, createdAt])
+}
+
+model QualificationEvidence {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  evidenceImageId       String                      @unique @db.Uuid
+  qualificationRecordId String?                     @db.Uuid
+  updateRequestId       String?                     @db.Uuid
+  createdAt             DateTime                    @default(now()) @db.Timestamptz(3)
+  evidenceImage         EvidenceImage               @relation(fields: [evidenceImageId], references: [id])
+  qualificationRecord   QualificationRecord?        @relation(fields: [qualificationRecordId], references: [id])
+  updateRequest         QualificationUpdateRequest? @relation(fields: [updateRequestId], references: [id])
+
+  @@unique([evidenceImageId, qualificationRecordId, updateRequestId])
+}
+
+model QualificationUpdateRequest {
+  id                        String                  @id @default(uuid()) @db.Uuid
+  pilotId                   String                  @db.Uuid
+  personId                  String?                 @db.Uuid
+  qualificationTypeId       String                  @db.Uuid
+  qualificationDefinitionId String?                 @db.Uuid
+  qualificationRecordId     String?                 @unique @db.Uuid
+  credentialNumber          String
+  issueDate                 DateTime                @db.Date
+  trainingDate              DateTime?               @db.Date
+  expiryDate                DateTime?               @db.Date
+  issuingAuthority          String
+  levelOrParameter          String
+  qualificationRuleSnapshot Json
+  // Immutable snapshot of the values submitted by the pilot. The mutable
+  // columns above hold the latest human-corrected values used for a decision.
+  submittedFields           Json
+  status                    UpdateRequestStatus     @default(PENDING)
+  expectedVersion           Int                     @default(0)
+  version                   Int                     @default(1)
+  submittedAt               DateTime                @default(now()) @db.Timestamptz(3)
+  decidedAt                 DateTime?               @db.Timestamptz(3)
+  decisionNote              String?
+  returnReason              String?
+  pilot                     Pilot                   @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  person                    Person?                 @relation(fields: [personId], references: [id], onDelete: SetNull)
+  qualificationType         QualificationType       @relation(fields: [qualificationTypeId], references: [id])
+  qualificationDefinition  QualificationDefinition? @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
+  qualificationRecord       QualificationRecord?    @relation(fields: [qualificationRecordId], references: [id])
+  evidence                  QualificationEvidence[]
+  verifications             VerificationResult[]
+
+  @@index([status, submittedAt])
+  @@index([personId, status, submittedAt])
+  @@index([qualificationDefinitionId, status, submittedAt])
+}
+
+model VerificationResult {
+  id        String                     @id @default(uuid()) @db.Uuid
+  requestId String                     @unique @db.Uuid
+  status    VerificationStatus
+  result    Json
+  provider  String
+  createdAt DateTime                   @default(now()) @db.Timestamptz(3)
+  request   QualificationUpdateRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model RecognitionTask {
+  id              String                @id @default(uuid()) @db.Uuid
+  evidenceImageId String                @db.Uuid
+  taskType        RecognitionTaskType   @default(EXTRACTION)
+  status          RecognitionTaskStatus @default(QUEUED)
+  attemptCount    Int                   @default(0)
+  retryLimit      Int                   @default(3)
+  provider        String                @default("unconfigured")
+  result          Json?
+  errorCode       String?
+  createdAt       DateTime              @default(now()) @db.Timestamptz(3)
+  startedAt       DateTime?             @db.Timestamptz(3)
+  completedAt     DateTime?             @db.Timestamptz(3)
+  evidenceImage   EvidenceImage         @relation(fields: [evidenceImageId], references: [id], onDelete: Cascade)
+
+  @@unique([evidenceImageId, taskType])
+  @@index([status, startedAt])
+}
+
+model UpgradePlan {
+  id                       String                      @id @default(uuid()) @db.Uuid
+  planNumber               String                      @unique
+  pilotId                  String                      @db.Uuid
+  personId                 String?                     @db.Uuid
+  positionAssignmentId     String?                     @db.Uuid
+  positionCodeSnapshot     String?
+  positionNameSnapshot     String?
+  title                    String
+  type                     UpgradePlanType
+  lifecycleStatus          UpgradePlanStatus           @default(DRAFT)
+  startDate                DateTime                    @db.Date
+  endDate                  DateTime                    @db.Date
+  overallOwner             String
+  leadDepartment           String
+  supplementalRequirements Json
+  version                  Int                         @default(1)
+  cancellationReason       String?
+  createdAt                DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                    @updatedAt @db.Timestamptz(3)
+  pilot                    Pilot                       @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  person                   Person?                     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  positionAssignment       PersonPositionAssignment?   @relation(fields: [positionAssignmentId], references: [id], onDelete: SetNull)
+  stages                   UpgradeStage[]
+  inspectionItems          UpgradePlanInspectionItem[]
+
+  @@index([pilotId, lifecycleStatus])
+  @@index([personId, positionAssignmentId, lifecycleStatus])
+}
+
+model UpgradeStage {
+  id              String                      @id @default(uuid()) @db.Uuid
+  planId          String                      @db.Uuid
+  order           Int
+  name            String
+  status          UpgradeStageStatus          @default(NOT_STARTED)
+  plannedStart    DateTime                    @db.Date
+  plannedEnd      DateTime                    @db.Date
+  owner           String
+  notes           String
+  completedOn     DateTime?                   @db.Date
+  resultSummary   String?
+  delayDays       Int?
+  plan            UpgradePlan                 @relation(fields: [planId], references: [id], onDelete: Cascade)
+  inspectionItems UpgradePlanInspectionItem[]
+
+  @@unique([planId, order])
+  @@index([plannedStart, plannedEnd])
+}
+
+model InspectionItem {
+  id          String                      @id @default(uuid()) @db.Uuid
+  code        String                      @unique
+  name        String
+  description String                      @default("")
+  active      Boolean                     @default(true)
+  ruleVersion Int                         @default(1)
+  rule        Json                        @default("{}")
+  createdAt   DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                    @updatedAt @db.Timestamptz(3)
+  planItems   UpgradePlanInspectionItem[]
+}
+
+model UpgradePlanInspectionItem {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  planId              String                      @db.Uuid
+  inspectionItemId    String                      @db.Uuid
+  stageId             String                      @db.Uuid
+  nameSnapshot        String
+  ruleVersionSnapshot Int
+  ruleSnapshot        Json
+  status              UpgradeInspectionItemStatus @default(PENDING)
+  completedOn         DateTime?                   @db.Date
+  resultSummary       String?
+  createdAt           DateTime                    @default(now()) @db.Timestamptz(3)
+  plan                UpgradePlan                 @relation(fields: [planId], references: [id], onDelete: Cascade)
+  inspectionItem      InspectionItem              @relation(fields: [inspectionItemId], references: [id])
+  stage               UpgradeStage                @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, inspectionItemId])
+  @@index([stageId, status])
+}
+
+model NotificationDelivery {
+  id                      String                @id @default(uuid()) @db.Uuid
+  dedupeKey               String?               @unique
+  type                    NotificationType
+  channel                 NotificationChannel
+  status                  NotificationStatus    @default(QUEUED)
+  pilotId                 String?               @db.Uuid
+  personId                String?               @db.Uuid
+  target                  String
+  summary                 String
+  message                 String
+  createdAt               DateTime              @default(now()) @db.Timestamptz(3)
+  startedAt               DateTime?             @db.Timestamptz(3)
+  sentAt                  DateTime?             @db.Timestamptz(3)
+  readAt                  DateTime?             @db.Timestamptz(3)
+  nextAttemptAt           DateTime?             @db.Timestamptz(3)
+  attemptCount            Int                   @default(0)
+  retryLimit              Int                   @default(3)
+  retryCycle              Int                   @default(0)
+  lastErrorCategory       String?
+  finalFailureReason      String?
+  providerMessageId       String?
+  securePayloadCiphertext String?               @db.Text
+  securePayloadExpiresAt  DateTime?             @db.Timestamptz(3)
+  version                 Int                   @default(1)
+  pilot                   Pilot?                @relation(fields: [pilotId], references: [id], onDelete: SetNull)
+  person                  Person?               @relation(fields: [personId], references: [id], onDelete: SetNull)
+  attempts                NotificationAttempt[]
+
+  @@index([status, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([pilotId, readAt, createdAt])
+  @@index([personId, readAt, createdAt])
+}
+
+model NotificationAttempt {
+  id            String               @id @default(uuid()) @db.Uuid
+  deliveryId    String               @db.Uuid
+  attemptedAt   DateTime             @default(now()) @db.Timestamptz(3)
+  attemptNumber Int                  @default(1)
+  retryCycle    Int                  @default(0)
+  status        NotificationStatus
+  errorCategory String?
+  detail        String
+  delivery      NotificationDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorType  String
+  actorId    String?  @db.Uuid
+  pilotId    String?  @db.Uuid
+  personId   String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  detail     Json
+  requestId  String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  pilot      Pilot?   @relation(fields: [pilotId], references: [id], onDelete: SetNull)
+  person     Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([requestId])
+  @@index([personId, createdAt])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime @db.Timestamptz(3)
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model SystemIntegrationSetting {
+  key              String    @id
+  enabled          Boolean   @default(false)
+  endpoint         String    @default("")
+  model            String    @default("")
+  secretCiphertext String?   @db.Text
+  timeoutSeconds   Int       @default(10)
+  retryLimit       Int       @default(3)
+  lastTestStatus   String?
+  lastTestMessage  String    @default("")
+  lastTestedAt     DateTime? @db.Timestamptz(3)
+  version          Int       @default(1)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+}
+
+model SecurityPolicy {
+  id                        String   @id @default("global")
+  requireTotp               Boolean  @default(true)
+  adminSessionTtlHours      Int      @default(8)
+  pilotAccessLinkTtlMinutes Int      @default(15)
+  pilotSessionTtlMinutes    Int      @default(60)
+  maxFailedAttempts         Int      @default(5)
+  lockoutMinutes            Int      @default(15)
+  version                   Int      @default(1)
+  createdAt                 DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model WorkerHeartbeat {
+  name       String   @id
+  startedAt  DateTime @db.Timestamptz(3)
+  lastSeenAt DateTime @db.Timestamptz(3)
+  version    String
+}

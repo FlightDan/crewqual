@@ -1,0 +1,17 @@
+node_modules
+node_modules.*
+**/node_modules.*
+.env
+.env.*
+!.env.example
+.next
+.next-*
+**/.next
+**/.next-*
+node_modules/**
+test-results
+playwright-report
+coverage
+.tmp
+*.tsbuildinfo
+.git

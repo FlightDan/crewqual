@@ -1,0 +1,28 @@
+# Dependencies and package-manager artifacts
+node_modules/
+node_modules.*/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Build and generated output
+.next
+.next-*
+out
+dist
+build
+coverage
+*.tsbuildinfo
+
+# Test and local runtime output
+playwright-report
+test-results
+.tmp/
+.dispatcher/
+.codex/
+.agents/
+
+# OS metadata
+.DS_Store

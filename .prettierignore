@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-*
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+next-env.d.ts
+*.tsbuildinfo
+src/generated/**
+prisma/migrations/**

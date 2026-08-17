@@ -1,0 +1,5 @@
+ALTER TABLE "EvidenceImage" ADD COLUMN "pilotId" UUID;
+
+ALTER TABLE "EvidenceImage" ADD CONSTRAINT "EvidenceImage_pilotId_fkey" FOREIGN KEY ("pilotId") REFERENCES "Pilot"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "QualificationType" ADD COLUMN "version" INTEGER NOT NULL DEFAULT 1;

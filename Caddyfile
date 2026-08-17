@@ -1,0 +1,20 @@
+{
+	email {$TLS_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy web:3000
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=()"
+		X-Robots-Tag "noindex, nofollow"
+	}
+}

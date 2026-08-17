@@ -1,0 +1,467 @@
+import { loadEnvConfig } from "@next/env";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { CORE_QUALIFICATION_CATALOG } from "../src/types/services";
+import { PILOT_TEMPLATE_PACK, templatePackChecksum } from "../src/server/template-packs";
+
+loadEnvConfig(process.cwd());
+
+const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DIRECT_URL or DATABASE_URL is required");
+
+const prisma = new PrismaClient({ adapter: new PrismaPg(connectionString) });
+
+type MigrationSummary = {
+  organizations: number;
+  people: number;
+  pilotProfiles: number;
+  positions: number;
+  definitions: number;
+  requirements: number;
+  positionAssignments: number;
+  qualificationAssignments: number;
+  recordsLinked: number;
+  requestsLinked: number;
+  plansLinked: number;
+};
+
+function emptySummary(): MigrationSummary {
+  return {
+    organizations: 0,
+    people: 0,
+    pilotProfiles: 0,
+    positions: 0,
+    definitions: 0,
+    requirements: 0,
+    positionAssignments: 0,
+    qualificationAssignments: 0,
+    recordsLinked: 0,
+    requestsLinked: 0,
+    plansLinked: 0,
+  };
+}
+
+async function ensureTemplatePack() {
+  const checksum = templatePackChecksum(PILOT_TEMPLATE_PACK);
+  const existing = await prisma.templatePack.findUnique({
+    where: {
+      code_version: {
+        code: PILOT_TEMPLATE_PACK.code,
+        version: PILOT_TEMPLATE_PACK.version,
+      },
+    },
+  });
+  if (existing) {
+    if (existing.checksum !== checksum) {
+      throw new Error("Existing Pilot template has a different checksum");
+    }
+    return existing;
+  }
+  return prisma.templatePack.create({
+    data: {
+      code: PILOT_TEMPLATE_PACK.code,
+      version: PILOT_TEMPLATE_PACK.version,
+      industryCode: PILOT_TEMPLATE_PACK.industryCode,
+      name: PILOT_TEMPLATE_PACK.name,
+      description: PILOT_TEMPLATE_PACK.description,
+      translations: PILOT_TEMPLATE_PACK.translations,
+      payload: PILOT_TEMPLATE_PACK as never,
+      checksum,
+    },
+  });
+}
+
+async function installPilotPack(
+  tx: PrismaClient,
+  organizationId: string,
+  packId: string,
+  summary: MigrationSummary,
+) {
+  const pack = PILOT_TEMPLATE_PACK;
+  const positionInput = pack.positions[0]!;
+  const existingPosition = await tx.position.findUnique({
+    where: { organizationId_code: { organizationId, code: positionInput.code } },
+  });
+  const position =
+    existingPosition ??
+    (await tx.position.create({
+      data: {
+        organizationId,
+        code: positionInput.code,
+        name: positionInput.name,
+        description: positionInput.description,
+        translations: positionInput.translations,
+        sortOrder: positionInput.sortOrder,
+        sourcePackCode: pack.code,
+        sourcePackVersion: pack.version,
+      },
+    }));
+  if (!existingPosition) summary.positions += 1;
+
+  const definitions = new Map<string, { id: string }>();
+  for (const definitionInput of pack.qualificationDefinitions) {
+    const existing = await tx.qualificationDefinition.findUnique({
+      where: { organizationId_code: { organizationId, code: definitionInput.code } },
+      select: { id: true },
+    });
+    const definition =
+      existing ??
+      (await tx.qualificationDefinition.create({
+        data: {
+          organizationId,
+          code: definitionInput.code,
+          name: definitionInput.name,
+          description: definitionInput.description,
+          translations: definitionInput.translations,
+          category: definitionInput.category,
+          active: definitionInput.active,
+          requiresEvidence: definitionInput.requiresEvidence,
+          requiresHumanReview: true,
+          allowAutoApproval: false,
+          fieldSchema: definitionInput.fieldSchema,
+          validityRule: definitionInput.validityRule,
+          reminders: definitionInput.reminders,
+          ocrChecks: definitionInput.ocrChecks,
+          parameterRestriction: definitionInput.parameterRestriction,
+          sortOrder: definitionInput.sortOrder,
+          sourcePackCode: pack.code,
+          sourcePackVersion: pack.version,
+        },
+        select: { id: true },
+      }));
+    if (!existing) summary.definitions += 1;
+    definitions.set(definitionInput.code, definition);
+  }
+
+  const requirements = new Map<string, { id: string; qualificationDefinitionId: string }>();
+  for (const requirementInput of pack.requirements) {
+    const definition = definitions.get(requirementInput.qualificationCode)!;
+    const existing = await tx.qualificationRequirement.findUnique({
+      where: {
+        positionId_qualificationDefinitionId: {
+          positionId: position.id,
+          qualificationDefinitionId: definition.id,
+        },
+      },
+    });
+    const requirement =
+      existing ??
+      (await tx.qualificationRequirement.create({
+        data: {
+          positionId: position.id,
+          qualificationDefinitionId: definition.id,
+          required: requirementInput.required,
+          upgradePrerequisite: requirementInput.upgradePrerequisite,
+          active: requirementInput.active,
+          sortOrder: requirementInput.sortOrder,
+          sourcePackCode: pack.code,
+          sourcePackVersion: pack.version,
+        },
+      }));
+    if (!existing) summary.requirements += 1;
+    requirements.set(requirementInput.qualificationCode, {
+      id: requirement.id,
+      qualificationDefinitionId: definition.id,
+    });
+  }
+
+  return { position, definitions, requirements };
+}
+
+async function migrate() {
+  const summary = emptySummary();
+  const dryRun = process.argv.includes("--dry-run");
+  const units = await prisma.organizationUnit.findMany({ orderBy: { code: "asc" } });
+  const pilots = await prisma.pilot.findMany({ orderBy: { employeeNumber: "asc" } });
+  const qualificationTypes = await prisma.qualificationType.findMany();
+
+  if (dryRun) {
+    const [records, requests, plans, existingOrganizations, existingPeople] = await Promise.all([
+      prisma.qualificationRecord.count(),
+      prisma.qualificationUpdateRequest.count(),
+      prisma.upgradePlan.count(),
+      prisma.organization.count(),
+      prisma.person.count(),
+    ]);
+    const unitIds = new Set(units.map((unit) => unit.id));
+    const orphanPilotUnits = pilots.filter((pilot) => !unitIds.has(pilot.unitId));
+    const employeeNumbers = new Map<string, number>();
+    for (const pilot of pilots) {
+      const key = pilot.employeeNumber.trim().toLowerCase();
+      employeeNumbers.set(key, (employeeNumbers.get(key) ?? 0) + 1);
+    }
+    const duplicateEmployeeNumbers = [...employeeNumbers.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([employeeNumber]) => employeeNumber);
+    const checks = {
+      orphanPilotUnits: orphanPilotUnits.map((pilot) => ({ id: pilot.id, unitId: pilot.unitId })),
+      duplicateEmployeeNumbers,
+      canProceed: orphanPilotUnits.length === 0 && duplicateEmployeeNumbers.length === 0,
+    };
+    console.log(
+      JSON.stringify(
+        {
+          dryRun: true,
+          current: {
+            organizationsToCreate: units.length,
+            peopleToCreate: pilots.length,
+            existingOrganizations,
+            existingPeople,
+            qualificationTypesToClonePerOrganization: qualificationTypes.length,
+            qualificationRecords: records,
+            updateRequests: requests,
+            upgradePlans: plans,
+          },
+          template: {
+            code: PILOT_TEMPLATE_PACK.code,
+            version: PILOT_TEMPLATE_PACK.version,
+            qualificationDefinitions: CORE_QUALIFICATION_CATALOG.length,
+          },
+          checks,
+        },
+        null,
+        2,
+      ),
+    );
+    if (!checks.canProceed) throw new Error("迁移 dry-run 检查未通过，已停止写入");
+    return;
+  }
+
+  const pack = await ensureTemplatePack();
+  for (const unit of units) {
+    await prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.upsert({
+        where: { id: unit.id },
+        update: { code: unit.code, name: unit.name, active: unit.active },
+        create: { id: unit.id, code: unit.code, name: unit.name, active: unit.active },
+      });
+      summary.organizations += 1;
+      await tx.organizationUnit.update({
+        where: { id: unit.id },
+        data: { organizationId: organization.id, parentId: null },
+      });
+      await tx.adminUser.updateMany({
+        where: { unitId: unit.id },
+        data: { organizationId: organization.id },
+      });
+
+      const installed = await installPilotPack(tx, organization.id, pack.id, summary);
+      const pilotPosition = installed.position;
+
+      // Clone every legacy type for the organization, including units that do
+      // not currently have a Pilot, so supplemental definitions are not lost.
+      const typeMap = new Map<string, { id: string }>();
+      for (const type of qualificationTypes) {
+        const existing = await tx.qualificationDefinition.findUnique({
+          where: { organizationId_code: { organizationId: organization.id, code: type.code } },
+          select: { id: true },
+        });
+        const definition =
+          existing ??
+          (await tx.qualificationDefinition.create({
+            data: {
+              organizationId: organization.id,
+              code: type.code,
+              name: type.name,
+              category: "aviation",
+              active: type.active,
+              requiresEvidence: true,
+              requiresHumanReview: true,
+              allowAutoApproval: false,
+              fieldSchema: { fields: [] },
+              validityRule: type.validityRule,
+              reminders: type.reminders,
+              ocrChecks: type.ocrChecks,
+              parameterRestriction: type.parameterRestriction,
+              sortOrder: type.core ? 0 : 100,
+              legacyQualificationTypeId: type.id,
+            },
+            select: { id: true },
+          }));
+        if (!existing) summary.definitions += 1;
+        typeMap.set(type.id, definition);
+      }
+
+      for (const pilot of pilots.filter((item) => item.unitId === unit.id)) {
+        const person = await tx.person.upsert({
+          where: { id: pilot.id },
+          update: {
+            organizationId: organization.id,
+            unitId: pilot.unitId,
+            employeeNumber: pilot.employeeNumber,
+            mobile: pilot.mobile,
+            displayName: pilot.displayName,
+            initials: pilot.initials,
+            active: pilot.active,
+            version: pilot.version,
+          },
+          create: {
+            id: pilot.id,
+            organizationId: organization.id,
+            unitId: pilot.unitId,
+            employeeNumber: pilot.employeeNumber,
+            mobile: pilot.mobile,
+            displayName: pilot.displayName,
+            initials: pilot.initials,
+            active: pilot.active,
+            version: pilot.version,
+          },
+        });
+        summary.people += 1;
+        await tx.pilot.update({ where: { id: pilot.id }, data: { personId: person.id } });
+        await tx.pilotProfile.upsert({
+          where: { personId: person.id },
+          update: {
+            legacyPilotId: pilot.id,
+            aircraftType: pilot.aircraftType,
+            dutyLabel: pilot.role,
+            rankLabel: pilot.rankLabel,
+          },
+          create: {
+            id: pilot.id,
+            personId: person.id,
+            legacyPilotId: pilot.id,
+            aircraftType: pilot.aircraftType,
+            dutyLabel: pilot.role,
+            rankLabel: pilot.rankLabel,
+          },
+        });
+        summary.pilotProfiles += 1;
+
+        let positionAssignment = await tx.personPositionAssignment.findFirst({
+          where: { personId: person.id, positionId: pilotPosition.id, status: "ACTIVE" },
+        });
+        if (!positionAssignment) {
+          positionAssignment = await tx.personPositionAssignment.create({
+            data: {
+              personId: person.id,
+              positionId: pilotPosition.id,
+              isPrimary: true,
+              effectiveFrom: pilot.createdAt,
+            },
+          });
+          summary.positionAssignments += 1;
+        }
+        for (const requirement of installed.requirements.values()) {
+          const existingAssignment = await tx.qualificationAssignment.findFirst({
+            where: {
+              personId: person.id,
+              positionAssignmentId: positionAssignment.id,
+              requirementId: requirement.id,
+              active: true,
+            },
+          });
+          if (!existingAssignment) {
+            await tx.qualificationAssignment.create({
+              data: {
+                personId: person.id,
+                qualificationDefinitionId: requirement.qualificationDefinitionId,
+                requirementId: requirement.id,
+                positionAssignmentId: positionAssignment.id,
+                source: "POSITION_REQUIREMENT",
+              },
+            });
+            summary.qualificationAssignments += 1;
+          }
+        }
+
+        const records = await tx.qualificationRecord.findMany({
+          where: { pilotId: pilot.id },
+          select: { id: true, qualificationTypeId: true },
+        });
+        for (const record of records) {
+          const definition = typeMap.get(record.qualificationTypeId);
+          if (!definition) continue;
+          await tx.qualificationRecord.update({
+            where: { id: record.id },
+            data: { personId: person.id, qualificationDefinitionId: definition.id },
+          });
+          summary.recordsLinked += 1;
+          const existingAssignment = await tx.qualificationAssignment.findFirst({
+            where: {
+              personId: person.id,
+              qualificationDefinitionId: definition.id,
+              active: true,
+            },
+          });
+          if (!existingAssignment) {
+            await tx.qualificationAssignment.create({
+              data: {
+                personId: person.id,
+                qualificationDefinitionId: definition.id,
+                source: "LEGACY_RECORD",
+              },
+            });
+            summary.qualificationAssignments += 1;
+          }
+        }
+
+        const requests = await tx.qualificationUpdateRequest.findMany({
+          where: { pilotId: pilot.id },
+          select: { id: true, qualificationTypeId: true },
+        });
+        for (const request of requests) {
+          const definition = typeMap.get(request.qualificationTypeId);
+          if (!definition) continue;
+          await tx.qualificationUpdateRequest.update({
+            where: { id: request.id },
+            data: { personId: person.id, qualificationDefinitionId: definition.id },
+          });
+          summary.requestsLinked += 1;
+        }
+        await tx.evidenceImage.updateMany({
+          where: { pilotId: pilot.id },
+          data: { personId: person.id },
+        });
+        await tx.notificationDelivery.updateMany({
+          where: { pilotId: pilot.id },
+          data: { personId: person.id },
+        });
+        await tx.auditEvent.updateMany({
+          where: { pilotId: pilot.id },
+          data: { personId: person.id },
+        });
+        const plans = await tx.upgradePlan.findMany({
+          where: { pilotId: pilot.id },
+          select: { id: true },
+        });
+        for (const plan of plans) {
+          await tx.upgradePlan.update({
+            where: { id: plan.id },
+            data: {
+              personId: person.id,
+              positionAssignmentId: positionAssignment.id,
+              positionCodeSnapshot: pilotPosition.code,
+              positionNameSnapshot: pilotPosition.name,
+            },
+          });
+          summary.plansLinked += 1;
+        }
+      }
+
+      await tx.organizationTemplateInstallation.upsert({
+        where: {
+          organizationId_templatePackId: {
+            organizationId: organization.id,
+            templatePackId: pack.id,
+          },
+        },
+        update: { status: "SUCCEEDED", result: { migrated: true } },
+        create: {
+          organizationId: organization.id,
+          templatePackId: pack.id,
+          status: "SUCCEEDED",
+          result: { migrated: true },
+        },
+      });
+    });
+  }
+  console.log(JSON.stringify({ dryRun: false, ...summary }, null, 2));
+}
+
+migrate()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
