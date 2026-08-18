@@ -7,7 +7,7 @@ if [[ -e .env ]]; then
   echo ".env already exists; refusing to overwrite it" >&2
   exit 1
 fi
-for command_name in openssl base32; do
+for command_name in openssl; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "$command_name is required" >&2
     exit 1
@@ -27,7 +27,6 @@ echo
 read -r -p "SMS webhook HTTPS URL: " sms_webhook_url
 read -r -s -p "SMS webhook auth token (optional): " sms_webhook_auth_token
 echo
-read -r -p "Initial super-admin email: " initial_admin_email
 
 if [[ -z "$app_domain" || "$app_domain" == *://* || "$app_domain" == */* ]]; then
   echo "Public domain must be a hostname without scheme or path" >&2
@@ -48,7 +47,7 @@ fi
 for value in \
   "$app_domain" "$tls_email" "$s3_endpoint" "$s3_region" "$s3_bucket" \
   "$s3_access_key_id" "$s3_secret_access_key" "$sms_webhook_url" \
-  "$sms_webhook_auth_token" "$initial_admin_email"; do
+  "$sms_webhook_auth_token"; do
   if [[ "$value" == *"'"* || "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
     echo "Values may not contain single quotes or newlines" >&2
     exit 1
@@ -58,8 +57,6 @@ done
 postgres_password=$(openssl rand -hex 32)
 session_secret=$(openssl rand -hex 48)
 settings_encryption_key=$(openssl rand -hex 32)
-initial_admin_password=$(openssl rand -hex 24)
-initial_admin_totp_secret=$(openssl rand 20 | base32 | tr -d '=\n')
 
 umask 077
 {
@@ -84,13 +81,10 @@ umask 077
     "FEISHU_WEBHOOK_AUTH_TOKEN=''" "VLM_ADAPTER=disabled" \
     "QWEN_BASE_URL='http://host.docker.internal:8000/v1'" "QWEN_MODEL='Qwen3.7-35B'" \
     "TRUSTED_PROXY_HOPS=1"
-  printf "INITIAL_ADMIN_EMAIL='%s'\nINITIAL_ADMIN_PASSWORD='%s'\nINITIAL_ADMIN_TOTP_SECRET='%s'\n" \
-    "$initial_admin_email" "$initial_admin_password" "$initial_admin_totp_secret"
+  printf '%s\n' "INITIAL_ADMIN_EMAIL=''" "INITIAL_ADMIN_PASSWORD=''" \
+    "INITIAL_ADMIN_TOTP_SECRET=''"
 } >.env
 
 echo
-echo "Created .env with mode 0600. Save these one-time login values in a password manager:"
-echo "  admin email: $initial_admin_email"
-echo "  admin password: $initial_admin_password"
-echo "  TOTP secret: $initial_admin_totp_secret"
-echo "After the first successful login, remove INITIAL_ADMIN_PASSWORD and INITIAL_ADMIN_TOTP_SECRET from .env."
+echo "Created .env with mode 0600."
+echo "After the services become healthy, open https://$app_domain/setup to create the first super administrator."

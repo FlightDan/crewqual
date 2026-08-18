@@ -22,13 +22,11 @@ import { getRuntimeSecurityPolicy } from "@/server/runtime-settings";
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
-  totpCode: z
-    .string()
-    .regex(/^\d{6}$/)
-    .optional()
-    .default(""),
+  password: z.string().optional().default(""),
+  totpCode: z.string().optional().default(""),
 });
+
+const dummyTotpSecret = "JBSWY3DPEHPK3PXP";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -48,15 +46,37 @@ export async function POST(request: NextRequest) {
     const user = await db.adminUser.findUnique({ where: { email: input.email.toLowerCase() } });
     const unavailable =
       !user || !user.active || (user.lockedUntil && user.lockedUntil > new Date());
-    const passwordOk = await verifyPassword(
-      user?.passwordHash ?? (await dummyPasswordHash()),
-      input.password,
-    );
-    const totpOk = user
-      ? !policy.requireTotp ||
-        verifyTotp(resolveTotpSecret(user.totpSecretCiphertext), input.totpCode)
-      : false;
-    if (unavailable || !passwordOk || !totpOk) {
+    const needsPassword = policy.adminLoginMode !== "TOTP_ONLY";
+    const needsTotp = policy.adminLoginMode !== "PASSWORD_ONLY";
+    const passwordOk = needsPassword
+      ? await verifyPassword(user?.passwordHash ?? (await dummyPasswordHash()), input.password)
+      : true;
+    const totpCounter = needsTotp
+      ? verifyTotp(
+          user ? resolveTotpSecret(user.totpSecretCiphertext) : dummyTotpSecret,
+          input.totpCode,
+        )
+      : null;
+    let credentialsOk =
+      (!needsPassword || passwordOk) && (!needsTotp || (user !== null && totpCounter !== null));
+
+    if (!unavailable && credentialsOk && needsTotp && user && totpCounter !== null) {
+      const claimed = await db.adminUser.updateMany({
+        where: {
+          id: user.id,
+          OR: [{ lastTotpCounter: null }, { lastTotpCounter: { lt: BigInt(totpCounter) } }],
+        },
+        data: {
+          failedAttempts: 0,
+          lockedUntil: null,
+          totpVerifiedAt: user.totpVerifiedAt ?? new Date(),
+          lastTotpCounter: BigInt(totpCounter),
+        },
+      });
+      credentialsOk = claimed.count === 1;
+    }
+
+    if (unavailable || !credentialsOk) {
       if (user) {
         const willLock = user.failedAttempts >= policy.maxFailedAttempts - 1;
         await db.adminUser.update({
@@ -85,10 +105,12 @@ export async function POST(request: NextRequest) {
         requestId,
       );
     }
-    await db.adminUser.update({
-      where: { id: user.id },
-      data: { failedAttempts: 0, lockedUntil: null },
-    });
+    if (!needsTotp) {
+      await db.adminUser.update({
+        where: { id: user.id },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
+    }
     const session = await createAdminSession(user.id);
     await db.auditEvent.create({
       data: {

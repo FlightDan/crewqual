@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    tags: ["v0.1.0-rc.*", "v0.1.0"]
+    tags: ["v0.2.0-rc.*", "v0.2.0"]
   pull_request:
 
 permissions:

@@ -25,6 +25,7 @@ describe("deployment configuration", () => {
     expect(compose).toContain("target: worker-runner");
     expect(compose).toContain("target: bootstrap");
     expect(dockerfile).toContain('CMD ["pnpm", "db:bootstrap"]');
+    expect(dockerfile).toContain("grep -E ' 16\\.'");
     expect(compose).toContain("scripts/worker-health.mjs");
     expect(compose).toContain(
       "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}",

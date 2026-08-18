@@ -95,6 +95,8 @@ export type SettingsPosition = {
 
 export type SettingsAdminRole = "SUPER_ADMIN" | "ADMIN" | "REVIEWER" | "VIEWER";
 
+export type AdminLoginMode = "PASSWORD_TOTP" | "TOTP_ONLY" | "PASSWORD_ONLY";
+
 export type SettingsAdminAccount = {
   id: string;
   displayName: string;
@@ -103,7 +105,7 @@ export type SettingsAdminAccount = {
   unitName: string;
   role: SettingsAdminRole;
   active: boolean;
-  totpEnabled: boolean;
+  totpStatus: "PENDING_VERIFICATION" | "VERIFIED";
   lastLoginAt: string | null;
   activeSessionCount: number;
 };
@@ -147,7 +149,7 @@ export type AiIntegrationSetting = {
 };
 
 export type SecurityPolicy = {
-  requireTotp: boolean;
+  adminLoginMode: AdminLoginMode;
   adminSessionTtlHours: number;
   pilotAccessLinkTtlMinutes: number;
   pilotSessionTtlMinutes: number;

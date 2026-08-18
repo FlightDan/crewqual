@@ -3978,6 +3978,8 @@ export const AdminUserScalarFieldEnum = {
   displayName: 'displayName',
   passwordHash: 'passwordHash',
   totpSecretCiphertext: 'totpSecretCiphertext',
+  totpVerifiedAt: 'totpVerifiedAt',
+  lastTotpCounter: 'lastTotpCounter',
   active: 'active',
   failedAttempts: 'failedAttempts',
   lockedUntil: 'lockedUntil',
@@ -4563,7 +4565,7 @@ export type SystemIntegrationSettingScalarFieldEnum = (typeof SystemIntegrationS
 
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
-  requireTotp: 'requireTotp',
+  adminLoginMode: 'adminLoginMode',
   adminSessionTtlHours: 'adminSessionTtlHours',
   pilotAccessLinkTtlMinutes: 'pilotAccessLinkTtlMinutes',
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',
@@ -4733,6 +4735,20 @@ export type ListEnumAdminRoleCodeFieldRefInput<$PrismaModel> = FieldRefInputType
 
 
 /**
+ * Reference to a field of type 'BigInt'
+ */
+export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
+
+
+
+/**
+ * Reference to a field of type 'BigInt[]'
+ */
+export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
+
+
+
+/**
  * Reference to a field of type 'QualificationAssignmentSource'
  */
 export type EnumQualificationAssignmentSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QualificationAssignmentSource'>
@@ -4855,20 +4871,6 @@ export type EnumBackupRunStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$
  * Reference to a field of type 'BackupRunStatus[]'
  */
 export type ListEnumBackupRunStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BackupRunStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'BigInt'
- */
-export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
-    
-
-
-/**
- * Reference to a field of type 'BigInt[]'
- */
-export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
     
 
 
@@ -5038,6 +5040,20 @@ export type EnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRefInp
  */
 export type ListEnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadReservationStatus[]'>
     
+
+
+/**
+ * Reference to a field of type 'AdminLoginMode'
+ */
+export type EnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode'>
+
+
+
+/**
+ * Reference to a field of type 'AdminLoginMode[]'
+ */
+export type ListEnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode[]'>
+
 
 
 /**
@@ -5311,4 +5327,3 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
-

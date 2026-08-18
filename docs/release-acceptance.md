@@ -6,7 +6,7 @@ prefixes supplied by the operator.
 
 ```bash
 corepack pnpm release:manifest .artifacts/migration-checksums.json
-corepack pnpm release:verify -- --tag v0.1.0-rc.1 --profile rc
+corepack pnpm release:verify -- --tag v0.2.0-rc.1 --profile rc
 ```
 
 Build each immutable runtime image with the same source revision before
@@ -14,6 +14,17 @@ running the verifier, for example by passing
 `--build-arg VCS_REF=$(git rev-parse HEAD)` and
 `--build-arg VERSION=$(git describe --tags --exact-match)` to the Web, Worker
 and Ops targets. The verifier checks those OCI labels against the signed tag.
+
+The workflow installs the pinned Linux/amd64 supply-chain tools from their
+official release assets. On an acceptance machine, install the same versions
+before running the local supply-chain gate:
+
+```bash
+sudo ./scripts/release/install-tools.sh
+```
+
+The installer verifies Syft 1.50.0, Trivy 0.72.0, Gitleaks 8.27.2 and Cosign
+3.1.3 checksums before placing the binaries in `/usr/local/bin`.
 
 For a final release, provide signed tag fingerprints, immutable Web/Worker/Ops
 image references, AWS acceptance credentials, two successful backup run IDs,
@@ -26,6 +37,12 @@ SMS, Feishu and VLM are deliberately not contacted by this verifier. The
 acceptance environment must set `SMS_ADAPTER=disabled`,
 `FEISHU_ADAPTER=disabled`, and `VLM_ADAPTER=disabled`; the core health/login
 smoke verifies that the application remains usable with those integrations off.
+
+The bootstrap gate creates a fresh database with one super administrator, one
+organization/root unit, and only the `PILOT` position from the
+`aviation-china-airline-pilot` template. It fails if any person, pilot,
+qualification record, upgrade plan, notification, upload, or backup row exists.
+The acceptance Compose ports bind to `127.0.0.1` only.
 
 Reports and temporary acceptance metadata are written below
 `.artifacts/release/<runId>/`, which is ignored by Git. Never point

@@ -19,6 +19,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
+import { PILOT_TEMPLATE_PACK } from "../../src/server/template-packs";
 import {
   artifactDir,
   command,
@@ -169,18 +170,126 @@ async function preflight(evidence: ReleaseEvidence) {
 async function dbSnapshot(databaseUrl: string) {
   const db = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
   try {
-    const [admin, permissionCount, rolePermissionCount, migrationCount] = await Promise.all([
+    const [
+      admin,
+      adminCount,
+      permissionCount,
+      rolePermissionCount,
+      migrationCount,
+      organizationCount,
+      unitCount,
+      positions,
+      qualificationDefinitionCount,
+      qualificationRequirementCount,
+      templatePackCount,
+      templateInstallationCount,
+      people,
+      pilots,
+      pilotProfiles,
+      positionAssignments,
+      qualificationAssignments,
+      qualificationTypes,
+      qualificationRecords,
+      updateRequests,
+      evidenceImages,
+      recognitionTasks,
+      upgradePlans,
+      upgradeStages,
+      notificationDeliveries,
+      notificationAttempts,
+      uploadReservations,
+      backupTargets,
+      backupPlans,
+      backupRuns,
+      inspectionItems,
+      auditEvents,
+    ] = await Promise.all([
       db.adminUser.findFirst({
         orderBy: { createdAt: "asc" },
         select: { id: true, email: true, passwordHash: true, version: true },
       }),
+      db.adminUser.count(),
       db.permission.count(),
       db.rolePermission.count(),
       db.$queryRaw<
         Array<{ count: bigint }>
       >`SELECT count(*)::bigint AS count FROM "_prisma_migrations"`,
+      db.organization.count(),
+      db.organizationUnit.count(),
+      db.position.findMany({ select: { code: true }, orderBy: { code: "asc" } }),
+      db.qualificationDefinition.count(),
+      db.qualificationRequirement.count(),
+      db.templatePack.count(),
+      db.organizationTemplateInstallation.count(),
+      db.person.count(),
+      db.pilot.count(),
+      db.pilotProfile.count(),
+      db.personPositionAssignment.count(),
+      db.qualificationAssignment.count(),
+      db.qualificationType.count(),
+      db.qualificationRecord.count(),
+      db.qualificationUpdateRequest.count(),
+      db.evidenceImage.count(),
+      db.recognitionTask.count(),
+      db.upgradePlan.count(),
+      db.upgradeStage.count(),
+      db.notificationDelivery.count(),
+      db.notificationAttempt.count(),
+      db.uploadReservation.count(),
+      db.backupTarget.count(),
+      db.backupPlan.count(),
+      db.backupRun.count(),
+      db.inspectionItem.count(),
+      db.auditEvent.count(),
     ]);
     if (!admin) throw new Error("bootstrap 未创建管理员");
+    const emptyBusinessCounts = {
+      people,
+      pilots,
+      pilotProfiles,
+      positionAssignments,
+      qualificationAssignments,
+      qualificationTypes,
+      qualificationRecords,
+      updateRequests,
+      evidenceImages,
+      recognitionTasks,
+      upgradePlans,
+      upgradeStages,
+      notificationDeliveries,
+      notificationAttempts,
+      uploadReservations,
+      backupTargets,
+      backupPlans,
+      backupRuns,
+    };
+    if (
+      adminCount !== 1 ||
+      organizationCount !== 1 ||
+      unitCount !== 1 ||
+      positions.map(({ code }) => code).join(",") !== "PILOT" ||
+      qualificationDefinitionCount !== PILOT_TEMPLATE_PACK.qualificationDefinitions.length ||
+      qualificationRequirementCount !== PILOT_TEMPLATE_PACK.requirements.length ||
+      templatePackCount !== 1 ||
+      templateInstallationCount !== 1 ||
+      inspectionItems !== 3 ||
+      Object.values(emptyBusinessCounts).some((value) => value !== 0)
+    ) {
+      throw new Error(
+        `空库基线不符合要求：${JSON.stringify({
+          adminCount,
+          organizationCount,
+          unitCount,
+          positions,
+          qualificationDefinitionCount,
+          qualificationRequirementCount,
+          templatePackCount,
+          templateInstallationCount,
+          inspectionItems,
+          emptyBusinessCounts,
+        })}`,
+      );
+    }
     return {
       admin: {
         ...admin,
@@ -189,6 +298,19 @@ async function dbSnapshot(databaseUrl: string) {
       permissionCount,
       rolePermissionCount,
       migrationCount: Number(migrationCount[0]?.count ?? 0),
+      baseline: {
+        adminCount,
+        organizationCount,
+        unitCount,
+        positions,
+        qualificationDefinitionCount,
+        qualificationRequirementCount,
+        templatePackCount,
+        templateInstallationCount,
+        inspectionItems,
+        auditEvents,
+        emptyBusinessCounts,
+      },
     };
   } finally {
     await db.$disconnect();
@@ -228,7 +350,12 @@ async function bootstrap(evidence: ReleaseEvidence) {
     "VLM_ADAPTER=disabled",
     `INITIAL_ADMIN_EMAIL=acceptance-${id}@example.invalid`,
     `INITIAL_ADMIN_PASSWORD=${initialPassword}`,
-    `INITIAL_ADMIN_TOTP_SECRET=${"A".repeat(16)}`,
+    `INITIAL_ADMIN_TOTP_SECRET=${"A".repeat(32)}`,
+    "INITIAL_ORGANIZATION_CODE=CREWQUAL",
+    "INITIAL_ORGANIZATION_NAME=CrewQual",
+    "INITIAL_UNIT_CODE=ROOT",
+    "INITIAL_UNIT_NAME=运行单位",
+    "INITIAL_TEMPLATE_PACK_CODE=aviation-china-airline-pilot",
   ];
   await writeFile(envPath, `${lines.join("\n")}\n`, { mode: 0o600 });
   const compose = (args: string[]) => command("docker", composeArgs(project, envPath, args));
@@ -798,7 +925,7 @@ async function main() {
   }
   const tag = args.tag ?? process.env.RELEASE_TAG ?? "";
   const profile = (args.profile ?? process.env.RELEASE_PROFILE ?? "rc") as "rc" | "final";
-  if (!/^v0\.1\.0(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
+  if (!/^v0\.2\.0(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
   const id = runId();
   const evidence: ReleaseEvidence = {

@@ -46,7 +46,7 @@ export type SecurityPolicySumAggregateOutputType = {
 
 export type SecurityPolicyMinAggregateOutputType = {
   id: string | null
-  requireTotp: boolean | null
+  adminLoginMode: $Enums.AdminLoginMode | null
   adminSessionTtlHours: number | null
   pilotAccessLinkTtlMinutes: number | null
   pilotSessionTtlMinutes: number | null
@@ -59,7 +59,7 @@ export type SecurityPolicyMinAggregateOutputType = {
 
 export type SecurityPolicyMaxAggregateOutputType = {
   id: string | null
-  requireTotp: boolean | null
+  adminLoginMode: $Enums.AdminLoginMode | null
   adminSessionTtlHours: number | null
   pilotAccessLinkTtlMinutes: number | null
   pilotSessionTtlMinutes: number | null
@@ -72,7 +72,7 @@ export type SecurityPolicyMaxAggregateOutputType = {
 
 export type SecurityPolicyCountAggregateOutputType = {
   id: number
-  requireTotp: number
+  adminLoginMode: number
   adminSessionTtlHours: number
   pilotAccessLinkTtlMinutes: number
   pilotSessionTtlMinutes: number
@@ -105,7 +105,7 @@ export type SecurityPolicySumAggregateInputType = {
 
 export type SecurityPolicyMinAggregateInputType = {
   id?: true
-  requireTotp?: true
+  adminLoginMode?: true
   adminSessionTtlHours?: true
   pilotAccessLinkTtlMinutes?: true
   pilotSessionTtlMinutes?: true
@@ -118,7 +118,7 @@ export type SecurityPolicyMinAggregateInputType = {
 
 export type SecurityPolicyMaxAggregateInputType = {
   id?: true
-  requireTotp?: true
+  adminLoginMode?: true
   adminSessionTtlHours?: true
   pilotAccessLinkTtlMinutes?: true
   pilotSessionTtlMinutes?: true
@@ -131,7 +131,7 @@ export type SecurityPolicyMaxAggregateInputType = {
 
 export type SecurityPolicyCountAggregateInputType = {
   id?: true
-  requireTotp?: true
+  adminLoginMode?: true
   adminSessionTtlHours?: true
   pilotAccessLinkTtlMinutes?: true
   pilotSessionTtlMinutes?: true
@@ -231,7 +231,7 @@ export type SecurityPolicyGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 
 export type SecurityPolicyGroupByOutputType = {
   id: string
-  requireTotp: boolean
+  adminLoginMode: $Enums.AdminLoginMode
   adminSessionTtlHours: number
   pilotAccessLinkTtlMinutes: number
   pilotSessionTtlMinutes: number
@@ -267,7 +267,7 @@ export type SecurityPolicyWhereInput = {
   OR?: Prisma.SecurityPolicyWhereInput[]
   NOT?: Prisma.SecurityPolicyWhereInput | Prisma.SecurityPolicyWhereInput[]
   id?: Prisma.StringFilter<"SecurityPolicy"> | string
-  requireTotp?: Prisma.BoolFilter<"SecurityPolicy"> | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFilter<"SecurityPolicy"> | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFilter<"SecurityPolicy"> | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
   pilotSessionTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
@@ -280,7 +280,7 @@ export type SecurityPolicyWhereInput = {
 
 export type SecurityPolicyOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  requireTotp?: Prisma.SortOrder
+  adminLoginMode?: Prisma.SortOrder
   adminSessionTtlHours?: Prisma.SortOrder
   pilotAccessLinkTtlMinutes?: Prisma.SortOrder
   pilotSessionTtlMinutes?: Prisma.SortOrder
@@ -296,7 +296,7 @@ export type SecurityPolicyWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.SecurityPolicyWhereInput | Prisma.SecurityPolicyWhereInput[]
   OR?: Prisma.SecurityPolicyWhereInput[]
   NOT?: Prisma.SecurityPolicyWhereInput | Prisma.SecurityPolicyWhereInput[]
-  requireTotp?: Prisma.BoolFilter<"SecurityPolicy"> | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFilter<"SecurityPolicy"> | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFilter<"SecurityPolicy"> | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
   pilotSessionTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
@@ -309,7 +309,7 @@ export type SecurityPolicyWhereUniqueInput = Prisma.AtLeast<{
 
 export type SecurityPolicyOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  requireTotp?: Prisma.SortOrder
+  adminLoginMode?: Prisma.SortOrder
   adminSessionTtlHours?: Prisma.SortOrder
   pilotAccessLinkTtlMinutes?: Prisma.SortOrder
   pilotSessionTtlMinutes?: Prisma.SortOrder
@@ -330,7 +330,7 @@ export type SecurityPolicyScalarWhereWithAggregatesInput = {
   OR?: Prisma.SecurityPolicyScalarWhereWithAggregatesInput[]
   NOT?: Prisma.SecurityPolicyScalarWhereWithAggregatesInput | Prisma.SecurityPolicyScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"SecurityPolicy"> | string
-  requireTotp?: Prisma.BoolWithAggregatesFilter<"SecurityPolicy"> | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeWithAggregatesFilter<"SecurityPolicy"> | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
   pilotAccessLinkTtlMinutes?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
   pilotSessionTtlMinutes?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
@@ -343,7 +343,7 @@ export type SecurityPolicyScalarWhereWithAggregatesInput = {
 
 export type SecurityPolicyCreateInput = {
   id?: string
-  requireTotp?: boolean
+  adminLoginMode?: $Enums.AdminLoginMode
   adminSessionTtlHours?: number
   pilotAccessLinkTtlMinutes?: number
   pilotSessionTtlMinutes?: number
@@ -356,7 +356,7 @@ export type SecurityPolicyCreateInput = {
 
 export type SecurityPolicyUncheckedCreateInput = {
   id?: string
-  requireTotp?: boolean
+  adminLoginMode?: $Enums.AdminLoginMode
   adminSessionTtlHours?: number
   pilotAccessLinkTtlMinutes?: number
   pilotSessionTtlMinutes?: number
@@ -369,7 +369,7 @@ export type SecurityPolicyUncheckedCreateInput = {
 
 export type SecurityPolicyUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  requireTotp?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFieldUpdateOperationsInput | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFieldUpdateOperationsInput | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
@@ -382,7 +382,7 @@ export type SecurityPolicyUpdateInput = {
 
 export type SecurityPolicyUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  requireTotp?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFieldUpdateOperationsInput | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFieldUpdateOperationsInput | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
@@ -395,7 +395,7 @@ export type SecurityPolicyUncheckedUpdateInput = {
 
 export type SecurityPolicyCreateManyInput = {
   id?: string
-  requireTotp?: boolean
+  adminLoginMode?: $Enums.AdminLoginMode
   adminSessionTtlHours?: number
   pilotAccessLinkTtlMinutes?: number
   pilotSessionTtlMinutes?: number
@@ -408,7 +408,7 @@ export type SecurityPolicyCreateManyInput = {
 
 export type SecurityPolicyUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  requireTotp?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFieldUpdateOperationsInput | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFieldUpdateOperationsInput | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
@@ -421,7 +421,7 @@ export type SecurityPolicyUpdateManyMutationInput = {
 
 export type SecurityPolicyUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  requireTotp?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  adminLoginMode?: Prisma.EnumAdminLoginModeFieldUpdateOperationsInput | $Enums.AdminLoginMode
   adminSessionTtlHours?: Prisma.IntFieldUpdateOperationsInput | number
   pilotAccessLinkTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
@@ -434,7 +434,7 @@ export type SecurityPolicyUncheckedUpdateManyInput = {
 
 export type SecurityPolicyCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  requireTotp?: Prisma.SortOrder
+  adminLoginMode?: Prisma.SortOrder
   adminSessionTtlHours?: Prisma.SortOrder
   pilotAccessLinkTtlMinutes?: Prisma.SortOrder
   pilotSessionTtlMinutes?: Prisma.SortOrder
@@ -456,7 +456,7 @@ export type SecurityPolicyAvgOrderByAggregateInput = {
 
 export type SecurityPolicyMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  requireTotp?: Prisma.SortOrder
+  adminLoginMode?: Prisma.SortOrder
   adminSessionTtlHours?: Prisma.SortOrder
   pilotAccessLinkTtlMinutes?: Prisma.SortOrder
   pilotSessionTtlMinutes?: Prisma.SortOrder
@@ -469,7 +469,7 @@ export type SecurityPolicyMaxOrderByAggregateInput = {
 
 export type SecurityPolicyMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  requireTotp?: Prisma.SortOrder
+  adminLoginMode?: Prisma.SortOrder
   adminSessionTtlHours?: Prisma.SortOrder
   pilotAccessLinkTtlMinutes?: Prisma.SortOrder
   pilotSessionTtlMinutes?: Prisma.SortOrder
@@ -489,11 +489,15 @@ export type SecurityPolicySumOrderByAggregateInput = {
   version?: Prisma.SortOrder
 }
 
+export type EnumAdminLoginModeFieldUpdateOperationsInput = {
+  set?: $Enums.AdminLoginMode
+}
+
 
 
 export type SecurityPolicySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  requireTotp?: boolean
+  adminLoginMode?: boolean
   adminSessionTtlHours?: boolean
   pilotAccessLinkTtlMinutes?: boolean
   pilotSessionTtlMinutes?: boolean
@@ -506,7 +510,7 @@ export type SecurityPolicySelect<ExtArgs extends runtime.Types.Extensions.Intern
 
 export type SecurityPolicySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  requireTotp?: boolean
+  adminLoginMode?: boolean
   adminSessionTtlHours?: boolean
   pilotAccessLinkTtlMinutes?: boolean
   pilotSessionTtlMinutes?: boolean
@@ -519,7 +523,7 @@ export type SecurityPolicySelectCreateManyAndReturn<ExtArgs extends runtime.Type
 
 export type SecurityPolicySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  requireTotp?: boolean
+  adminLoginMode?: boolean
   adminSessionTtlHours?: boolean
   pilotAccessLinkTtlMinutes?: boolean
   pilotSessionTtlMinutes?: boolean
@@ -532,7 +536,7 @@ export type SecurityPolicySelectUpdateManyAndReturn<ExtArgs extends runtime.Type
 
 export type SecurityPolicySelectScalar = {
   id?: boolean
-  requireTotp?: boolean
+  adminLoginMode?: boolean
   adminSessionTtlHours?: boolean
   pilotAccessLinkTtlMinutes?: boolean
   pilotSessionTtlMinutes?: boolean
@@ -543,14 +547,14 @@ export type SecurityPolicySelectScalar = {
   updatedAt?: boolean
 }
 
-export type SecurityPolicyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "requireTotp" | "adminSessionTtlHours" | "pilotAccessLinkTtlMinutes" | "pilotSessionTtlMinutes" | "maxFailedAttempts" | "lockoutMinutes" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["securityPolicy"]>
+export type SecurityPolicyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "adminLoginMode" | "adminSessionTtlHours" | "pilotAccessLinkTtlMinutes" | "pilotSessionTtlMinutes" | "maxFailedAttempts" | "lockoutMinutes" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["securityPolicy"]>
 
 export type $SecurityPolicyPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SecurityPolicy"
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    requireTotp: boolean
+    adminLoginMode: $Enums.AdminLoginMode
     adminSessionTtlHours: number
     pilotAccessLinkTtlMinutes: number
     pilotSessionTtlMinutes: number
@@ -983,7 +987,7 @@ export interface Prisma__SecurityPolicyClient<T, Null = never, ExtArgs extends r
  */
 export interface SecurityPolicyFieldRefs {
   readonly id: Prisma.FieldRef<"SecurityPolicy", 'String'>
-  readonly requireTotp: Prisma.FieldRef<"SecurityPolicy", 'Boolean'>
+  readonly adminLoginMode: Prisma.FieldRef<"SecurityPolicy", 'AdminLoginMode'>
   readonly adminSessionTtlHours: Prisma.FieldRef<"SecurityPolicy", 'Int'>
   readonly pilotAccessLinkTtlMinutes: Prisma.FieldRef<"SecurityPolicy", 'Int'>
   readonly pilotSessionTtlMinutes: Prisma.FieldRef<"SecurityPolicy", 'Int'>

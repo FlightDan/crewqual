@@ -15,6 +15,12 @@ enum AdminRoleCode {
   VIEWER
 }
 
+enum AdminLoginMode {
+  PASSWORD_TOTP
+  TOTP_ONLY
+  PASSWORD_ONLY
+}
+
 enum QualificationRecordStatus {
   ACTIVE
   REPLACED
@@ -348,6 +354,8 @@ model AdminUser {
   displayName            String
   passwordHash           String
   totpSecretCiphertext   String                 @db.Text
+  totpVerifiedAt         DateTime?              @db.Timestamptz(3)
+  lastTotpCounter        BigInt?
   active                 Boolean                @default(true)
   failedAttempts         Int                    @default(0)
   lockedUntil            DateTime?              @db.Timestamptz(3)
@@ -995,7 +1003,7 @@ model SystemIntegrationSetting {
 
 model SecurityPolicy {
   id                        String   @id @default("global")
-  requireTotp               Boolean  @default(true)
+  adminLoginMode            AdminLoginMode @default(PASSWORD_TOTP)
   adminSessionTtlHours      Int      @default(8)
   pilotAccessLinkTtlMinutes Int      @default(15)
   pilotSessionTtlMinutes    Int      @default(60)

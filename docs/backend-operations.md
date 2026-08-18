@@ -10,6 +10,8 @@
 
 生产只使用 Caddy 暴露的 80/443。PostgreSQL、Worker、MinIO 管理端口不发布到宿主机。生产环境必须使用外部 S3 兼容存储，配置真实 SMS adapter 后才能开放 Pilot 访问入口。
 
+管理员登录策略在“系统设置 → 安全与审计”中统一管理，支持“密码 + TOTP”（默认）、“仅动态验证码”和“仅密码”三种模式。切换模式会立即撤销全部管理员会话；“仅动态验证码”属于单因素登录，启用前应确认恢复密钥和运维通道可用。
+
 `run_webui.sh` 默认监听 `0.0.0.0:3000`，即所有网卡；需要仅本机访问时可使用 `./run_webui.sh run --host 127.0.0.1`。Mock 模式虽然不会暴露真实业务 API，但管理界面仍会对网络可达，因此不要把开发实例直接暴露到不受信任的公网；公网入口必须使用生产 Compose 栈和 HTTPS 反向代理。发布前确认 `APP_ORIGIN` 是无路径的 HTTPS origin、数据库和对象存储没有示例口令，并分别生成 `SESSION_SECRET` 与 `SETTINGS_ENCRYPTION_KEY`。
 
 ## 发布
@@ -21,13 +23,21 @@ docker compose up -d
 docker compose ps -a
 ```
 
-Compose 会按 `postgres → migrate → bootstrap → web/worker → caddy` 自动执行；不要对精简的 Web 运行镜像手工调用 Prisma。首次部署由 `bootstrap` 创建系统角色和首位超级管理员，但不会写入开发 seed 的演示业务数据。
+Compose 会按 `postgres → migrate → bootstrap → web/worker → caddy` 自动执行；不要对精简的 Web 运行镜像手工调用 Prisma。`bootstrap` 创建系统角色和权限；无人值守安装时同时提供全部三个 `INITIAL_ADMIN_*` 变量，会创建首个管理员、组织/根单位和仅含飞行员职位的标准模板，业务人员保持为零。交互式部署将三个变量留空后，首次访问 `/setup` 可完成同一流程。
 
 轮换现有超级管理员密码（保留 TOTP、撤销全部旧会话并写入审计记录）：
 
 ```sh
 pnpm admin:rotate-password admin@example.com
 ```
+
+如果超级管理员丢失验证器或需要重新配置动态验证码，可在服务器的 `ops` 一次性容器中执行：
+
+```sh
+docker compose --profile ops run --rm ops pnpm admin:rotate-totp admin@example.com
+```
+
+命令只允许启用中的超级管理员，自动生成新的 Base32 密钥和 `otpauth` URI，清除账号锁定并撤销该账号全部旧会话；完整密钥只在命令输出中显示一次。它是 TypeScript 运维命令，不需要进入 Web 容器，也不是独立的 `.sh` 恢复脚本。
 
 命令使用系统 CSPRNG 生成 256-bit 随机密码，并只在成功后显示一次；立即存入密码管理器，不要写回 `.env` 或提交到仓库。
 

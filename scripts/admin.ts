@@ -1,16 +1,21 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import argon2 from "argon2";
-import { encryptSettingSecret } from "../src/server/crypto";
+import { createTotpSecret, encryptSettingSecret } from "../src/server/crypto";
 import { randomBytes, randomUUID } from "node:crypto";
 import { stdin } from "node:process";
 
 async function main() {
   const [command, email] = process.argv.slice(2);
-  if (!command || !email || !["create", "reset", "rotate-password"].includes(command)) {
+  if (
+    !command ||
+    !email ||
+    !["create", "reset", "rotate-password", "rotate-totp"].includes(command)
+  ) {
     console.error("Usage: pnpm admin:create <email> < secret-input");
     console.error("   or: pnpm admin:reset <email> < secret-input");
     console.error("   or: pnpm admin:rotate-password <super-admin-email>");
+    console.error("   or: pnpm admin:rotate-totp <super-admin-email>");
     console.error(
       "secret-input is two lines: password, then base32 TOTP secret; secrets are never argv.",
     );
@@ -18,11 +23,14 @@ async function main() {
   }
   const normalizedEmail = email.toLowerCase();
   const rotatingPasswordOnly = command === "rotate-password";
+  const rotatingTotpOnly = command === "rotate-totp";
   let password = "";
   let totpSecret = "";
   if (rotatingPasswordOnly) {
     // 256 bits of CSPRNG output; base64url keeps it shell/password-manager friendly.
     password = randomBytes(32).toString("base64url");
+  } else if (rotatingTotpOnly) {
+    totpSecret = createTotpSecret();
   } else {
     let secretInput = "";
     for await (const chunk of stdin) secretInput += chunk;
@@ -50,13 +58,13 @@ async function main() {
     );
   }
   const prisma = new PrismaClient({ adapter: new PrismaPg(connection) });
-  const passwordHash = await argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 19_456,
-    timeCost: 2,
-    parallelism: 1,
-  });
   if (rotatingPasswordOnly) {
+    const passwordHash = await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: 19_456,
+      timeCost: 2,
+      parallelism: 1,
+    });
     const user = await prisma.adminUser.findUnique({
       where: { email: normalizedEmail },
       include: { roles: { include: { role: true } } },
@@ -86,6 +94,53 @@ async function main() {
     await prisma.$disconnect();
     process.exit(0);
   }
+  if (rotatingTotpOnly) {
+    const user = await prisma.adminUser.findUnique({
+      where: { email: normalizedEmail },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user?.active || !user.roles.some((entry) => entry.role.code === "SUPER_ADMIN")) {
+      throw new Error(`Active super administrator not found: ${normalizedEmail}`);
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.adminUser.update({
+        where: { id: user.id },
+        data: {
+          totpSecretCiphertext: encryptSettingSecret(totpSecret),
+          totpVerifiedAt: null,
+          lastTotpCounter: null,
+          failedAttempts: 0,
+          lockedUntil: null,
+          version: { increment: 1 },
+        },
+      });
+      await tx.adminSession.deleteMany({ where: { userId: user.id } });
+      await tx.auditEvent.create({
+        data: {
+          actorType: "system",
+          action: "admin.totp_rotated_cli",
+          entityType: "AdminUser",
+          entityId: user.id,
+          detail: { sessionsRevoked: true },
+          requestId: randomUUID(),
+        },
+      });
+    });
+    const label = encodeURIComponent(`CrewQual:${user.email}`);
+    console.log(`rotated TOTP for ${user.email}; all existing sessions revoked`);
+    console.log(`new TOTP secret: ${totpSecret}`);
+    console.log(
+      `otpauth URI: otpauth://totp/${label}?secret=${encodeURIComponent(totpSecret)}&issuer=CrewQual`,
+    );
+    await prisma.$disconnect();
+    process.exit(0);
+  }
+  const passwordHash = await argon2.hash(password, {
+    type: argon2.argon2id,
+    memoryCost: 19_456,
+    timeCost: 2,
+    parallelism: 1,
+  });
   const user =
     command === "create"
       ? await prisma.adminUser.create({
@@ -102,6 +157,8 @@ async function main() {
           data: {
             passwordHash,
             totpSecretCiphertext: encryptSettingSecret(totpSecret),
+            totpVerifiedAt: null,
+            lastTotpCounter: null,
             active: true,
             failedAttempts: 0,
             lockedUntil: null,

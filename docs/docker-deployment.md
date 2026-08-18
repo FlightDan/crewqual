@@ -28,7 +28,7 @@ chmod +x scripts/init-docker-env.sh
 ./scripts/init-docker-env.sh
 ```
 
-脚本不会覆盖已有 `.env`，会生成 URL-safe 的数据库口令、会话密钥、设置加密密钥、初始管理员密码和 TOTP secret，并以 `0600` 权限保存配置。它默认关闭 VLM；确认 Qwen 服务可达后再设置 `VLM_ADAPTER=qwen`。
+脚本不会覆盖已有 `.env`，会生成 URL-safe 的数据库口令、会话密钥和设置加密密钥，并以 `0600` 权限保存配置。首位超级管理员在 Web 安装向导中创建；脚本默认关闭 VLM，确认 Qwen 服务可达后再设置 `VLM_ADAPTER=qwen`。
 
 如需手工配置，复制 `.env.example` 为 `.env`。必须满足：
 
@@ -37,7 +37,7 @@ chmod +x scripts/init-docker-env.sh
 - `SESSION_SECRET` 至少 48 字符，`SETTINGS_ENCRYPTION_KEY` 至少 32 字符且二者不同；
 - S3 endpoint 使用 HTTPS，桶为私有桶；
 - `SMS_ADAPTER=webhook` 且 webhook 为真实可达的 HTTPS 地址；
-- 初始管理员密码至少 12 字符，TOTP secret 为至少 16 位 Base32。
+- 默认将三个 `INITIAL_ADMIN_*` 变量留空并使用 `/setup`；无人值守安装时必须同时提供邮箱、至少 12 位密码和至少 16 位 Base32 TOTP secret。
 
 不要把 `.env` 发送到聊天工具或提交到 Git。
 
@@ -54,9 +54,9 @@ curl --fail --silent --show-error https://你的域名/api/health
 
 启动顺序为 `postgres → migrate → bootstrap → web/worker → caddy`。`migrate` 和 `bootstrap` 正常状态是 `Exited (0)`；Web 和 Worker 应为 `healthy`。健康接口应返回 `status=ok`，同时报告 database、storage、queue、worker 为 `ok`。
 
-`bootstrap` 会同步固定角色和权限；仅当数据库中没有启用的超级管理员时，才使用 `.env` 创建初始账号。它不会写入演示飞行员或演示资质数据，也不会在以后重置现有管理员密码。
+`bootstrap` 会同步固定角色和权限。无人值守发布时同时提供三个 `INITIAL_ADMIN_*` 变量，bootstrap 会创建一个超级管理员、一个组织/根单位，以及仅包含 `PILOT/飞行员` 职位和标准资质要求的飞行员模板；不会写入任何人员或演示资质记录。交互式部署可以将三个变量留空并使用 `/setup` 完成同一初始化流程。
 
-使用密码和 TOTP 登录一次后：
+完成安装并使用密码和 TOTP 登录一次后：
 
 1. 把初始账号资料存入密码管理器；
 2. 从 `.env` 删除 `INITIAL_ADMIN_PASSWORD` 和 `INITIAL_ADMIN_TOTP_SECRET` 的值；

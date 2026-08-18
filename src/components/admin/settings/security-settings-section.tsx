@@ -11,17 +11,24 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Switch } from "@/components/ui/choice";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { isRemoteServiceMode } from "@/lib/service-mode";
 import { adminSettingsService } from "@/services/admin-settings-service";
 import type {
+  AdminLoginMode,
   SecurityPolicy,
   SettingsAuditItem,
   SettingsSectionId,
   SettingsSession,
 } from "@/types/admin-settings";
+
+const loginModeOptions: Array<{ label: string; value: AdminLoginMode }> = [
+  { label: "密码 + TOTP（推荐）", value: "PASSWORD_TOTP" },
+  { label: "仅动态验证码（无普通密码）", value: "TOTP_ONLY" },
+  { label: "仅密码（不使用 TOTP）", value: "PASSWORD_ONLY" },
+];
 
 const auditSectionOptions: Array<{ label: string; value: "all" | SettingsSectionId }> = [
   { label: "全部功能区", value: "all" },
@@ -55,8 +62,39 @@ export function SecuritySettingsSection({
   const [revoking, setRevoking] = React.useState(false);
   const [auditSection, setAuditSection] = React.useState<"all" | SettingsSectionId>("all");
   const [auditQuery, setAuditQuery] = React.useState("");
+  const [credentialDialogOpen, setCredentialDialogOpen] = React.useState(false);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [currentTotpCode, setCurrentTotpCode] = React.useState("");
 
   React.useEffect(() => setDraft(policy), [policy]);
+
+  const persist = async (credentials?: { currentPassword?: string; currentTotpCode?: string }) => {
+    setSaving(true);
+    try {
+      const saved = await adminSettingsService.saveSecurity({ ...draft, ...credentials });
+      onPolicyChange(saved.policy);
+      setDraft(saved.policy);
+      setCredentialDialogOpen(false);
+      setCurrentPassword("");
+      setCurrentTotpCode("");
+      if (saved.reauthenticate && isRemoteServiceMode()) {
+        notify("success", "登录策略已更新", "所有管理员会话已失效，请按新策略重新登录。 ");
+        window.location.assign("/admin/login?reason=security-policy-changed");
+        return;
+      }
+      notify(
+        "success",
+        "安全策略已保存",
+        saved.reauthenticate
+          ? "演示模式已更新策略；真实服务切换模式时会立即要求重新登录。"
+          : "新策略将应用于之后创建的会话和访问链接。 ",
+      );
+    } catch (reason) {
+      notify("danger", "安全策略保存失败", reason instanceof Error ? reason.message : "请稍后重试");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     if (
@@ -69,17 +107,18 @@ export function SecuritySettingsSection({
       notify("danger", "安全策略无法保存", "请检查会话时长、失败次数和锁定时间的最小值。 ");
       return;
     }
-    setSaving(true);
-    try {
-      const saved = await adminSettingsService.saveSecurity(draft);
-      onPolicyChange(saved);
-      setDraft(saved);
-      notify("success", "安全策略已保存", "新策略将应用于之后创建的会话和访问链接。 ");
-    } catch (reason) {
-      notify("danger", "安全策略保存失败", reason instanceof Error ? reason.message : "请稍后重试");
-    } finally {
-      setSaving(false);
+    if (draft.adminLoginMode !== policy.adminLoginMode) {
+      setCredentialDialogOpen(true);
+      return;
     }
+    await persist();
+  };
+
+  const confirmModeChange = async () => {
+    await persist({
+      ...(draft.adminLoginMode !== "TOTP_ONLY" ? { currentPassword } : {}),
+      ...(draft.adminLoginMode !== "PASSWORD_ONLY" ? { currentTotpCode } : {}),
+    });
   };
 
   const revoke = async () => {
@@ -126,19 +165,26 @@ export function SecuritySettingsSection({
             </span>
             <div>
               <h3 className="font-bold">全局安全策略</h3>
-              <p className="mt-1 text-xs text-muted">修改后不会延长或缩短已经签发的会话。</p>
+              <p className="mt-1 text-xs text-muted">
+                普通策略不会改变已签发会话；登录模式切换会立即撤销全部管理员会话。
+              </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="rounded-md border border-border p-3">
-            <Switch
-              label="强制管理员启用双重验证"
-              checked={draft.requireTotp}
+            <Select
+              label="管理员登录模式"
+              options={loginModeOptions}
+              value={draft.adminLoginMode}
               disabled={!canWrite}
-              onChange={(event) => setDraft({ ...draft, requireTotp: event.target.checked })}
-              helperText="未完成绑定的账号不能进入管理端。"
+              onChange={(event) =>
+                setDraft({ ...draft, adminLoginMode: event.target.value as AdminLoginMode })
+              }
             />
+            <p className="mt-2 text-xs text-muted">
+              “仅动态验证码”不属于标准双因素认证；切换模式会立即结束所有管理员会话。
+            </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Input
@@ -206,6 +252,54 @@ export function SecuritySettingsSection({
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog open={credentialDialogOpen} onOpenChange={setCredentialDialogOpen}>
+        <DialogContent aria-describedby="security-mode-confirmation-description">
+          <DialogTitle className="text-lg font-bold">确认切换管理员登录模式</DialogTitle>
+          <DialogDescription
+            id="security-mode-confirmation-description"
+            className="mt-1 text-sm text-secondary"
+          >
+            切换后所有管理员会话会立即失效，所有人都必须按新模式重新登录。
+          </DialogDescription>
+          <div className="mt-5 space-y-4">
+            {draft.adminLoginMode !== "TOTP_ONLY" ? (
+              <Input
+                label="当前超级管理员密码"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                required
+              />
+            ) : null}
+            {draft.adminLoginMode !== "PASSWORD_ONLY" ? (
+              <Input
+                label="当前动态验证码（6 位）"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={currentTotpCode}
+                onChange={(event) => setCurrentTotpCode(event.target.value)}
+                required
+              />
+            ) : null}
+          </div>
+          <div className="mt-6 flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCredentialDialogOpen(false)}
+            >
+              取消
+            </Button>
+            <Button type="button" loading={saving} onClick={() => void confirmModeChange()}>
+              确认并立即切换
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

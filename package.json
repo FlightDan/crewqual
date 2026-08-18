@@ -1,6 +1,6 @@
 {
   "name": "crewqual-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@10.15.0",
   "scripts": {
@@ -29,6 +29,7 @@
     "admin:create": "tsx scripts/admin.ts create",
     "admin:reset": "tsx scripts/admin.ts reset",
     "admin:rotate-password": "tsx scripts/admin.ts rotate-password",
+    "admin:rotate-totp": "tsx scripts/admin.ts rotate-totp",
     "security:migrate-totp": "tsx scripts/migrate-totp-secrets.ts",
     "release:verify": "node --import tsx scripts/release/verify.ts all",
     "release:verify:preflight": "node --import tsx scripts/release/verify.ts preflight",

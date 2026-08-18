@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/prisma";
 import { ApiError } from "@/server/api";
 import {
@@ -270,6 +271,17 @@ export async function installTemplatePack(
   installedBy?: string,
 ): Promise<InstallTemplateResult> {
   const db = getPrisma();
+  return db.$transaction((tx) =>
+    installTemplatePackInTransaction(tx, organizationId, templatePackId, installedBy),
+  );
+}
+
+export async function installTemplatePackInTransaction(
+  db: Prisma.TransactionClient,
+  organizationId: string,
+  templatePackId: string,
+  installedBy?: string,
+): Promise<InstallTemplateResult> {
   const [organization, packRow] = await Promise.all([
     db.organization.findUnique({ where: { id: organizationId }, select: { id: true } }),
     db.templatePack.findUnique({ where: { id: templatePackId } }),
@@ -279,137 +291,135 @@ export async function installTemplatePack(
     throw new ApiError("TEMPLATE_NOT_FOUND", "模板不存在或已停用", 404);
   const pack = parseTemplatePack(packRow.payload);
 
-  return db.$transaction(async (tx) => {
-    const existingInstallation = await tx.organizationTemplateInstallation.findUnique({
-      where: { organizationId_templatePackId: { organizationId, templatePackId } },
+  const existingInstallation = await db.organizationTemplateInstallation.findUnique({
+    where: { organizationId_templatePackId: { organizationId, templatePackId } },
+  });
+  if (existingInstallation) {
+    const result = (existingInstallation.result ?? {}) as Record<string, number>;
+    return {
+      installationId: existingInstallation.id,
+      status: "NOOP",
+      createdPositions: result.createdPositions ?? 0,
+      createdDefinitions: result.createdDefinitions ?? 0,
+      createdRequirements: result.createdRequirements ?? 0,
+      skippedExisting: result.skippedExisting ?? 0,
+    };
+  }
+
+  let createdPositions = 0;
+  let createdDefinitions = 0;
+  let createdRequirements = 0;
+  let skippedExisting = 0;
+  const positions = new Map<string, { id: string }>();
+  const definitions = new Map<string, { id: string }>();
+
+  for (const position of pack.positions) {
+    const existing = await db.position.findUnique({
+      where: { organizationId_code: { organizationId, code: position.code } },
+      select: { id: true },
     });
-    if (existingInstallation) {
-      const result = (existingInstallation.result ?? {}) as Record<string, number>;
-      return {
-        installationId: existingInstallation.id,
-        status: "NOOP",
-        createdPositions: result.createdPositions ?? 0,
-        createdDefinitions: result.createdDefinitions ?? 0,
-        createdRequirements: result.createdRequirements ?? 0,
-        skippedExisting: result.skippedExisting ?? 0,
-      };
+    if (existing) {
+      positions.set(position.code, existing);
+      skippedExisting += 1;
+      continue;
     }
-
-    let createdPositions = 0;
-    let createdDefinitions = 0;
-    let createdRequirements = 0;
-    let skippedExisting = 0;
-    const positions = new Map<string, { id: string }>();
-    const definitions = new Map<string, { id: string }>();
-
-    for (const position of pack.positions) {
-      const existing = await tx.position.findUnique({
-        where: { organizationId_code: { organizationId, code: position.code } },
-        select: { id: true },
-      });
-      if (existing) {
-        positions.set(position.code, existing);
-        skippedExisting += 1;
-        continue;
-      }
-      const created = await tx.position.create({
-        data: {
-          organizationId,
-          code: position.code,
-          name: position.name,
-          description: position.description,
-          translations: position.translations,
-          sortOrder: position.sortOrder,
-          sourcePackCode: pack.code,
-          sourcePackVersion: pack.version,
-        },
-        select: { id: true },
-      });
-      positions.set(position.code, created);
-      createdPositions += 1;
-    }
-
-    for (const definition of pack.qualificationDefinitions) {
-      const existing = await tx.qualificationDefinition.findUnique({
-        where: { organizationId_code: { organizationId, code: definition.code } },
-        select: { id: true },
-      });
-      if (existing) {
-        definitions.set(definition.code, existing);
-        skippedExisting += 1;
-        continue;
-      }
-      const created = await tx.qualificationDefinition.create({
-        data: {
-          organizationId,
-          code: definition.code,
-          name: definition.name,
-          description: definition.description,
-          translations: definition.translations,
-          category: definition.category,
-          active: definition.active,
-          requiresEvidence: definition.requiresEvidence,
-          requiresHumanReview: true,
-          allowAutoApproval: false,
-          fieldSchema: definition.fieldSchema,
-          validityRule: definition.validityRule,
-          reminders: definition.reminders,
-          ocrChecks: definition.ocrChecks,
-          parameterRestriction: definition.parameterRestriction,
-          sortOrder: definition.sortOrder,
-          sourcePackCode: pack.code,
-          sourcePackVersion: pack.version,
-        },
-        select: { id: true },
-      });
-      definitions.set(definition.code, created);
-      createdDefinitions += 1;
-    }
-
-    for (const requirement of pack.requirements) {
-      const position = positions.get(requirement.positionCode);
-      const definition = definitions.get(requirement.qualificationCode);
-      if (!position || !definition)
-        throw new ApiError("INVALID_TEMPLATE_PACK", "模板要求引用无效", 422);
-      const existing = await tx.qualificationRequirement.findUnique({
-        where: {
-          positionId_qualificationDefinitionId: {
-            positionId: position.id,
-            qualificationDefinitionId: definition.id,
-          },
-        },
-        select: { id: true },
-      });
-      if (existing) {
-        skippedExisting += 1;
-        continue;
-      }
-      await tx.qualificationRequirement.create({
-        data: {
-          positionId: position.id,
-          qualificationDefinitionId: definition.id,
-          required: requirement.required,
-          upgradePrerequisite: requirement.upgradePrerequisite,
-          active: requirement.active,
-          sortOrder: requirement.sortOrder,
-          sourcePackCode: pack.code,
-          sourcePackVersion: pack.version,
-        },
-      });
-      createdRequirements += 1;
-    }
-
-    const result = { createdPositions, createdDefinitions, createdRequirements, skippedExisting };
-    const installation = await tx.organizationTemplateInstallation.create({
+    const created = await db.position.create({
       data: {
         organizationId,
-        templatePackId,
-        installedBy,
-        status: "SUCCEEDED",
-        result,
+        code: position.code,
+        name: position.name,
+        description: position.description,
+        translations: position.translations,
+        sortOrder: position.sortOrder,
+        sourcePackCode: pack.code,
+        sourcePackVersion: pack.version,
       },
       select: { id: true },
     });
-    return { installationId: installation.id, status: "SUCCEEDED", ...result };
+    positions.set(position.code, created);
+    createdPositions += 1;
+  }
+
+  for (const definition of pack.qualificationDefinitions) {
+    const existing = await db.qualificationDefinition.findUnique({
+      where: { organizationId_code: { organizationId, code: definition.code } },
+      select: { id: true },
+    });
+    if (existing) {
+      definitions.set(definition.code, existing);
+      skippedExisting += 1;
+      continue;
+    }
+    const created = await db.qualificationDefinition.create({
+      data: {
+        organizationId,
+        code: definition.code,
+        name: definition.name,
+        description: definition.description,
+        translations: definition.translations,
+        category: definition.category,
+        active: definition.active,
+        requiresEvidence: definition.requiresEvidence,
+        requiresHumanReview: true,
+        allowAutoApproval: false,
+        fieldSchema: definition.fieldSchema,
+        validityRule: definition.validityRule,
+        reminders: definition.reminders,
+        ocrChecks: definition.ocrChecks,
+        parameterRestriction: definition.parameterRestriction,
+        sortOrder: definition.sortOrder,
+        sourcePackCode: pack.code,
+        sourcePackVersion: pack.version,
+      },
+      select: { id: true },
+    });
+    definitions.set(definition.code, created);
+    createdDefinitions += 1;
+  }
+
+  for (const requirement of pack.requirements) {
+    const position = positions.get(requirement.positionCode);
+    const definition = definitions.get(requirement.qualificationCode);
+    if (!position || !definition)
+      throw new ApiError("INVALID_TEMPLATE_PACK", "模板要求引用无效", 422);
+    const existing = await db.qualificationRequirement.findUnique({
+      where: {
+        positionId_qualificationDefinitionId: {
+          positionId: position.id,
+          qualificationDefinitionId: definition.id,
+        },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      skippedExisting += 1;
+      continue;
+    }
+    await db.qualificationRequirement.create({
+      data: {
+        positionId: position.id,
+        qualificationDefinitionId: definition.id,
+        required: requirement.required,
+        upgradePrerequisite: requirement.upgradePrerequisite,
+        active: requirement.active,
+        sortOrder: requirement.sortOrder,
+        sourcePackCode: pack.code,
+        sourcePackVersion: pack.version,
+      },
+    });
+    createdRequirements += 1;
+  }
+
+  const result = { createdPositions, createdDefinitions, createdRequirements, skippedExisting };
+  const installation = await db.organizationTemplateInstallation.create({
+    data: {
+      organizationId,
+      templatePackId,
+      installedBy,
+      status: "SUCCEEDED",
+      result,
+    },
+    select: { id: true },
   });
+  return { installationId: installation.id, status: "SUCCEEDED", ...result };
 }

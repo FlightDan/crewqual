@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed v0.1.0-rc.N or v0.1.0 tag
+        description: Signed v0.2.0-rc.N or v0.2.0 tag
         required: true
         type: string
       profile:
@@ -14,7 +14,7 @@ on:
         type: choice
         options: [rc, final]
   push:
-    tags: ["v0.1.0-rc.*", "v0.1.0"]
+    tags: ["v0.2.0-rc.*", "v0.2.0"]
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
     environment: release-sandbox
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-      RELEASE_PROFILE: ${{ inputs.profile || (startsWith(github.ref_name, 'v0.1.0-rc.') && 'rc' || 'final') }}
+      RELEASE_PROFILE: ${{ inputs.profile || (startsWith(github.ref_name, 'v0.2.0-rc.') && 'rc' || 'final') }}
       RELEASE_RUN_ID: ${{ github.run_id }}
       RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -74,6 +74,8 @@ jobs:
         run: corepack pnpm install --frozen-lockfile
       - name: Install browser engines
         run: corepack pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Install release verification tools
+        run: sudo ./scripts/release/install-tools.sh
       - name: Prepare signed evidence inputs
         env:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}

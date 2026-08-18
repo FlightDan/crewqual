@@ -19,6 +19,15 @@ export const AdminRoleCode = {
 export type AdminRoleCode = (typeof AdminRoleCode)[keyof typeof AdminRoleCode]
 
 
+export const AdminLoginMode = {
+  PASSWORD_TOTP: 'PASSWORD_TOTP',
+  TOTP_ONLY: 'TOTP_ONLY',
+  PASSWORD_ONLY: 'PASSWORD_ONLY'
+} as const
+
+export type AdminLoginMode = (typeof AdminLoginMode)[keyof typeof AdminLoginMode]
+
+
 export const QualificationRecordStatus = {
   ACTIVE: 'ACTIVE',
   REPLACED: 'REPLACED'

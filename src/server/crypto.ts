@@ -85,17 +85,23 @@ function decodeBase32(value: string) {
   return Buffer.from(bytes);
 }
 
-export function verifyTotp(secret: string, code: string, now = Date.now()) {
-  if (!/^\d{6}$/.test(code) || !secret) return false;
+/**
+ * Verify a TOTP code and return the accepted time-step counter.
+ * Returning the counter lets callers atomically reject replayed codes.
+ */
+export function verifyTotp(secret: string, code: string, now = Date.now()): number | null {
+  if (!/^\d{6}$/.test(code) || !secret) return null;
   const key = decodeBase32(secret);
   const counter = Math.floor(now / 30_000);
   for (const offset of [-1, 0, 1]) {
+    const matchedCounter = counter + offset;
+    if (matchedCounter < 0) continue;
     const buffer = Buffer.alloc(8);
-    buffer.writeBigUInt64BE(BigInt(counter + offset));
+    buffer.writeBigUInt64BE(BigInt(matchedCounter));
     const digest = createHmac("sha1", key).update(buffer).digest();
     const start = digest[digest.length - 1] & 0x0f;
     const value = (digest.readUInt32BE(start) & 0x7fffffff) % 1_000_000;
-    if (value.toString().padStart(6, "0") === code) return true;
+    if (value.toString().padStart(6, "0") === code) return matchedCounter;
   }
-  return false;
+  return null;
 }

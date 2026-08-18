@@ -230,11 +230,26 @@ async function migrate() {
   const pack = await ensureTemplatePack();
   for (const unit of units) {
     await prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.upsert({
-        where: { id: unit.id },
-        update: { code: unit.code, name: unit.name, active: unit.active },
-        create: { id: unit.id, code: unit.code, name: unit.name, active: unit.active },
-      });
+      const linkedAdmin = unit.organizationId
+        ? null
+        : await tx.adminUser.findFirst({
+            where: { unitId: unit.id, organizationId: { not: null } },
+            select: { organizationId: true },
+          });
+      const linkedOrganizationId = unit.organizationId ?? linkedAdmin?.organizationId ?? null;
+      const linkedOrganization = linkedOrganizationId
+        ? await tx.organization.findUnique({ where: { id: linkedOrganizationId } })
+        : null;
+      const organization = linkedOrganization
+        ? await tx.organization.update({
+            where: { id: linkedOrganization.id },
+            data: { name: linkedOrganization.name, active: unit.active },
+          })
+        : await tx.organization.upsert({
+            where: { code: unit.code },
+            update: { name: unit.name, active: unit.active },
+            create: { code: unit.code, name: unit.name, active: unit.active },
+          });
       summary.organizations += 1;
       await tx.organizationUnit.update({
         where: { id: unit.id },

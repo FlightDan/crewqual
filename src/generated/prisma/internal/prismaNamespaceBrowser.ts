@@ -262,6 +262,8 @@ export const AdminUserScalarFieldEnum = {
   displayName: 'displayName',
   passwordHash: 'passwordHash',
   totpSecretCiphertext: 'totpSecretCiphertext',
+  totpVerifiedAt: 'totpVerifiedAt',
+  lastTotpCounter: 'lastTotpCounter',
   active: 'active',
   failedAttempts: 'failedAttempts',
   lockedUntil: 'lockedUntil',
@@ -847,7 +849,7 @@ export type SystemIntegrationSettingScalarFieldEnum = (typeof SystemIntegrationS
 
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
-  requireTotp: 'requireTotp',
+  adminLoginMode: 'adminLoginMode',
   adminSessionTtlHours: 'adminSessionTtlHours',
   pilotAccessLinkTtlMinutes: 'pilotAccessLinkTtlMinutes',
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',

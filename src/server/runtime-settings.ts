@@ -1,9 +1,10 @@
 import { getServerConfig } from "@/server/config";
 import { decryptSettingSecret } from "@/server/crypto";
 import { getPrisma } from "@/server/prisma";
+import type { AdminLoginMode } from "@/types/admin-settings";
 
 export type RuntimeSecurityPolicy = {
-  requireTotp: boolean;
+  adminLoginMode: AdminLoginMode;
   adminSessionTtlHours: number;
   pilotAccessLinkTtlMinutes: number;
   pilotSessionTtlMinutes: number;
@@ -31,7 +32,7 @@ function shouldReadDatabase() {
 export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy> {
   const config = getServerConfig();
   const fallback: RuntimeSecurityPolicy = {
-    requireTotp: true,
+    adminLoginMode: "PASSWORD_TOTP",
     adminSessionTtlHours: config.ADMIN_SESSION_TTL_HOURS,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
@@ -42,7 +43,7 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
   const policy = await getPrisma().securityPolicy.findUnique({ where: { id: "global" } });
   return policy
     ? {
-        requireTotp: policy.requireTotp,
+        adminLoginMode: policy.adminLoginMode,
         adminSessionTtlHours: policy.adminSessionTtlHours,
         pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
         pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,

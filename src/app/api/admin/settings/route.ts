@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { ApiError, getRequestId, jsonData, jsonError, parseJson } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
@@ -7,9 +8,15 @@ import {
   isSuperAdmin,
   requireAssignedUnit,
 } from "@/server/admin-permissions";
-import { hashPassword, requirePermission } from "@/server/auth";
+import { COOKIE_NAMES, hashPassword, requirePermission, verifyPassword } from "@/server/auth";
 import { getServerConfig } from "@/server/config";
-import { createTotpSecret, decryptSettingSecret, encryptSettingSecret } from "@/server/crypto";
+import {
+  createTotpSecret,
+  decryptSettingSecret,
+  encryptSettingSecret,
+  resolveTotpSecret,
+  verifyTotp,
+} from "@/server/crypto";
 import { isLocalTestEndpoint } from "@/server/external-endpoint-safety";
 import { getPrisma } from "@/server/prisma";
 import type { AuthenticatedAdmin } from "@/server/auth";
@@ -114,13 +121,15 @@ const integrationSchema = z.object({
 });
 
 const securitySchema = z.object({
-  requireTotp: z.boolean(),
+  adminLoginMode: z.enum(["PASSWORD_TOTP", "TOTP_ONLY", "PASSWORD_ONLY"]),
   adminSessionTtlHours: z.number().int().min(1).max(72),
   pilotAccessLinkTtlMinutes: z.number().int().min(5).max(60),
   pilotSessionTtlMinutes: z.number().int().min(15).max(480),
   maxFailedAttempts: z.number().int().min(3).max(20),
   lockoutMinutes: z.number().int().min(5).max(1440),
   version: z.number().int().positive(),
+  currentPassword: z.string().max(256).optional(),
+  currentTotpCode: z.string().max(32).optional(),
 });
 
 const defaultRoutes: NotificationRoute[] = [
@@ -279,7 +288,7 @@ function mapAdmin(user: any): SettingsAdminAccount {
     unitName: user.unit?.name ?? "全局",
     role,
     active: user.active,
-    totpEnabled: Boolean(user.totpSecretCiphertext),
+    totpStatus: user.totpVerifiedAt ? "VERIFIED" : "PENDING_VERIFICATION",
     lastLoginAt: user.sessions?.[0]?.lastSeenAt?.toISOString() ?? null,
     activeSessionCount: user.sessions?.length ?? 0,
   };
@@ -450,7 +459,7 @@ async function loadSnapshot(
     version: vlm?.version ?? 1,
   };
   const fallbackPolicy: SecurityPolicy = {
-    requireTotp: true,
+    adminLoginMode: "PASSWORD_TOTP",
     adminSessionTtlHours: config.ADMIN_SESSION_TTL_HOURS,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
@@ -493,7 +502,7 @@ async function loadSnapshot(
     ai,
     security: policy
       ? {
-          requireTotp: policy.requireTotp,
+          adminLoginMode: policy.adminLoginMode,
           adminSessionTtlHours: policy.adminSessionTtlHours,
           pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
           pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
@@ -975,6 +984,8 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
             where: { id: input.id },
             data: {
               totpSecretCiphertext: encryptSettingSecret(totpSecret),
+              totpVerifiedAt: null,
+              lastTotpCounter: null,
               version: { increment: 1 },
             },
           });
@@ -1159,23 +1170,119 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       const input = securitySchema.parse(envelope.input);
       const current = await db.securityPolicy.findUnique({ where: { id: "global" } });
       if (current && current.version !== input.version) throw new Error("VERSION_CONFLICT");
-      const policy = await db.securityPolicy.upsert({
-        where: { id: "global" },
-        update: { ...input, version: { increment: 1 } },
-        create: { id: "global", ...input },
+      const previousMode = current?.adminLoginMode ?? "PASSWORD_TOTP";
+      const modeChanged = previousMode !== input.adminLoginMode;
+      const needsPassword = input.adminLoginMode !== "TOTP_ONLY";
+      const needsTotp = input.adminLoginMode !== "PASSWORD_ONLY";
+      const policyData = {
+        adminLoginMode: input.adminLoginMode,
+        adminSessionTtlHours: input.adminSessionTtlHours,
+        pilotAccessLinkTtlMinutes: input.pilotAccessLinkTtlMinutes,
+        pilotSessionTtlMinutes: input.pilotSessionTtlMinutes,
+        maxFailedAttempts: input.maxFailedAttempts,
+        lockoutMinutes: input.lockoutMinutes,
+      };
+
+      const actor = modeChanged
+        ? await db.adminUser.findUniqueOrThrow({
+            where: { id: admin.id },
+            select: {
+              passwordHash: true,
+              totpSecretCiphertext: true,
+              totpVerifiedAt: true,
+              lastTotpCounter: true,
+            },
+          })
+        : null;
+      const passwordOk =
+        !modeChanged ||
+        !needsPassword ||
+        (actor ? await verifyPassword(actor.passwordHash, input.currentPassword ?? "") : false);
+      const totpCounter =
+        modeChanged && needsTotp && actor
+          ? verifyTotp(resolveTotpSecret(actor.totpSecretCiphertext), input.currentTotpCode ?? "")
+          : null;
+      const totpOk = !modeChanged || !needsTotp || totpCounter !== null;
+      if (!passwordOk || !totpOk) {
+        throw new ApiError("INVALID_CREDENTIALS", "当前管理员凭据验证失败", 401);
+      }
+      if (
+        modeChanged &&
+        needsTotp &&
+        actor?.lastTotpCounter !== null &&
+        actor?.lastTotpCounter !== undefined &&
+        totpCounter !== null &&
+        BigInt(totpCounter) <= actor.lastTotpCounter
+      ) {
+        throw new ApiError("INVALID_CREDENTIALS", "当前动态验证码已使用，请等待下一组验证码", 401);
+      }
+
+      const policy = await db.$transaction(async (tx) => {
+        const saved = await tx.securityPolicy.upsert({
+          where: { id: "global" },
+          update: { ...policyData, version: { increment: 1 } },
+          create: { id: "global", ...policyData },
+        });
+        if (modeChanged) {
+          await tx.adminSession.deleteMany({});
+          if (actor && needsTotp && totpCounter !== null) {
+            await tx.adminUser.update({
+              where: { id: admin.id },
+              data: {
+                totpVerifiedAt: actor.totpVerifiedAt ?? new Date(),
+                lastTotpCounter: BigInt(totpCounter),
+              },
+            });
+          }
+          await tx.auditEvent.create({
+            data: {
+              actorType: "admin",
+              actorId: admin.id,
+              action: "settings.security.updated",
+              entityType: "SecurityPolicy",
+              entityId: "global",
+              detail: {
+                section: "security",
+                summary: "更新全局安全与会话策略；登录模式切换后已撤销全部管理员会话",
+                previousLoginMode: previousMode,
+                loginMode: input.adminLoginMode,
+                sessionsRevoked: true,
+              },
+              requestId,
+            },
+          });
+        } else {
+          await tx.auditEvent.create({
+            data: {
+              actorType: "admin",
+              actorId: admin.id,
+              action: "settings.security.updated",
+              entityType: "SecurityPolicy",
+              entityId: "global",
+              detail: { section: "security", summary: "更新全局安全与会话策略" },
+              requestId,
+            },
+          });
+        }
+        return saved;
       });
-      await audit(admin, requestId, "settings.security.updated", "SecurityPolicy", "global", {
-        summary: "更新全局安全与会话策略",
-      });
+      if (modeChanged) {
+        const store = await cookies();
+        store.delete(COOKIE_NAMES.admin);
+        store.delete(`${COOKIE_NAMES.admin}_csrf`);
+      }
       return jsonData(
         {
-          requireTotp: policy.requireTotp,
-          adminSessionTtlHours: policy.adminSessionTtlHours,
-          pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
-          pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
-          maxFailedAttempts: policy.maxFailedAttempts,
-          lockoutMinutes: policy.lockoutMinutes,
-          version: policy.version,
+          policy: {
+            adminLoginMode: policy.adminLoginMode,
+            adminSessionTtlHours: policy.adminSessionTtlHours,
+            pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
+            pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
+            maxFailedAttempts: policy.maxFailedAttempts,
+            lockoutMinutes: policy.lockoutMinutes,
+            version: policy.version,
+          },
+          reauthenticate: modeChanged,
         },
         requestId,
       );

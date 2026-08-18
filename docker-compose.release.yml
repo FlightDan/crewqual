@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "${ACCEPTANCE_DB_PORT:-55432}:5432"
+      - "127.0.0.1:${ACCEPTANCE_DB_PORT:-55432}:5432"
     networks: [internal]
 
   migrate:
@@ -43,6 +43,15 @@ services:
       postgres: { condition: service_healthy }
     networks: [internal]
 
+  ops:
+    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    profiles: [ops]
+    command: ["node", "--import", "tsx", "scripts/release/verify.ts", "db-check"]
+    environment: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+
   bootstrap:
     image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
     command: ["pnpm", "db:bootstrap"]
@@ -51,6 +60,11 @@ services:
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?INITIAL_ADMIN_EMAIL is required}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD is required}
       INITIAL_ADMIN_TOTP_SECRET: ${INITIAL_ADMIN_TOTP_SECRET:?INITIAL_ADMIN_TOTP_SECRET is required}
+      INITIAL_ORGANIZATION_CODE: ${INITIAL_ORGANIZATION_CODE:-CREWQUAL}
+      INITIAL_ORGANIZATION_NAME: ${INITIAL_ORGANIZATION_NAME:-CrewQual}
+      INITIAL_UNIT_CODE: ${INITIAL_UNIT_CODE:-ROOT}
+      INITIAL_UNIT_NAME: ${INITIAL_UNIT_NAME:-运行单位}
+      INITIAL_TEMPLATE_PACK_CODE: ${INITIAL_TEMPLATE_PACK_CODE:-aviation-china-airline-pilot}
     depends_on:
       migrate: { condition: service_completed_successfully }
     networks: [internal]
@@ -59,7 +73,7 @@ services:
     image: ${RELEASE_WEB_IMAGE:?RELEASE_WEB_IMAGE is required}
     environment: *app-env
     ports:
-      - "${ACCEPTANCE_WEB_PORT:-3010}:3000"
+      - "127.0.0.1:${ACCEPTANCE_WEB_PORT:-3010}:3000"
     depends_on:
       bootstrap: { condition: service_completed_successfully }
     networks: [internal]

@@ -8,6 +8,7 @@ import {
   type AdminRoleCode,
 } from "../src/server/admin-permissions";
 import { encryptSettingSecret } from "../src/server/crypto";
+import { installTemplatePackInTransaction } from "../src/server/template-packs";
 
 const roleNames: Record<AdminRoleCode, string> = {
   SUPER_ADMIN: "超级管理员",
@@ -16,10 +17,28 @@ const roleNames: Record<AdminRoleCode, string> = {
   VIEWER: "只读查看员",
 };
 
-function requireInitialAdminValue(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`No active super administrator exists; ${name} is required`);
-  return value;
+const defaultBaseline = {
+  organizationCode: "CREWQUAL",
+  organizationName: "CrewQual",
+  unitCode: "ROOT",
+  unitName: "运行单位",
+  templatePackCode: "aviation-china-airline-pilot",
+};
+
+function baselineValue(name: keyof typeof defaultBaseline) {
+  return (
+    process.env[
+      name === "organizationCode"
+        ? "INITIAL_ORGANIZATION_CODE"
+        : name === "organizationName"
+          ? "INITIAL_ORGANIZATION_NAME"
+          : name === "unitCode"
+            ? "INITIAL_UNIT_CODE"
+            : name === "unitName"
+              ? "INITIAL_UNIT_NAME"
+              : "INITIAL_TEMPLATE_PACK_CODE"
+    ]?.trim() || defaultBaseline[name]
+  );
 }
 
 async function main() {
@@ -81,9 +100,29 @@ async function main() {
       return;
     }
 
-    const email = requireInitialAdminValue("INITIAL_ADMIN_EMAIL").toLowerCase();
-    const password = requireInitialAdminValue("INITIAL_ADMIN_PASSWORD");
-    const totpSecret = requireInitialAdminValue("INITIAL_ADMIN_TOTP_SECRET").toUpperCase();
+    const initialValues = {
+      email: process.env.INITIAL_ADMIN_EMAIL?.trim() ?? "",
+      password: process.env.INITIAL_ADMIN_PASSWORD?.trim() ?? "",
+      totpSecret: process.env.INITIAL_ADMIN_TOTP_SECRET?.trim().toUpperCase() ?? "",
+    };
+    const suppliedValues = Object.values(initialValues).filter(Boolean).length;
+    if (suppliedValues === 0) {
+      console.log(
+        JSON.stringify({
+          event: "production_bootstrap_complete",
+          initialAdmin: "web_setup_required",
+        }),
+      );
+      return;
+    }
+    if (suppliedValues !== 3) {
+      throw new Error(
+        "Provide all of INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_PASSWORD and INITIAL_ADMIN_TOTP_SECRET, or leave all three empty for web setup",
+      );
+    }
+    const email = initialValues.email.toLowerCase();
+    const password = initialValues.password;
+    const totpSecret = initialValues.totpSecret;
     if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("INITIAL_ADMIN_EMAIL is invalid");
     if (password.length < 12) {
       throw new Error("INITIAL_ADMIN_PASSWORD must contain at least 12 characters");
@@ -102,16 +141,80 @@ async function main() {
 
     const superAdminRole = roles.get("SUPER_ADMIN");
     if (!superAdminRole) throw new Error("SUPER_ADMIN role bootstrap failed");
-    await prisma.adminUser.create({
-      data: {
-        email,
-        displayName: "CrewQual 管理员",
-        passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
-        totpSecretCiphertext: encryptSettingSecret(totpSecret),
-        roles: { create: { roleId: superAdminRole.id } },
-      },
+    const organizationCode = baselineValue("organizationCode").toUpperCase();
+    const organizationName = baselineValue("organizationName");
+    const unitCode = baselineValue("unitCode").toUpperCase();
+    const unitName = baselineValue("unitName");
+    const templatePackCode = baselineValue("templatePackCode");
+    if (!/^[A-Z][A-Z0-9_-]{1,31}$/.test(organizationCode))
+      throw new Error("INITIAL_ORGANIZATION_CODE is invalid");
+    if (!/^[A-Z][A-Z0-9_-]{1,31}$/.test(unitCode)) throw new Error("INITIAL_UNIT_CODE is invalid");
+    if (!organizationName || !unitName || !templatePackCode)
+      throw new Error("Initial organization, unit and template values are required");
+
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    const result = await prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.upsert({
+        where: { code: organizationCode },
+        update: { name: organizationName, active: true, defaultLocale: "zh-CN" },
+        create: { code: organizationCode, name: organizationName, defaultLocale: "zh-CN" },
+        select: { id: true },
+      });
+      const unit = await tx.organizationUnit.upsert({
+        where: { code: unitCode },
+        update: {
+          name: unitName,
+          organizationId: organization.id,
+          active: true,
+          timezone: "Asia/Shanghai",
+        },
+        create: {
+          code: unitCode,
+          name: unitName,
+          organizationId: organization.id,
+          timezone: "Asia/Shanghai",
+        },
+        select: { id: true },
+      });
+      const admin = await tx.adminUser.create({
+        data: {
+          email,
+          displayName: "CrewQual 管理员",
+          passwordHash,
+          totpSecretCiphertext: encryptSettingSecret(totpSecret),
+          organizationId: organization.id,
+          unitId: unit.id,
+          roles: { create: { roleId: superAdminRole.id } },
+        },
+        select: { id: true },
+      });
+      const pack = await tx.templatePack.findFirst({
+        where: { code: templatePackCode, active: true },
+        orderBy: { version: "desc" },
+        select: { id: true, code: true, version: true },
+      });
+      if (!pack) throw new Error(`Active template pack not found: ${templatePackCode}`);
+      const installation = await installTemplatePackInTransaction(
+        tx,
+        organization.id,
+        pack.id,
+        admin.id,
+      );
+      return {
+        organizationId: organization.id,
+        unitId: unit.id,
+        adminId: admin.id,
+        templatePack: `${pack.code}@${pack.version}`,
+        installation,
+      };
     });
-    console.log(JSON.stringify({ event: "production_bootstrap_complete", initialAdmin: email }));
+    console.log(
+      JSON.stringify({
+        event: "production_bootstrap_complete",
+        initialAdmin: email,
+        baseline: result,
+      }),
+    );
   } finally {
     await prisma.$disconnect();
   }

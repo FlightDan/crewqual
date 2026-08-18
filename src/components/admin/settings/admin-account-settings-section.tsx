@@ -253,8 +253,8 @@ export function AdminAccountSettingsSection({
                       <Badge tone="info">{settingsRoleLabels[admin.role]}</Badge>
                     </td>
                     <td className="px-3 py-3">
-                      <Badge tone={admin.totpEnabled ? "success" : "warning"}>
-                        {admin.totpEnabled ? "已启用" : "待绑定"}
+                      <Badge tone={admin.totpStatus === "VERIFIED" ? "success" : "warning"}>
+                        {admin.totpStatus === "VERIFIED" ? "已验证" : "待验证"}
                       </Badge>
                     </td>
                     <td className="px-3 py-3">
@@ -343,7 +343,9 @@ export function AdminAccountSettingsSection({
                   </div>
                   <div>
                     <dt className="text-muted">双重验证</dt>
-                    <dd className="mt-1 font-medium">{admin.totpEnabled ? "已启用" : "待绑定"}</dd>
+                    <dd className="mt-1 font-medium">
+                      {admin.totpStatus === "VERIFIED" ? "已验证" : "待验证"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted">活跃会话</dt>
@@ -640,7 +642,7 @@ function actionDescription(admin: SettingsAdminAccount, action: AdminAction) {
     disable: `${prefix}将无法继续登录，现有会话也会失效。`,
     enable: `${prefix}将恢复登录权限。`,
     resetPassword: `${prefix}的旧密码将立即失效。`,
-    resetTotp: `${prefix}下次登录时必须重新绑定双重验证。`,
+    resetTotp: `${prefix}下次登录时必须使用新动态验证码完成验证。`,
     revokeSessions: `${prefix}在其他设备上的 ${admin.activeSessionCount} 个会话将失效。`,
   }[action];
 }

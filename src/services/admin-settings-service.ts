@@ -128,7 +128,7 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
       unitName: "全局",
       role: "SUPER_ADMIN",
       active: true,
-      totpEnabled: true,
+      totpStatus: "VERIFIED",
       lastLoginAt: now,
       activeSessionCount: 1,
     },
@@ -140,7 +140,7 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
       unitName: "一大队一中队",
       role: "ADMIN",
       active: true,
-      totpEnabled: true,
+      totpStatus: "VERIFIED",
       lastLoginAt: "2026-08-14T10:10:00.000Z",
       activeSessionCount: 2,
     },
@@ -152,7 +152,7 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
       unitName: "一大队一中队",
       role: "REVIEWER",
       active: true,
-      totpEnabled: true,
+      totpStatus: "VERIFIED",
       lastLoginAt: "2026-08-14T04:25:00.000Z",
       activeSessionCount: 0,
     },
@@ -164,7 +164,7 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
       unitName: "一大队二中队",
       role: "VIEWER",
       active: false,
-      totpEnabled: false,
+      totpStatus: "PENDING_VERIFICATION",
       lastLoginAt: null,
       activeSessionCount: 0,
     },
@@ -267,7 +267,7 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
     version: 1,
   },
   security: {
-    requireTotp: true,
+    adminLoginMode: "PASSWORD_TOTP",
     adminSessionTtlHours: 8,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: 60,
@@ -379,6 +379,14 @@ export type AdminCredentialResult = SettingsAdminAccount & {
   oneTimeTotpSecret?: string;
   oneTimeTotpUri?: string;
 };
+export type SecuritySaveResult = {
+  policy: SecurityPolicy;
+  reauthenticate: boolean;
+};
+export type SecuritySaveInput = SecurityPolicy & {
+  currentPassword?: string;
+  currentTotpCode?: string;
+};
 export type NotificationInput = {
   unitId: string;
   channels: NotificationChannelSetting[];
@@ -406,7 +414,7 @@ export interface AdminSettingsService {
     input: IntegrationInput,
   ): Promise<NotificationChannelSetting | AiIntegrationSetting>;
   testIntegration(key: IntegrationKey): Promise<{ ok: boolean; message: string; testedAt: string }>;
-  saveSecurity(input: SecurityPolicy): Promise<SecurityPolicy>;
+  saveSecurity(input: SecuritySaveInput): Promise<SecuritySaveResult>;
   revokeSession(id: string): Promise<void>;
   loadMediaOptimization(): Promise<MediaOptimizationSetting>;
   saveMediaOptimization(input: MediaOptimizationSetting): Promise<MediaOptimizationSetting>;
@@ -421,9 +429,32 @@ function readMockSnapshot() {
   if (!raw) return structuredClone(memorySnapshot);
   try {
     const parsed = JSON.parse(raw) as Partial<AdminSettingsSnapshot>;
+    const legacySecurity = parsed.security as
+      (Partial<SecurityPolicy> & { requireTotp?: boolean }) | undefined;
+    const security = legacySecurity
+      ? {
+          ...structuredClone(defaultAdminSettingsSnapshot.security),
+          ...legacySecurity,
+          adminLoginMode:
+            legacySecurity.adminLoginMode ??
+            (legacySecurity.requireTotp === false ? "PASSWORD_ONLY" : "PASSWORD_TOTP"),
+        }
+      : structuredClone(defaultAdminSettingsSnapshot.security);
+    const admins = parsed.admins
+      ? parsed.admins.map((admin) => {
+          const legacyAdmin = admin as SettingsAdminAccount & { totpEnabled?: boolean };
+          return {
+            ...admin,
+            totpStatus:
+              admin.totpStatus ?? (legacyAdmin.totpEnabled ? "VERIFIED" : "PENDING_VERIFICATION"),
+          };
+        })
+      : structuredClone(defaultAdminSettingsSnapshot.admins);
     return {
       ...structuredClone(defaultAdminSettingsSnapshot),
       ...parsed,
+      admins,
+      security,
       positions: parsed.positions ?? structuredClone(defaultAdminSettingsSnapshot.positions),
     };
   } catch {
@@ -573,7 +604,7 @@ const mockService: AdminSettingsService = {
         ...input,
         id: `admin-${Date.now().toString(36)}`,
         unitName: unit?.name ?? "全局",
-        totpEnabled: false,
+        totpStatus: "PENDING_VERIFICATION",
         lastLoginAt: null,
         activeSessionCount: 0,
       };
@@ -590,7 +621,7 @@ const mockService: AdminSettingsService = {
       result = {
         ...current,
         active: action === "disable" ? false : action === "enable" ? true : current.active,
-        totpEnabled: action === "resetTotp" ? false : current.totpEnabled,
+        totpStatus: action === "resetTotp" ? "PENDING_VERIFICATION" : current.totpStatus,
         activeSessionCount: action === "revokeSessions" ? 0 : current.activeSessionCount,
       };
       snapshot.admins[index] = result;
@@ -641,11 +672,15 @@ const mockService: AdminSettingsService = {
     };
   },
   async saveSecurity(input) {
-    const result = { ...input, version: input.version + 1 };
+    const current = readMockSnapshot().security;
+    const policyInput = { ...input };
+    delete policyInput.currentPassword;
+    delete policyInput.currentTotpCode;
+    const result = { ...policyInput, version: input.version + 1 };
     mockUpdate((snapshot) => {
       snapshot.security = result;
     });
-    return result;
+    return { policy: result, reauthenticate: current.adminLoginMode !== input.adminLoginMode };
   },
   async revokeSession(id) {
     mockUpdate((snapshot) => {

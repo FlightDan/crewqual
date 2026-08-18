@@ -341,6 +341,33 @@ export type EnumAdminRoleCodeWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumAdminRoleCodeFilter<$PrismaModel>
 }
 
+export type BigIntNullableFilter<$PrismaModel = never> = {
+  equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
+  in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  notIn?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  lt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  lte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedBigIntNullableFilter<$PrismaModel> | bigint | number | null
+}
+
+export type BigIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
+  in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  notIn?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  lt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  lte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedBigIntNullableWithAggregatesFilter<$PrismaModel> | bigint | number | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _avg?: Prisma.NestedFloatNullableFilter<$PrismaModel>
+  _sum?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
+}
+
 export type EnumQualificationAssignmentSourceFilter<$PrismaModel = never> = {
   equals?: $Enums.QualificationAssignmentSource | Prisma.EnumQualificationAssignmentSourceFieldRefInput<$PrismaModel>
   in?: $Enums.QualificationAssignmentSource[] | Prisma.ListEnumQualificationAssignmentSourceFieldRefInput<$PrismaModel>
@@ -776,6 +803,23 @@ export type EnumUploadReservationStatusWithAggregatesFilter<$PrismaModel = never
   _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
 }
 
+export type EnumAdminLoginModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.AdminLoginMode | Prisma.EnumAdminLoginModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel> | $Enums.AdminLoginMode
+}
+
+export type EnumAdminLoginModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AdminLoginMode | Prisma.EnumAdminLoginModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAdminLoginModeWithAggregatesFilter<$PrismaModel> | $Enums.AdminLoginMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel>
+}
+
 export type NestedUuidFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -1083,6 +1127,33 @@ export type NestedEnumAdminRoleCodeWithAggregatesFilter<$PrismaModel = never> = 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAdminRoleCodeFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAdminRoleCodeFilter<$PrismaModel>
+}
+
+export type NestedBigIntNullableFilter<$PrismaModel = never> = {
+  equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
+  in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  notIn?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  lt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  lte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedBigIntNullableFilter<$PrismaModel> | bigint | number | null
+}
+
+export type NestedBigIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel> | null
+  in?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  notIn?: bigint[] | number[] | Prisma.ListBigIntFieldRefInput<$PrismaModel> | null
+  lt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  lte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gt?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  gte?: bigint | number | Prisma.BigIntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedBigIntNullableWithAggregatesFilter<$PrismaModel> | bigint | number | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _avg?: Prisma.NestedFloatNullableFilter<$PrismaModel>
+  _sum?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedBigIntNullableFilter<$PrismaModel>
 }
 
 export type NestedEnumQualificationAssignmentSourceFilter<$PrismaModel = never> = {
@@ -1491,6 +1562,23 @@ export type NestedEnumUploadReservationStatusWithAggregatesFilter<$PrismaModel =
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumAdminLoginModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.AdminLoginMode | Prisma.EnumAdminLoginModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel> | $Enums.AdminLoginMode
+}
+
+export type NestedEnumAdminLoginModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AdminLoginMode | Prisma.EnumAdminLoginModeFieldRefInput<$PrismaModel>
+  in?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAdminLoginModeWithAggregatesFilter<$PrismaModel> | $Enums.AdminLoginMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAdminLoginModeFilter<$PrismaModel>
 }
 
 

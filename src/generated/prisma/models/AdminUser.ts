@@ -27,11 +27,13 @@ export type AggregateAdminUser = {
 }
 
 export type AdminUserAvgAggregateOutputType = {
+  lastTotpCounter: number | null
   failedAttempts: number | null
   version: number | null
 }
 
 export type AdminUserSumAggregateOutputType = {
+  lastTotpCounter: bigint | null
   failedAttempts: number | null
   version: number | null
 }
@@ -42,6 +44,8 @@ export type AdminUserMinAggregateOutputType = {
   displayName: string | null
   passwordHash: string | null
   totpSecretCiphertext: string | null
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
   active: boolean | null
   failedAttempts: number | null
   lockedUntil: Date | null
@@ -58,6 +62,8 @@ export type AdminUserMaxAggregateOutputType = {
   displayName: string | null
   passwordHash: string | null
   totpSecretCiphertext: string | null
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
   active: boolean | null
   failedAttempts: number | null
   lockedUntil: Date | null
@@ -74,6 +80,8 @@ export type AdminUserCountAggregateOutputType = {
   displayName: number
   passwordHash: number
   totpSecretCiphertext: number
+  totpVerifiedAt: number
+  lastTotpCounter: number
   active: number
   failedAttempts: number
   lockedUntil: number
@@ -87,11 +95,13 @@ export type AdminUserCountAggregateOutputType = {
 
 
 export type AdminUserAvgAggregateInputType = {
+  lastTotpCounter?: true
   failedAttempts?: true
   version?: true
 }
 
 export type AdminUserSumAggregateInputType = {
+  lastTotpCounter?: true
   failedAttempts?: true
   version?: true
 }
@@ -102,6 +112,8 @@ export type AdminUserMinAggregateInputType = {
   displayName?: true
   passwordHash?: true
   totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
   active?: true
   failedAttempts?: true
   lockedUntil?: true
@@ -118,6 +130,8 @@ export type AdminUserMaxAggregateInputType = {
   displayName?: true
   passwordHash?: true
   totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
   active?: true
   failedAttempts?: true
   lockedUntil?: true
@@ -134,6 +148,8 @@ export type AdminUserCountAggregateInputType = {
   displayName?: true
   passwordHash?: true
   totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
   active?: true
   failedAttempts?: true
   lockedUntil?: true
@@ -237,6 +253,8 @@ export type AdminUserGroupByOutputType = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
   active: boolean
   failedAttempts: number
   lockedUntil: Date | null
@@ -276,6 +294,8 @@ export type AdminUserWhereInput = {
   displayName?: Prisma.StringFilter<"AdminUser"> | string
   passwordHash?: Prisma.StringFilter<"AdminUser"> | string
   totpSecretCiphertext?: Prisma.StringFilter<"AdminUser"> | string
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"AdminUser"> | bigint | number | null
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
@@ -297,6 +317,8 @@ export type AdminUserOrderByWithRelationInput = {
   displayName?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrderInput | Prisma.SortOrder
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -321,6 +343,8 @@ export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
   displayName?: Prisma.StringFilter<"AdminUser"> | string
   passwordHash?: Prisma.StringFilter<"AdminUser"> | string
   totpSecretCiphertext?: Prisma.StringFilter<"AdminUser"> | string
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"AdminUser"> | bigint | number | null
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
@@ -342,6 +366,8 @@ export type AdminUserOrderByWithAggregationInput = {
   displayName?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrderInput | Prisma.SortOrder
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -366,6 +392,8 @@ export type AdminUserScalarWhereWithAggregatesInput = {
   displayName?: Prisma.StringWithAggregatesFilter<"AdminUser"> | string
   passwordHash?: Prisma.StringWithAggregatesFilter<"AdminUser"> | string
   totpSecretCiphertext?: Prisma.StringWithAggregatesFilter<"AdminUser"> | string
+  totpVerifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminUser"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableWithAggregatesFilter<"AdminUser"> | bigint | number | null
   active?: Prisma.BoolWithAggregatesFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntWithAggregatesFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminUser"> | Date | string | null
@@ -382,6 +410,8 @@ export type AdminUserCreateInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -401,6 +431,8 @@ export type AdminUserUncheckedCreateInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -420,6 +452,8 @@ export type AdminUserUpdateInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -439,6 +473,8 @@ export type AdminUserUncheckedUpdateInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -458,6 +494,8 @@ export type AdminUserCreateManyInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -474,6 +512,8 @@ export type AdminUserUpdateManyMutationInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -488,6 +528,8 @@ export type AdminUserUncheckedUpdateManyInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -514,6 +556,8 @@ export type AdminUserCountOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -525,6 +569,7 @@ export type AdminUserCountOrderByAggregateInput = {
 }
 
 export type AdminUserAvgOrderByAggregateInput = {
+  lastTotpCounter?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
@@ -535,6 +580,8 @@ export type AdminUserMaxOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -551,6 +598,8 @@ export type AdminUserMinOrderByAggregateInput = {
   displayName?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
@@ -562,6 +611,7 @@ export type AdminUserMinOrderByAggregateInput = {
 }
 
 export type AdminUserSumOrderByAggregateInput = {
+  lastTotpCounter?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
@@ -660,6 +710,14 @@ export type AdminUserUncheckedUpdateManyWithoutUnitNestedInput = {
   deleteMany?: Prisma.AdminUserScalarWhereInput | Prisma.AdminUserScalarWhereInput[]
 }
 
+export type NullableBigIntFieldUpdateOperationsInput = {
+  set?: bigint | number | null
+  increment?: bigint | number
+  decrement?: bigint | number
+  multiply?: bigint | number
+  divide?: bigint | number
+}
+
 export type AdminUserCreateNestedOneWithoutRolesInput = {
   create?: Prisma.XOR<Prisma.AdminUserCreateWithoutRolesInput, Prisma.AdminUserUncheckedCreateWithoutRolesInput>
   connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutRolesInput
@@ -710,6 +768,8 @@ export type AdminUserCreateWithoutOrganizationInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -728,6 +788,8 @@ export type AdminUserUncheckedCreateWithoutOrganizationInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -775,6 +837,8 @@ export type AdminUserScalarWhereInput = {
   displayName?: Prisma.StringFilter<"AdminUser"> | string
   passwordHash?: Prisma.StringFilter<"AdminUser"> | string
   totpSecretCiphertext?: Prisma.StringFilter<"AdminUser"> | string
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"AdminUser"> | bigint | number | null
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
@@ -791,6 +855,8 @@ export type AdminUserCreateWithoutUnitInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -809,6 +875,8 @@ export type AdminUserUncheckedCreateWithoutUnitInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -853,6 +921,8 @@ export type AdminUserCreateWithoutRolesInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -871,6 +941,8 @@ export type AdminUserUncheckedCreateWithoutRolesInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -905,6 +977,8 @@ export type AdminUserUpdateWithoutRolesInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -923,6 +997,8 @@ export type AdminUserUncheckedUpdateWithoutRolesInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -941,6 +1017,8 @@ export type AdminUserCreateWithoutSessionsInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -959,6 +1037,8 @@ export type AdminUserUncheckedCreateWithoutSessionsInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -993,6 +1073,8 @@ export type AdminUserUpdateWithoutSessionsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1011,6 +1093,8 @@ export type AdminUserUncheckedUpdateWithoutSessionsInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1029,6 +1113,8 @@ export type AdminUserCreateWithoutNotificationDeliveriesInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -1047,6 +1133,8 @@ export type AdminUserUncheckedCreateWithoutNotificationDeliveriesInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -1081,6 +1169,8 @@ export type AdminUserUpdateWithoutNotificationDeliveriesInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1099,6 +1189,8 @@ export type AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1117,6 +1209,8 @@ export type AdminUserCreateManyOrganizationInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -1132,6 +1226,8 @@ export type AdminUserUpdateWithoutOrganizationInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1150,6 +1246,8 @@ export type AdminUserUncheckedUpdateWithoutOrganizationInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1168,6 +1266,8 @@ export type AdminUserUncheckedUpdateManyWithoutOrganizationInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1183,6 +1283,8 @@ export type AdminUserCreateManyUnitInput = {
   displayName: string
   passwordHash: string
   totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
@@ -1198,6 +1300,8 @@ export type AdminUserUpdateWithoutUnitInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1216,6 +1320,8 @@ export type AdminUserUncheckedUpdateWithoutUnitInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1234,6 +1340,8 @@ export type AdminUserUncheckedUpdateManyWithoutUnitInput = {
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
   totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1298,6 +1406,8 @@ export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   displayName?: boolean
   passwordHash?: boolean
   totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
@@ -1320,6 +1430,8 @@ export type AdminUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   displayName?: boolean
   passwordHash?: boolean
   totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
@@ -1338,6 +1450,8 @@ export type AdminUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   displayName?: boolean
   passwordHash?: boolean
   totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
@@ -1356,6 +1470,8 @@ export type AdminUserSelectScalar = {
   displayName?: boolean
   passwordHash?: boolean
   totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
@@ -1366,7 +1482,7 @@ export type AdminUserSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AdminUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "displayName" | "passwordHash" | "totpSecretCiphertext" | "active" | "failedAttempts" | "lockedUntil" | "unitId" | "organizationId" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["adminUser"]>
+export type AdminUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "displayName" | "passwordHash" | "totpSecretCiphertext" | "totpVerifiedAt" | "lastTotpCounter" | "active" | "failedAttempts" | "lockedUntil" | "unitId" | "organizationId" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["adminUser"]>
 export type AdminUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   unit?: boolean | Prisma.AdminUser$unitArgs<ExtArgs>
   organization?: boolean | Prisma.AdminUser$organizationArgs<ExtArgs>
@@ -1399,6 +1515,8 @@ export type $AdminUserPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     displayName: string
     passwordHash: string
     totpSecretCiphertext: string
+    totpVerifiedAt: Date | null
+    lastTotpCounter: bigint | null
     active: boolean
     failedAttempts: number
     lockedUntil: Date | null
@@ -1840,6 +1958,8 @@ export interface AdminUserFieldRefs {
   readonly displayName: Prisma.FieldRef<"AdminUser", 'String'>
   readonly passwordHash: Prisma.FieldRef<"AdminUser", 'String'>
   readonly totpSecretCiphertext: Prisma.FieldRef<"AdminUser", 'String'>
+  readonly totpVerifiedAt: Prisma.FieldRef<"AdminUser", 'DateTime'>
+  readonly lastTotpCounter: Prisma.FieldRef<"AdminUser", 'BigInt'>
   readonly active: Prisma.FieldRef<"AdminUser", 'Boolean'>
   readonly failedAttempts: Prisma.FieldRef<"AdminUser", 'Int'>
   readonly lockedUntil: Prisma.FieldRef<"AdminUser", 'DateTime'>

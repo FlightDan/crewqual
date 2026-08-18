@@ -14,7 +14,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends postgresql-client-16 \
   && rm -rf /var/lib/apt/lists/* \
   && npm install --global pnpm@10.15.0 \
-  && pg_dump --version | grep -E ' 16\\.'
+  && pg_dump --version | grep -E ' 16\.'
 WORKDIR /app
 
 FROM base AS deps
