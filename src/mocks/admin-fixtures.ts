@@ -669,10 +669,13 @@ const qualificationConfigs: QualificationConfig[] = qualificationDefinitions.map
   (definition, index) => ({
     id: `config-${definition.id}`,
     qualificationId: definition.id,
+    positionCode: "PILOT",
     code: definition.code,
     name: definition.name,
     core: true,
+    locked: true,
     active: true,
+    customFields: [],
     parameterRestriction: {
       enabled: index === 0 || index === 3 || index === 5,
       description: index === 5 ? "记录训练机型" : "记录证书等级或限制",

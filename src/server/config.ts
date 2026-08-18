@@ -22,16 +22,18 @@ const serverConfigSchema = z.object({
   S3_BUCKET: z.string().min(1).default("crewqual-private"),
   S3_ACCESS_KEY_ID: z.string().default(""),
   S3_SECRET_ACCESS_KEY: z.string().default(""),
+  S3_SSE_KMS_KEY_ID: z.string().default(""),
   S3_FORCE_PATH_STYLE: booleanFromEnv,
   QWEN_BASE_URL: z.string().url().default("http://localhost:8000/v1"),
   QWEN_MODEL: z.string().default("Qwen3.7-35B"),
   SMS_ADAPTER: z.enum(["disabled", "fake", "webhook"]).default("disabled"),
   SMS_WEBHOOK_URL: optionalUrl,
   SMS_WEBHOOK_AUTH_TOKEN: z.string().default(""),
+  SMS_RECEIPT_WEBHOOK_SECRET: z.string().default(""),
   FEISHU_ADAPTER: z.enum(["disabled", "webhook"]).default("disabled"),
   FEISHU_WEBHOOK_URL: optionalUrl,
   FEISHU_WEBHOOK_AUTH_TOKEN: z.string().default(""),
-  VLM_ADAPTER: z.enum(["disabled", "qwen"]).default("qwen"),
+  VLM_ADAPTER: z.enum(["disabled", "qwen"]).default("disabled"),
 });
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
@@ -91,7 +93,11 @@ export function getServerConfig(): ServerConfig {
     }
     if (
       process.env.NEXT_PHASE !== "phase-production-build" &&
-      parsed.data.SMS_ADAPTER !== "webhook"
+      parsed.data.SMS_ADAPTER !== "webhook" &&
+      !(
+        process.env.CREWQUAL_ACCEPTANCE_EXTERNALS_DISABLED === "1" &&
+        process.env.ACCEPTANCE_ENVIRONMENT_ID === "1"
+      )
     ) {
       throw new Error("Production requires a real SMS adapter before Pilot access is enabled");
     }

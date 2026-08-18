@@ -1,0 +1,23 @@
+{
+  "allowed": [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "CC0-1.0",
+    "Unlicense"
+  ],
+  "requiresReview": [
+    "AGPL-3.0",
+    "CC-BY",
+    "EPL-1.0",
+    "EPL-2.0",
+    "LGPL-2.1",
+    "LGPL-2.1+",
+    "LGPL-3.0",
+    "LGPL-3.0+",
+    "UNKNOWN"
+  ]
+}

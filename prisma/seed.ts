@@ -20,6 +20,9 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(connectionString) });
 const coreQualifications = CORE_QUALIFICATION_CATALOG.map(({ id, name }) => [id, name] as const);
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo seed is disabled in production; use db:bootstrap instead");
+  }
   const unit = await prisma.organizationUnit.upsert({
     where: { code: "DEMO" },
     update: { name: "示例运行单位" },
@@ -64,9 +67,12 @@ async function main() {
     "notifications.retry": "重试通知",
     "settings.read": "访问系统设置",
     "settings.units.write": "维护所属单位设置",
+    "settings.positions.write": "维护组织职位设置",
     "settings.notifications.write": "维护通知设置",
     "settings.admins.write": "维护管理员与角色",
     "settings.security.write": "维护安全策略与会话",
+    "settings.backups.write": "维护备份目标与计划",
+    "settings.backups.restore": "执行备份恢复",
     "audit.read": "查看安全审计",
   };
   for (const code of ADMIN_PERMISSION_CODES) {

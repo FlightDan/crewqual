@@ -48,6 +48,7 @@ export type NotificationDeliveryMinAggregateOutputType = {
   status: $Enums.NotificationStatus | null
   pilotId: string | null
   personId: string | null
+  adminUserId: string | null
   target: string | null
   summary: string | null
   message: string | null
@@ -75,6 +76,7 @@ export type NotificationDeliveryMaxAggregateOutputType = {
   status: $Enums.NotificationStatus | null
   pilotId: string | null
   personId: string | null
+  adminUserId: string | null
   target: string | null
   summary: string | null
   message: string | null
@@ -102,6 +104,7 @@ export type NotificationDeliveryCountAggregateOutputType = {
   status: number
   pilotId: number
   personId: number
+  adminUserId: number
   target: number
   summary: number
   message: number
@@ -145,6 +148,7 @@ export type NotificationDeliveryMinAggregateInputType = {
   status?: true
   pilotId?: true
   personId?: true
+  adminUserId?: true
   target?: true
   summary?: true
   message?: true
@@ -172,6 +176,7 @@ export type NotificationDeliveryMaxAggregateInputType = {
   status?: true
   pilotId?: true
   personId?: true
+  adminUserId?: true
   target?: true
   summary?: true
   message?: true
@@ -199,6 +204,7 @@ export type NotificationDeliveryCountAggregateInputType = {
   status?: true
   pilotId?: true
   personId?: true
+  adminUserId?: true
   target?: true
   summary?: true
   message?: true
@@ -313,6 +319,7 @@ export type NotificationDeliveryGroupByOutputType = {
   status: $Enums.NotificationStatus
   pilotId: string | null
   personId: string | null
+  adminUserId: string | null
   target: string
   summary: string
   message: string
@@ -363,6 +370,7 @@ export type NotificationDeliveryWhereInput = {
   status?: Prisma.EnumNotificationStatusFilter<"NotificationDelivery"> | $Enums.NotificationStatus
   pilotId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
+  adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
   summary?: Prisma.StringFilter<"NotificationDelivery"> | string
   message?: Prisma.StringFilter<"NotificationDelivery"> | string
@@ -382,6 +390,7 @@ export type NotificationDeliveryWhereInput = {
   version?: Prisma.IntFilter<"NotificationDelivery"> | number
   pilot?: Prisma.XOR<Prisma.PilotNullableScalarRelationFilter, Prisma.PilotWhereInput> | null
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
+  adminUser?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   attempts?: Prisma.NotificationAttemptListRelationFilter
 }
 
@@ -393,6 +402,7 @@ export type NotificationDeliveryOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   pilotId?: Prisma.SortOrderInput | Prisma.SortOrder
   personId?: Prisma.SortOrderInput | Prisma.SortOrder
+  adminUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   target?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   message?: Prisma.SortOrder
@@ -412,6 +422,7 @@ export type NotificationDeliveryOrderByWithRelationInput = {
   version?: Prisma.SortOrder
   pilot?: Prisma.PilotOrderByWithRelationInput
   person?: Prisma.PersonOrderByWithRelationInput
+  adminUser?: Prisma.AdminUserOrderByWithRelationInput
   attempts?: Prisma.NotificationAttemptOrderByRelationAggregateInput
 }
 
@@ -426,6 +437,7 @@ export type NotificationDeliveryWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumNotificationStatusFilter<"NotificationDelivery"> | $Enums.NotificationStatus
   pilotId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
+  adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
   summary?: Prisma.StringFilter<"NotificationDelivery"> | string
   message?: Prisma.StringFilter<"NotificationDelivery"> | string
@@ -445,6 +457,7 @@ export type NotificationDeliveryWhereUniqueInput = Prisma.AtLeast<{
   version?: Prisma.IntFilter<"NotificationDelivery"> | number
   pilot?: Prisma.XOR<Prisma.PilotNullableScalarRelationFilter, Prisma.PilotWhereInput> | null
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
+  adminUser?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   attempts?: Prisma.NotificationAttemptListRelationFilter
 }, "id" | "dedupeKey">
 
@@ -456,6 +469,7 @@ export type NotificationDeliveryOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   pilotId?: Prisma.SortOrderInput | Prisma.SortOrder
   personId?: Prisma.SortOrderInput | Prisma.SortOrder
+  adminUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   target?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   message?: Prisma.SortOrder
@@ -491,6 +505,7 @@ export type NotificationDeliveryScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumNotificationStatusWithAggregatesFilter<"NotificationDelivery"> | $Enums.NotificationStatus
   pilotId?: Prisma.UuidNullableWithAggregatesFilter<"NotificationDelivery"> | string | null
   personId?: Prisma.UuidNullableWithAggregatesFilter<"NotificationDelivery"> | string | null
+  adminUserId?: Prisma.UuidNullableWithAggregatesFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
   summary?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
   message?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
@@ -535,6 +550,7 @@ export type NotificationDeliveryCreateInput = {
   version?: number
   pilot?: Prisma.PilotCreateNestedOneWithoutNotificationsInput
   person?: Prisma.PersonCreateNestedOneWithoutNotificationsInput
+  adminUser?: Prisma.AdminUserCreateNestedOneWithoutNotificationDeliveriesInput
   attempts?: Prisma.NotificationAttemptCreateNestedManyWithoutDeliveryInput
 }
 
@@ -546,6 +562,7 @@ export type NotificationDeliveryUncheckedCreateInput = {
   status?: $Enums.NotificationStatus
   pilotId?: string | null
   personId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -591,6 +608,7 @@ export type NotificationDeliveryUpdateInput = {
   version?: Prisma.IntFieldUpdateOperationsInput | number
   pilot?: Prisma.PilotUpdateOneWithoutNotificationsNestedInput
   person?: Prisma.PersonUpdateOneWithoutNotificationsNestedInput
+  adminUser?: Prisma.AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput
   attempts?: Prisma.NotificationAttemptUpdateManyWithoutDeliveryNestedInput
 }
 
@@ -602,6 +620,7 @@ export type NotificationDeliveryUncheckedUpdateInput = {
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -630,6 +649,7 @@ export type NotificationDeliveryCreateManyInput = {
   status?: $Enums.NotificationStatus
   pilotId?: string | null
   personId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -682,6 +702,7 @@ export type NotificationDeliveryUncheckedUpdateManyInput = {
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -719,6 +740,7 @@ export type NotificationDeliveryCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   pilotId?: Prisma.SortOrder
   personId?: Prisma.SortOrder
+  adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   message?: Prisma.SortOrder
@@ -753,6 +775,7 @@ export type NotificationDeliveryMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   pilotId?: Prisma.SortOrder
   personId?: Prisma.SortOrder
+  adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   message?: Prisma.SortOrder
@@ -780,6 +803,7 @@ export type NotificationDeliveryMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   pilotId?: Prisma.SortOrder
   personId?: Prisma.SortOrder
+  adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   message?: Prisma.SortOrder
@@ -895,6 +919,48 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput = {
   deleteMany?: Prisma.NotificationDeliveryScalarWhereInput | Prisma.NotificationDeliveryScalarWhereInput[]
 }
 
+export type NotificationDeliveryCreateNestedManyWithoutAdminUserInput = {
+  create?: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput> | Prisma.NotificationDeliveryCreateWithoutAdminUserInput[] | Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput[]
+  connectOrCreate?: Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput | Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput[]
+  createMany?: Prisma.NotificationDeliveryCreateManyAdminUserInputEnvelope
+  connect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+}
+
+export type NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput = {
+  create?: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput> | Prisma.NotificationDeliveryCreateWithoutAdminUserInput[] | Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput[]
+  connectOrCreate?: Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput | Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput[]
+  createMany?: Prisma.NotificationDeliveryCreateManyAdminUserInputEnvelope
+  connect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+}
+
+export type NotificationDeliveryUpdateManyWithoutAdminUserNestedInput = {
+  create?: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput> | Prisma.NotificationDeliveryCreateWithoutAdminUserInput[] | Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput[]
+  connectOrCreate?: Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput | Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput[]
+  upsert?: Prisma.NotificationDeliveryUpsertWithWhereUniqueWithoutAdminUserInput | Prisma.NotificationDeliveryUpsertWithWhereUniqueWithoutAdminUserInput[]
+  createMany?: Prisma.NotificationDeliveryCreateManyAdminUserInputEnvelope
+  set?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  disconnect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  delete?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  connect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  update?: Prisma.NotificationDeliveryUpdateWithWhereUniqueWithoutAdminUserInput | Prisma.NotificationDeliveryUpdateWithWhereUniqueWithoutAdminUserInput[]
+  updateMany?: Prisma.NotificationDeliveryUpdateManyWithWhereWithoutAdminUserInput | Prisma.NotificationDeliveryUpdateManyWithWhereWithoutAdminUserInput[]
+  deleteMany?: Prisma.NotificationDeliveryScalarWhereInput | Prisma.NotificationDeliveryScalarWhereInput[]
+}
+
+export type NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput = {
+  create?: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput> | Prisma.NotificationDeliveryCreateWithoutAdminUserInput[] | Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput[]
+  connectOrCreate?: Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput | Prisma.NotificationDeliveryCreateOrConnectWithoutAdminUserInput[]
+  upsert?: Prisma.NotificationDeliveryUpsertWithWhereUniqueWithoutAdminUserInput | Prisma.NotificationDeliveryUpsertWithWhereUniqueWithoutAdminUserInput[]
+  createMany?: Prisma.NotificationDeliveryCreateManyAdminUserInputEnvelope
+  set?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  disconnect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  delete?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  connect?: Prisma.NotificationDeliveryWhereUniqueInput | Prisma.NotificationDeliveryWhereUniqueInput[]
+  update?: Prisma.NotificationDeliveryUpdateWithWhereUniqueWithoutAdminUserInput | Prisma.NotificationDeliveryUpdateWithWhereUniqueWithoutAdminUserInput[]
+  updateMany?: Prisma.NotificationDeliveryUpdateManyWithWhereWithoutAdminUserInput | Prisma.NotificationDeliveryUpdateManyWithWhereWithoutAdminUserInput[]
+  deleteMany?: Prisma.NotificationDeliveryScalarWhereInput | Prisma.NotificationDeliveryScalarWhereInput[]
+}
+
 export type EnumNotificationTypeFieldUpdateOperationsInput = {
   set?: $Enums.NotificationType
 }
@@ -945,6 +1011,7 @@ export type NotificationDeliveryCreateWithoutPersonInput = {
   securePayloadExpiresAt?: Date | string | null
   version?: number
   pilot?: Prisma.PilotCreateNestedOneWithoutNotificationsInput
+  adminUser?: Prisma.AdminUserCreateNestedOneWithoutNotificationDeliveriesInput
   attempts?: Prisma.NotificationAttemptCreateNestedManyWithoutDeliveryInput
 }
 
@@ -955,6 +1022,7 @@ export type NotificationDeliveryUncheckedCreateWithoutPersonInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   pilotId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -1012,6 +1080,7 @@ export type NotificationDeliveryScalarWhereInput = {
   status?: Prisma.EnumNotificationStatusFilter<"NotificationDelivery"> | $Enums.NotificationStatus
   pilotId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
+  adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
   summary?: Prisma.StringFilter<"NotificationDelivery"> | string
   message?: Prisma.StringFilter<"NotificationDelivery"> | string
@@ -1055,6 +1124,7 @@ export type NotificationDeliveryCreateWithoutPilotInput = {
   securePayloadExpiresAt?: Date | string | null
   version?: number
   person?: Prisma.PersonCreateNestedOneWithoutNotificationsInput
+  adminUser?: Prisma.AdminUserCreateNestedOneWithoutNotificationDeliveriesInput
   attempts?: Prisma.NotificationAttemptCreateNestedManyWithoutDeliveryInput
 }
 
@@ -1065,6 +1135,7 @@ export type NotificationDeliveryUncheckedCreateWithoutPilotInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   personId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -1111,6 +1182,88 @@ export type NotificationDeliveryUpdateManyWithWhereWithoutPilotInput = {
   data: Prisma.XOR<Prisma.NotificationDeliveryUpdateManyMutationInput, Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotInput>
 }
 
+export type NotificationDeliveryCreateWithoutAdminUserInput = {
+  id?: string
+  dedupeKey?: string | null
+  type: $Enums.NotificationType
+  channel: $Enums.NotificationChannel
+  status?: $Enums.NotificationStatus
+  target: string
+  summary: string
+  message: string
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  sentAt?: Date | string | null
+  readAt?: Date | string | null
+  nextAttemptAt?: Date | string | null
+  attemptCount?: number
+  retryLimit?: number
+  retryCycle?: number
+  lastErrorCategory?: string | null
+  finalFailureReason?: string | null
+  providerMessageId?: string | null
+  securePayloadCiphertext?: string | null
+  securePayloadExpiresAt?: Date | string | null
+  version?: number
+  pilot?: Prisma.PilotCreateNestedOneWithoutNotificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutNotificationsInput
+  attempts?: Prisma.NotificationAttemptCreateNestedManyWithoutDeliveryInput
+}
+
+export type NotificationDeliveryUncheckedCreateWithoutAdminUserInput = {
+  id?: string
+  dedupeKey?: string | null
+  type: $Enums.NotificationType
+  channel: $Enums.NotificationChannel
+  status?: $Enums.NotificationStatus
+  pilotId?: string | null
+  personId?: string | null
+  target: string
+  summary: string
+  message: string
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  sentAt?: Date | string | null
+  readAt?: Date | string | null
+  nextAttemptAt?: Date | string | null
+  attemptCount?: number
+  retryLimit?: number
+  retryCycle?: number
+  lastErrorCategory?: string | null
+  finalFailureReason?: string | null
+  providerMessageId?: string | null
+  securePayloadCiphertext?: string | null
+  securePayloadExpiresAt?: Date | string | null
+  version?: number
+  attempts?: Prisma.NotificationAttemptUncheckedCreateNestedManyWithoutDeliveryInput
+}
+
+export type NotificationDeliveryCreateOrConnectWithoutAdminUserInput = {
+  where: Prisma.NotificationDeliveryWhereUniqueInput
+  create: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput>
+}
+
+export type NotificationDeliveryCreateManyAdminUserInputEnvelope = {
+  data: Prisma.NotificationDeliveryCreateManyAdminUserInput | Prisma.NotificationDeliveryCreateManyAdminUserInput[]
+  skipDuplicates?: boolean
+}
+
+export type NotificationDeliveryUpsertWithWhereUniqueWithoutAdminUserInput = {
+  where: Prisma.NotificationDeliveryWhereUniqueInput
+  update: Prisma.XOR<Prisma.NotificationDeliveryUpdateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedUpdateWithoutAdminUserInput>
+  create: Prisma.XOR<Prisma.NotificationDeliveryCreateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedCreateWithoutAdminUserInput>
+}
+
+export type NotificationDeliveryUpdateWithWhereUniqueWithoutAdminUserInput = {
+  where: Prisma.NotificationDeliveryWhereUniqueInput
+  data: Prisma.XOR<Prisma.NotificationDeliveryUpdateWithoutAdminUserInput, Prisma.NotificationDeliveryUncheckedUpdateWithoutAdminUserInput>
+}
+
+export type NotificationDeliveryUpdateManyWithWhereWithoutAdminUserInput = {
+  where: Prisma.NotificationDeliveryScalarWhereInput
+  data: Prisma.XOR<Prisma.NotificationDeliveryUpdateManyMutationInput, Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserInput>
+}
+
 export type NotificationDeliveryCreateWithoutAttemptsInput = {
   id?: string
   dedupeKey?: string | null
@@ -1136,6 +1289,7 @@ export type NotificationDeliveryCreateWithoutAttemptsInput = {
   version?: number
   pilot?: Prisma.PilotCreateNestedOneWithoutNotificationsInput
   person?: Prisma.PersonCreateNestedOneWithoutNotificationsInput
+  adminUser?: Prisma.AdminUserCreateNestedOneWithoutNotificationDeliveriesInput
 }
 
 export type NotificationDeliveryUncheckedCreateWithoutAttemptsInput = {
@@ -1146,6 +1300,7 @@ export type NotificationDeliveryUncheckedCreateWithoutAttemptsInput = {
   status?: $Enums.NotificationStatus
   pilotId?: string | null
   personId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -1206,6 +1361,7 @@ export type NotificationDeliveryUpdateWithoutAttemptsInput = {
   version?: Prisma.IntFieldUpdateOperationsInput | number
   pilot?: Prisma.PilotUpdateOneWithoutNotificationsNestedInput
   person?: Prisma.PersonUpdateOneWithoutNotificationsNestedInput
+  adminUser?: Prisma.AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput
 }
 
 export type NotificationDeliveryUncheckedUpdateWithoutAttemptsInput = {
@@ -1216,6 +1372,7 @@ export type NotificationDeliveryUncheckedUpdateWithoutAttemptsInput = {
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1242,6 +1399,7 @@ export type NotificationDeliveryCreateManyPersonInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   pilotId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -1285,6 +1443,7 @@ export type NotificationDeliveryUpdateWithoutPersonInput = {
   securePayloadExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   pilot?: Prisma.PilotUpdateOneWithoutNotificationsNestedInput
+  adminUser?: Prisma.AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput
   attempts?: Prisma.NotificationAttemptUpdateManyWithoutDeliveryNestedInput
 }
 
@@ -1295,6 +1454,7 @@ export type NotificationDeliveryUncheckedUpdateWithoutPersonInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1322,6 +1482,7 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutPersonInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1348,6 +1509,7 @@ export type NotificationDeliveryCreateManyPilotInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   personId?: string | null
+  adminUserId?: string | null
   target: string
   summary: string
   message: string
@@ -1391,6 +1553,7 @@ export type NotificationDeliveryUpdateWithoutPilotInput = {
   securePayloadExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   person?: Prisma.PersonUpdateOneWithoutNotificationsNestedInput
+  adminUser?: Prisma.AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput
   attempts?: Prisma.NotificationAttemptUpdateManyWithoutDeliveryNestedInput
 }
 
@@ -1401,6 +1564,7 @@ export type NotificationDeliveryUncheckedUpdateWithoutPilotInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   message?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1427,6 +1591,117 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutPilotInput = {
   type?: Prisma.EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  target?: Prisma.StringFieldUpdateOperationsInput | string
+  summary?: Prisma.StringFieldUpdateOperationsInput | string
+  message?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  retryLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  retryCycle?: Prisma.IntFieldUpdateOperationsInput | number
+  lastErrorCategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  finalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type NotificationDeliveryCreateManyAdminUserInput = {
+  id?: string
+  dedupeKey?: string | null
+  type: $Enums.NotificationType
+  channel: $Enums.NotificationChannel
+  status?: $Enums.NotificationStatus
+  pilotId?: string | null
+  personId?: string | null
+  target: string
+  summary: string
+  message: string
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  sentAt?: Date | string | null
+  readAt?: Date | string | null
+  nextAttemptAt?: Date | string | null
+  attemptCount?: number
+  retryLimit?: number
+  retryCycle?: number
+  lastErrorCategory?: string | null
+  finalFailureReason?: string | null
+  providerMessageId?: string | null
+  securePayloadCiphertext?: string | null
+  securePayloadExpiresAt?: Date | string | null
+  version?: number
+}
+
+export type NotificationDeliveryUpdateWithoutAdminUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  dedupeKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  type?: Prisma.EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+  channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
+  status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
+  target?: Prisma.StringFieldUpdateOperationsInput | string
+  summary?: Prisma.StringFieldUpdateOperationsInput | string
+  message?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  retryLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  retryCycle?: Prisma.IntFieldUpdateOperationsInput | number
+  lastErrorCategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  finalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  pilot?: Prisma.PilotUpdateOneWithoutNotificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutNotificationsNestedInput
+  attempts?: Prisma.NotificationAttemptUpdateManyWithoutDeliveryNestedInput
+}
+
+export type NotificationDeliveryUncheckedUpdateWithoutAdminUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  dedupeKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  type?: Prisma.EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+  channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
+  status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
+  pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  target?: Prisma.StringFieldUpdateOperationsInput | string
+  summary?: Prisma.StringFieldUpdateOperationsInput | string
+  message?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  nextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  retryLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  retryCycle?: Prisma.IntFieldUpdateOperationsInput | number
+  lastErrorCategory?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  finalFailureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  providerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  securePayloadExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  attempts?: Prisma.NotificationAttemptUncheckedUpdateManyWithoutDeliveryNestedInput
+}
+
+export type NotificationDeliveryUncheckedUpdateManyWithoutAdminUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  dedupeKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  type?: Prisma.EnumNotificationTypeFieldUpdateOperationsInput | $Enums.NotificationType
+  channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
+  status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
+  pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1486,6 +1761,7 @@ export type NotificationDeliverySelect<ExtArgs extends runtime.Types.Extensions.
   status?: boolean
   pilotId?: boolean
   personId?: boolean
+  adminUserId?: boolean
   target?: boolean
   summary?: boolean
   message?: boolean
@@ -1505,6 +1781,7 @@ export type NotificationDeliverySelect<ExtArgs extends runtime.Types.Extensions.
   version?: boolean
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
   attempts?: boolean | Prisma.NotificationDelivery$attemptsArgs<ExtArgs>
   _count?: boolean | Prisma.NotificationDeliveryCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["notificationDelivery"]>
@@ -1517,6 +1794,7 @@ export type NotificationDeliverySelectCreateManyAndReturn<ExtArgs extends runtim
   status?: boolean
   pilotId?: boolean
   personId?: boolean
+  adminUserId?: boolean
   target?: boolean
   summary?: boolean
   message?: boolean
@@ -1536,6 +1814,7 @@ export type NotificationDeliverySelectCreateManyAndReturn<ExtArgs extends runtim
   version?: boolean
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
 }, ExtArgs["result"]["notificationDelivery"]>
 
 export type NotificationDeliverySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1546,6 +1825,7 @@ export type NotificationDeliverySelectUpdateManyAndReturn<ExtArgs extends runtim
   status?: boolean
   pilotId?: boolean
   personId?: boolean
+  adminUserId?: boolean
   target?: boolean
   summary?: boolean
   message?: boolean
@@ -1565,6 +1845,7 @@ export type NotificationDeliverySelectUpdateManyAndReturn<ExtArgs extends runtim
   version?: boolean
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
 }, ExtArgs["result"]["notificationDelivery"]>
 
 export type NotificationDeliverySelectScalar = {
@@ -1575,6 +1856,7 @@ export type NotificationDeliverySelectScalar = {
   status?: boolean
   pilotId?: boolean
   personId?: boolean
+  adminUserId?: boolean
   target?: boolean
   summary?: boolean
   message?: boolean
@@ -1594,20 +1876,23 @@ export type NotificationDeliverySelectScalar = {
   version?: boolean
 }
 
-export type NotificationDeliveryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "dedupeKey" | "type" | "channel" | "status" | "pilotId" | "personId" | "target" | "summary" | "message" | "createdAt" | "startedAt" | "sentAt" | "readAt" | "nextAttemptAt" | "attemptCount" | "retryLimit" | "retryCycle" | "lastErrorCategory" | "finalFailureReason" | "providerMessageId" | "securePayloadCiphertext" | "securePayloadExpiresAt" | "version", ExtArgs["result"]["notificationDelivery"]>
+export type NotificationDeliveryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "dedupeKey" | "type" | "channel" | "status" | "pilotId" | "personId" | "adminUserId" | "target" | "summary" | "message" | "createdAt" | "startedAt" | "sentAt" | "readAt" | "nextAttemptAt" | "attemptCount" | "retryLimit" | "retryCycle" | "lastErrorCategory" | "finalFailureReason" | "providerMessageId" | "securePayloadCiphertext" | "securePayloadExpiresAt" | "version", ExtArgs["result"]["notificationDelivery"]>
 export type NotificationDeliveryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
   attempts?: boolean | Prisma.NotificationDelivery$attemptsArgs<ExtArgs>
   _count?: boolean | Prisma.NotificationDeliveryCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type NotificationDeliveryIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
 }
 export type NotificationDeliveryIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
+  adminUser?: boolean | Prisma.NotificationDelivery$adminUserArgs<ExtArgs>
 }
 
 export type $NotificationDeliveryPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1615,6 +1900,7 @@ export type $NotificationDeliveryPayload<ExtArgs extends runtime.Types.Extension
   objects: {
     pilot: Prisma.$PilotPayload<ExtArgs> | null
     person: Prisma.$PersonPayload<ExtArgs> | null
+    adminUser: Prisma.$AdminUserPayload<ExtArgs> | null
     attempts: Prisma.$NotificationAttemptPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1625,6 +1911,7 @@ export type $NotificationDeliveryPayload<ExtArgs extends runtime.Types.Extension
     status: $Enums.NotificationStatus
     pilotId: string | null
     personId: string | null
+    adminUserId: string | null
     target: string
     summary: string
     message: string
@@ -2038,6 +2325,7 @@ export interface Prisma__NotificationDeliveryClient<T, Null = never, ExtArgs ext
   readonly [Symbol.toStringTag]: "PrismaPromise"
   pilot<T extends Prisma.NotificationDelivery$pilotArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NotificationDelivery$pilotArgs<ExtArgs>>): Prisma.Prisma__PilotClient<runtime.Types.Result.GetResult<Prisma.$PilotPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   person<T extends Prisma.NotificationDelivery$personArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NotificationDelivery$personArgs<ExtArgs>>): Prisma.Prisma__PersonClient<runtime.Types.Result.GetResult<Prisma.$PersonPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  adminUser<T extends Prisma.NotificationDelivery$adminUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NotificationDelivery$adminUserArgs<ExtArgs>>): Prisma.Prisma__AdminUserClient<runtime.Types.Result.GetResult<Prisma.$AdminUserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   attempts<T extends Prisma.NotificationDelivery$attemptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NotificationDelivery$attemptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationAttemptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -2075,6 +2363,7 @@ export interface NotificationDeliveryFieldRefs {
   readonly status: Prisma.FieldRef<"NotificationDelivery", 'NotificationStatus'>
   readonly pilotId: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly personId: Prisma.FieldRef<"NotificationDelivery", 'String'>
+  readonly adminUserId: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly target: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly summary: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly message: Prisma.FieldRef<"NotificationDelivery", 'String'>
@@ -2528,6 +2817,25 @@ export type NotificationDelivery$personArgs<ExtArgs extends runtime.Types.Extens
    */
   include?: Prisma.PersonInclude<ExtArgs> | null
   where?: Prisma.PersonWhereInput
+}
+
+/**
+ * NotificationDelivery.adminUser
+ */
+export type NotificationDelivery$adminUserArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AdminUser
+   */
+  select?: Prisma.AdminUserSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AdminUser
+   */
+  omit?: Prisma.AdminUserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AdminUserInclude<ExtArgs> | null
+  where?: Prisma.AdminUserWhereInput
 }
 
 /**

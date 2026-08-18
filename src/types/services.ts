@@ -50,7 +50,7 @@ export const CORE_QUALIFICATION_CATALOG = [
   },
   {
     id: "chinese-language-assessment",
-    name: "汉语语言能力评估",
+    name: "ICAO汉语语言能力等级签注",
     code: "QUAL-EM-02",
     parameter: "四级标准",
     cycleMonths: undefined,
@@ -465,13 +465,26 @@ export type OcrCheckConfig = {
   expiryDate: boolean;
   issuingAuthoritySeal: boolean;
 };
+export type QualificationFieldValueType = "text" | "digits" | "english" | "alphanumeric";
+export type QualificationCustomField = {
+  id: string;
+  label: string;
+  valueType: QualificationFieldValueType;
+  required: boolean;
+  minLength: number;
+  maxLength: number;
+  placeholder: string;
+};
 export type QualificationConfig = {
   id: QualificationConfigId;
   qualificationId?: QualificationId;
+  positionCode: string;
   code: string;
   name: string;
   core: boolean;
+  locked: boolean;
   active: boolean;
+  customFields: QualificationCustomField[];
   parameterRestriction: {
     enabled: boolean;
     description: string;
@@ -483,7 +496,12 @@ export type QualificationConfig = {
     };
   };
   validityRule: ValidityRule;
-  reminders: { firstDays: number; secondDays: number };
+  reminders: {
+    firstDays: number;
+    secondDays: number;
+    dueRecipients?: Array<"PERSON" | "ADMIN" | "SUPER_ADMIN">;
+    expiredRecipients?: Array<"PERSON" | "ADMIN" | "SUPER_ADMIN">;
+  };
   ocrChecks: OcrCheckConfig;
   createdAt: string;
   updatedAt: string;
@@ -491,8 +509,13 @@ export type QualificationConfig = {
 };
 export type QualificationConfigInput = Omit<
   QualificationConfig,
-  "id" | "code" | "core" | "createdAt" | "updatedAt" | "qualificationId"
+  "id" | "positionCode" | "code" | "core" | "locked" | "createdAt" | "updatedAt" | "qualificationId"
 >;
+
+export type QualificationConfigCreateInput = QualificationConfigInput & {
+  positionCode: string;
+  kind: "core" | "supplemental";
+};
 
 export type NotificationLogId = string;
 export type NotificationType =
@@ -507,7 +530,8 @@ export type NotificationType =
   | "delivery_failed"
   | "pilot_access_link";
 export type NotificationChannel = "feishu" | "sms" | "in_app";
-export type NotificationDeliveryStatus = "queued" | "sending" | "sent" | "failed";
+export type NotificationDeliveryStatus =
+  "queued" | "sending" | "provider_accepted" | "delivered" | "unknown" | "sent" | "failed";
 export type NotificationAttempt = {
   id: string;
   attemptedAt: string;
@@ -718,9 +742,11 @@ export type QualificationAlert = {
   pilotId: string;
   pilotName: string;
   qualification: Qualification;
+  daysRemaining: number;
 };
 
 export type WeeklyUpgradeItem = {
+  planId: string;
   pilotId: string;
   pilotName: string;
   role: string;
@@ -738,6 +764,7 @@ export type AdminDashboardSummary = {
   pendingReviews: QualificationReview[];
   qualificationAlerts: QualificationAlert[];
   weeklyUpgrades: WeeklyUpgradeItem[];
+  delayedUpgrades: WeeklyUpgradeItem[];
 };
 
 export type AccessLinkRequest = { employeeNumber: string; mobile: string };
@@ -919,11 +946,15 @@ export interface UpgradePlanService {
 }
 
 export interface QualificationConfigService {
-  list(): Promise<ServiceResult<QualificationConfig[]>>;
-  getById(id: QualificationConfigId): Promise<ServiceResult<QualificationConfig | null>>;
+  list(positionCode: string): Promise<ServiceResult<QualificationConfig[]>>;
+  getById(
+    positionCode: string,
+    id: QualificationConfigId,
+  ): Promise<ServiceResult<QualificationConfig | null>>;
   save(
+    positionCode: string,
     id: QualificationConfigId,
     input: QualificationConfigInput & { expectedVersion?: number },
   ): Promise<ServiceResult<QualificationConfig>>;
-  createSupplemental(input: QualificationConfigInput): Promise<ServiceResult<QualificationConfig>>;
+  create(input: QualificationConfigCreateInput): Promise<ServiceResult<QualificationConfig>>;
 }

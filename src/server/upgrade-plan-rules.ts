@@ -1,6 +1,7 @@
 import { ApiError } from "@/server/api";
 import type { UpgradePlanLifecycleStatus, UpgradePlanStageRecord } from "@/types/services";
-import { deriveQualificationDateState } from "@/lib/qualification-date-status";
+import { dateOnlyForTimezone } from "@/lib/date-only";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const ACTIVE_UPGRADE_PLAN_STATUSES: UpgradePlanLifecycleStatus[] = [
   "not_started",
@@ -11,6 +12,8 @@ export const ACTIVE_UPGRADE_PLAN_STATUSES: UpgradePlanLifecycleStatus[] = [
 export function assertCoreQualificationsEligible(
   coreTypes: Array<{ id: string; name: string }>,
   activeRecords: Array<{ qualificationTypeId: string; expiryDate: Date | null }>,
+  timezone = "Asia/Shanghai",
+  now = new Date(),
 ) {
   const records = new Map(activeRecords.map((record) => [record.qualificationTypeId, record]));
   const missing = coreTypes.filter((type) => !records.has(type.id));
@@ -23,10 +26,8 @@ export function assertCoreQualificationsEligible(
   }
   const expired = coreTypes.filter((type) => {
     const record = records.get(type.id)!;
-    return (
-      deriveQualificationDateState(record.expiryDate?.toISOString().slice(0, 10) ?? "").status ===
-      "expired"
-    );
+    if (!record.expiryDate) return false;
+    return record.expiryDate.toISOString().slice(0, 10) < dateOnlyForTimezone(now, timezone);
   });
   if (expired.length) {
     throw new ApiError(
@@ -35,6 +36,61 @@ export function assertCoreQualificationsEligible(
       409,
     );
   }
+}
+
+/**
+ * Canonical eligibility shared by create/start/resume.  Legacy plans without
+ * a Person/position assignment continue through the compatibility check in
+ * the route, but any canonical plan is evaluated exclusively against the
+ * saved assignment and QualificationDefinition requirements.
+ */
+export async function assertUpgradePlanEligibility(
+  db: any,
+  plan: { personId?: string | null; positionAssignmentId?: string | null },
+) {
+  if (!plan.personId || !plan.positionAssignmentId) return;
+  const assignment = await db.personPositionAssignment.findUnique({
+    where: { id: plan.positionAssignmentId },
+    include: {
+      position: {
+        include: {
+          requirements: {
+            where: { active: true, required: true, upgradePrerequisite: true },
+            include: { qualificationDefinition: true },
+          },
+        },
+      },
+      person: { select: { unit: { select: { timezone: true } } } },
+    },
+  });
+  if (!assignment || assignment.personId !== plan.personId) {
+    throw new ApiError("PLAN_SCOPE_MISMATCH", "升级计划人员与职位分配不一致", 409);
+  }
+  const requirements = assignment.position?.requirements ?? [];
+  if (!requirements.length) return;
+  const records = await db.qualificationRecord.findMany({
+    where: {
+      personId: plan.personId,
+      status: "ACTIVE",
+      qualificationDefinitionId: {
+        in: requirements.map((item: any) => item.qualificationDefinitionId),
+      },
+    },
+    select: { qualificationDefinitionId: true, expiryDate: true },
+  });
+  assertCoreQualificationsEligible(
+    requirements.map((item: any) => ({
+      id: item.qualificationDefinitionId,
+      name: item.qualificationDefinition.name,
+    })),
+    records
+      .filter((item: any) => Boolean(item.qualificationDefinitionId))
+      .map((item: any) => ({
+        qualificationTypeId: item.qualificationDefinitionId,
+        expiryDate: item.expiryDate,
+      })),
+    assignment.person?.unit?.timezone ?? "Asia/Shanghai",
+  );
 }
 
 export function assertLifecycleAction(

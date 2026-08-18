@@ -39,7 +39,7 @@ describe("deployment configuration", () => {
     expect(compose).toMatch(/profiles: \[dev\]/);
     expect(compose).toMatch(/SMS_ADAPTER: \$\{SMS_ADAPTER:-disabled\}/);
     expect(compose).toMatch(/FEISHU_ADAPTER: \$\{FEISHU_ADAPTER:-disabled\}/);
-    expect(compose).toMatch(/VLM_ADAPTER: \$\{VLM_ADAPTER:-qwen\}/);
+    expect(compose).toMatch(/VLM_ADAPTER: \$\{VLM_ADAPTER:-disabled\}/);
     expect(compose).not.toMatch(/https?:\/\/(?!postgres|web|minio|localhost|127\.0\.0\.1)/);
   });
 

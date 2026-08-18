@@ -9,6 +9,7 @@ import { AdminAccountSettingsSection } from "@/components/admin/settings/admin-a
 import { AiSettingsSection } from "@/components/admin/settings/ai-settings-section";
 import { NotificationSettingsSection } from "@/components/admin/settings/notification-settings-section";
 import { OrganizationSettingsSection } from "@/components/admin/settings/organization-settings-section";
+import { PositionSettingsSection } from "@/components/admin/settings/position-settings-section";
 import { SecuritySettingsSection } from "@/components/admin/settings/security-settings-section";
 import { MediaOptimizationSection } from "@/components/admin/settings/media-optimization-section";
 import { BackupSettingsSection } from "@/components/admin/settings/backup-settings-section";
@@ -41,6 +42,12 @@ const sections: SectionDefinition[] = [
     label: "组织与单位",
     description: "多单位、时区与联系人",
     icon: Building2,
+  },
+  {
+    id: "positions",
+    label: "职位管理",
+    description: "职位、成员与资质入口",
+    icon: Users,
   },
   {
     id: "admins",
@@ -119,7 +126,7 @@ export function AdminSettingsView() {
     setLoadError(null);
     try {
       const data = await adminSettingsService.load();
-      setSnapshot(data);
+      setSnapshot({ ...data, positions: data.positions ?? [] });
     } catch (reason) {
       setLoadError(reason instanceof Error ? reason.message : "系统设置加载失败");
     } finally {
@@ -181,7 +188,7 @@ export function AdminSettingsView() {
       ) : null}
 
       {!loading && snapshot ? (
-        <div className="grid min-w-0 gap-6 lg:grid-cols-[228px_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
           <aside className="hidden lg:block" aria-label="系统设置二级导航">
             <Card className="sticky top-6">
               <CardContent className="space-y-1 p-2">
@@ -236,6 +243,19 @@ export function AdminSettingsView() {
                 isSuperAdmin={isSuperAdmin}
                 canWrite={hasPermission("settings.units.write")}
                 onUnitsChange={(units) => setSnapshot({ ...snapshot, units })}
+                notify={notify}
+              />
+            ) : null}
+
+            {activeSection === "positions" ? (
+              <PositionSettingsSection
+                positions={snapshot.positions}
+                defaultOrganizationId={
+                  snapshot.positions[0]?.organizationId ?? snapshot.units[0]?.id
+                }
+                canWrite={hasPermission("settings.positions.write")}
+                isSuperAdmin={isSuperAdmin}
+                onPositionsChange={(positions) => setSnapshot({ ...snapshot, positions })}
                 notify={notify}
               />
             ) : null}

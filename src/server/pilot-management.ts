@@ -86,6 +86,8 @@ async function ensurePersonProjection(tx: any, pilot: any, unit: any) {
       data: {
         personId: person.id,
         positionId: position.id,
+        positionCodeSnapshot: position.code,
+        positionNameSnapshot: position.name,
         isPrimary: true,
         effectiveFrom: pilot.createdAt,
       },
@@ -172,7 +174,11 @@ export async function getPilotCsvTemplate(admin: AuthenticatedAdmin) {
 }
 
 function csvExportCell(value: unknown) {
-  const text = value == null ? "" : String(value);
+  const raw = value == null ? "" : String(value);
+  // Spreadsheet applications interpret leading formula characters even in a
+  // quoted CSV cell. Prefix exported user-controlled values with an apostrophe
+  // so employee names, authorities, and notes cannot execute formulas.
+  const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
@@ -539,6 +545,27 @@ export async function importPilotCsv(
       if (existing) updatedCount += 1;
       const projection = await ensurePersonProjection(tx, pilot, unit);
       for (const qualification of row.qualifications) {
+        const definitionId = projection?.definitions?.find(
+          (definition: any) =>
+            definition.legacyQualificationTypeId === qualification.qualificationId,
+        )?.id as string | undefined;
+        if (definitionId) {
+          const definition = await tx.qualificationDefinition.findUnique({
+            where: { id: definitionId },
+            select: { requiresEvidence: true, requiresHumanReview: true, allowAutoApproval: true },
+          });
+          if (
+            definition &&
+            (definition.requiresEvidence || definition.requiresHumanReview) &&
+            !definition.allowAutoApproval
+          ) {
+            throw new ApiError(
+              "IMPORT_REQUIRES_REVIEW",
+              "该资质要求凭证或人工审核，CSV 不能直接激活，请走审核流程",
+              422,
+            );
+          }
+        }
         if (existing) {
           await tx.qualificationRecord.updateMany({
             where: {
@@ -553,10 +580,7 @@ export async function importPilotCsv(
           data: {
             pilotId: pilot.id,
             personId: projection?.id,
-            qualificationDefinitionId: projection?.definitions?.find(
-              (definition: any) =>
-                definition.legacyQualificationTypeId === qualification.qualificationId,
-            )?.id,
+            qualificationDefinitionId: definitionId,
             qualificationTypeId: qualification.qualificationId,
             credentialNumber: "",
             issueDate: csvDate(qualification.issueDate),
@@ -567,6 +591,11 @@ export async function importPilotCsv(
             qualificationRuleSnapshot: qualificationRuleSnapshot(
               qualificationTypeMap.get(qualification.qualificationId)!,
             ),
+            action: "ADMIN_IMPORT",
+            actorId: admin.id,
+            reason: "CSV 导入并确认",
+            requestId,
+            activatedAt: now,
             lastVerifiedAt: now,
           },
         });

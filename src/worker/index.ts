@@ -59,7 +59,7 @@ async function main() {
       sms: getSmsAdapter(),
       feishu: getFeishuAdapter(),
     });
-    if (result.status === "retrying") {
+    if (result.status === "retrying" && result.retryAt) {
       await boss.sendAfter(QUEUES.notifications, payload, null, result.retryAt);
     }
   });

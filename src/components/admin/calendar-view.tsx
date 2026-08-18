@@ -3,10 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Pencil, RotateCcw } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { zhCN } from "date-fns/locale";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +27,15 @@ import { FieldLabel } from "@/components/ui/form-field";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import {
   OPERATIONS_TODAY,
+  calendarActiveUpgradeEventsForDay,
+  calendarBoundaryEventsForDay,
   calendarDays,
+  calendarEventDayKind,
   calendarRange,
   moveCalendarAnchor,
   shanghaiToday,
+  summarizeDayQualifications,
+  type CalendarEventDayKind,
   validCalendarView,
   validIsoDate,
 } from "@/lib/calendar-utils";
@@ -131,7 +141,7 @@ function SquadronMultiSelect({
   };
 
   return (
-    <div ref={rootRef} className="relative space-y-1.5">
+    <div ref={rootRef} className="relative space-y-1">
       <FieldLabel htmlFor={`${listId}-trigger`}>{label}</FieldLabel>
       <button
         id={`${listId}-trigger`}
@@ -139,7 +149,7 @@ function SquadronMultiSelect({
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+        className="flex min-h-10 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-left text-sm text-primary focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
       >
         <span className="truncate">{summary}</span>
         <ChevronDown
@@ -284,6 +294,7 @@ export function CalendarViewPage() {
   const [roster, setRoster] = React.useState<CalendarDayQualificationRoster | null>(null);
   const [rosterLoading, setRosterLoading] = React.useState(true);
   const [rosterError, setRosterError] = React.useState("");
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [dayDrawerOpen, setDayDrawerOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<QualificationEditTarget | null>(null);
   const [refreshRevision, setRefreshRevision] = React.useState(0);
@@ -467,134 +478,208 @@ export function CalendarViewPage() {
   }, [roster, selectedEvent]);
 
   const refreshCalendar = () => setRefreshRevision((revision) => revision + 1);
+  const activeFilterCount = [
+    view !== "month",
+    type !== "all",
+    squadrons.length > 0,
+    positions.length > 0,
+    qualification !== "all",
+    Boolean(q.trim()),
+  ].filter(Boolean).length;
 
   return (
-    <PageContainer className="space-y-4">
-      <AdminPageHeader
-        title="统一日历"
-        description="资质事件来自生效记录，升级事件来自计划节点；日历不保存静态副本"
-      />
-
-      <Card className="grid gap-3 p-3 shadow-none md:grid-cols-2 xl:grid-cols-[150px_160px_180px_180px_220px_minmax(180px,1fr)]">
-        <Select
-          label="视图"
-          value={view}
-          options={viewOptions}
-          onChange={(event) => updateParams({ view: event.target.value })}
-        />
-        <Select
-          label="事件类型"
-          value={type}
-          options={[
-            { label: "全部事件", value: "all" },
-            { label: "资质到期/临期", value: "qualification_expiry" },
-            { label: "升级节点", value: "upgrade_stage" },
-          ]}
-          onChange={(event) => updateParams({ type: event.target.value })}
-        />
-        <SquadronMultiSelect
-          options={squadronOptions}
-          value={squadrons}
-          onChange={(next) => updateParams({ units: next.join(",") || null })}
-        />
-        <SquadronMultiSelect
-          label="职位"
-          options={positionOptions}
-          value={positions}
-          onChange={(next) => updateParams({ positions: next.join(",") || null })}
-        />
-        <Select
-          label="资质项目"
-          value={qualification}
-          options={[
-            { label: "全部六项核心资质", value: "all" },
-            ...state.qualificationConfigs
-              .filter((item) => item.core && item.qualificationId)
-              .map((item) => ({ label: item.name, value: item.qualificationId! })),
-          ]}
-          onChange={(event) => updateParams({ qualification: event.target.value })}
-        />
-        <Input
-          label="搜索成员"
-          value={q}
-          placeholder="姓名或员工号"
-          onChange={(event) => updateParams({ q: event.target.value })}
-        />
-      </Card>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+    <PageContainer className="space-y-3">
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:gap-x-4">
+        <div
+          data-testid="calendar-toolbar"
+          className="flex flex-nowrap items-center justify-end gap-1 lg:col-start-2 lg:row-start-1"
+          aria-label="日历日期导航"
+        >
           <IconButton
             label="上一周期"
             variant="secondary"
+            size="sm"
+            className="h-9 min-h-9 w-9 px-0"
             onClick={() => updateParams({ date: moveCalendarAnchor(view, anchor, -1) })}
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-3.5" />
           </IconButton>
-          <Button variant="secondary" onClick={() => updateParams({ date: today })}>
-            <RotateCcw className="size-4" /> 回到今天
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-9 min-h-9 px-2"
+            onClick={() => updateParams({ date: today })}
+          >
+            <RotateCcw className="size-3.5" /> 今天
           </Button>
           <IconButton
             label="下一周期"
             variant="secondary"
+            size="sm"
+            className="h-9 min-h-9 w-9 px-0"
             onClick={() => updateParams({ date: moveCalendarAnchor(view, anchor, 1) })}
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-3.5" />
           </IconButton>
+          <DateField
+            aria-label="选择日期"
+            value={anchor}
+            className="h-9 min-h-9 w-[7.75rem] px-2 text-xs"
+            onChange={(event) => {
+              if (event.target.value) updateParams({ date: event.target.value, event: null });
+            }}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="relative h-9 min-h-9 px-2"
+            data-testid="calendar-filter-trigger"
+            aria-label={activeFilterCount ? `筛选，已启用 ${activeFilterCount} 项` : "筛选"}
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen(true)}
+          >
+            <Filter aria-hidden="true" className="size-3.5" />
+            筛选
+            {activeFilterCount ? (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-brand text-[9px] leading-none text-white"
+              >
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </Button>
         </div>
-        <p className="text-sm font-bold">
-          {view === "month"
-            ? format(parseISO(anchor), "yyyy年M月", { locale: zhCN })
-            : `${range.from} 至 ${range.to}`}
-        </p>
+
+        <div className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          {!events ? (
+            <Skeleton className="h-96" />
+          ) : (
+            <>
+              {view === "month" ? (
+                <MonthCalendar
+                  anchor={anchor}
+                  events={events}
+                  onDate={selectDate}
+                  onEvent={selectEvent}
+                />
+              ) : view === "week" ? (
+                <WeekCalendar
+                  anchor={anchor}
+                  events={events}
+                  onDate={selectDate}
+                  onEvent={selectEvent}
+                />
+              ) : view === "timeline" ? (
+                <TimelineCalendar events={events} onEvent={selectEvent} />
+              ) : (
+                <AgendaCalendar events={events} onEvent={selectEvent} />
+              )}
+            </>
+          )}
+        </div>
+        <aside className="hidden lg:col-start-2 lg:row-start-2 lg:block">
+          {selectedEvent ? (
+            <EventDetail
+              event={selectedEvent}
+              onClose={() => selectEvent(null)}
+              onEditQualification={
+                canWrite && editQualificationEvent
+                  ? () => setEditTarget(editQualificationEvent)
+                  : undefined
+              }
+              onUpdated={refreshCalendar}
+            />
+          ) : (
+            <DayQualificationPanel
+              date={anchor}
+              roster={roster}
+              loading={rosterLoading}
+              error={rosterError}
+              canWrite={canWrite}
+              onEdit={setEditTarget}
+            />
+          )}
+        </aside>
       </div>
 
-      {error ? <Alert tone="danger">{error}</Alert> : null}
-      {!events ? (
-        <Skeleton className="h-96" />
-      ) : (
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0">
-            {view === "month" ? (
-              <MonthCalendar
-                anchor={anchor}
-                events={events}
-                onDate={selectDate}
-                onEvent={selectEvent}
-              />
-            ) : view === "week" ? (
-              <WeekCalendar anchor={anchor} events={events} onEvent={selectEvent} />
-            ) : view === "timeline" ? (
-              <TimelineCalendar events={events} onEvent={selectEvent} />
-            ) : (
-              <AgendaCalendar events={events} onEvent={selectEvent} />
-            )}
+      <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DrawerContent side="right" className="w-[min(25rem,calc(100vw-1rem))] overflow-y-auto p-5">
+          <DrawerTitle className="text-lg font-bold">日历筛选</DrawerTitle>
+          <DrawerDescription className="mt-1 text-sm text-secondary">
+            筛选会即时生效并保存在页面地址中。
+          </DrawerDescription>
+          <div className="mt-6 space-y-4">
+            <Select
+              label="视图"
+              value={view}
+              options={viewOptions}
+              onChange={(event) => updateParams({ view: event.target.value })}
+            />
+            <Select
+              label="事件类型"
+              value={type}
+              options={[
+                { label: "全部事件", value: "all" },
+                { label: "资质到期/临期", value: "qualification_expiry" },
+                { label: "升级节点", value: "upgrade_stage" },
+              ]}
+              onChange={(event) => updateParams({ type: event.target.value })}
+            />
+            <SquadronMultiSelect
+              options={squadronOptions}
+              value={squadrons}
+              onChange={(next) => updateParams({ units: next.join(",") || null })}
+            />
+            <SquadronMultiSelect
+              label="职位"
+              options={positionOptions}
+              value={positions}
+              onChange={(next) => updateParams({ positions: next.join(",") || null })}
+            />
+            <Select
+              label="资质项目"
+              value={qualification}
+              options={[
+                { label: "全部六项核心资质", value: "all" },
+                ...state.qualificationConfigs
+                  .filter((item) => item.core && item.qualificationId)
+                  .map((item) => ({ label: item.name, value: item.qualificationId! })),
+              ]}
+              onChange={(event) => updateParams({ qualification: event.target.value })}
+            />
+            <Input
+              label="搜索成员"
+              value={q}
+              placeholder="姓名或员工号"
+              onChange={(event) => updateParams({ q: event.target.value })}
+            />
           </div>
-          <aside className="hidden lg:block">
-            {selectedEvent ? (
-              <EventDetail
-                event={selectedEvent}
-                onClose={() => selectEvent(null)}
-                onEditQualification={
-                  canWrite && editQualificationEvent
-                    ? () => setEditTarget(editQualificationEvent)
-                    : undefined
-                }
-                onUpdated={refreshCalendar}
-              />
-            ) : (
-              <DayQualificationPanel
-                date={anchor}
-                roster={roster}
-                loading={rosterLoading}
-                error={rosterError}
-                canWrite={canWrite}
-                onEdit={setEditTarget}
-              />
-            )}
-          </aside>
-        </div>
-      )}
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                updateParams({
+                  view: "month",
+                  type: null,
+                  units: null,
+                  positions: null,
+                  qualification: null,
+                  q: null,
+                })
+              }
+            >
+              重置筛选
+            </Button>
+            <Button type="button" onClick={() => setFiltersOpen(false)}>
+              完成
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {mobile ? (
         <Drawer open={Boolean(selectedEvent)} onOpenChange={(open) => !open && selectEvent(null)}>
@@ -677,6 +762,19 @@ export function CalendarViewPage() {
   );
 }
 
+function countUpgradePlans(events: AdminCalendarEvent[]) {
+  return new Set(events.map((event) => event.planId ?? event.id)).size;
+}
+
+function calendarEventTitle(event: AdminCalendarEvent, kind?: CalendarEventDayKind) {
+  if (event.type !== "upgrade_stage") return event.title;
+  if (!kind) return event.title;
+  if (kind === "start") return `${event.title} · 开始`;
+  if (kind === "end") return `${event.title} · 结束`;
+  if (kind === "single") return `${event.title} · 当日节点`;
+  return event.title;
+}
+
 function MonthCalendar({
   anchor,
   events,
@@ -690,7 +788,8 @@ function MonthCalendar({
 }) {
   const days = calendarDays("month", anchor);
   const month = anchor.slice(0, 7);
-  const selectedEvents = events.filter((event) => event.date <= anchor && event.endDate >= anchor);
+  const selectedEvents = calendarBoundaryEventsForDay(events, anchor);
+  const selectedActiveEvents = calendarActiveUpgradeEventsForDay(events, anchor);
   return (
     <div className="space-y-3">
       <Card className="overflow-hidden shadow-none" data-testid="month-calendar">
@@ -708,24 +807,32 @@ function MonthCalendar({
           </div>
           <div role="row" className="contents">
             {days.map((day) => {
-              const dayEvents = events.filter((event) => event.date <= day && event.endDate >= day);
+              const dayEvents = calendarBoundaryEventsForDay(events, day);
+              const activeEvents = calendarActiveUpgradeEventsForDay(events, day);
+              const activeUpgradeCount = countUpgradePlans(activeEvents);
+              const markerCount = dayEvents.length + activeEvents.length;
               return (
                 <div
                   role="gridcell"
                   key={day}
-                  className={`min-h-16 min-w-0 border-b border-r border-border p-1 text-left sm:min-h-28 sm:p-2 ${day === anchor ? "bg-blue-50" : day.startsWith(month) ? "bg-card" : "bg-slate-50 text-muted"}`}
+                  className={`min-h-16 min-w-0 border-b border-r border-border p-1 text-left sm:min-h-[92px] sm:p-2 ${day === anchor ? "bg-blue-50" : day.startsWith(month) ? "bg-card" : "bg-slate-50 text-muted"}`}
                 >
                   <button
                     type="button"
-                    aria-label={`${day}，${dayEvents.length}项事件`}
+                    aria-label={`${day}，${dayEvents.length}项事件，${activeUpgradeCount}个升级`}
                     onClick={() => onDate(day)}
-                    className="block w-full text-left"
+                    className="flex w-full items-center gap-1.5 text-left"
                   >
                     <span className="text-[11px] font-semibold sm:text-xs">
                       {Number(day.slice(-2))}
                     </span>
-                    {dayEvents.length ? (
-                      <span className="mt-1 block size-1.5 rounded-full bg-brand sm:hidden" />
+                    {activeUpgradeCount ? (
+                      <span className="hidden shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-secondary sm:inline-flex">
+                        {activeUpgradeCount}个升级
+                      </span>
+                    ) : null}
+                    {markerCount ? (
+                      <span className="block size-1.5 rounded-full bg-brand sm:hidden" />
                     ) : null}
                   </button>
                   <div className="mt-1 hidden space-y-1 sm:block">
@@ -736,7 +843,8 @@ function MonthCalendar({
                         onClick={() => onEvent(event, day)}
                         className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-semibold ${event.type === "upgrade_stage" ? "bg-blue-50 text-info" : (event.daysRemaining ?? 0) < 0 ? "bg-red-50 text-danger" : "bg-orange-50 text-warning"}`}
                       >
-                        {event.pilotName} · {event.title}
+                        {event.pilotName} ·{" "}
+                        {calendarEventTitle(event, calendarEventDayKind(event, day))}
                       </button>
                     ))}
                     {dayEvents.length > 2 ? (
@@ -755,11 +863,25 @@ function MonthCalendar({
         <h3 className="text-sm font-bold">{anchor} 当日事件</h3>
         {selectedEvents.length ? (
           selectedEvents.map((event) => (
-            <EventCard key={event.id} event={event} onClick={() => onEvent(event, anchor)} />
+            <EventCard
+              key={event.id}
+              event={event}
+              dayKind={calendarEventDayKind(event, anchor)}
+              onClick={() => onEvent(event, anchor)}
+            />
           ))
-        ) : (
+        ) : !selectedActiveEvents.length ? (
           <EmptyState title="当日无事件" description="选择其他日期查看日程。" />
-        )}
+        ) : null}
+        {selectedActiveEvents.length ? (
+          <button
+            type="button"
+            onClick={() => onDate(anchor)}
+            className="w-full rounded-lg border border-blue-100 bg-blue-50 p-3 text-left text-xs font-semibold text-info"
+          >
+            当日有 {countUpgradePlans(selectedActiveEvents)} 个活跃中的升级计划，点击查看人员
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -768,11 +890,13 @@ function MonthCalendar({
 function WeekCalendar({
   anchor,
   events,
+  onDate,
   onEvent,
 }: {
   anchor: string;
   events: AdminCalendarEvent[];
-  onEvent: (event: AdminCalendarEvent) => void;
+  onDate: (date: string) => void;
+  onEvent: (event: AdminCalendarEvent, date?: string) => void;
 }) {
   const days = calendarDays("week", anchor);
   return (
@@ -784,11 +908,25 @@ function WeekCalendar({
               {weekdays[index]} · {day.slice(5)}
             </h3>
             <div className="mt-2 space-y-2">
-              {events
-                .filter((event) => event.date <= day && event.endDate >= day)
-                .map((event) => (
-                  <EventCard key={event.id} event={event} onClick={() => onEvent(event)} compact />
-                ))}
+              {calendarBoundaryEventsForDay(events, day).map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  dayKind={calendarEventDayKind(event, day)}
+                  onClick={() => onEvent(event, day)}
+                  compact
+                />
+              ))}
+              {calendarActiveUpgradeEventsForDay(events, day).length ? (
+                <button
+                  type="button"
+                  onClick={() => onDate(day)}
+                  className="w-full rounded border border-blue-100 bg-blue-50 p-2 text-left text-[11px] font-semibold text-info hover:bg-blue-100"
+                >
+                  当日有 {countUpgradePlans(calendarActiveUpgradeEventsForDay(events, day))}{" "}
+                  个活跃中的升级计划
+                </button>
+              ) : null}
             </div>
           </section>
         ))}
@@ -869,10 +1007,12 @@ function EventCard({
   event,
   onClick,
   compact = false,
+  dayKind,
 }: {
   event: AdminCalendarEvent;
   onClick: () => void;
   compact?: boolean;
+  dayKind?: CalendarEventDayKind;
 }) {
   return (
     <button
@@ -881,7 +1021,7 @@ function EventCard({
       className={`w-full rounded-lg border border-border bg-card text-left hover:border-brand ${compact ? "p-2" : "p-3"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="truncate text-xs font-bold">{event.title}</p>
+        <p className="truncate text-xs font-bold">{calendarEventTitle(event, dayKind)}</p>
         <Badge tone={eventTone(event)} className="shrink-0 py-0.5 text-[10px]">
           {eventTypeLabel(event)}
         </Badge>
@@ -976,55 +1116,74 @@ function DayQualificationPanel({
                   </Badge>
                 ))}
               </div>
-              <div className="mt-3 divide-y divide-border border-t border-border">
-                {pilot.qualifications.map((qualification) => {
-                  const record = qualification.record;
-                  const statusLabel =
-                    record?.daysRemaining === 0 ? "当日到期" : record?.statusLabel;
-                  return (
-                    <div
-                      key={qualification.qualificationId}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold">
-                          {qualification.qualificationName}
-                        </p>
-                        {record ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] text-muted">
-                              {record.expiryDate || "长期有效"}
-                            </span>
-                            <Badge tone={qualificationTone(record)} className="py-0.5 text-[10px]">
-                              {statusLabel}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <Badge tone="neutral" className="mt-1 py-0.5 text-[10px]">
-                            未建档
-                          </Badge>
-                        )}
+              {(() => {
+                const summary = summarizeDayQualifications(pilot.qualifications);
+                return (
+                  <>
+                    {summary.attention.length ? (
+                      <div className="mt-3 divide-y divide-border border-t border-border">
+                        {summary.attention.map((qualification) => {
+                          const record = qualification.record;
+                          const statusLabel =
+                            record?.daysRemaining === 0 ? "当日到期" : record?.statusLabel;
+                          return (
+                            <div
+                              key={qualification.qualificationId}
+                              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold">
+                                  {qualification.qualificationName}
+                                </p>
+                                {record ? (
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[11px] text-muted">
+                                      {record.expiryDate || "长期有效"}
+                                    </span>
+                                    <Badge
+                                      tone={qualificationTone(record)}
+                                      className="py-0.5 text-[10px]"
+                                    >
+                                      {statusLabel}
+                                    </Badge>
+                                  </div>
+                                ) : (
+                                  <Badge tone="neutral" className="mt-1 py-0.5 text-[10px]">
+                                    未建档
+                                  </Badge>
+                                )}
+                              </div>
+                              {canWrite && record ? (
+                                <IconButton
+                                  label={`编辑${pilot.pilotName}的${qualification.qualificationName}`}
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    onEdit({
+                                      pilotId: pilot.pilotId,
+                                      pilotName: pilot.pilotName,
+                                      qualification,
+                                    })
+                                  }
+                                >
+                                  <Pencil className="size-3.5" />
+                                </IconButton>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
-                      {canWrite && record ? (
-                        <IconButton
-                          label={`编辑${pilot.pilotName}的${qualification.qualificationName}`}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            onEdit({
-                              pilotId: pilot.pilotId,
-                              pilotName: pilot.pilotName,
-                              qualification,
-                            })
-                          }
-                        >
-                          <Pencil className="size-3.5" />
-                        </IconButton>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+                    ) : null}
+                    {summary.normalCount || summary.missingCount ? (
+                      <p className="mt-2 text-[11px] text-muted">
+                        {summary.normalCount ? `其余 ${summary.normalCount} 项正常` : null}
+                        {summary.normalCount && summary.missingCount ? " · " : null}
+                        {summary.missingCount ? `另有 ${summary.missingCount} 项未建档` : null}
+                      </p>
+                    ) : null}
+                  </>
+                );
+              })()}
             </section>
           ))}
         </div>

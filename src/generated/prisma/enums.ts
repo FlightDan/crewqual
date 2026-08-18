@@ -164,11 +164,32 @@ export type NotificationChannel = (typeof NotificationChannel)[keyof typeof Noti
 export const NotificationStatus = {
   QUEUED: 'QUEUED',
   SENDING: 'SENDING',
+  PROVIDER_ACCEPTED: 'PROVIDER_ACCEPTED',
+  DELIVERED: 'DELIVERED',
+  UNKNOWN: 'UNKNOWN',
   SENT: 'SENT',
   FAILED: 'FAILED'
 } as const
 
 export type NotificationStatus = (typeof NotificationStatus)[keyof typeof NotificationStatus]
+
+
+export const QualificationRecordAction = {
+  CONFIRM: 'CONFIRM',
+  CORRECT_AND_CONFIRM: 'CORRECT_AND_CONFIRM',
+  ROLLBACK: 'ROLLBACK',
+  ADMIN_IMPORT: 'ADMIN_IMPORT'
+} as const
+
+export type QualificationRecordAction = (typeof QualificationRecordAction)[keyof typeof QualificationRecordAction]
+
+
+export const UploadReservationStatus = {
+  ACTIVE: 'ACTIVE',
+  RELEASED: 'RELEASED'
+} as const
+
+export type UploadReservationStatus = (typeof UploadReservationStatus)[keyof typeof UploadReservationStatus]
 
 
 export const NotificationType = {

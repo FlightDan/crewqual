@@ -37,6 +37,7 @@ export type BackupRunSumAggregateOutputType = {
 export type BackupRunMinAggregateOutputType = {
   id: string | null
   planId: string | null
+  scheduledFor: Date | null
   status: $Enums.BackupRunStatus | null
   mode: $Enums.BackupMode | null
   startedAt: Date | null
@@ -51,6 +52,7 @@ export type BackupRunMinAggregateOutputType = {
 export type BackupRunMaxAggregateOutputType = {
   id: string | null
   planId: string | null
+  scheduledFor: Date | null
   status: $Enums.BackupRunStatus | null
   mode: $Enums.BackupMode | null
   startedAt: Date | null
@@ -65,6 +67,7 @@ export type BackupRunMaxAggregateOutputType = {
 export type BackupRunCountAggregateOutputType = {
   id: number
   planId: number
+  scheduledFor: number
   status: number
   mode: number
   startedAt: number
@@ -89,6 +92,7 @@ export type BackupRunSumAggregateInputType = {
 export type BackupRunMinAggregateInputType = {
   id?: true
   planId?: true
+  scheduledFor?: true
   status?: true
   mode?: true
   startedAt?: true
@@ -103,6 +107,7 @@ export type BackupRunMinAggregateInputType = {
 export type BackupRunMaxAggregateInputType = {
   id?: true
   planId?: true
+  scheduledFor?: true
   status?: true
   mode?: true
   startedAt?: true
@@ -117,6 +122,7 @@ export type BackupRunMaxAggregateInputType = {
 export type BackupRunCountAggregateInputType = {
   id?: true
   planId?: true
+  scheduledFor?: true
   status?: true
   mode?: true
   startedAt?: true
@@ -218,6 +224,7 @@ export type BackupRunGroupByArgs<ExtArgs extends runtime.Types.Extensions.Intern
 export type BackupRunGroupByOutputType = {
   id: string
   planId: string
+  scheduledFor: Date
   status: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt: Date | null
@@ -255,6 +262,7 @@ export type BackupRunWhereInput = {
   NOT?: Prisma.BackupRunWhereInput | Prisma.BackupRunWhereInput[]
   id?: Prisma.UuidFilter<"BackupRun"> | string
   planId?: Prisma.UuidFilter<"BackupRun"> | string
+  scheduledFor?: Prisma.DateTimeFilter<"BackupRun"> | Date | string
   status?: Prisma.EnumBackupRunStatusFilter<"BackupRun"> | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFilter<"BackupRun"> | $Enums.BackupMode
   startedAt?: Prisma.DateTimeNullableFilter<"BackupRun"> | Date | string | null
@@ -270,6 +278,7 @@ export type BackupRunWhereInput = {
 export type BackupRunOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
+  scheduledFor?: Prisma.SortOrder
   status?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -284,10 +293,12 @@ export type BackupRunOrderByWithRelationInput = {
 
 export type BackupRunWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  planId_scheduledFor?: Prisma.BackupRunPlanIdScheduledForCompoundUniqueInput
   AND?: Prisma.BackupRunWhereInput | Prisma.BackupRunWhereInput[]
   OR?: Prisma.BackupRunWhereInput[]
   NOT?: Prisma.BackupRunWhereInput | Prisma.BackupRunWhereInput[]
   planId?: Prisma.UuidFilter<"BackupRun"> | string
+  scheduledFor?: Prisma.DateTimeFilter<"BackupRun"> | Date | string
   status?: Prisma.EnumBackupRunStatusFilter<"BackupRun"> | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFilter<"BackupRun"> | $Enums.BackupMode
   startedAt?: Prisma.DateTimeNullableFilter<"BackupRun"> | Date | string | null
@@ -298,11 +309,12 @@ export type BackupRunWhereUniqueInput = Prisma.AtLeast<{
   errorMessage?: Prisma.StringNullableFilter<"BackupRun"> | string | null
   createdAt?: Prisma.DateTimeFilter<"BackupRun"> | Date | string
   plan?: Prisma.XOR<Prisma.BackupPlanScalarRelationFilter, Prisma.BackupPlanWhereInput>
-}, "id">
+}, "id" | "planId_scheduledFor">
 
 export type BackupRunOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
+  scheduledFor?: Prisma.SortOrder
   status?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -325,6 +337,7 @@ export type BackupRunScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BackupRunScalarWhereWithAggregatesInput | Prisma.BackupRunScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"BackupRun"> | string
   planId?: Prisma.UuidWithAggregatesFilter<"BackupRun"> | string
+  scheduledFor?: Prisma.DateTimeWithAggregatesFilter<"BackupRun"> | Date | string
   status?: Prisma.EnumBackupRunStatusWithAggregatesFilter<"BackupRun"> | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeWithAggregatesFilter<"BackupRun"> | $Enums.BackupMode
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"BackupRun"> | Date | string | null
@@ -338,6 +351,7 @@ export type BackupRunScalarWhereWithAggregatesInput = {
 
 export type BackupRunCreateInput = {
   id?: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -353,6 +367,7 @@ export type BackupRunCreateInput = {
 export type BackupRunUncheckedCreateInput = {
   id?: string
   planId: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -366,6 +381,7 @@ export type BackupRunUncheckedCreateInput = {
 
 export type BackupRunUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -381,6 +397,7 @@ export type BackupRunUpdateInput = {
 export type BackupRunUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   planId?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -395,6 +412,7 @@ export type BackupRunUncheckedUpdateInput = {
 export type BackupRunCreateManyInput = {
   id?: string
   planId: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -408,6 +426,7 @@ export type BackupRunCreateManyInput = {
 
 export type BackupRunUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -422,6 +441,7 @@ export type BackupRunUpdateManyMutationInput = {
 export type BackupRunUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   planId?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -443,9 +463,15 @@ export type BackupRunOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type BackupRunPlanIdScheduledForCompoundUniqueInput = {
+  planId: string
+  scheduledFor: Date | string
+}
+
 export type BackupRunCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
+  scheduledFor?: Prisma.SortOrder
   status?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
@@ -464,6 +490,7 @@ export type BackupRunAvgOrderByAggregateInput = {
 export type BackupRunMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
+  scheduledFor?: Prisma.SortOrder
   status?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
@@ -478,6 +505,7 @@ export type BackupRunMaxOrderByAggregateInput = {
 export type BackupRunMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
+  scheduledFor?: Prisma.SortOrder
   status?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
@@ -549,6 +577,7 @@ export type BigIntFieldUpdateOperationsInput = {
 
 export type BackupRunCreateWithoutPlanInput = {
   id?: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -562,6 +591,7 @@ export type BackupRunCreateWithoutPlanInput = {
 
 export type BackupRunUncheckedCreateWithoutPlanInput = {
   id?: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -605,6 +635,7 @@ export type BackupRunScalarWhereInput = {
   NOT?: Prisma.BackupRunScalarWhereInput | Prisma.BackupRunScalarWhereInput[]
   id?: Prisma.UuidFilter<"BackupRun"> | string
   planId?: Prisma.UuidFilter<"BackupRun"> | string
+  scheduledFor?: Prisma.DateTimeFilter<"BackupRun"> | Date | string
   status?: Prisma.EnumBackupRunStatusFilter<"BackupRun"> | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFilter<"BackupRun"> | $Enums.BackupMode
   startedAt?: Prisma.DateTimeNullableFilter<"BackupRun"> | Date | string | null
@@ -618,6 +649,7 @@ export type BackupRunScalarWhereInput = {
 
 export type BackupRunCreateManyPlanInput = {
   id?: string
+  scheduledFor?: Date | string
   status?: $Enums.BackupRunStatus
   mode: $Enums.BackupMode
   startedAt?: Date | string | null
@@ -631,6 +663,7 @@ export type BackupRunCreateManyPlanInput = {
 
 export type BackupRunUpdateWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -644,6 +677,7 @@ export type BackupRunUpdateWithoutPlanInput = {
 
 export type BackupRunUncheckedUpdateWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -657,6 +691,7 @@ export type BackupRunUncheckedUpdateWithoutPlanInput = {
 
 export type BackupRunUncheckedUpdateManyWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledFor?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumBackupRunStatusFieldUpdateOperationsInput | $Enums.BackupRunStatus
   mode?: Prisma.EnumBackupModeFieldUpdateOperationsInput | $Enums.BackupMode
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -673,6 +708,7 @@ export type BackupRunUncheckedUpdateManyWithoutPlanInput = {
 export type BackupRunSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   planId?: boolean
+  scheduledFor?: boolean
   status?: boolean
   mode?: boolean
   startedAt?: boolean
@@ -688,6 +724,7 @@ export type BackupRunSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
 export type BackupRunSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   planId?: boolean
+  scheduledFor?: boolean
   status?: boolean
   mode?: boolean
   startedAt?: boolean
@@ -703,6 +740,7 @@ export type BackupRunSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type BackupRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   planId?: boolean
+  scheduledFor?: boolean
   status?: boolean
   mode?: boolean
   startedAt?: boolean
@@ -718,6 +756,7 @@ export type BackupRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
 export type BackupRunSelectScalar = {
   id?: boolean
   planId?: boolean
+  scheduledFor?: boolean
   status?: boolean
   mode?: boolean
   startedAt?: boolean
@@ -729,7 +768,7 @@ export type BackupRunSelectScalar = {
   createdAt?: boolean
 }
 
-export type BackupRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "planId" | "status" | "mode" | "startedAt" | "completedAt" | "artifactPath" | "manifestSha256" | "bytesWritten" | "errorMessage" | "createdAt", ExtArgs["result"]["backupRun"]>
+export type BackupRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "planId" | "scheduledFor" | "status" | "mode" | "startedAt" | "completedAt" | "artifactPath" | "manifestSha256" | "bytesWritten" | "errorMessage" | "createdAt", ExtArgs["result"]["backupRun"]>
 export type BackupRunInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   plan?: boolean | Prisma.BackupPlanDefaultArgs<ExtArgs>
 }
@@ -748,6 +787,7 @@ export type $BackupRunPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     planId: string
+    scheduledFor: Date
     status: $Enums.BackupRunStatus
     mode: $Enums.BackupMode
     startedAt: Date | null
@@ -1183,6 +1223,7 @@ export interface Prisma__BackupRunClient<T, Null = never, ExtArgs extends runtim
 export interface BackupRunFieldRefs {
   readonly id: Prisma.FieldRef<"BackupRun", 'String'>
   readonly planId: Prisma.FieldRef<"BackupRun", 'String'>
+  readonly scheduledFor: Prisma.FieldRef<"BackupRun", 'DateTime'>
   readonly status: Prisma.FieldRef<"BackupRun", 'BackupRunStatus'>
   readonly mode: Prisma.FieldRef<"BackupRun", 'BackupMode'>
   readonly startedAt: Prisma.FieldRef<"BackupRun", 'DateTime'>

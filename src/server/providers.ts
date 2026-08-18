@@ -1,5 +1,19 @@
 import { getRuntimeIntegration } from "@/server/runtime-settings";
 import { getServerConfig } from "@/server/config";
+import { z } from "zod";
+
+const strictProviderResponseSchema = z
+  .object({
+    accepted: z.boolean(),
+    providerId: z.string().trim().min(1).optional(),
+  })
+  .strict();
+
+function parseProviderResponse(value: unknown) {
+  const parsed = strictProviderResponseSchema.safeParse(value);
+  if (!parsed.success) throw new Error("PROVIDER_PROTOCOL_ERROR");
+  return parsed.data;
+}
 
 export interface SmsAdapter {
   send(input: {
@@ -55,11 +69,13 @@ function webhookSmsAdapter(url: string, token: string, timeoutSeconds = 10): Sms
         signal: AbortSignal.timeout(timeoutSeconds * 1000),
       });
       if (!response.ok) throw new Error(`SMS webhook HTTP ${response.status}`);
-      const body = (await response.json().catch(() => ({}))) as {
-        accepted?: boolean;
-        providerId?: string;
-      };
-      return { accepted: body.accepted !== false, providerId: body.providerId };
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        throw new Error("PROVIDER_PROTOCOL_ERROR");
+      }
+      return parseProviderResponse(body);
     },
   };
 }
@@ -74,11 +90,13 @@ function webhookFeishuAdapter(url: string, token: string, timeoutSeconds = 10): 
         signal: AbortSignal.timeout(timeoutSeconds * 1000),
       });
       if (!response.ok) throw new Error(`Feishu webhook HTTP ${response.status}`);
-      const body = (await response.json().catch(() => ({}))) as {
-        accepted?: boolean;
-        providerId?: string;
-      };
-      return { accepted: body.accepted !== false, providerId: body.providerId };
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        throw new Error("PROVIDER_PROTOCOL_ERROR");
+      }
+      return parseProviderResponse(body);
     },
   };
 }

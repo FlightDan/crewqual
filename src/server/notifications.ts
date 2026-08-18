@@ -87,6 +87,12 @@ export type PilotNotificationInput = {
   channels?: DomainNotificationChannel[];
 };
 
+export type QualificationReminderRecipient = "PERSON" | "ADMIN" | "SUPER_ADMIN";
+
+export type QualificationReminderInput = PilotNotificationInput & {
+  recipients: QualificationReminderRecipient[];
+};
+
 export type DeliveryFailureAlertInput = {
   deliveryId: string;
   pilotId: string | null;
@@ -188,6 +194,94 @@ export async function emitPilotNotification(tx: any, input: PilotNotificationInp
         type,
       });
       queued += 1;
+    }
+  }
+  return { created, queued, deliveryIds };
+}
+
+/**
+ * Qualification reminders have a separate recipient policy from upgrade
+ * notifications.  PERSON uses the unit's configured channels; role
+ * recipients are always persisted as independent in-app deliveries so an
+ * administrator can acknowledge the alert without exposing a pilot's
+ * contact information to another adapter.
+ */
+export async function emitQualificationReminder(tx: any, input: QualificationReminderInput) {
+  const recipients = [...new Set(input.recipients)];
+  let created = 0;
+  let queued = 0;
+  const deliveryIds: string[] = [];
+  if (recipients.includes("PERSON")) {
+    const result = await emitPilotNotification(tx, input);
+    created += result.created;
+    queued += result.queued;
+    deliveryIds.push(...result.deliveryIds);
+  }
+  if (!recipients.some((item) => item === "ADMIN" || item === "SUPER_ADMIN")) {
+    return { created, queued, deliveryIds };
+  }
+  if (typeof tx.adminUser?.findMany !== "function") return { created, queued, deliveryIds };
+  const pilot = await tx.pilot.findUnique({
+    where: { id: input.pilotId },
+    select: { id: true, unitId: true, unit: { select: { organizationId: true } } },
+  });
+  if (!pilot) return { created, queued, deliveryIds };
+  let admins = await tx.adminUser.findMany({
+    where: {
+      active: true,
+      OR: [
+        ...(recipients.includes("ADMIN") && pilot.unitId
+          ? [{ unitId: pilot.unitId, roles: { some: { role: { code: "ADMIN" } } } }]
+          : []),
+        ...(recipients.includes("SUPER_ADMIN") && pilot.unit.organizationId
+          ? [
+              {
+                organizationId: pilot.unit.organizationId,
+                roles: { some: { role: { code: "SUPER_ADMIN" } } },
+              },
+            ]
+          : []),
+      ],
+    },
+    select: { id: true },
+  });
+  if (recipients.includes("ADMIN") && pilot.unit.organizationId && admins.length === 0) {
+    // A unit can temporarily have no active ADMIN. Escalate to an active
+    // organization SUPER_ADMIN and keep the routing gap visible in the
+    // notification/audit stream rather than silently dropping the alert.
+    admins = await tx.adminUser.findMany({
+      where: {
+        active: true,
+        organizationId: pilot.unit.organizationId,
+        roles: { some: { role: { code: "SUPER_ADMIN" } } },
+      },
+      select: { id: true },
+    });
+  }
+  for (const admin of admins) {
+    const id = randomUUID();
+    const inserted = await tx.notificationDelivery.createMany({
+      data: [
+        {
+          id,
+          dedupeKey: `${input.eventKey}:admin:${admin.id}:in_app`,
+          type: TYPE_TO_DB[input.type],
+          channel: "IN_APP",
+          status: "SENT",
+          pilotId: input.pilotId,
+          adminUserId: admin.id,
+          target: admin.id,
+          summary: input.summary,
+          message: input.message,
+          retryLimit: 0,
+          sentAt: new Date(),
+        },
+      ],
+      skipDuplicates: true,
+    });
+    if (inserted.count === 1) {
+      created += 1;
+      deliveryIds.push(id);
     }
   }
   return { created, queued, deliveryIds };

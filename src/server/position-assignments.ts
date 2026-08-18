@@ -40,6 +40,8 @@ export async function assignPosition(
       data: {
         personId,
         positionId: position.id,
+        positionCodeSnapshot: position.code,
+        positionNameSnapshot: position.name,
         isPrimary: input.isPrimary !== false,
         effectiveFrom,
       },

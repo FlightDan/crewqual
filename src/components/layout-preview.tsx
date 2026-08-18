@@ -233,14 +233,16 @@ function PilotPreviewContent() {
             正常运行中
           </h4>
           <div className="mt-3 space-y-3">
-            {["汉语语言能力评估", "模拟机复训（每6个月）", "机组年度复训合格证"].map((item) => (
-              <Card key={item}>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold">{item}</p>
-                  <StatusBadge status="success">有效</StatusBadge>
-                </CardContent>
-              </Card>
-            ))}
+            {["ICAO汉语语言能力等级签注", "模拟机复训（每6个月）", "机组年度复训合格证"].map(
+              (item) => (
+                <Card key={item}>
+                  <CardContent className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">{item}</p>
+                    <StatusBadge status="success">有效</StatusBadge>
+                  </CardContent>
+                </Card>
+              ),
+            )}
           </div>
         </section>
         <Alert tone="info">PilotShell 在桌面保持最大 430px，移动端不产生横向滚动。</Alert>

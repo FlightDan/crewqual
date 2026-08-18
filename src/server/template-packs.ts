@@ -163,7 +163,12 @@ export const PILOT_TEMPLATE_PACK: TemplatePack = {
     validityRule: { kind: "manual_expiry" as const },
     // Matches the current seed/runtime defaults; organizations can customize
     // the live definition after installation.
-    reminders: { firstDays: 30, secondDays: 7 },
+    reminders: {
+      firstDays: 30,
+      secondDays: 7,
+      dueRecipients: ["PERSON"],
+      expiredRecipients: ["PERSON"],
+    },
     ocrChecks: {
       enabled: true,
       credentialNumber: true,

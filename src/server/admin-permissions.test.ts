@@ -15,6 +15,8 @@ describe("admin role permissions", () => {
     expect(roleHasPermission("ADMIN", "operations.write")).toBe(true);
     expect(roleHasPermission("ADMIN", "pilots.write")).toBe(true);
     expect(roleHasPermission("REVIEWER", "pilots.write")).toBe(false);
+    expect(roleHasPermission("VIEWER", "settings.read")).toBe(true);
+    expect(roleHasPermission("VIEWER", "settings.positions.write")).toBe(false);
     expect(roleHasPermission("SUPER_ADMIN", "settings.security.write")).toBe(true);
   });
 

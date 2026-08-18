@@ -57,6 +57,25 @@ describe("server configuration safety", () => {
     expect(() => getServerConfig()).toThrow("SMS_WEBHOOK_URL is required");
   });
 
+  it("allows disabled external integrations only for an explicitly isolated acceptance environment", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "disabled",
+      CREWQUAL_ACCEPTANCE_EXTERNALS_DISABLED: "1",
+      ACCEPTANCE_ENVIRONMENT_ID: "1",
+    });
+
+    expect(getServerConfig()).toMatchObject({ SMS_ADAPTER: "disabled" });
+  });
+
   it("rejects production with incomplete storage credentials", () => {
     Object.assign(process.env, {
       NODE_ENV: "production",

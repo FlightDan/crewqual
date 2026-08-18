@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { getRequestId, jsonData, jsonError, parseJson } from "@/server/api";
+import { ApiError, getRequestId, jsonData, jsonError, parseJson } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import {
   createBackupPlan,
@@ -9,7 +9,7 @@ import {
   runBackupNow,
   saveBackupTarget,
 } from "@/server/backup-service";
-import { restoreBackupRun, testBackupTarget } from "@/server/backup-runner";
+import { testBackupTarget } from "@/server/backup-runner";
 
 const actionSchema = z.object({
   action: z.string().min(1),
@@ -69,8 +69,12 @@ export async function POST(request: NextRequest) {
         202,
       );
     if (action === "restore") {
-      const restore = z.object({ runId: z.string().uuid(), confirmation: z.string() }).parse(input);
-      return jsonData(await restoreBackupRun(restore.runId, restore.confirmation), requestId, 202);
+      z.object({ runId: z.string().uuid(), confirmation: z.string() }).parse(input);
+      throw new ApiError(
+        "OFFLINE_RESTORE_REQUIRED",
+        "恢复必须通过隔离 restore profile 执行，在线 Web 不执行 pg_restore",
+        409,
+      );
     }
     if (action === "target.test")
       return jsonData(

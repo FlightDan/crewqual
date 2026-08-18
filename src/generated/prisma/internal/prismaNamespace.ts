@@ -428,6 +428,7 @@ export const ModelName = {
   QualificationEvidence: 'QualificationEvidence',
   QualificationUpdateRequest: 'QualificationUpdateRequest',
   VerificationResult: 'VerificationResult',
+  QualificationCorrection: 'QualificationCorrection',
   RecognitionTask: 'RecognitionTask',
   UpgradePlan: 'UpgradePlan',
   UpgradeStage: 'UpgradeStage',
@@ -437,6 +438,7 @@ export const ModelName = {
   NotificationAttempt: 'NotificationAttempt',
   AuditEvent: 'AuditEvent',
   RateLimitBucket: 'RateLimitBucket',
+  UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
   SecurityPolicy: 'SecurityPolicy',
   WorkerHeartbeat: 'WorkerHeartbeat'
@@ -455,7 +457,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "systemIntegrationSetting" | "securityPolicy" | "workerHeartbeat"
+    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "securityPolicy" | "workerHeartbeat"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2753,6 +2755,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    QualificationCorrection: {
+      payload: Prisma.$QualificationCorrectionPayload<ExtArgs>
+      fields: Prisma.QualificationCorrectionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.QualificationCorrectionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.QualificationCorrectionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        findFirst: {
+          args: Prisma.QualificationCorrectionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.QualificationCorrectionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        findMany: {
+          args: Prisma.QualificationCorrectionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>[]
+        }
+        create: {
+          args: Prisma.QualificationCorrectionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        createMany: {
+          args: Prisma.QualificationCorrectionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.QualificationCorrectionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>[]
+        }
+        delete: {
+          args: Prisma.QualificationCorrectionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        update: {
+          args: Prisma.QualificationCorrectionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        deleteMany: {
+          args: Prisma.QualificationCorrectionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.QualificationCorrectionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.QualificationCorrectionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>[]
+        }
+        upsert: {
+          args: Prisma.QualificationCorrectionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QualificationCorrectionPayload>
+        }
+        aggregate: {
+          args: Prisma.QualificationCorrectionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateQualificationCorrection>
+        }
+        groupBy: {
+          args: Prisma.QualificationCorrectionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.QualificationCorrectionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.QualificationCorrectionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.QualificationCorrectionCountAggregateOutputType> | number
+        }
+      }
+    }
     RecognitionTask: {
       payload: Prisma.$RecognitionTaskPayload<ExtArgs>
       fields: Prisma.RecognitionTaskFieldRefs
@@ -3419,6 +3495,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    UploadReservation: {
+      payload: Prisma.$UploadReservationPayload<ExtArgs>
+      fields: Prisma.UploadReservationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UploadReservationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UploadReservationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        findFirst: {
+          args: Prisma.UploadReservationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UploadReservationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        findMany: {
+          args: Prisma.UploadReservationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>[]
+        }
+        create: {
+          args: Prisma.UploadReservationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        createMany: {
+          args: Prisma.UploadReservationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UploadReservationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>[]
+        }
+        delete: {
+          args: Prisma.UploadReservationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        update: {
+          args: Prisma.UploadReservationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        deleteMany: {
+          args: Prisma.UploadReservationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UploadReservationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UploadReservationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>[]
+        }
+        upsert: {
+          args: Prisma.UploadReservationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadReservationPayload>
+        }
+        aggregate: {
+          args: Prisma.UploadReservationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUploadReservation>
+        }
+        groupBy: {
+          args: Prisma.UploadReservationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UploadReservationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UploadReservationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UploadReservationCountAggregateOutputType> | number
+        }
+      }
+    }
     SystemIntegrationSetting: {
       payload: Prisma.$SystemIntegrationSettingPayload<ExtArgs>
       fields: Prisma.SystemIntegrationSettingFieldRefs
@@ -3790,6 +3940,8 @@ export const PersonPositionAssignmentScalarFieldEnum = {
   id: 'id',
   personId: 'personId',
   positionId: 'positionId',
+  positionCodeSnapshot: 'positionCodeSnapshot',
+  positionNameSnapshot: 'positionNameSnapshot',
   status: 'status',
   isPrimary: 'isPrimary',
   effectiveFrom: 'effectiveFrom',
@@ -4023,6 +4175,15 @@ export const QualificationRecordScalarFieldEnum = {
   levelOrParameter: 'levelOrParameter',
   qualificationRuleSnapshot: 'qualificationRuleSnapshot',
   status: 'status',
+  lineageId: 'lineageId',
+  revisionNumber: 'revisionNumber',
+  supersedesRecordId: 'supersedesRecordId',
+  restoresRecordId: 'restoresRecordId',
+  action: 'action',
+  actorId: 'actorId',
+  reason: 'reason',
+  requestId: 'requestId',
+  activatedAt: 'activatedAt',
   lastVerifiedAt: 'lastVerifiedAt',
   version: 'version',
   createdAt: 'createdAt',
@@ -4123,6 +4284,7 @@ export type BackupPlanScalarFieldEnum = (typeof BackupPlanScalarFieldEnum)[keyof
 export const BackupRunScalarFieldEnum = {
   id: 'id',
   planId: 'planId',
+  scheduledFor: 'scheduledFor',
   status: 'status',
   mode: 'mode',
   startedAt: 'startedAt',
@@ -4185,6 +4347,21 @@ export const VerificationResultScalarFieldEnum = {
 } as const
 
 export type VerificationResultScalarFieldEnum = (typeof VerificationResultScalarFieldEnum)[keyof typeof VerificationResultScalarFieldEnum]
+
+
+export const QualificationCorrectionScalarFieldEnum = {
+  id: 'id',
+  qualificationRecordId: 'qualificationRecordId',
+  updateRequestId: 'updateRequestId',
+  actorId: 'actorId',
+  reason: 'reason',
+  before: 'before',
+  after: 'after',
+  requestId: 'requestId',
+  createdAt: 'createdAt'
+} as const
+
+export type QualificationCorrectionScalarFieldEnum = (typeof QualificationCorrectionScalarFieldEnum)[keyof typeof QualificationCorrectionScalarFieldEnum]
 
 
 export const RecognitionTaskScalarFieldEnum = {
@@ -4288,6 +4465,7 @@ export const NotificationDeliveryScalarFieldEnum = {
   status: 'status',
   pilotId: 'pilotId',
   personId: 'personId',
+  adminUserId: 'adminUserId',
   target: 'target',
   summary: 'summary',
   message: 'message',
@@ -4349,6 +4527,19 @@ export const RateLimitBucketScalarFieldEnum = {
 } as const
 
 export type RateLimitBucketScalarFieldEnum = (typeof RateLimitBucketScalarFieldEnum)[keyof typeof RateLimitBucketScalarFieldEnum]
+
+
+export const UploadReservationScalarFieldEnum = {
+  id: 'id',
+  pilotId: 'pilotId',
+  bytesReserved: 'bytesReserved',
+  status: 'status',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt',
+  releasedAt: 'releasedAt'
+} as const
+
+export type UploadReservationScalarFieldEnum = (typeof UploadReservationScalarFieldEnum)[keyof typeof UploadReservationScalarFieldEnum]
 
 
 export const SystemIntegrationSettingScalarFieldEnum = {
@@ -4580,6 +4771,20 @@ export type EnumQualificationRecordStatusFieldRefInput<$PrismaModel> = FieldRefI
  * Reference to a field of type 'QualificationRecordStatus[]'
  */
 export type ListEnumQualificationRecordStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QualificationRecordStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'QualificationRecordAction'
+ */
+export type EnumQualificationRecordActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QualificationRecordAction'>
+    
+
+
+/**
+ * Reference to a field of type 'QualificationRecordAction[]'
+ */
+export type ListEnumQualificationRecordActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QualificationRecordAction[]'>
     
 
 
@@ -4822,6 +5027,20 @@ export type ListEnumNotificationStatusFieldRefInput<$PrismaModel> = FieldRefInpu
 
 
 /**
+ * Reference to a field of type 'UploadReservationStatus'
+ */
+export type EnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadReservationStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'UploadReservationStatus[]'
+ */
+export type ListEnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadReservationStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -5016,6 +5235,7 @@ export type GlobalOmitConfig = {
   qualificationEvidence?: Prisma.QualificationEvidenceOmit
   qualificationUpdateRequest?: Prisma.QualificationUpdateRequestOmit
   verificationResult?: Prisma.VerificationResultOmit
+  qualificationCorrection?: Prisma.QualificationCorrectionOmit
   recognitionTask?: Prisma.RecognitionTaskOmit
   upgradePlan?: Prisma.UpgradePlanOmit
   upgradeStage?: Prisma.UpgradeStageOmit
@@ -5025,6 +5245,7 @@ export type GlobalOmitConfig = {
   notificationAttempt?: Prisma.NotificationAttemptOmit
   auditEvent?: Prisma.AuditEventOmit
   rateLimitBucket?: Prisma.RateLimitBucketOmit
+  uploadReservation?: Prisma.UploadReservationOmit
   systemIntegrationSetting?: Prisma.SystemIntegrationSettingOmit
   securityPolicy?: Prisma.SecurityPolicyOmit
   workerHeartbeat?: Prisma.WorkerHeartbeatOmit

@@ -22,6 +22,7 @@ import type {
   SettingsAdminAccount,
   SettingsAdminRole,
   SettingsAuditItem,
+  SettingsPosition,
   SettingsSectionId,
   SettingsUnit,
 } from "@/types/admin-settings";
@@ -41,6 +42,21 @@ const unitSchema = z.object({
   contactEmail: z.union([z.string().email(), z.literal("")]),
   contactPhone: z.string().trim().max(32),
   active: z.boolean(),
+  version: z.number().int().positive().optional(),
+});
+
+const positionSchema = z.object({
+  id: z.string().optional(),
+  organizationId: z.string().uuid().optional(),
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z][A-Z0-9_-]{0,63}$/),
+  name: z.string().trim().min(1).max(128),
+  description: z.string().trim().max(1000),
+  active: z.boolean(),
+  sortOrder: z.number().int().min(0).max(10_000),
   version: z.number().int().positive().optional(),
 });
 
@@ -154,6 +170,7 @@ const defaultRoutes: NotificationRoute[] = [
 
 const sectionForAction = (action: string): SettingsSectionId => {
   if (action.startsWith("unit.")) return "organization";
+  if (action.startsWith("position.")) return "positions";
   if (action.startsWith("admin.")) return "admins";
   if (action.startsWith("notification")) return "notifications";
   if (action.startsWith("integration")) return "ai";
@@ -236,6 +253,22 @@ function mapUnit(unit: any): SettingsUnit {
   };
 }
 
+function mapPosition(position: any): SettingsPosition {
+  return {
+    id: position.id,
+    organizationId: position.organizationId,
+    code: position.code,
+    name: position.name,
+    description: position.description ?? "",
+    active: position.active,
+    sortOrder: position.sortOrder,
+    memberCount: position.assignments?.length ?? position._count?.assignments ?? 0,
+    qualificationCount: position.requirements?.length ?? position._count?.requirements ?? 0,
+    updatedAt: position.updatedAt.toISOString(),
+    version: position.version,
+  };
+}
+
 function mapAdmin(user: any): SettingsAdminAccount {
   const role = (user.roles?.[0]?.role?.code ?? "VIEWER") as SettingsAdminRole;
   return {
@@ -294,11 +327,22 @@ async function loadSnapshot(
   const db = getPrisma();
   const superAdmin = isSuperAdmin(admin);
   const unitWhere = superAdmin ? {} : { id: requireAssignedUnit(admin)! };
-  const [units, admins, integrations, policy, sessions, auditItems] = await Promise.all([
+  const positionOrganizationId = superAdmin
+    ? (requestedUnitId ?? undefined)
+    : (admin.organizationId ?? requireAssignedUnit(admin));
+  const [units, positions, admins, integrations, policy, sessions, auditItems] = await Promise.all([
     db.organizationUnit.findMany({
       where: unitWhere,
       include: { _count: { select: { admins: true, pilots: true } } },
       orderBy: [{ active: "desc" }, { name: "asc" }],
+    }),
+    db.position.findMany({
+      where: positionOrganizationId ? { organizationId: positionOrganizationId } : {},
+      include: {
+        assignments: { where: { status: "ACTIVE" }, select: { id: true } },
+        requirements: { where: { active: true }, select: { id: true } },
+      },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),
     superAdmin
       ? db.adminUser.findMany({
@@ -441,6 +485,7 @@ async function loadSnapshot(
     : [];
   return {
     units: units.map(mapUnit),
+    positions: positions.map(mapPosition),
     admins: admins.map(mapAdmin),
     notificationChannels,
     notificationRoutes: storedRoutes.length ? storedRoutes : defaultRoutes,
@@ -507,6 +552,10 @@ function actionLabel(action: string) {
   const labels: Record<string, string> = {
     "settings.unit.created": "创建运行单位",
     "settings.unit.updated": "更新单位设置",
+    "settings.position.created": "创建职位",
+    "settings.position.updated": "更新职位设置",
+    "settings.position.deleted": "删除职位",
+    "settings.position.force_deleted": "强制删除职位",
     "settings.admin.created": "创建管理员账号",
     "settings.admin.updated": "更新管理员账号",
     "settings.admin.action": "执行管理员账号操作",
@@ -608,6 +657,215 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         unitName: unit.name,
       });
       return jsonData(mapUnit(unit), requestId, 201);
+    }
+
+    if (method === "POST" && envelope.action === "position.create") {
+      requirePermission(admin, "settings.positions.write");
+      const input = positionSchema.omit({ id: true, version: true }).parse(envelope.input);
+      const organizationId = isSuperAdmin(admin)
+        ? input.organizationId
+        : (admin.organizationId ?? requireAssignedUnit(admin));
+      if (!organizationId) {
+        throw new ApiError("ORGANIZATION_REQUIRED", "请先选择职位所属组织", 422);
+      }
+      const duplicate = await db.position.findUnique({
+        where: { organizationId_code: { organizationId, code: input.code } },
+        select: { id: true },
+      });
+      if (duplicate) throw new ApiError("DUPLICATE_POSITION", "职位编码已存在", 409);
+      const position = await db.position.create({
+        data: { ...input, organizationId },
+        include: {
+          assignments: { where: { status: "ACTIVE" }, select: { id: true } },
+          requirements: { where: { active: true }, select: { id: true } },
+        },
+      });
+      await audit(admin, requestId, "settings.position.created", "Position", position.id, {
+        summary: `创建职位 ${position.name}`,
+      });
+      return jsonData(mapPosition(position), requestId, 201);
+    }
+
+    if (method === "PATCH" && envelope.action === "position.save") {
+      requirePermission(admin, "settings.positions.write");
+      const input = positionSchema.required({ id: true, version: true }).parse(envelope.input);
+      const current = await db.position.findUnique({
+        where: { id: input.id },
+        select: { organizationId: true, code: true },
+      });
+      if (!current) throw new ApiError("NOT_FOUND", "职位不存在", 404);
+      const allowedOrganization = isSuperAdmin(admin)
+        ? true
+        : current.organizationId === (admin.organizationId ?? requireAssignedUnit(admin));
+      if (!allowedOrganization) throw new ApiError("FORBIDDEN", "不能修改其他组织的职位", 403);
+      if (input.code !== current.code) {
+        throw new ApiError("POSITION_CODE_IMMUTABLE", "职位编码创建后不可修改", 422);
+      }
+      const updated = await db.position.updateMany({
+        where: { id: input.id, version: input.version },
+        data: {
+          name: input.name,
+          description: input.description,
+          active: input.active,
+          sortOrder: input.sortOrder,
+          version: { increment: 1 },
+        },
+      });
+      if (updated.count !== 1) throw new Error("VERSION_CONFLICT");
+      const position = await db.position.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          assignments: { where: { status: "ACTIVE" }, select: { id: true } },
+          requirements: { where: { active: true }, select: { id: true } },
+        },
+      });
+      await audit(admin, requestId, "settings.position.updated", "Position", position.id, {
+        summary: `更新职位 ${position.name}`,
+      });
+      return jsonData(mapPosition(position), requestId);
+    }
+
+    if (method === "POST" && envelope.action === "position.delete") {
+      requirePermission(admin, "settings.positions.write");
+      const input = z
+        .object({
+          id: z.string().uuid(),
+          version: z.number().int().positive(),
+          force: z.boolean().optional().default(false),
+        })
+        .parse(envelope.input);
+      if (input.force) requireSuperAdmin(admin);
+      const result = await db.$transaction(async (tx) => {
+        const current = await tx.position.findUnique({
+          where: { id: input.id },
+          select: { id: true, organizationId: true, code: true, name: true, version: true },
+        });
+        if (!current) throw new ApiError("NOT_FOUND", "职位不存在", 404);
+        const allowedOrganization = isSuperAdmin(admin)
+          ? true
+          : current.organizationId === (admin.organizationId ?? requireAssignedUnit(admin));
+        if (!allowedOrganization) throw new ApiError("FORBIDDEN", "不能删除其他组织的职位", 403);
+        if (current.version !== input.version) {
+          throw new ApiError("VERSION_CONFLICT", "职位已被其他管理员修改，请刷新后重试", 409);
+        }
+        const locked = await tx.position.updateMany({
+          where: { id: current.id, version: input.version },
+          data: { version: { increment: 1 } },
+        });
+        if (locked.count !== 1) {
+          throw new ApiError("VERSION_CONFLICT", "职位已被其他管理员修改，请刷新后重试", 409);
+        }
+
+        const [assignments, requirements] = await Promise.all([
+          tx.personPositionAssignment.findMany({
+            where: { positionId: current.id },
+            select: { id: true },
+          }),
+          tx.qualificationRequirement.findMany({
+            where: { positionId: current.id },
+            select: { id: true },
+          }),
+        ]);
+        const assignmentIds = assignments.map((assignment) => assignment.id);
+        const requirementIds = requirements.map((requirement) => requirement.id);
+        const [qualificationAssignments, upgradePlans] = await Promise.all([
+          tx.qualificationAssignment.count({
+            where: {
+              OR: [
+                ...(requirementIds.length ? [{ requirementId: { in: requirementIds } }] : []),
+                ...(assignmentIds.length ? [{ positionAssignmentId: { in: assignmentIds } }] : []),
+              ],
+            },
+          }),
+          tx.upgradePlan.count({
+            where: {
+              OR: [
+                ...(assignmentIds.length ? [{ positionAssignmentId: { in: assignmentIds } }] : []),
+                {
+                  positionCodeSnapshot: current.code,
+                  OR: [
+                    { person: { organizationId: current.organizationId } },
+                    { pilot: { unit: { organizationId: current.organizationId } } },
+                  ],
+                },
+              ],
+            },
+          }),
+        ]);
+        const history = {
+          memberAssignments: assignments.length,
+          qualificationRequirements: requirements.length,
+          qualificationAssignments,
+          upgradePlans,
+        };
+        const hasHistory = Object.values(history).some((value) => value > 0);
+        if (hasHistory && !input.force) {
+          throw new ApiError(
+            "POSITION_HAS_HISTORY",
+            "职位存在历史关联，无法安全删除",
+            409,
+            undefined,
+            {
+              ...history,
+              positionCode: current.code,
+              positionName: current.name,
+            },
+          );
+        }
+
+        if (input.force) {
+          const endedAt = new Date();
+          if (assignmentIds.length) {
+            await tx.personPositionAssignment.updateMany({
+              where: { id: { in: assignmentIds }, status: "ACTIVE" },
+              data: {
+                status: "ENDED",
+                isPrimary: false,
+                effectiveTo: endedAt,
+                positionCodeSnapshot: current.code,
+                positionNameSnapshot: current.name,
+                version: { increment: 1 },
+              },
+            });
+          }
+          await tx.qualificationAssignment.updateMany({
+            where: {
+              active: true,
+              OR: [
+                ...(assignmentIds.length ? [{ positionAssignmentId: { in: assignmentIds } }] : []),
+                ...(requirementIds.length ? [{ requirementId: { in: requirementIds } }] : []),
+              ],
+            },
+            data: { active: false, endedAt, version: { increment: 1 } },
+          });
+          if (assignmentIds.length) {
+            await tx.personPositionAssignment.updateMany({
+              where: { id: { in: assignmentIds } },
+              data: {
+                positionId: null,
+                positionCodeSnapshot: current.code,
+                positionNameSnapshot: current.name,
+              },
+            });
+          }
+        }
+
+        await tx.position.delete({ where: { id: current.id } });
+        return { id: current.id, forced: Boolean(input.force), history };
+      });
+      await audit(
+        admin,
+        requestId,
+        result.forced ? "settings.position.force_deleted" : "settings.position.deleted",
+        "Position",
+        result.id,
+        {
+          summary: result.forced ? "强制删除职位并保留历史记录" : "删除无历史关联职位",
+          forced: result.forced,
+          ...result.history,
+        },
+      );
+      return jsonData({ id: result.id, forced: result.forced }, requestId);
     }
 
     if (method === "PATCH" && envelope.action === "admin.save") {

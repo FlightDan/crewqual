@@ -15,6 +15,7 @@ import { relatedPilotUnitWhere } from "@/server/admin-permissions";
 import {
   ACTIVE_UPGRADE_PLAN_STATUSES,
   assertCoreQualificationsEligible,
+  assertUpgradePlanEligibility,
   assertLifecycleAction,
 } from "@/server/upgrade-plan-rules";
 import { emitPilotNotification } from "@/server/notifications";
@@ -79,13 +80,23 @@ export async function POST(
           `该飞行员已有活动计划：${conflict.planNumber}`,
           409,
         );
-      const coreTypes = await db.qualificationType.findMany({
-        where: { core: true, active: true },
-        select: { id: true, name: true },
-      });
-      assertCoreQualificationsEligible(coreTypes, visiblePlan.pilot.qualifications);
+      if (visiblePlan.personId && visiblePlan.positionAssignmentId) {
+        await assertUpgradePlanEligibility(db, visiblePlan);
+      } else {
+        const coreTypes = await db.qualificationType.findMany({
+          where: { core: true, active: true },
+          select: { id: true, name: true },
+        });
+        assertCoreQualificationsEligible(coreTypes, visiblePlan.pilot.qualifications);
+      }
     }
     const result = await db.$transaction(async (tx) => {
+      if (["start", "resume"].includes(action)) {
+        // Re-check under the same transaction as the lifecycle transition so
+        // an approval/replacement racing this action cannot invalidate the
+        // eligibility decision after it was made.
+        await assertUpgradePlanEligibility(tx, visiblePlan);
+      }
       const updated = await tx.upgradePlan.updateMany({
         where: {
           id,

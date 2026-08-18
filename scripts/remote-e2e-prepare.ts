@@ -9,6 +9,7 @@ const employeeNumber = process.env.E2E_PILOT_EMPLOYEE_NUMBER;
 if (!employeeNumber || !/^CQ-E2E-[A-Z0-9-]{1,20}$/.test(employeeNumber)) {
   throw new Error("E2E_PILOT_EMPLOYEE_NUMBER must match CQ-E2E-<run-id>");
 }
+const stableEmployeeNumber = employeeNumber;
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(connectionString) });
 
@@ -30,7 +31,7 @@ async function main() {
       active: true,
     },
     create: {
-      employeeNumber,
+      employeeNumber: stableEmployeeNumber,
       mobile: "13800138000",
       displayName: "陈昊",
       initials: "CH",
@@ -58,7 +59,7 @@ async function main() {
         data: {
           pilotId: pilot.id,
           qualificationTypeId: coreType.id,
-          credentialNumber: `CORE-${coreType.code}-${employeeNumber}`,
+          credentialNumber: `CORE-${coreType.code}-${stableEmployeeNumber}`,
           issueDate: new Date("2026-01-01T00:00:00.000Z"),
           expiryDate: new Date("2028-12-31T00:00:00.000Z"),
           issuingAuthority: "CrewQual E2E",
@@ -114,7 +115,7 @@ async function main() {
     where: { pilotId: pilot.id, qualificationTypeId: qualificationType.id, status: "ACTIVE" },
   });
   const data = {
-    credentialNumber: `CQ-E2E-${employeeNumber.slice("CQ-E2E-".length)}`,
+    credentialNumber: `CQ-E2E-${stableEmployeeNumber.slice("CQ-E2E-".length)}`,
     issueDate: new Date("2026-01-01T00:00:00.000Z"),
     expiryDate: new Date("2028-08-14T00:00:00.000Z"),
     issuingAuthority: "中国民航运行单位",

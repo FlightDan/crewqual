@@ -93,6 +93,14 @@ export async function POST(request: NextRequest) {
       202,
     );
   } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    ) {
+      return jsonData({ accepted: true }, requestId, 202);
+    }
     return jsonError(error, requestId);
   }
 }

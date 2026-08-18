@@ -119,10 +119,11 @@ export async function executeBackupRun(runId: string) {
     include: { plan: { include: { target: true } } },
   });
   if (!run || run.status !== "QUEUED") return { status: "ignored" as const };
-  await db.backupRun.update({
-    where: { id: run.id },
+  const claimed = await db.backupRun.updateMany({
+    where: { id: run.id, status: "QUEUED" },
     data: { status: "RUNNING", startedAt: new Date() },
   });
+  if (claimed.count !== 1) return { status: "ignored" as const };
   const workdir = await mkdtemp(join(tmpdir(), "crewqual-backup-"));
   try {
     const targetSecret = run.plan.target.secretCiphertext
@@ -136,6 +137,17 @@ export async function executeBackupRun(runId: string) {
     if (run.plan.source === "DATABASE") {
       const rawPath = join(workdir, "database.dump");
       const config = getServerConfig();
+      const [{ serverVersion }] = await db.$queryRaw<Array<{ serverVersion: string }>>`
+        SELECT current_setting('server_version_num') AS "serverVersion"
+      `;
+      const pgDumpVersion = String((await execFileAsync("pg_dump", ["--version"])).stdout);
+      const dumpMajor = pgDumpVersion.match(/\b(\d+)\./)?.[1];
+      const serverMajor = String(Math.floor(Number(serverVersion) / 10000));
+      if (!dumpMajor || dumpMajor !== serverMajor) {
+        throw new Error(
+          `pg_dump 主版本 ${dumpMajor ?? "unknown"} 与 PostgreSQL ${serverMajor} 不兼容`,
+        );
+      }
       await execFileAsync("pg_dump", ["--format=custom", "--file", rawPath, config.DATABASE_URL], {
         timeout: 60 * 60 * 1000,
       });
@@ -181,7 +193,12 @@ export async function executeBackupRun(runId: string) {
       for (const image of changed) {
         const objectPath = join(workdir, "objects", image.objectKey);
         await mkdir(dirname(objectPath), { recursive: true });
-        await writeFile(objectPath, await readPrivateEvidence(image.objectKey));
+        const bytes = await readPrivateEvidence(image.objectKey);
+        const actualSha256 = createHash("sha256").update(bytes).digest("hex");
+        if (actualSha256 !== image.sha256) {
+          throw new Error(`证据对象校验失败：${image.objectKey}`);
+        }
+        await writeFile(objectPath, bytes);
       }
       const rawArchive = join(workdir, "gallery.tar");
       await execFileAsync("tar", ["-cf", rawArchive, "manifest.json", "objects"], {
@@ -279,7 +296,14 @@ export async function processQueuedBackupRuns() {
     )
       continue;
     if (plan.lastSuccessfulAt && now.getTime() - plan.lastSuccessfulAt.getTime() < 45_000) continue;
-    await db.backupRun.create({ data: { planId: plan.id, mode: plan.mode } });
+    const scheduledFor = new Date(Math.floor(now.getTime() / 60_000) * 60_000);
+    await db.backupRun
+      .create({ data: { planId: plan.id, mode: plan.mode, scheduledFor } })
+      .catch((error: unknown) => {
+        // Two workers can observe the same minute. The composite unique key
+        // makes the second claim a harmless no-op.
+        if ((error as { code?: string }).code !== "P2002") throw error;
+      });
   }
   const runs = await db.backupRun.findMany({
     where: { status: "QUEUED" },
@@ -293,6 +317,13 @@ export async function processQueuedBackupRuns() {
 }
 
 export async function restoreBackupRun(runId: string, confirmation: string) {
+  if (process.env.CREWQUAL_OFFLINE_RESTORE !== "1") {
+    throw new Error("在线服务禁止执行恢复；请使用隔离 restore profile 和 recoverySetId");
+  }
+  const restoreDatabaseUrl = process.env.RESTORE_DATABASE_URL;
+  if (!restoreDatabaseUrl) {
+    throw new Error("离线恢复必须提供指向全新隔离数据库的 RESTORE_DATABASE_URL");
+  }
   if (confirmation !== "恢复") throw new Error("必须输入“恢复”确认破坏性操作");
   const db = getPrisma();
   const run = await db.backupRun.findUnique({
@@ -309,25 +340,30 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
     if (run.plan.source === "DATABASE") {
       const downloaded = join(workdir, "artifact.bin");
       await fetchArtifact(run.artifactPath, run.plan.target, downloaded);
-      const restored = decryptArtifact(await readFile(downloaded), secret);
+      const downloadedBytes = await readFile(downloaded);
+      if (
+        run.manifestSha256 &&
+        createHash("sha256").update(downloadedBytes).digest("hex") !== run.manifestSha256
+      ) {
+        throw new Error("备份制品校验失败，拒绝恢复");
+      }
+      const restored = decryptArtifact(downloadedBytes, secret);
       const safety = join(workdir, "before-restore.dump");
-      await execFileAsync(
-        "pg_dump",
-        ["--format=custom", "--file", safety, getServerConfig().DATABASE_URL],
-        { timeout: 60 * 60 * 1000 },
-      );
+      await execFileAsync("pg_dump", ["--format=custom", "--file", safety, restoreDatabaseUrl], {
+        timeout: 60 * 60 * 1000,
+      });
       const restoreFile = join(workdir, "restore.dump");
       await writeFile(restoreFile, restored);
       try {
         await execFileAsync(
           "pg_restore",
-          ["--clean", "--if-exists", "--dbname", getServerConfig().DATABASE_URL, restoreFile],
+          ["--clean", "--if-exists", "--dbname", restoreDatabaseUrl, restoreFile],
           { timeout: 60 * 60 * 1000 },
         );
       } catch (error) {
         await execFileAsync(
           "pg_restore",
-          ["--clean", "--if-exists", "--dbname", getServerConfig().DATABASE_URL, safety],
+          ["--clean", "--if-exists", "--dbname", restoreDatabaseUrl, safety],
           { timeout: 60 * 60 * 1000 },
         ).catch(() => undefined);
         throw error;
@@ -363,6 +399,9 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
       };
       for (const image of manifest.objects ?? manifest.images) {
         const bytes = await readFile(join(extractDir, "objects", image.objectKey));
+        if (createHash("sha256").update(bytes).digest("hex") !== image.sha256) {
+          throw new Error(`备份证据校验失败，拒绝恢复：${image.objectKey}`);
+        }
         await putPrivateObjectAtKey(
           image.objectKey,
           bytes,

@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Avatar, Divider } from "@/components/ui/misc";
 import {
@@ -11,12 +9,7 @@ import {
   DrawerDescription,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import {
-  adminNavItems,
-  canAccessAdminNavItem,
-  isAdminNavItemActive,
-} from "@/components/layout/navigation";
-import { cn } from "@/lib/utils";
+import { AdminNavigationTree } from "@/components/layout/admin-navigation-tree";
 import { adminRoleLabels, useAdminSession } from "@/services/admin-session-provider";
 
 export function AdminMobileDrawer({
@@ -28,10 +21,8 @@ export function AdminMobileDrawer({
   onOpenChange: (open: boolean) => void;
   pendingReviewCount?: number;
 }) {
-  const pathname = usePathname();
-  const { session, hasPermission, isSuperAdmin, logout } = useAdminSession();
+  const { session, isSuperAdmin, logout } = useAdminSession();
   const role = session?.roles[0] ?? "SUPER_ADMIN";
-  const visibleItems = adminNavItems.filter((item) => canAccessAdminNavItem(item, hasPermission));
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
@@ -56,44 +47,11 @@ export function AdminMobileDrawer({
         </div>
         <Divider />
         <nav aria-label="管理员移动导航" className="flex-1 space-y-1 px-3 py-3">
-          {visibleItems.map((item) => {
-            const Icon = item.icon;
-            const active = isAdminNavItemActive(pathname, item);
-            const className = cn(
-              "flex min-h-11 items-center gap-4 rounded-md px-4 text-sm font-semibold",
-              active
-                ? "bg-brand text-white"
-                : item.available
-                  ? "text-primary hover:bg-slate-100"
-                  : "cursor-not-allowed text-muted",
-            );
-            const content = (
-              <>
-                <Icon aria-hidden="true" className="size-5" />
-                <span>{item.label}</span>
-                {item.label === "待审核" && pendingReviewCount > 0 ? (
-                  <span className="ml-auto rounded-full bg-danger px-2 py-0.5 text-[10px] text-white">
-                    {pendingReviewCount}
-                  </span>
-                ) : null}
-              </>
-            );
-            return item.href ? (
-              <DrawerClose asChild key={item.label}>
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={className}
-                >
-                  {content}
-                </Link>
-              </DrawerClose>
-            ) : (
-              <div key={item.label} aria-disabled="true" className={className}>
-                {content}
-              </div>
-            );
-          })}
+          <AdminNavigationTree
+            mobile
+            pendingReviewCount={pendingReviewCount}
+            onNavigate={() => onOpenChange(false)}
+          />
         </nav>
         <div className="border-t border-border p-4 pb-safe-bottom">
           <DrawerClose asChild>

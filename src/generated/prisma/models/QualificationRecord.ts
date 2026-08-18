@@ -27,10 +27,12 @@ export type AggregateQualificationRecord = {
 }
 
 export type QualificationRecordAvgAggregateOutputType = {
+  revisionNumber: number | null
   version: number | null
 }
 
 export type QualificationRecordSumAggregateOutputType = {
+  revisionNumber: number | null
   version: number | null
 }
 
@@ -47,6 +49,15 @@ export type QualificationRecordMinAggregateOutputType = {
   issuingAuthority: string | null
   levelOrParameter: string | null
   status: $Enums.QualificationRecordStatus | null
+  lineageId: string | null
+  revisionNumber: number | null
+  supersedesRecordId: string | null
+  restoresRecordId: string | null
+  action: $Enums.QualificationRecordAction | null
+  actorId: string | null
+  reason: string | null
+  requestId: string | null
+  activatedAt: Date | null
   lastVerifiedAt: Date | null
   version: number | null
   createdAt: Date | null
@@ -66,6 +77,15 @@ export type QualificationRecordMaxAggregateOutputType = {
   issuingAuthority: string | null
   levelOrParameter: string | null
   status: $Enums.QualificationRecordStatus | null
+  lineageId: string | null
+  revisionNumber: number | null
+  supersedesRecordId: string | null
+  restoresRecordId: string | null
+  action: $Enums.QualificationRecordAction | null
+  actorId: string | null
+  reason: string | null
+  requestId: string | null
+  activatedAt: Date | null
   lastVerifiedAt: Date | null
   version: number | null
   createdAt: Date | null
@@ -86,6 +106,15 @@ export type QualificationRecordCountAggregateOutputType = {
   levelOrParameter: number
   qualificationRuleSnapshot: number
   status: number
+  lineageId: number
+  revisionNumber: number
+  supersedesRecordId: number
+  restoresRecordId: number
+  action: number
+  actorId: number
+  reason: number
+  requestId: number
+  activatedAt: number
   lastVerifiedAt: number
   version: number
   createdAt: number
@@ -95,10 +124,12 @@ export type QualificationRecordCountAggregateOutputType = {
 
 
 export type QualificationRecordAvgAggregateInputType = {
+  revisionNumber?: true
   version?: true
 }
 
 export type QualificationRecordSumAggregateInputType = {
+  revisionNumber?: true
   version?: true
 }
 
@@ -115,6 +146,15 @@ export type QualificationRecordMinAggregateInputType = {
   issuingAuthority?: true
   levelOrParameter?: true
   status?: true
+  lineageId?: true
+  revisionNumber?: true
+  supersedesRecordId?: true
+  restoresRecordId?: true
+  action?: true
+  actorId?: true
+  reason?: true
+  requestId?: true
+  activatedAt?: true
   lastVerifiedAt?: true
   version?: true
   createdAt?: true
@@ -134,6 +174,15 @@ export type QualificationRecordMaxAggregateInputType = {
   issuingAuthority?: true
   levelOrParameter?: true
   status?: true
+  lineageId?: true
+  revisionNumber?: true
+  supersedesRecordId?: true
+  restoresRecordId?: true
+  action?: true
+  actorId?: true
+  reason?: true
+  requestId?: true
+  activatedAt?: true
   lastVerifiedAt?: true
   version?: true
   createdAt?: true
@@ -154,6 +203,15 @@ export type QualificationRecordCountAggregateInputType = {
   levelOrParameter?: true
   qualificationRuleSnapshot?: true
   status?: true
+  lineageId?: true
+  revisionNumber?: true
+  supersedesRecordId?: true
+  restoresRecordId?: true
+  action?: true
+  actorId?: true
+  reason?: true
+  requestId?: true
+  activatedAt?: true
   lastVerifiedAt?: true
   version?: true
   createdAt?: true
@@ -261,6 +319,15 @@ export type QualificationRecordGroupByOutputType = {
   levelOrParameter: string
   qualificationRuleSnapshot: runtime.JsonValue
   status: $Enums.QualificationRecordStatus
+  lineageId: string
+  revisionNumber: number
+  supersedesRecordId: string | null
+  restoresRecordId: string | null
+  action: $Enums.QualificationRecordAction
+  actorId: string | null
+  reason: string | null
+  requestId: string | null
+  activatedAt: Date | null
   lastVerifiedAt: Date | null
   version: number
   createdAt: Date
@@ -304,6 +371,15 @@ export type QualificationRecordWhereInput = {
   levelOrParameter?: Prisma.StringFilter<"QualificationRecord"> | string
   qualificationRuleSnapshot?: Prisma.JsonFilter<"QualificationRecord">
   status?: Prisma.EnumQualificationRecordStatusFilter<"QualificationRecord"> | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.UuidFilter<"QualificationRecord"> | string
+  revisionNumber?: Prisma.IntFilter<"QualificationRecord"> | number
+  supersedesRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  restoresRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  action?: Prisma.EnumQualificationRecordActionFilter<"QualificationRecord"> | $Enums.QualificationRecordAction
+  actorId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  reason?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  requestId?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  activatedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   lastVerifiedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationRecord"> | number
   createdAt?: Prisma.DateTimeFilter<"QualificationRecord"> | Date | string
@@ -314,6 +390,11 @@ export type QualificationRecordWhereInput = {
   qualificationDefinition?: Prisma.XOR<Prisma.QualificationDefinitionNullableScalarRelationFilter, Prisma.QualificationDefinitionWhereInput> | null
   updateRequest?: Prisma.XOR<Prisma.QualificationUpdateRequestNullableScalarRelationFilter, Prisma.QualificationUpdateRequestWhereInput> | null
   evidence?: Prisma.QualificationEvidenceListRelationFilter
+  corrections?: Prisma.QualificationCorrectionListRelationFilter
+  supersedesRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
+  supersededBy?: Prisma.QualificationRecordListRelationFilter
+  restoresRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
+  restoredBy?: Prisma.QualificationRecordListRelationFilter
 }
 
 export type QualificationRecordOrderByWithRelationInput = {
@@ -330,6 +411,15 @@ export type QualificationRecordOrderByWithRelationInput = {
   levelOrParameter?: Prisma.SortOrder
   qualificationRuleSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lineageId?: Prisma.SortOrder
+  revisionNumber?: Prisma.SortOrder
+  supersedesRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  restoresRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  action?: Prisma.SortOrder
+  actorId?: Prisma.SortOrderInput | Prisma.SortOrder
+  reason?: Prisma.SortOrderInput | Prisma.SortOrder
+  requestId?: Prisma.SortOrderInput | Prisma.SortOrder
+  activatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -340,10 +430,16 @@ export type QualificationRecordOrderByWithRelationInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionOrderByWithRelationInput
   updateRequest?: Prisma.QualificationUpdateRequestOrderByWithRelationInput
   evidence?: Prisma.QualificationEvidenceOrderByRelationAggregateInput
+  corrections?: Prisma.QualificationCorrectionOrderByRelationAggregateInput
+  supersedesRecord?: Prisma.QualificationRecordOrderByWithRelationInput
+  supersededBy?: Prisma.QualificationRecordOrderByRelationAggregateInput
+  restoresRecord?: Prisma.QualificationRecordOrderByWithRelationInput
+  restoredBy?: Prisma.QualificationRecordOrderByRelationAggregateInput
 }
 
 export type QualificationRecordWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  lineageId_revisionNumber?: Prisma.QualificationRecordLineageIdRevisionNumberCompoundUniqueInput
   AND?: Prisma.QualificationRecordWhereInput | Prisma.QualificationRecordWhereInput[]
   OR?: Prisma.QualificationRecordWhereInput[]
   NOT?: Prisma.QualificationRecordWhereInput | Prisma.QualificationRecordWhereInput[]
@@ -359,6 +455,15 @@ export type QualificationRecordWhereUniqueInput = Prisma.AtLeast<{
   levelOrParameter?: Prisma.StringFilter<"QualificationRecord"> | string
   qualificationRuleSnapshot?: Prisma.JsonFilter<"QualificationRecord">
   status?: Prisma.EnumQualificationRecordStatusFilter<"QualificationRecord"> | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.UuidFilter<"QualificationRecord"> | string
+  revisionNumber?: Prisma.IntFilter<"QualificationRecord"> | number
+  supersedesRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  restoresRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  action?: Prisma.EnumQualificationRecordActionFilter<"QualificationRecord"> | $Enums.QualificationRecordAction
+  actorId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  reason?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  requestId?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  activatedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   lastVerifiedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationRecord"> | number
   createdAt?: Prisma.DateTimeFilter<"QualificationRecord"> | Date | string
@@ -369,7 +474,12 @@ export type QualificationRecordWhereUniqueInput = Prisma.AtLeast<{
   qualificationDefinition?: Prisma.XOR<Prisma.QualificationDefinitionNullableScalarRelationFilter, Prisma.QualificationDefinitionWhereInput> | null
   updateRequest?: Prisma.XOR<Prisma.QualificationUpdateRequestNullableScalarRelationFilter, Prisma.QualificationUpdateRequestWhereInput> | null
   evidence?: Prisma.QualificationEvidenceListRelationFilter
-}, "id">
+  corrections?: Prisma.QualificationCorrectionListRelationFilter
+  supersedesRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
+  supersededBy?: Prisma.QualificationRecordListRelationFilter
+  restoresRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
+  restoredBy?: Prisma.QualificationRecordListRelationFilter
+}, "id" | "lineageId_revisionNumber">
 
 export type QualificationRecordOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -385,6 +495,15 @@ export type QualificationRecordOrderByWithAggregationInput = {
   levelOrParameter?: Prisma.SortOrder
   qualificationRuleSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lineageId?: Prisma.SortOrder
+  revisionNumber?: Prisma.SortOrder
+  supersedesRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  restoresRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  action?: Prisma.SortOrder
+  actorId?: Prisma.SortOrderInput | Prisma.SortOrder
+  reason?: Prisma.SortOrderInput | Prisma.SortOrder
+  requestId?: Prisma.SortOrderInput | Prisma.SortOrder
+  activatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -413,6 +532,15 @@ export type QualificationRecordScalarWhereWithAggregatesInput = {
   levelOrParameter?: Prisma.StringWithAggregatesFilter<"QualificationRecord"> | string
   qualificationRuleSnapshot?: Prisma.JsonWithAggregatesFilter<"QualificationRecord">
   status?: Prisma.EnumQualificationRecordStatusWithAggregatesFilter<"QualificationRecord"> | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.UuidWithAggregatesFilter<"QualificationRecord"> | string
+  revisionNumber?: Prisma.IntWithAggregatesFilter<"QualificationRecord"> | number
+  supersedesRecordId?: Prisma.UuidNullableWithAggregatesFilter<"QualificationRecord"> | string | null
+  restoresRecordId?: Prisma.UuidNullableWithAggregatesFilter<"QualificationRecord"> | string | null
+  action?: Prisma.EnumQualificationRecordActionWithAggregatesFilter<"QualificationRecord"> | $Enums.QualificationRecordAction
+  actorId?: Prisma.UuidNullableWithAggregatesFilter<"QualificationRecord"> | string | null
+  reason?: Prisma.StringNullableWithAggregatesFilter<"QualificationRecord"> | string | null
+  requestId?: Prisma.StringNullableWithAggregatesFilter<"QualificationRecord"> | string | null
+  activatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"QualificationRecord"> | Date | string | null
   lastVerifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"QualificationRecord"> | Date | string | null
   version?: Prisma.IntWithAggregatesFilter<"QualificationRecord"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"QualificationRecord"> | Date | string
@@ -429,6 +557,13 @@ export type QualificationRecordCreateInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -439,6 +574,11 @@ export type QualificationRecordCreateInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateInput = {
@@ -455,12 +595,24 @@ export type QualificationRecordUncheckedCreateInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUpdateInput = {
@@ -473,6 +625,13 @@ export type QualificationRecordUpdateInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -483,6 +642,11 @@ export type QualificationRecordUpdateInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateInput = {
@@ -499,12 +663,24 @@ export type QualificationRecordUncheckedUpdateInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordCreateManyInput = {
@@ -521,6 +697,15 @@ export type QualificationRecordCreateManyInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -537,6 +722,13 @@ export type QualificationRecordUpdateManyMutationInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -557,6 +749,15 @@ export type QualificationRecordUncheckedUpdateManyInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -573,6 +774,16 @@ export type QualificationRecordOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type QualificationRecordNullableScalarRelationFilter = {
+  is?: Prisma.QualificationRecordWhereInput | null
+  isNot?: Prisma.QualificationRecordWhereInput | null
+}
+
+export type QualificationRecordLineageIdRevisionNumberCompoundUniqueInput = {
+  lineageId: string
+  revisionNumber: number
+}
+
 export type QualificationRecordCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   pilotId?: Prisma.SortOrder
@@ -587,6 +798,15 @@ export type QualificationRecordCountOrderByAggregateInput = {
   levelOrParameter?: Prisma.SortOrder
   qualificationRuleSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lineageId?: Prisma.SortOrder
+  revisionNumber?: Prisma.SortOrder
+  supersedesRecordId?: Prisma.SortOrder
+  restoresRecordId?: Prisma.SortOrder
+  action?: Prisma.SortOrder
+  actorId?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
+  requestId?: Prisma.SortOrder
+  activatedAt?: Prisma.SortOrder
   lastVerifiedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -594,6 +814,7 @@ export type QualificationRecordCountOrderByAggregateInput = {
 }
 
 export type QualificationRecordAvgOrderByAggregateInput = {
+  revisionNumber?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
 
@@ -610,6 +831,15 @@ export type QualificationRecordMaxOrderByAggregateInput = {
   issuingAuthority?: Prisma.SortOrder
   levelOrParameter?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lineageId?: Prisma.SortOrder
+  revisionNumber?: Prisma.SortOrder
+  supersedesRecordId?: Prisma.SortOrder
+  restoresRecordId?: Prisma.SortOrder
+  action?: Prisma.SortOrder
+  actorId?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
+  requestId?: Prisma.SortOrder
+  activatedAt?: Prisma.SortOrder
   lastVerifiedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -629,6 +859,15 @@ export type QualificationRecordMinOrderByAggregateInput = {
   issuingAuthority?: Prisma.SortOrder
   levelOrParameter?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lineageId?: Prisma.SortOrder
+  revisionNumber?: Prisma.SortOrder
+  supersedesRecordId?: Prisma.SortOrder
+  restoresRecordId?: Prisma.SortOrder
+  action?: Prisma.SortOrder
+  actorId?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
+  requestId?: Prisma.SortOrder
+  activatedAt?: Prisma.SortOrder
   lastVerifiedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -636,12 +875,8 @@ export type QualificationRecordMinOrderByAggregateInput = {
 }
 
 export type QualificationRecordSumOrderByAggregateInput = {
+  revisionNumber?: Prisma.SortOrder
   version?: Prisma.SortOrder
-}
-
-export type QualificationRecordNullableScalarRelationFilter = {
-  is?: Prisma.QualificationRecordWhereInput | null
-  isNot?: Prisma.QualificationRecordWhereInput | null
 }
 
 export type QualificationRecordCreateNestedManyWithoutPersonInput = {
@@ -812,8 +1047,128 @@ export type QualificationRecordUncheckedUpdateManyWithoutQualificationDefinition
   deleteMany?: Prisma.QualificationRecordScalarWhereInput | Prisma.QualificationRecordScalarWhereInput[]
 }
 
+export type QualificationRecordCreateNestedOneWithoutSupersededByInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersededByInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersededByInput
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+}
+
+export type QualificationRecordCreateNestedManyWithoutSupersedesRecordInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput> | Prisma.QualificationRecordCreateWithoutSupersedesRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManySupersedesRecordInputEnvelope
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+}
+
+export type QualificationRecordCreateNestedOneWithoutRestoredByInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoredByInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoredByInput
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+}
+
+export type QualificationRecordCreateNestedManyWithoutRestoresRecordInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput> | Prisma.QualificationRecordCreateWithoutRestoresRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManyRestoresRecordInputEnvelope
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+}
+
+export type QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput> | Prisma.QualificationRecordCreateWithoutSupersedesRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManySupersedesRecordInputEnvelope
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+}
+
+export type QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput> | Prisma.QualificationRecordCreateWithoutRestoresRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManyRestoresRecordInputEnvelope
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+}
+
 export type EnumQualificationRecordStatusFieldUpdateOperationsInput = {
   set?: $Enums.QualificationRecordStatus
+}
+
+export type EnumQualificationRecordActionFieldUpdateOperationsInput = {
+  set?: $Enums.QualificationRecordAction
+}
+
+export type QualificationRecordUpdateOneWithoutSupersededByNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersededByInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersededByInput
+  upsert?: Prisma.QualificationRecordUpsertWithoutSupersededByInput
+  disconnect?: Prisma.QualificationRecordWhereInput | boolean
+  delete?: Prisma.QualificationRecordWhereInput | boolean
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.QualificationRecordUpdateToOneWithWhereWithoutSupersededByInput, Prisma.QualificationRecordUpdateWithoutSupersededByInput>, Prisma.QualificationRecordUncheckedUpdateWithoutSupersededByInput>
+}
+
+export type QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput> | Prisma.QualificationRecordCreateWithoutSupersedesRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput[]
+  upsert?: Prisma.QualificationRecordUpsertWithWhereUniqueWithoutSupersedesRecordInput | Prisma.QualificationRecordUpsertWithWhereUniqueWithoutSupersedesRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManySupersedesRecordInputEnvelope
+  set?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  disconnect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  delete?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  update?: Prisma.QualificationRecordUpdateWithWhereUniqueWithoutSupersedesRecordInput | Prisma.QualificationRecordUpdateWithWhereUniqueWithoutSupersedesRecordInput[]
+  updateMany?: Prisma.QualificationRecordUpdateManyWithWhereWithoutSupersedesRecordInput | Prisma.QualificationRecordUpdateManyWithWhereWithoutSupersedesRecordInput[]
+  deleteMany?: Prisma.QualificationRecordScalarWhereInput | Prisma.QualificationRecordScalarWhereInput[]
+}
+
+export type QualificationRecordUpdateOneWithoutRestoredByNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoredByInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoredByInput
+  upsert?: Prisma.QualificationRecordUpsertWithoutRestoredByInput
+  disconnect?: Prisma.QualificationRecordWhereInput | boolean
+  delete?: Prisma.QualificationRecordWhereInput | boolean
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.QualificationRecordUpdateToOneWithWhereWithoutRestoredByInput, Prisma.QualificationRecordUpdateWithoutRestoredByInput>, Prisma.QualificationRecordUncheckedUpdateWithoutRestoredByInput>
+}
+
+export type QualificationRecordUpdateManyWithoutRestoresRecordNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput> | Prisma.QualificationRecordCreateWithoutRestoresRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput[]
+  upsert?: Prisma.QualificationRecordUpsertWithWhereUniqueWithoutRestoresRecordInput | Prisma.QualificationRecordUpsertWithWhereUniqueWithoutRestoresRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManyRestoresRecordInputEnvelope
+  set?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  disconnect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  delete?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  update?: Prisma.QualificationRecordUpdateWithWhereUniqueWithoutRestoresRecordInput | Prisma.QualificationRecordUpdateWithWhereUniqueWithoutRestoresRecordInput[]
+  updateMany?: Prisma.QualificationRecordUpdateManyWithWhereWithoutRestoresRecordInput | Prisma.QualificationRecordUpdateManyWithWhereWithoutRestoresRecordInput[]
+  deleteMany?: Prisma.QualificationRecordScalarWhereInput | Prisma.QualificationRecordScalarWhereInput[]
+}
+
+export type QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput> | Prisma.QualificationRecordCreateWithoutSupersedesRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutSupersedesRecordInput[]
+  upsert?: Prisma.QualificationRecordUpsertWithWhereUniqueWithoutSupersedesRecordInput | Prisma.QualificationRecordUpsertWithWhereUniqueWithoutSupersedesRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManySupersedesRecordInputEnvelope
+  set?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  disconnect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  delete?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  update?: Prisma.QualificationRecordUpdateWithWhereUniqueWithoutSupersedesRecordInput | Prisma.QualificationRecordUpdateWithWhereUniqueWithoutSupersedesRecordInput[]
+  updateMany?: Prisma.QualificationRecordUpdateManyWithWhereWithoutSupersedesRecordInput | Prisma.QualificationRecordUpdateManyWithWhereWithoutSupersedesRecordInput[]
+  deleteMany?: Prisma.QualificationRecordScalarWhereInput | Prisma.QualificationRecordScalarWhereInput[]
+}
+
+export type QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput> | Prisma.QualificationRecordCreateWithoutRestoresRecordInput[] | Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput[]
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput | Prisma.QualificationRecordCreateOrConnectWithoutRestoresRecordInput[]
+  upsert?: Prisma.QualificationRecordUpsertWithWhereUniqueWithoutRestoresRecordInput | Prisma.QualificationRecordUpsertWithWhereUniqueWithoutRestoresRecordInput[]
+  createMany?: Prisma.QualificationRecordCreateManyRestoresRecordInputEnvelope
+  set?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  disconnect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  delete?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  connect?: Prisma.QualificationRecordWhereUniqueInput | Prisma.QualificationRecordWhereUniqueInput[]
+  update?: Prisma.QualificationRecordUpdateWithWhereUniqueWithoutRestoresRecordInput | Prisma.QualificationRecordUpdateWithWhereUniqueWithoutRestoresRecordInput[]
+  updateMany?: Prisma.QualificationRecordUpdateManyWithWhereWithoutRestoresRecordInput | Prisma.QualificationRecordUpdateManyWithWhereWithoutRestoresRecordInput[]
+  deleteMany?: Prisma.QualificationRecordScalarWhereInput | Prisma.QualificationRecordScalarWhereInput[]
 }
 
 export type QualificationRecordCreateNestedOneWithoutEvidenceInput = {
@@ -848,6 +1203,22 @@ export type QualificationRecordUpdateOneWithoutUpdateRequestNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.QualificationRecordUpdateToOneWithWhereWithoutUpdateRequestInput, Prisma.QualificationRecordUpdateWithoutUpdateRequestInput>, Prisma.QualificationRecordUncheckedUpdateWithoutUpdateRequestInput>
 }
 
+export type QualificationRecordCreateNestedOneWithoutCorrectionsInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedCreateWithoutCorrectionsInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutCorrectionsInput
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+}
+
+export type QualificationRecordUpdateOneWithoutCorrectionsNestedInput = {
+  create?: Prisma.XOR<Prisma.QualificationRecordCreateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedCreateWithoutCorrectionsInput>
+  connectOrCreate?: Prisma.QualificationRecordCreateOrConnectWithoutCorrectionsInput
+  upsert?: Prisma.QualificationRecordUpsertWithoutCorrectionsInput
+  disconnect?: Prisma.QualificationRecordWhereInput | boolean
+  delete?: Prisma.QualificationRecordWhereInput | boolean
+  connect?: Prisma.QualificationRecordWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.QualificationRecordUpdateToOneWithWhereWithoutCorrectionsInput, Prisma.QualificationRecordUpdateWithoutCorrectionsInput>, Prisma.QualificationRecordUncheckedUpdateWithoutCorrectionsInput>
+}
+
 export type QualificationRecordCreateWithoutPersonInput = {
   id?: string
   credentialNumber: string
@@ -858,6 +1229,13 @@ export type QualificationRecordCreateWithoutPersonInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -867,6 +1245,11 @@ export type QualificationRecordCreateWithoutPersonInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutPersonInput = {
@@ -882,12 +1265,24 @@ export type QualificationRecordUncheckedCreateWithoutPersonInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutPersonInput = {
@@ -933,6 +1328,15 @@ export type QualificationRecordScalarWhereInput = {
   levelOrParameter?: Prisma.StringFilter<"QualificationRecord"> | string
   qualificationRuleSnapshot?: Prisma.JsonFilter<"QualificationRecord">
   status?: Prisma.EnumQualificationRecordStatusFilter<"QualificationRecord"> | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.UuidFilter<"QualificationRecord"> | string
+  revisionNumber?: Prisma.IntFilter<"QualificationRecord"> | number
+  supersedesRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  restoresRecordId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  action?: Prisma.EnumQualificationRecordActionFilter<"QualificationRecord"> | $Enums.QualificationRecordAction
+  actorId?: Prisma.UuidNullableFilter<"QualificationRecord"> | string | null
+  reason?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  requestId?: Prisma.StringNullableFilter<"QualificationRecord"> | string | null
+  activatedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   lastVerifiedAt?: Prisma.DateTimeNullableFilter<"QualificationRecord"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationRecord"> | number
   createdAt?: Prisma.DateTimeFilter<"QualificationRecord"> | Date | string
@@ -949,6 +1353,13 @@ export type QualificationRecordCreateWithoutPilotInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -958,6 +1369,11 @@ export type QualificationRecordCreateWithoutPilotInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutPilotInput = {
@@ -973,12 +1389,24 @@ export type QualificationRecordUncheckedCreateWithoutPilotInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutPilotInput = {
@@ -1017,6 +1445,13 @@ export type QualificationRecordCreateWithoutQualificationTypeInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1026,6 +1461,11 @@ export type QualificationRecordCreateWithoutQualificationTypeInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutQualificationTypeInput = {
@@ -1041,12 +1481,24 @@ export type QualificationRecordUncheckedCreateWithoutQualificationTypeInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutQualificationTypeInput = {
@@ -1085,6 +1537,13 @@ export type QualificationRecordCreateWithoutQualificationDefinitionInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1094,6 +1553,11 @@ export type QualificationRecordCreateWithoutQualificationDefinitionInput = {
   qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutQualificationDefinitionInput = {
@@ -1109,12 +1573,24 @@ export type QualificationRecordUncheckedCreateWithoutQualificationDefinitionInpu
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutQualificationDefinitionInput = {
@@ -1143,6 +1619,486 @@ export type QualificationRecordUpdateManyWithWhereWithoutQualificationDefinition
   data: Prisma.XOR<Prisma.QualificationRecordUpdateManyMutationInput, Prisma.QualificationRecordUncheckedUpdateManyWithoutQualificationDefinitionInput>
 }
 
+export type QualificationRecordCreateWithoutSupersededByInput = {
+  id?: string
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  pilot: Prisma.PilotCreateNestedOneWithoutQualificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutQualificationRecordsInput
+  qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
+  qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
+  updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordUncheckedCreateWithoutSupersededByInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordCreateOrConnectWithoutSupersededByInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersededByInput>
+}
+
+export type QualificationRecordCreateWithoutSupersedesRecordInput = {
+  id?: string
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  pilot: Prisma.PilotCreateNestedOneWithoutQualificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutQualificationRecordsInput
+  qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
+  qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
+  updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordUncheckedCreateWithoutSupersedesRecordInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordCreateOrConnectWithoutSupersedesRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput>
+}
+
+export type QualificationRecordCreateManySupersedesRecordInputEnvelope = {
+  data: Prisma.QualificationRecordCreateManySupersedesRecordInput | Prisma.QualificationRecordCreateManySupersedesRecordInput[]
+  skipDuplicates?: boolean
+}
+
+export type QualificationRecordCreateWithoutRestoredByInput = {
+  id?: string
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  pilot: Prisma.PilotCreateNestedOneWithoutQualificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutQualificationRecordsInput
+  qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
+  qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
+  updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+}
+
+export type QualificationRecordUncheckedCreateWithoutRestoredByInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+}
+
+export type QualificationRecordCreateOrConnectWithoutRestoredByInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoredByInput>
+}
+
+export type QualificationRecordCreateWithoutRestoresRecordInput = {
+  id?: string
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  pilot: Prisma.PilotCreateNestedOneWithoutQualificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutQualificationRecordsInput
+  qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
+  qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
+  updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordUncheckedCreateWithoutRestoresRecordInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordCreateOrConnectWithoutRestoresRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput>
+}
+
+export type QualificationRecordCreateManyRestoresRecordInputEnvelope = {
+  data: Prisma.QualificationRecordCreateManyRestoresRecordInput | Prisma.QualificationRecordCreateManyRestoresRecordInput[]
+  skipDuplicates?: boolean
+}
+
+export type QualificationRecordUpsertWithoutSupersededByInput = {
+  update: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedUpdateWithoutSupersededByInput>
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersededByInput>
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+export type QualificationRecordUpdateToOneWithWhereWithoutSupersededByInput = {
+  where?: Prisma.QualificationRecordWhereInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutSupersededByInput, Prisma.QualificationRecordUncheckedUpdateWithoutSupersededByInput>
+}
+
+export type QualificationRecordUpdateWithoutSupersededByInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pilot?: Prisma.PilotUpdateOneRequiredWithoutQualificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutQualificationRecordsNestedInput
+  qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
+  qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
+  updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateWithoutSupersededByInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUpsertWithWhereUniqueWithoutSupersedesRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  update: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedUpdateWithoutSupersedesRecordInput>
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutSupersedesRecordInput>
+}
+
+export type QualificationRecordUpdateWithWhereUniqueWithoutSupersedesRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutSupersedesRecordInput, Prisma.QualificationRecordUncheckedUpdateWithoutSupersedesRecordInput>
+}
+
+export type QualificationRecordUpdateManyWithWhereWithoutSupersedesRecordInput = {
+  where: Prisma.QualificationRecordScalarWhereInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateManyMutationInput, Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordInput>
+}
+
+export type QualificationRecordUpsertWithoutRestoredByInput = {
+  update: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedUpdateWithoutRestoredByInput>
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoredByInput>
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+export type QualificationRecordUpdateToOneWithWhereWithoutRestoredByInput = {
+  where?: Prisma.QualificationRecordWhereInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutRestoredByInput, Prisma.QualificationRecordUncheckedUpdateWithoutRestoredByInput>
+}
+
+export type QualificationRecordUpdateWithoutRestoredByInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pilot?: Prisma.PilotUpdateOneRequiredWithoutQualificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutQualificationRecordsNestedInput
+  qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
+  qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
+  updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateWithoutRestoredByInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+}
+
+export type QualificationRecordUpsertWithWhereUniqueWithoutRestoresRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  update: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedUpdateWithoutRestoresRecordInput>
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedCreateWithoutRestoresRecordInput>
+}
+
+export type QualificationRecordUpdateWithWhereUniqueWithoutRestoresRecordInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutRestoresRecordInput, Prisma.QualificationRecordUncheckedUpdateWithoutRestoresRecordInput>
+}
+
+export type QualificationRecordUpdateManyWithWhereWithoutRestoresRecordInput = {
+  where: Prisma.QualificationRecordScalarWhereInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateManyMutationInput, Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordInput>
+}
+
 export type QualificationRecordCreateWithoutEvidenceInput = {
   id?: string
   credentialNumber: string
@@ -1153,6 +2109,13 @@ export type QualificationRecordCreateWithoutEvidenceInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1162,6 +2125,11 @@ export type QualificationRecordCreateWithoutEvidenceInput = {
   qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutEvidenceInput = {
@@ -1178,11 +2146,23 @@ export type QualificationRecordUncheckedCreateWithoutEvidenceInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutEvidenceInput = {
@@ -1211,6 +2191,13 @@ export type QualificationRecordUpdateWithoutEvidenceInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1220,6 +2207,11 @@ export type QualificationRecordUpdateWithoutEvidenceInput = {
   qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutEvidenceInput = {
@@ -1236,11 +2228,23 @@ export type QualificationRecordUncheckedUpdateWithoutEvidenceInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordCreateWithoutUpdateRequestInput = {
@@ -1253,6 +2257,13 @@ export type QualificationRecordCreateWithoutUpdateRequestInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1262,6 +2273,11 @@ export type QualificationRecordCreateWithoutUpdateRequestInput = {
   qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
   qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
   evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordUncheckedCreateWithoutUpdateRequestInput = {
@@ -1278,11 +2294,23 @@ export type QualificationRecordUncheckedCreateWithoutUpdateRequestInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  corrections?: Prisma.QualificationCorrectionUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
 }
 
 export type QualificationRecordCreateOrConnectWithoutUpdateRequestInput = {
@@ -1311,6 +2339,13 @@ export type QualificationRecordUpdateWithoutUpdateRequestInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1320,6 +2355,11 @@ export type QualificationRecordUpdateWithoutUpdateRequestInput = {
   qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutUpdateRequestInput = {
@@ -1336,11 +2376,171 @@ export type QualificationRecordUncheckedUpdateWithoutUpdateRequestInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordCreateWithoutCorrectionsInput = {
+  id?: string
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  pilot: Prisma.PilotCreateNestedOneWithoutQualificationsInput
+  person?: Prisma.PersonCreateNestedOneWithoutQualificationRecordsInput
+  qualificationType: Prisma.QualificationTypeCreateNestedOneWithoutRecordsInput
+  qualificationDefinition?: Prisma.QualificationDefinitionCreateNestedOneWithoutRecordsInput
+  updateRequest?: Prisma.QualificationUpdateRequestCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceCreateNestedManyWithoutQualificationRecordInput
+  supersedesRecord?: Prisma.QualificationRecordCreateNestedOneWithoutSupersededByInput
+  supersededBy?: Prisma.QualificationRecordCreateNestedManyWithoutSupersedesRecordInput
+  restoresRecord?: Prisma.QualificationRecordCreateNestedOneWithoutRestoredByInput
+  restoredBy?: Prisma.QualificationRecordCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordUncheckedCreateWithoutCorrectionsInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedCreateNestedOneWithoutQualificationRecordInput
+  evidence?: Prisma.QualificationEvidenceUncheckedCreateNestedManyWithoutQualificationRecordInput
+  supersededBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutSupersedesRecordInput
+  restoredBy?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutRestoresRecordInput
+}
+
+export type QualificationRecordCreateOrConnectWithoutCorrectionsInput = {
+  where: Prisma.QualificationRecordWhereUniqueInput
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedCreateWithoutCorrectionsInput>
+}
+
+export type QualificationRecordUpsertWithoutCorrectionsInput = {
+  update: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedUpdateWithoutCorrectionsInput>
+  create: Prisma.XOR<Prisma.QualificationRecordCreateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedCreateWithoutCorrectionsInput>
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+export type QualificationRecordUpdateToOneWithWhereWithoutCorrectionsInput = {
+  where?: Prisma.QualificationRecordWhereInput
+  data: Prisma.XOR<Prisma.QualificationRecordUpdateWithoutCorrectionsInput, Prisma.QualificationRecordUncheckedUpdateWithoutCorrectionsInput>
+}
+
+export type QualificationRecordUpdateWithoutCorrectionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pilot?: Prisma.PilotUpdateOneRequiredWithoutQualificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutQualificationRecordsNestedInput
+  qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
+  qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
+  updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateWithoutCorrectionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordCreateManyPersonInput = {
@@ -1356,6 +2556,15 @@ export type QualificationRecordCreateManyPersonInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1372,6 +2581,13 @@ export type QualificationRecordUpdateWithoutPersonInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1381,6 +2597,11 @@ export type QualificationRecordUpdateWithoutPersonInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutPersonInput = {
@@ -1396,12 +2617,24 @@ export type QualificationRecordUncheckedUpdateWithoutPersonInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateManyWithoutPersonInput = {
@@ -1417,6 +2650,15 @@ export type QualificationRecordUncheckedUpdateManyWithoutPersonInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1436,6 +2678,15 @@ export type QualificationRecordCreateManyPilotInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1452,6 +2703,13 @@ export type QualificationRecordUpdateWithoutPilotInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1461,6 +2719,11 @@ export type QualificationRecordUpdateWithoutPilotInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutPilotInput = {
@@ -1476,12 +2739,24 @@ export type QualificationRecordUncheckedUpdateWithoutPilotInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateManyWithoutPilotInput = {
@@ -1497,6 +2772,15 @@ export type QualificationRecordUncheckedUpdateManyWithoutPilotInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1516,6 +2800,15 @@ export type QualificationRecordCreateManyQualificationTypeInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1532,6 +2825,13 @@ export type QualificationRecordUpdateWithoutQualificationTypeInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1541,6 +2841,11 @@ export type QualificationRecordUpdateWithoutQualificationTypeInput = {
   qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutQualificationTypeInput = {
@@ -1556,12 +2861,24 @@ export type QualificationRecordUncheckedUpdateWithoutQualificationTypeInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateManyWithoutQualificationTypeInput = {
@@ -1577,6 +2894,15 @@ export type QualificationRecordUncheckedUpdateManyWithoutQualificationTypeInput 
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1596,6 +2922,15 @@ export type QualificationRecordCreateManyQualificationDefinitionInput = {
   levelOrParameter: string
   qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
   lastVerifiedAt?: Date | string | null
   version?: number
   createdAt?: Date | string
@@ -1612,6 +2947,13 @@ export type QualificationRecordUpdateWithoutQualificationDefinitionInput = {
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1621,6 +2963,11 @@ export type QualificationRecordUpdateWithoutQualificationDefinitionInput = {
   qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
   updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateWithoutQualificationDefinitionInput = {
@@ -1636,12 +2983,24 @@ export type QualificationRecordUncheckedUpdateWithoutQualificationDefinitionInpu
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
   evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
 }
 
 export type QualificationRecordUncheckedUpdateManyWithoutQualificationDefinitionInput = {
@@ -1657,6 +3016,259 @@ export type QualificationRecordUncheckedUpdateManyWithoutQualificationDefinition
   levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
   qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type QualificationRecordCreateManySupersedesRecordInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  restoresRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type QualificationRecordCreateManyRestoresRecordInput = {
+  id?: string
+  pilotId: string
+  personId?: string | null
+  qualificationTypeId: string
+  qualificationDefinitionId?: string | null
+  credentialNumber: string
+  issueDate: Date | string
+  trainingDate?: Date | string | null
+  expiryDate?: Date | string | null
+  issuingAuthority: string
+  levelOrParameter: string
+  qualificationRuleSnapshot: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: $Enums.QualificationRecordStatus
+  lineageId?: string
+  revisionNumber?: number
+  supersedesRecordId?: string | null
+  action?: $Enums.QualificationRecordAction
+  actorId?: string | null
+  reason?: string | null
+  requestId?: string | null
+  activatedAt?: Date | string | null
+  lastVerifiedAt?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type QualificationRecordUpdateWithoutSupersedesRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pilot?: Prisma.PilotUpdateOneRequiredWithoutQualificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutQualificationRecordsNestedInput
+  qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
+  qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
+  updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoresRecord?: Prisma.QualificationRecordUpdateOneWithoutRestoredByNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateWithoutSupersedesRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  restoresRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type QualificationRecordUpdateWithoutRestoresRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pilot?: Prisma.PilotUpdateOneRequiredWithoutQualificationsNestedInput
+  person?: Prisma.PersonUpdateOneWithoutQualificationRecordsNestedInput
+  qualificationType?: Prisma.QualificationTypeUpdateOneRequiredWithoutRecordsNestedInput
+  qualificationDefinition?: Prisma.QualificationDefinitionUpdateOneWithoutRecordsNestedInput
+  updateRequest?: Prisma.QualificationUpdateRequestUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUpdateManyWithoutQualificationRecordNestedInput
+  supersedesRecord?: Prisma.QualificationRecordUpdateOneWithoutSupersededByNestedInput
+  supersededBy?: Prisma.QualificationRecordUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateWithoutRestoresRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updateRequest?: Prisma.QualificationUpdateRequestUncheckedUpdateOneWithoutQualificationRecordNestedInput
+  evidence?: Prisma.QualificationEvidenceUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  corrections?: Prisma.QualificationCorrectionUncheckedUpdateManyWithoutQualificationRecordNestedInput
+  supersededBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutSupersedesRecordNestedInput
+  restoredBy?: Prisma.QualificationRecordUncheckedUpdateManyWithoutRestoresRecordNestedInput
+}
+
+export type QualificationRecordUncheckedUpdateManyWithoutRestoresRecordInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  pilotId?: Prisma.StringFieldUpdateOperationsInput | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualificationTypeId?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationDefinitionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  credentialNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  issueDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  trainingDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  expiryDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  issuingAuthority?: Prisma.StringFieldUpdateOperationsInput | string
+  levelOrParameter?: Prisma.StringFieldUpdateOperationsInput | string
+  qualificationRuleSnapshot?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.EnumQualificationRecordStatusFieldUpdateOperationsInput | $Enums.QualificationRecordStatus
+  lineageId?: Prisma.StringFieldUpdateOperationsInput | string
+  revisionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  supersedesRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  action?: Prisma.EnumQualificationRecordActionFieldUpdateOperationsInput | $Enums.QualificationRecordAction
+  actorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  activatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1670,10 +3282,16 @@ export type QualificationRecordUncheckedUpdateManyWithoutQualificationDefinition
 
 export type QualificationRecordCountOutputType = {
   evidence: number
+  corrections: number
+  supersededBy: number
+  restoredBy: number
 }
 
 export type QualificationRecordCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   evidence?: boolean | QualificationRecordCountOutputTypeCountEvidenceArgs
+  corrections?: boolean | QualificationRecordCountOutputTypeCountCorrectionsArgs
+  supersededBy?: boolean | QualificationRecordCountOutputTypeCountSupersededByArgs
+  restoredBy?: boolean | QualificationRecordCountOutputTypeCountRestoredByArgs
 }
 
 /**
@@ -1693,6 +3311,27 @@ export type QualificationRecordCountOutputTypeCountEvidenceArgs<ExtArgs extends 
   where?: Prisma.QualificationEvidenceWhereInput
 }
 
+/**
+ * QualificationRecordCountOutputType without action
+ */
+export type QualificationRecordCountOutputTypeCountCorrectionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.QualificationCorrectionWhereInput
+}
+
+/**
+ * QualificationRecordCountOutputType without action
+ */
+export type QualificationRecordCountOutputTypeCountSupersededByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+/**
+ * QualificationRecordCountOutputType without action
+ */
+export type QualificationRecordCountOutputTypeCountRestoredByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.QualificationRecordWhereInput
+}
+
 
 export type QualificationRecordSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1708,6 +3347,15 @@ export type QualificationRecordSelect<ExtArgs extends runtime.Types.Extensions.I
   levelOrParameter?: boolean
   qualificationRuleSnapshot?: boolean
   status?: boolean
+  lineageId?: boolean
+  revisionNumber?: boolean
+  supersedesRecordId?: boolean
+  restoresRecordId?: boolean
+  action?: boolean
+  actorId?: boolean
+  reason?: boolean
+  requestId?: boolean
+  activatedAt?: boolean
   lastVerifiedAt?: boolean
   version?: boolean
   createdAt?: boolean
@@ -1718,6 +3366,11 @@ export type QualificationRecordSelect<ExtArgs extends runtime.Types.Extensions.I
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
   updateRequest?: boolean | Prisma.QualificationRecord$updateRequestArgs<ExtArgs>
   evidence?: boolean | Prisma.QualificationRecord$evidenceArgs<ExtArgs>
+  corrections?: boolean | Prisma.QualificationRecord$correctionsArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  supersededBy?: boolean | Prisma.QualificationRecord$supersededByArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
+  restoredBy?: boolean | Prisma.QualificationRecord$restoredByArgs<ExtArgs>
   _count?: boolean | Prisma.QualificationRecordCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["qualificationRecord"]>
 
@@ -1735,6 +3388,15 @@ export type QualificationRecordSelectCreateManyAndReturn<ExtArgs extends runtime
   levelOrParameter?: boolean
   qualificationRuleSnapshot?: boolean
   status?: boolean
+  lineageId?: boolean
+  revisionNumber?: boolean
+  supersedesRecordId?: boolean
+  restoresRecordId?: boolean
+  action?: boolean
+  actorId?: boolean
+  reason?: boolean
+  requestId?: boolean
+  activatedAt?: boolean
   lastVerifiedAt?: boolean
   version?: boolean
   createdAt?: boolean
@@ -1743,6 +3405,8 @@ export type QualificationRecordSelectCreateManyAndReturn<ExtArgs extends runtime
   person?: boolean | Prisma.QualificationRecord$personArgs<ExtArgs>
   qualificationType?: boolean | Prisma.QualificationTypeDefaultArgs<ExtArgs>
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
 }, ExtArgs["result"]["qualificationRecord"]>
 
 export type QualificationRecordSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1759,6 +3423,15 @@ export type QualificationRecordSelectUpdateManyAndReturn<ExtArgs extends runtime
   levelOrParameter?: boolean
   qualificationRuleSnapshot?: boolean
   status?: boolean
+  lineageId?: boolean
+  revisionNumber?: boolean
+  supersedesRecordId?: boolean
+  restoresRecordId?: boolean
+  action?: boolean
+  actorId?: boolean
+  reason?: boolean
+  requestId?: boolean
+  activatedAt?: boolean
   lastVerifiedAt?: boolean
   version?: boolean
   createdAt?: boolean
@@ -1767,6 +3440,8 @@ export type QualificationRecordSelectUpdateManyAndReturn<ExtArgs extends runtime
   person?: boolean | Prisma.QualificationRecord$personArgs<ExtArgs>
   qualificationType?: boolean | Prisma.QualificationTypeDefaultArgs<ExtArgs>
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
 }, ExtArgs["result"]["qualificationRecord"]>
 
 export type QualificationRecordSelectScalar = {
@@ -1783,13 +3458,22 @@ export type QualificationRecordSelectScalar = {
   levelOrParameter?: boolean
   qualificationRuleSnapshot?: boolean
   status?: boolean
+  lineageId?: boolean
+  revisionNumber?: boolean
+  supersedesRecordId?: boolean
+  restoresRecordId?: boolean
+  action?: boolean
+  actorId?: boolean
+  reason?: boolean
+  requestId?: boolean
+  activatedAt?: boolean
   lastVerifiedAt?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type QualificationRecordOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "qualificationTypeId" | "qualificationDefinitionId" | "credentialNumber" | "issueDate" | "trainingDate" | "expiryDate" | "issuingAuthority" | "levelOrParameter" | "qualificationRuleSnapshot" | "status" | "lastVerifiedAt" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["qualificationRecord"]>
+export type QualificationRecordOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "qualificationTypeId" | "qualificationDefinitionId" | "credentialNumber" | "issueDate" | "trainingDate" | "expiryDate" | "issuingAuthority" | "levelOrParameter" | "qualificationRuleSnapshot" | "status" | "lineageId" | "revisionNumber" | "supersedesRecordId" | "restoresRecordId" | "action" | "actorId" | "reason" | "requestId" | "activatedAt" | "lastVerifiedAt" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["qualificationRecord"]>
 export type QualificationRecordInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
   person?: boolean | Prisma.QualificationRecord$personArgs<ExtArgs>
@@ -1797,6 +3481,11 @@ export type QualificationRecordInclude<ExtArgs extends runtime.Types.Extensions.
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
   updateRequest?: boolean | Prisma.QualificationRecord$updateRequestArgs<ExtArgs>
   evidence?: boolean | Prisma.QualificationRecord$evidenceArgs<ExtArgs>
+  corrections?: boolean | Prisma.QualificationRecord$correctionsArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  supersededBy?: boolean | Prisma.QualificationRecord$supersededByArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
+  restoredBy?: boolean | Prisma.QualificationRecord$restoredByArgs<ExtArgs>
   _count?: boolean | Prisma.QualificationRecordCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type QualificationRecordIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1804,12 +3493,16 @@ export type QualificationRecordIncludeCreateManyAndReturn<ExtArgs extends runtim
   person?: boolean | Prisma.QualificationRecord$personArgs<ExtArgs>
   qualificationType?: boolean | Prisma.QualificationTypeDefaultArgs<ExtArgs>
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
 }
 export type QualificationRecordIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
   person?: boolean | Prisma.QualificationRecord$personArgs<ExtArgs>
   qualificationType?: boolean | Prisma.QualificationTypeDefaultArgs<ExtArgs>
   qualificationDefinition?: boolean | Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>
+  supersedesRecord?: boolean | Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>
+  restoresRecord?: boolean | Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>
 }
 
 export type $QualificationRecordPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1821,6 +3514,11 @@ export type $QualificationRecordPayload<ExtArgs extends runtime.Types.Extensions
     qualificationDefinition: Prisma.$QualificationDefinitionPayload<ExtArgs> | null
     updateRequest: Prisma.$QualificationUpdateRequestPayload<ExtArgs> | null
     evidence: Prisma.$QualificationEvidencePayload<ExtArgs>[]
+    corrections: Prisma.$QualificationCorrectionPayload<ExtArgs>[]
+    supersedesRecord: Prisma.$QualificationRecordPayload<ExtArgs> | null
+    supersededBy: Prisma.$QualificationRecordPayload<ExtArgs>[]
+    restoresRecord: Prisma.$QualificationRecordPayload<ExtArgs> | null
+    restoredBy: Prisma.$QualificationRecordPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1836,6 +3534,15 @@ export type $QualificationRecordPayload<ExtArgs extends runtime.Types.Extensions
     levelOrParameter: string
     qualificationRuleSnapshot: runtime.JsonValue
     status: $Enums.QualificationRecordStatus
+    lineageId: string
+    revisionNumber: number
+    supersedesRecordId: string | null
+    restoresRecordId: string | null
+    action: $Enums.QualificationRecordAction
+    actorId: string | null
+    reason: string | null
+    requestId: string | null
+    activatedAt: Date | null
     lastVerifiedAt: Date | null
     version: number
     createdAt: Date
@@ -2240,6 +3947,11 @@ export interface Prisma__QualificationRecordClient<T, Null = never, ExtArgs exte
   qualificationDefinition<T extends Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$qualificationDefinitionArgs<ExtArgs>>): Prisma.Prisma__QualificationDefinitionClient<runtime.Types.Result.GetResult<Prisma.$QualificationDefinitionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   updateRequest<T extends Prisma.QualificationRecord$updateRequestArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$updateRequestArgs<ExtArgs>>): Prisma.Prisma__QualificationUpdateRequestClient<runtime.Types.Result.GetResult<Prisma.$QualificationUpdateRequestPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   evidence<T extends Prisma.QualificationRecord$evidenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$evidenceArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QualificationEvidencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  corrections<T extends Prisma.QualificationRecord$correctionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$correctionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QualificationCorrectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  supersedesRecord<T extends Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$supersedesRecordArgs<ExtArgs>>): Prisma.Prisma__QualificationRecordClient<runtime.Types.Result.GetResult<Prisma.$QualificationRecordPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  supersededBy<T extends Prisma.QualificationRecord$supersededByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$supersededByArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QualificationRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  restoresRecord<T extends Prisma.QualificationRecord$restoresRecordArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$restoresRecordArgs<ExtArgs>>): Prisma.Prisma__QualificationRecordClient<runtime.Types.Result.GetResult<Prisma.$QualificationRecordPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  restoredBy<T extends Prisma.QualificationRecord$restoredByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.QualificationRecord$restoredByArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QualificationRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2282,6 +3994,15 @@ export interface QualificationRecordFieldRefs {
   readonly levelOrParameter: Prisma.FieldRef<"QualificationRecord", 'String'>
   readonly qualificationRuleSnapshot: Prisma.FieldRef<"QualificationRecord", 'Json'>
   readonly status: Prisma.FieldRef<"QualificationRecord", 'QualificationRecordStatus'>
+  readonly lineageId: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly revisionNumber: Prisma.FieldRef<"QualificationRecord", 'Int'>
+  readonly supersedesRecordId: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly restoresRecordId: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly action: Prisma.FieldRef<"QualificationRecord", 'QualificationRecordAction'>
+  readonly actorId: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly reason: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly requestId: Prisma.FieldRef<"QualificationRecord", 'String'>
+  readonly activatedAt: Prisma.FieldRef<"QualificationRecord", 'DateTime'>
   readonly lastVerifiedAt: Prisma.FieldRef<"QualificationRecord", 'DateTime'>
   readonly version: Prisma.FieldRef<"QualificationRecord", 'Int'>
   readonly createdAt: Prisma.FieldRef<"QualificationRecord", 'DateTime'>
@@ -2765,6 +4486,116 @@ export type QualificationRecord$evidenceArgs<ExtArgs extends runtime.Types.Exten
   take?: number
   skip?: number
   distinct?: Prisma.QualificationEvidenceScalarFieldEnum | Prisma.QualificationEvidenceScalarFieldEnum[]
+}
+
+/**
+ * QualificationRecord.corrections
+ */
+export type QualificationRecord$correctionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the QualificationCorrection
+   */
+  select?: Prisma.QualificationCorrectionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the QualificationCorrection
+   */
+  omit?: Prisma.QualificationCorrectionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QualificationCorrectionInclude<ExtArgs> | null
+  where?: Prisma.QualificationCorrectionWhereInput
+  orderBy?: Prisma.QualificationCorrectionOrderByWithRelationInput | Prisma.QualificationCorrectionOrderByWithRelationInput[]
+  cursor?: Prisma.QualificationCorrectionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.QualificationCorrectionScalarFieldEnum | Prisma.QualificationCorrectionScalarFieldEnum[]
+}
+
+/**
+ * QualificationRecord.supersedesRecord
+ */
+export type QualificationRecord$supersedesRecordArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the QualificationRecord
+   */
+  select?: Prisma.QualificationRecordSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the QualificationRecord
+   */
+  omit?: Prisma.QualificationRecordOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QualificationRecordInclude<ExtArgs> | null
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+/**
+ * QualificationRecord.supersededBy
+ */
+export type QualificationRecord$supersededByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the QualificationRecord
+   */
+  select?: Prisma.QualificationRecordSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the QualificationRecord
+   */
+  omit?: Prisma.QualificationRecordOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QualificationRecordInclude<ExtArgs> | null
+  where?: Prisma.QualificationRecordWhereInput
+  orderBy?: Prisma.QualificationRecordOrderByWithRelationInput | Prisma.QualificationRecordOrderByWithRelationInput[]
+  cursor?: Prisma.QualificationRecordWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.QualificationRecordScalarFieldEnum | Prisma.QualificationRecordScalarFieldEnum[]
+}
+
+/**
+ * QualificationRecord.restoresRecord
+ */
+export type QualificationRecord$restoresRecordArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the QualificationRecord
+   */
+  select?: Prisma.QualificationRecordSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the QualificationRecord
+   */
+  omit?: Prisma.QualificationRecordOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QualificationRecordInclude<ExtArgs> | null
+  where?: Prisma.QualificationRecordWhereInput
+}
+
+/**
+ * QualificationRecord.restoredBy
+ */
+export type QualificationRecord$restoredByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the QualificationRecord
+   */
+  select?: Prisma.QualificationRecordSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the QualificationRecord
+   */
+  omit?: Prisma.QualificationRecordOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.QualificationRecordInclude<ExtArgs> | null
+  where?: Prisma.QualificationRecordWhereInput
+  orderBy?: Prisma.QualificationRecordOrderByWithRelationInput | Prisma.QualificationRecordOrderByWithRelationInput[]
+  cursor?: Prisma.QualificationRecordWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.QualificationRecordScalarFieldEnum | Prisma.QualificationRecordScalarFieldEnum[]
 }
 
 /**

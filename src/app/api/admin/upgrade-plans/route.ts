@@ -19,6 +19,7 @@ import { upgradePlanDraftSchema } from "@/lib/admin-operations-validation";
 import {
   ACTIVE_UPGRADE_PLAN_STATUSES,
   assertCoreQualificationsEligible,
+  assertUpgradePlanEligibility,
 } from "@/server/upgrade-plan-rules";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
     const primaryPositionAssignment =
       targetPilot.person?.positionAssignments.find(
-        (assignment) => assignment.position.code === "PILOT",
+        (assignment) => assignment.position?.code === "PILOT",
       ) ?? targetPilot.person?.positionAssignments[0];
     if (input.action === "start") {
       const conflict = await getPrisma().upgradePlan.findFirst({
@@ -181,39 +182,11 @@ export async function POST(request: NextRequest) {
         where: { core: true, active: true },
         select: { id: true, name: true },
       });
-      if (primaryPositionAssignment?.positionId && targetPilot.personId) {
-        const requirements = await db.qualificationRequirement.findMany({
-          where: {
-            positionId: primaryPositionAssignment.positionId,
-            active: true,
-            upgradePrerequisite: true,
-          },
-          include: { qualificationDefinition: true },
+      if (primaryPositionAssignment?.id && targetPilot.personId) {
+        await assertUpgradePlanEligibility(db, {
+          personId: targetPilot.personId,
+          positionAssignmentId: primaryPositionAssignment.id,
         });
-        const records = await db.qualificationRecord.findMany({
-          where: {
-            personId: targetPilot.personId,
-            status: "ACTIVE",
-            qualificationDefinitionId: {
-              in: requirements.map((item) => item.qualificationDefinitionId),
-            },
-          },
-          select: { qualificationDefinitionId: true, expiryDate: true },
-        });
-        assertCoreQualificationsEligible(
-          requirements.map((item) => ({
-            id: item.qualificationDefinitionId,
-            name: item.qualificationDefinition.name,
-          })),
-          records
-            .filter((item): item is typeof item & { qualificationDefinitionId: string } =>
-              Boolean(item.qualificationDefinitionId),
-            )
-            .map((item) => ({
-              qualificationTypeId: item.qualificationDefinitionId,
-              expiryDate: item.expiryDate,
-            })),
-        );
       } else {
         assertCoreQualificationsEligible(coreTypes, targetPilot.qualifications);
       }
@@ -243,8 +216,14 @@ export async function POST(request: NextRequest) {
           pilotId: input.pilotId,
           personId: targetPilot.personId ?? undefined,
           positionAssignmentId: primaryPositionAssignment?.id,
-          positionCodeSnapshot: primaryPositionAssignment?.position.code ?? "PILOT",
-          positionNameSnapshot: primaryPositionAssignment?.position.name ?? "飞行员",
+          positionCodeSnapshot:
+            primaryPositionAssignment?.position?.code ??
+            primaryPositionAssignment?.positionCodeSnapshot ??
+            "PILOT",
+          positionNameSnapshot:
+            primaryPositionAssignment?.position?.name ??
+            primaryPositionAssignment?.positionNameSnapshot ??
+            "飞行员",
           title: input.title,
           type: input.type.toUpperCase() as any,
           lifecycleStatus: input.action === "start" ? "ACTIVE" : "DRAFT",
@@ -267,6 +246,12 @@ export async function POST(request: NextRequest) {
         },
         include: { stages: true },
       });
+      if (input.action === "start") {
+        await assertUpgradePlanEligibility(tx, {
+          personId: targetPilot.personId,
+          positionAssignmentId: primaryPositionAssignment?.id,
+        });
+      }
       await tx.upgradePlanInspectionItem.createMany({
         data: input.inspectionItemSelections.map((selection) => {
           const definition = inspectionItems.find(

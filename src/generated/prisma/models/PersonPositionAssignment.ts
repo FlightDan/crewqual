@@ -38,6 +38,8 @@ export type PersonPositionAssignmentMinAggregateOutputType = {
   id: string | null
   personId: string | null
   positionId: string | null
+  positionCodeSnapshot: string | null
+  positionNameSnapshot: string | null
   status: $Enums.PositionAssignmentStatus | null
   isPrimary: boolean | null
   effectiveFrom: Date | null
@@ -51,6 +53,8 @@ export type PersonPositionAssignmentMaxAggregateOutputType = {
   id: string | null
   personId: string | null
   positionId: string | null
+  positionCodeSnapshot: string | null
+  positionNameSnapshot: string | null
   status: $Enums.PositionAssignmentStatus | null
   isPrimary: boolean | null
   effectiveFrom: Date | null
@@ -64,6 +68,8 @@ export type PersonPositionAssignmentCountAggregateOutputType = {
   id: number
   personId: number
   positionId: number
+  positionCodeSnapshot: number
+  positionNameSnapshot: number
   status: number
   isPrimary: number
   effectiveFrom: number
@@ -87,6 +93,8 @@ export type PersonPositionAssignmentMinAggregateInputType = {
   id?: true
   personId?: true
   positionId?: true
+  positionCodeSnapshot?: true
+  positionNameSnapshot?: true
   status?: true
   isPrimary?: true
   effectiveFrom?: true
@@ -100,6 +108,8 @@ export type PersonPositionAssignmentMaxAggregateInputType = {
   id?: true
   personId?: true
   positionId?: true
+  positionCodeSnapshot?: true
+  positionNameSnapshot?: true
   status?: true
   isPrimary?: true
   effectiveFrom?: true
@@ -113,6 +123,8 @@ export type PersonPositionAssignmentCountAggregateInputType = {
   id?: true
   personId?: true
   positionId?: true
+  positionCodeSnapshot?: true
+  positionNameSnapshot?: true
   status?: true
   isPrimary?: true
   effectiveFrom?: true
@@ -212,7 +224,9 @@ export type PersonPositionAssignmentGroupByArgs<ExtArgs extends runtime.Types.Ex
 export type PersonPositionAssignmentGroupByOutputType = {
   id: string
   personId: string
-  positionId: string
+  positionId: string | null
+  positionCodeSnapshot: string | null
+  positionNameSnapshot: string | null
   status: $Enums.PositionAssignmentStatus
   isPrimary: boolean
   effectiveFrom: Date
@@ -248,7 +262,9 @@ export type PersonPositionAssignmentWhereInput = {
   NOT?: Prisma.PersonPositionAssignmentWhereInput | Prisma.PersonPositionAssignmentWhereInput[]
   id?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
   personId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
-  positionId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
+  positionId?: Prisma.UuidNullableFilter<"PersonPositionAssignment"> | string | null
+  positionCodeSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
+  positionNameSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
   status?: Prisma.EnumPositionAssignmentStatusFilter<"PersonPositionAssignment"> | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFilter<"PersonPositionAssignment"> | boolean
   effectiveFrom?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
@@ -257,7 +273,7 @@ export type PersonPositionAssignmentWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
   person?: Prisma.XOR<Prisma.PersonScalarRelationFilter, Prisma.PersonWhereInput>
-  position?: Prisma.XOR<Prisma.PositionScalarRelationFilter, Prisma.PositionWhereInput>
+  position?: Prisma.XOR<Prisma.PositionNullableScalarRelationFilter, Prisma.PositionWhereInput> | null
   qualificationAssignments?: Prisma.QualificationAssignmentListRelationFilter
   upgradePlans?: Prisma.UpgradePlanListRelationFilter
 }
@@ -265,7 +281,9 @@ export type PersonPositionAssignmentWhereInput = {
 export type PersonPositionAssignmentOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   personId?: Prisma.SortOrder
-  positionId?: Prisma.SortOrder
+  positionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  positionCodeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
+  positionNameSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   effectiveFrom?: Prisma.SortOrder
@@ -286,7 +304,9 @@ export type PersonPositionAssignmentWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.PersonPositionAssignmentWhereInput[]
   NOT?: Prisma.PersonPositionAssignmentWhereInput | Prisma.PersonPositionAssignmentWhereInput[]
   personId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
-  positionId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
+  positionId?: Prisma.UuidNullableFilter<"PersonPositionAssignment"> | string | null
+  positionCodeSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
+  positionNameSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
   status?: Prisma.EnumPositionAssignmentStatusFilter<"PersonPositionAssignment"> | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFilter<"PersonPositionAssignment"> | boolean
   effectiveFrom?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
@@ -295,7 +315,7 @@ export type PersonPositionAssignmentWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
   person?: Prisma.XOR<Prisma.PersonScalarRelationFilter, Prisma.PersonWhereInput>
-  position?: Prisma.XOR<Prisma.PositionScalarRelationFilter, Prisma.PositionWhereInput>
+  position?: Prisma.XOR<Prisma.PositionNullableScalarRelationFilter, Prisma.PositionWhereInput> | null
   qualificationAssignments?: Prisma.QualificationAssignmentListRelationFilter
   upgradePlans?: Prisma.UpgradePlanListRelationFilter
 }, "id" | "personId_positionId_effectiveFrom">
@@ -303,7 +323,9 @@ export type PersonPositionAssignmentWhereUniqueInput = Prisma.AtLeast<{
 export type PersonPositionAssignmentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   personId?: Prisma.SortOrder
-  positionId?: Prisma.SortOrder
+  positionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  positionCodeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
+  positionNameSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   effectiveFrom?: Prisma.SortOrder
@@ -324,7 +346,9 @@ export type PersonPositionAssignmentScalarWhereWithAggregatesInput = {
   NOT?: Prisma.PersonPositionAssignmentScalarWhereWithAggregatesInput | Prisma.PersonPositionAssignmentScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"PersonPositionAssignment"> | string
   personId?: Prisma.UuidWithAggregatesFilter<"PersonPositionAssignment"> | string
-  positionId?: Prisma.UuidWithAggregatesFilter<"PersonPositionAssignment"> | string
+  positionId?: Prisma.UuidNullableWithAggregatesFilter<"PersonPositionAssignment"> | string | null
+  positionCodeSnapshot?: Prisma.StringNullableWithAggregatesFilter<"PersonPositionAssignment"> | string | null
+  positionNameSnapshot?: Prisma.StringNullableWithAggregatesFilter<"PersonPositionAssignment"> | string | null
   status?: Prisma.EnumPositionAssignmentStatusWithAggregatesFilter<"PersonPositionAssignment"> | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolWithAggregatesFilter<"PersonPositionAssignment"> | boolean
   effectiveFrom?: Prisma.DateTimeWithAggregatesFilter<"PersonPositionAssignment"> | Date | string
@@ -336,6 +360,8 @@ export type PersonPositionAssignmentScalarWhereWithAggregatesInput = {
 
 export type PersonPositionAssignmentCreateInput = {
   id?: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -344,7 +370,7 @@ export type PersonPositionAssignmentCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   person: Prisma.PersonCreateNestedOneWithoutPositionAssignmentsInput
-  position: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
+  position?: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
   qualificationAssignments?: Prisma.QualificationAssignmentCreateNestedManyWithoutPositionAssignmentInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPositionAssignmentInput
 }
@@ -352,7 +378,9 @@ export type PersonPositionAssignmentCreateInput = {
 export type PersonPositionAssignmentUncheckedCreateInput = {
   id?: string
   personId: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -366,6 +394,8 @@ export type PersonPositionAssignmentUncheckedCreateInput = {
 
 export type PersonPositionAssignmentUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -374,7 +404,7 @@ export type PersonPositionAssignmentUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   person?: Prisma.PersonUpdateOneRequiredWithoutPositionAssignmentsNestedInput
-  position?: Prisma.PositionUpdateOneRequiredWithoutAssignmentsNestedInput
+  position?: Prisma.PositionUpdateOneWithoutAssignmentsNestedInput
   qualificationAssignments?: Prisma.QualificationAssignmentUpdateManyWithoutPositionAssignmentNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPositionAssignmentNestedInput
 }
@@ -382,7 +412,9 @@ export type PersonPositionAssignmentUpdateInput = {
 export type PersonPositionAssignmentUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -397,7 +429,9 @@ export type PersonPositionAssignmentUncheckedUpdateInput = {
 export type PersonPositionAssignmentCreateManyInput = {
   id?: string
   personId: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -409,6 +443,8 @@ export type PersonPositionAssignmentCreateManyInput = {
 
 export type PersonPositionAssignmentUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -421,7 +457,9 @@ export type PersonPositionAssignmentUpdateManyMutationInput = {
 export type PersonPositionAssignmentUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -451,6 +489,8 @@ export type PersonPositionAssignmentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   personId?: Prisma.SortOrder
   positionId?: Prisma.SortOrder
+  positionCodeSnapshot?: Prisma.SortOrder
+  positionNameSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   effectiveFrom?: Prisma.SortOrder
@@ -468,6 +508,8 @@ export type PersonPositionAssignmentMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   personId?: Prisma.SortOrder
   positionId?: Prisma.SortOrder
+  positionCodeSnapshot?: Prisma.SortOrder
+  positionNameSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   effectiveFrom?: Prisma.SortOrder
@@ -481,6 +523,8 @@ export type PersonPositionAssignmentMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   personId?: Prisma.SortOrder
   positionId?: Prisma.SortOrder
+  positionCodeSnapshot?: Prisma.SortOrder
+  positionNameSnapshot?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isPrimary?: Prisma.SortOrder
   effectiveFrom?: Prisma.SortOrder
@@ -621,6 +665,8 @@ export type PersonPositionAssignmentUpdateOneWithoutUpgradePlansNestedInput = {
 
 export type PersonPositionAssignmentCreateWithoutPersonInput = {
   id?: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -628,14 +674,16 @@ export type PersonPositionAssignmentCreateWithoutPersonInput = {
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
-  position: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
+  position?: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
   qualificationAssignments?: Prisma.QualificationAssignmentCreateNestedManyWithoutPositionAssignmentInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPositionAssignmentInput
 }
 
 export type PersonPositionAssignmentUncheckedCreateWithoutPersonInput = {
   id?: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -679,7 +727,9 @@ export type PersonPositionAssignmentScalarWhereInput = {
   NOT?: Prisma.PersonPositionAssignmentScalarWhereInput | Prisma.PersonPositionAssignmentScalarWhereInput[]
   id?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
   personId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
-  positionId?: Prisma.UuidFilter<"PersonPositionAssignment"> | string
+  positionId?: Prisma.UuidNullableFilter<"PersonPositionAssignment"> | string | null
+  positionCodeSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
+  positionNameSnapshot?: Prisma.StringNullableFilter<"PersonPositionAssignment"> | string | null
   status?: Prisma.EnumPositionAssignmentStatusFilter<"PersonPositionAssignment"> | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFilter<"PersonPositionAssignment"> | boolean
   effectiveFrom?: Prisma.DateTimeFilter<"PersonPositionAssignment"> | Date | string
@@ -691,6 +741,8 @@ export type PersonPositionAssignmentScalarWhereInput = {
 
 export type PersonPositionAssignmentCreateWithoutPositionInput = {
   id?: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -706,6 +758,8 @@ export type PersonPositionAssignmentCreateWithoutPositionInput = {
 export type PersonPositionAssignmentUncheckedCreateWithoutPositionInput = {
   id?: string
   personId: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -745,6 +799,8 @@ export type PersonPositionAssignmentUpdateManyWithWhereWithoutPositionInput = {
 
 export type PersonPositionAssignmentCreateWithoutQualificationAssignmentsInput = {
   id?: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -753,14 +809,16 @@ export type PersonPositionAssignmentCreateWithoutQualificationAssignmentsInput =
   createdAt?: Date | string
   updatedAt?: Date | string
   person: Prisma.PersonCreateNestedOneWithoutPositionAssignmentsInput
-  position: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
+  position?: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPositionAssignmentInput
 }
 
 export type PersonPositionAssignmentUncheckedCreateWithoutQualificationAssignmentsInput = {
   id?: string
   personId: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -789,6 +847,8 @@ export type PersonPositionAssignmentUpdateToOneWithWhereWithoutQualificationAssi
 
 export type PersonPositionAssignmentUpdateWithoutQualificationAssignmentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -797,14 +857,16 @@ export type PersonPositionAssignmentUpdateWithoutQualificationAssignmentsInput =
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   person?: Prisma.PersonUpdateOneRequiredWithoutPositionAssignmentsNestedInput
-  position?: Prisma.PositionUpdateOneRequiredWithoutAssignmentsNestedInput
+  position?: Prisma.PositionUpdateOneWithoutAssignmentsNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPositionAssignmentNestedInput
 }
 
 export type PersonPositionAssignmentUncheckedUpdateWithoutQualificationAssignmentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -817,6 +879,8 @@ export type PersonPositionAssignmentUncheckedUpdateWithoutQualificationAssignmen
 
 export type PersonPositionAssignmentCreateWithoutUpgradePlansInput = {
   id?: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -825,14 +889,16 @@ export type PersonPositionAssignmentCreateWithoutUpgradePlansInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   person: Prisma.PersonCreateNestedOneWithoutPositionAssignmentsInput
-  position: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
+  position?: Prisma.PositionCreateNestedOneWithoutAssignmentsInput
   qualificationAssignments?: Prisma.QualificationAssignmentCreateNestedManyWithoutPositionAssignmentInput
 }
 
 export type PersonPositionAssignmentUncheckedCreateWithoutUpgradePlansInput = {
   id?: string
   personId: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -861,6 +927,8 @@ export type PersonPositionAssignmentUpdateToOneWithWhereWithoutUpgradePlansInput
 
 export type PersonPositionAssignmentUpdateWithoutUpgradePlansInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -869,14 +937,16 @@ export type PersonPositionAssignmentUpdateWithoutUpgradePlansInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   person?: Prisma.PersonUpdateOneRequiredWithoutPositionAssignmentsNestedInput
-  position?: Prisma.PositionUpdateOneRequiredWithoutAssignmentsNestedInput
+  position?: Prisma.PositionUpdateOneWithoutAssignmentsNestedInput
   qualificationAssignments?: Prisma.QualificationAssignmentUpdateManyWithoutPositionAssignmentNestedInput
 }
 
 export type PersonPositionAssignmentUncheckedUpdateWithoutUpgradePlansInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -889,7 +959,9 @@ export type PersonPositionAssignmentUncheckedUpdateWithoutUpgradePlansInput = {
 
 export type PersonPositionAssignmentCreateManyPersonInput = {
   id?: string
-  positionId: string
+  positionId?: string | null
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -901,6 +973,8 @@ export type PersonPositionAssignmentCreateManyPersonInput = {
 
 export type PersonPositionAssignmentUpdateWithoutPersonInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -908,14 +982,16 @@ export type PersonPositionAssignmentUpdateWithoutPersonInput = {
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  position?: Prisma.PositionUpdateOneRequiredWithoutAssignmentsNestedInput
+  position?: Prisma.PositionUpdateOneWithoutAssignmentsNestedInput
   qualificationAssignments?: Prisma.QualificationAssignmentUpdateManyWithoutPositionAssignmentNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPositionAssignmentNestedInput
 }
 
 export type PersonPositionAssignmentUncheckedUpdateWithoutPersonInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -929,7 +1005,9 @@ export type PersonPositionAssignmentUncheckedUpdateWithoutPersonInput = {
 
 export type PersonPositionAssignmentUncheckedUpdateManyWithoutPersonInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  positionId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -942,6 +1020,8 @@ export type PersonPositionAssignmentUncheckedUpdateManyWithoutPersonInput = {
 export type PersonPositionAssignmentCreateManyPositionInput = {
   id?: string
   personId: string
+  positionCodeSnapshot?: string | null
+  positionNameSnapshot?: string | null
   status?: $Enums.PositionAssignmentStatus
   isPrimary?: boolean
   effectiveFrom?: Date | string
@@ -953,6 +1033,8 @@ export type PersonPositionAssignmentCreateManyPositionInput = {
 
 export type PersonPositionAssignmentUpdateWithoutPositionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -968,6 +1050,8 @@ export type PersonPositionAssignmentUpdateWithoutPositionInput = {
 export type PersonPositionAssignmentUncheckedUpdateWithoutPositionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -982,6 +1066,8 @@ export type PersonPositionAssignmentUncheckedUpdateWithoutPositionInput = {
 export type PersonPositionAssignmentUncheckedUpdateManyWithoutPositionInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
+  positionCodeSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  positionNameSnapshot?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumPositionAssignmentStatusFieldUpdateOperationsInput | $Enums.PositionAssignmentStatus
   isPrimary?: Prisma.BoolFieldUpdateOperationsInput | boolean
   effectiveFrom?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1035,6 +1121,8 @@ export type PersonPositionAssignmentSelect<ExtArgs extends runtime.Types.Extensi
   id?: boolean
   personId?: boolean
   positionId?: boolean
+  positionCodeSnapshot?: boolean
+  positionNameSnapshot?: boolean
   status?: boolean
   isPrimary?: boolean
   effectiveFrom?: boolean
@@ -1043,7 +1131,7 @@ export type PersonPositionAssignmentSelect<ExtArgs extends runtime.Types.Extensi
   createdAt?: boolean
   updatedAt?: boolean
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
   qualificationAssignments?: boolean | Prisma.PersonPositionAssignment$qualificationAssignmentsArgs<ExtArgs>
   upgradePlans?: boolean | Prisma.PersonPositionAssignment$upgradePlansArgs<ExtArgs>
   _count?: boolean | Prisma.PersonPositionAssignmentCountOutputTypeDefaultArgs<ExtArgs>
@@ -1053,6 +1141,8 @@ export type PersonPositionAssignmentSelectCreateManyAndReturn<ExtArgs extends ru
   id?: boolean
   personId?: boolean
   positionId?: boolean
+  positionCodeSnapshot?: boolean
+  positionNameSnapshot?: boolean
   status?: boolean
   isPrimary?: boolean
   effectiveFrom?: boolean
@@ -1061,13 +1151,15 @@ export type PersonPositionAssignmentSelectCreateManyAndReturn<ExtArgs extends ru
   createdAt?: boolean
   updatedAt?: boolean
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
 }, ExtArgs["result"]["personPositionAssignment"]>
 
 export type PersonPositionAssignmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   personId?: boolean
   positionId?: boolean
+  positionCodeSnapshot?: boolean
+  positionNameSnapshot?: boolean
   status?: boolean
   isPrimary?: boolean
   effectiveFrom?: boolean
@@ -1076,13 +1168,15 @@ export type PersonPositionAssignmentSelectUpdateManyAndReturn<ExtArgs extends ru
   createdAt?: boolean
   updatedAt?: boolean
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
 }, ExtArgs["result"]["personPositionAssignment"]>
 
 export type PersonPositionAssignmentSelectScalar = {
   id?: boolean
   personId?: boolean
   positionId?: boolean
+  positionCodeSnapshot?: boolean
+  positionNameSnapshot?: boolean
   status?: boolean
   isPrimary?: boolean
   effectiveFrom?: boolean
@@ -1092,35 +1186,37 @@ export type PersonPositionAssignmentSelectScalar = {
   updatedAt?: boolean
 }
 
-export type PersonPositionAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "personId" | "positionId" | "status" | "isPrimary" | "effectiveFrom" | "effectiveTo" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["personPositionAssignment"]>
+export type PersonPositionAssignmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "personId" | "positionId" | "positionCodeSnapshot" | "positionNameSnapshot" | "status" | "isPrimary" | "effectiveFrom" | "effectiveTo" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["personPositionAssignment"]>
 export type PersonPositionAssignmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
   qualificationAssignments?: boolean | Prisma.PersonPositionAssignment$qualificationAssignmentsArgs<ExtArgs>
   upgradePlans?: boolean | Prisma.PersonPositionAssignment$upgradePlansArgs<ExtArgs>
   _count?: boolean | Prisma.PersonPositionAssignmentCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PersonPositionAssignmentIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
 }
 export type PersonPositionAssignmentIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
-  position?: boolean | Prisma.PositionDefaultArgs<ExtArgs>
+  position?: boolean | Prisma.PersonPositionAssignment$positionArgs<ExtArgs>
 }
 
 export type $PersonPositionAssignmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "PersonPositionAssignment"
   objects: {
     person: Prisma.$PersonPayload<ExtArgs>
-    position: Prisma.$PositionPayload<ExtArgs>
+    position: Prisma.$PositionPayload<ExtArgs> | null
     qualificationAssignments: Prisma.$QualificationAssignmentPayload<ExtArgs>[]
     upgradePlans: Prisma.$UpgradePlanPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     personId: string
-    positionId: string
+    positionId: string | null
+    positionCodeSnapshot: string | null
+    positionNameSnapshot: string | null
     status: $Enums.PositionAssignmentStatus
     isPrimary: boolean
     effectiveFrom: Date
@@ -1523,7 +1619,7 @@ readonly fields: PersonPositionAssignmentFieldRefs;
 export interface Prisma__PersonPositionAssignmentClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   person<T extends Prisma.PersonDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PersonDefaultArgs<ExtArgs>>): Prisma.Prisma__PersonClient<runtime.Types.Result.GetResult<Prisma.$PersonPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  position<T extends Prisma.PositionDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PositionDefaultArgs<ExtArgs>>): Prisma.Prisma__PositionClient<runtime.Types.Result.GetResult<Prisma.$PositionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  position<T extends Prisma.PersonPositionAssignment$positionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PersonPositionAssignment$positionArgs<ExtArgs>>): Prisma.Prisma__PositionClient<runtime.Types.Result.GetResult<Prisma.$PositionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   qualificationAssignments<T extends Prisma.PersonPositionAssignment$qualificationAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PersonPositionAssignment$qualificationAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$QualificationAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   upgradePlans<T extends Prisma.PersonPositionAssignment$upgradePlansArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PersonPositionAssignment$upgradePlansArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UpgradePlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -1558,6 +1654,8 @@ export interface PersonPositionAssignmentFieldRefs {
   readonly id: Prisma.FieldRef<"PersonPositionAssignment", 'String'>
   readonly personId: Prisma.FieldRef<"PersonPositionAssignment", 'String'>
   readonly positionId: Prisma.FieldRef<"PersonPositionAssignment", 'String'>
+  readonly positionCodeSnapshot: Prisma.FieldRef<"PersonPositionAssignment", 'String'>
+  readonly positionNameSnapshot: Prisma.FieldRef<"PersonPositionAssignment", 'String'>
   readonly status: Prisma.FieldRef<"PersonPositionAssignment", 'PositionAssignmentStatus'>
   readonly isPrimary: Prisma.FieldRef<"PersonPositionAssignment", 'Boolean'>
   readonly effectiveFrom: Prisma.FieldRef<"PersonPositionAssignment", 'DateTime'>
@@ -1963,6 +2061,25 @@ export type PersonPositionAssignmentDeleteManyArgs<ExtArgs extends runtime.Types
    * Limit how many PersonPositionAssignments to delete.
    */
   limit?: number
+}
+
+/**
+ * PersonPositionAssignment.position
+ */
+export type PersonPositionAssignment$positionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Position
+   */
+  select?: Prisma.PositionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Position
+   */
+  omit?: Prisma.PositionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PositionInclude<ExtArgs> | null
+  where?: Prisma.PositionWhereInput
 }
 
 /**

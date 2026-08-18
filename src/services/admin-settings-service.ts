@@ -8,12 +8,28 @@ import type {
   SecurityPolicy,
   SettingsAdminAccount,
   SettingsAdminRole,
+  SettingsPosition,
   SettingsUnit,
 } from "@/types/admin-settings";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { mockStorageKey } from "@/services/temp-storage";
 
-type ApiEnvelope<T> = { data?: T; error?: { code?: string; message?: string } };
+type ApiEnvelope<T> = {
+  data?: T;
+  error?: { code?: string; message?: string; details?: unknown };
+};
+
+export class AdminSettingsServiceError extends Error {
+  readonly code?: string;
+  readonly details?: unknown;
+
+  constructor(message: string, options?: { code?: string; details?: unknown }) {
+    super(message);
+    this.name = "AdminSettingsServiceError";
+    this.code = options?.code;
+    this.details = options?.details;
+  }
+}
 
 const now = "2026-08-15T00:30:00.000Z";
 
@@ -59,6 +75,47 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
       adminCount: 1,
       pilotCount: 0,
       updatedAt: "2026-08-10T08:00:00.000Z",
+      version: 1,
+    },
+  ],
+  positions: [
+    {
+      id: "position-pilot",
+      organizationId: "unit-1",
+      code: "PILOT",
+      name: "飞行员",
+      description: "承担飞行运行与飞行员资质管理职责的成员。",
+      active: true,
+      sortOrder: 0,
+      memberCount: 5,
+      qualificationCount: 8,
+      updatedAt: now,
+      version: 1,
+    },
+    {
+      id: "position-cabin-crew",
+      organizationId: "unit-1",
+      code: "CABIN_CREW",
+      name: "乘务员",
+      description: "负责客舱服务与运行安全的机组成员。",
+      active: true,
+      sortOrder: 1,
+      memberCount: 0,
+      qualificationCount: 0,
+      updatedAt: now,
+      version: 1,
+    },
+    {
+      id: "position-maintenance",
+      organizationId: "unit-1",
+      code: "MAINTENANCE",
+      name: "机务人员",
+      description: "负责航空器维护与放行支持的专业人员。",
+      active: false,
+      sortOrder: 2,
+      memberCount: 0,
+      qualificationCount: 0,
+      updatedAt: now,
       version: 1,
     },
   ],
@@ -300,6 +357,19 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
 };
 
 export type UnitInput = Omit<SettingsUnit, "adminCount" | "pilotCount" | "updatedAt">;
+export type PositionInput = Omit<
+  SettingsPosition,
+  "id" | "organizationId" | "memberCount" | "qualificationCount" | "updatedAt"
+> & { id?: string; organizationId?: string };
+export type DeletePositionInput = {
+  id: string;
+  version: number;
+  force?: boolean;
+};
+export type DeletePositionResult = {
+  id: string;
+  forced: boolean;
+};
 export type AdminInput = Pick<
   SettingsAdminAccount,
   "id" | "displayName" | "email" | "unitId" | "role" | "active"
@@ -324,6 +394,10 @@ export interface AdminSettingsService {
   load(unitId?: string): Promise<AdminSettingsSnapshot>;
   saveUnit(input: UnitInput): Promise<SettingsUnit>;
   createUnit(input: Omit<UnitInput, "id" | "version">): Promise<SettingsUnit>;
+  listPositions(): Promise<SettingsPosition[]>;
+  createPosition(input: Omit<PositionInput, "id" | "version">): Promise<SettingsPosition>;
+  savePosition(input: PositionInput): Promise<SettingsPosition>;
+  deletePosition(input: DeletePositionInput): Promise<DeletePositionResult>;
   saveAdmin(input: AdminInput): Promise<SettingsAdminAccount>;
   createAdmin(input: Omit<AdminInput, "id">): Promise<AdminCredentialResult>;
   runAdminAction(id: string, action: AdminAction, value?: string): Promise<AdminCredentialResult>;
@@ -346,7 +420,12 @@ function readMockSnapshot() {
   const raw = window.sessionStorage.getItem(mockStorageKey(adminSettingsStorageKey));
   if (!raw) return structuredClone(memorySnapshot);
   try {
-    return JSON.parse(raw) as AdminSettingsSnapshot;
+    const parsed = JSON.parse(raw) as Partial<AdminSettingsSnapshot>;
+    return {
+      ...structuredClone(defaultAdminSettingsSnapshot),
+      ...parsed,
+      positions: parsed.positions ?? structuredClone(defaultAdminSettingsSnapshot.positions),
+    };
   } catch {
     window.sessionStorage.removeItem(mockStorageKey(adminSettingsStorageKey));
     return structuredClone(memorySnapshot);
@@ -399,6 +478,80 @@ const mockService: AdminSettingsService = {
       updatedAt: new Date().toISOString(),
     };
     mockUpdate((snapshot) => snapshot.units.push(result));
+    return result;
+  },
+  async listPositions() {
+    return readMockSnapshot().positions;
+  },
+  async createPosition(input) {
+    const snapshot = readMockSnapshot();
+    const organizationId = input.organizationId ?? "unit-1";
+    if (
+      snapshot.positions.some(
+        (item) => item.organizationId === organizationId && item.code === input.code,
+      )
+    ) {
+      throw new Error("职位编码已存在");
+    }
+    const result: SettingsPosition = {
+      ...input,
+      id: `position-${Date.now().toString(36)}`,
+      organizationId,
+      memberCount: 0,
+      qualificationCount: 0,
+      updatedAt: new Date().toISOString(),
+      version: 1,
+    };
+    mockUpdate((current) => current.positions.push(result));
+    return result;
+  },
+  async savePosition(input) {
+    let result!: SettingsPosition;
+    mockUpdate((snapshot) => {
+      const index = snapshot.positions.findIndex((item) => item.id === input.id);
+      if (index < 0) throw new Error("未找到职位");
+      const current = snapshot.positions[index]!;
+      if (input.version !== current.version)
+        throw new Error("职位已被其他管理员修改，请刷新后重试");
+      if (input.code !== current.code) throw new Error("职位编码创建后不可修改");
+      result = {
+        ...current,
+        ...input,
+        id: current.id,
+        organizationId: current.organizationId,
+        updatedAt: new Date().toISOString(),
+        version: current.version + 1,
+      };
+      snapshot.positions[index] = result;
+    });
+    return result;
+  },
+  async deletePosition(input) {
+    let result!: DeletePositionResult;
+    mockUpdate((snapshot) => {
+      const index = snapshot.positions.findIndex((item) => item.id === input.id);
+      if (index < 0) throw new AdminSettingsServiceError("未找到职位", { code: "NOT_FOUND" });
+      const current = snapshot.positions[index]!;
+      if (input.version !== current.version) {
+        throw new AdminSettingsServiceError("职位已被其他管理员修改，请刷新后重试", {
+          code: "VERSION_CONFLICT",
+        });
+      }
+      const counts = {
+        memberAssignments: current.memberCount,
+        qualificationRequirements: current.qualificationCount,
+        qualificationAssignments: current.qualificationCount,
+        upgradePlans: 0,
+      };
+      if (!input.force && Object.values(counts).some((value) => value > 0)) {
+        throw new AdminSettingsServiceError("职位存在历史关联，无法安全删除", {
+          code: "POSITION_HAS_HISTORY",
+          details: counts,
+        });
+      }
+      snapshot.positions.splice(index, 1);
+      result = { id: input.id, forced: Boolean(input.force) };
+    });
     return result;
   },
   async saveAdmin(input) {
@@ -528,7 +681,12 @@ async function request<T>(method: string, body?: unknown, query = "") {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
-  if (!response.ok || !payload.data) throw new Error(payload.error?.message ?? "系统设置请求失败");
+  if (!response.ok || !payload.data) {
+    throw new AdminSettingsServiceError(payload.error?.message ?? "系统设置请求失败", {
+      code: payload.error?.code,
+      details: payload.error?.details,
+    });
+  }
   return payload.data;
 }
 
@@ -557,6 +715,10 @@ const remoteService: AdminSettingsService = {
     ),
   saveUnit: (input) => request("PATCH", { action: "unit.save", input }),
   createUnit: (input) => request("POST", { action: "unit.create", input }),
+  listPositions: async () => (await request<AdminSettingsSnapshot>("GET")).positions,
+  createPosition: (input) => request("POST", { action: "position.create", input }),
+  savePosition: (input) => request("PATCH", { action: "position.save", input }),
+  deletePosition: (input) => request("POST", { action: "position.delete", input }),
   saveAdmin: (input) => request("PATCH", { action: "admin.save", input }),
   createAdmin: (input) => request("POST", { action: "admin.create", input }),
   runAdminAction: (id, action, value) =>
@@ -574,7 +736,34 @@ const remoteService: AdminSettingsService = {
 
 const remoteMode = isRemoteServiceMode();
 
-export const adminSettingsService = remoteMode ? remoteService : mockService;
+export const ADMIN_POSITIONS_CHANGED_EVENT = "crewqual:admin-positions-changed";
+
+function announceAdminPositionsChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ADMIN_POSITIONS_CHANGED_EVENT));
+  }
+}
+
+const selectedService = remoteMode ? remoteService : mockService;
+
+export const adminSettingsService: AdminSettingsService = {
+  ...selectedService,
+  async createPosition(input) {
+    const result = await selectedService.createPosition(input);
+    announceAdminPositionsChanged();
+    return result;
+  },
+  async savePosition(input) {
+    const result = await selectedService.savePosition(input);
+    announceAdminPositionsChanged();
+    return result;
+  },
+  async deletePosition(input) {
+    const result = await selectedService.deletePosition(input);
+    announceAdminPositionsChanged();
+    return result;
+  },
+};
 
 export const settingsRoleLabels: Record<SettingsAdminRole, string> = {
   SUPER_ADMIN: "超级管理员",

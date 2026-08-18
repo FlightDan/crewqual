@@ -57,7 +57,9 @@ export function UpgradePlanListView() {
     ...new Set(state.upgradePlans.map((plan) => plan.positionCode ?? "PILOT").filter(Boolean)),
   ];
   const rawPosition = params.get("positions");
-  const position = rawPosition && positions.includes(rawPosition) ? rawPosition : "";
+  const position = rawPosition ?? "";
+  const positionOptions =
+    rawPosition && !positions.includes(rawPosition) ? [rawPosition, ...positions] : positions;
   const rawOwner = params.get("owner");
   const owner = rawOwner && owners.includes(rawOwner) ? rawOwner : "";
   const rawFrom = params.get("from");
@@ -135,7 +137,10 @@ export function UpgradePlanListView() {
           value={position}
           options={[
             { label: "全部职位", value: "" },
-            ...positions.map((value) => ({ value, label: value === "PILOT" ? "飞行员" : value })),
+            ...positionOptions.map((value) => ({
+              value,
+              label: value === "PILOT" ? "飞行员" : value,
+            })),
           ]}
           onChange={(event) => update({ positions: event.target.value })}
         />

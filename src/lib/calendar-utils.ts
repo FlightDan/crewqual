@@ -12,7 +12,11 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import type { CalendarView } from "@/types/services";
+import type {
+  AdminCalendarEvent,
+  CalendarDayQualificationSlot,
+  CalendarView,
+} from "@/types/services";
 
 export const OPERATIONS_TODAY = "2026-08-14";
 
@@ -59,6 +63,76 @@ export function calendarDays(view: CalendarView, anchor: string) {
   return eachDayOfInterval({ start: parseISO(range.from), end: parseISO(range.to) }).map((date) =>
     format(date, "yyyy-MM-dd"),
   );
+}
+
+export type CalendarEventDayKind = "outside" | "single" | "start" | "end" | "active";
+
+/**
+ * Returns the semantic role of an event on a calendar date. Qualification
+ * expiry events are deliberately single-day events; only upgrade stages can
+ * be active between their start and end dates.
+ */
+export function calendarEventDayKind(
+  event: Pick<AdminCalendarEvent, "type" | "date" | "endDate">,
+  day: string,
+): CalendarEventDayKind {
+  if (event.type === "qualification_expiry") {
+    return event.date === day ? "single" : "outside";
+  }
+  if (event.date === event.endDate) return event.date === day ? "single" : "outside";
+  if (event.date === day) return "start";
+  if (event.endDate === day) return "end";
+  return event.date < day && day < event.endDate ? "active" : "outside";
+}
+
+export function calendarEventsForDay(events: AdminCalendarEvent[], day: string) {
+  return events.filter((event) => calendarEventDayKind(event, day) !== "outside");
+}
+
+export function calendarBoundaryEventsForDay(events: AdminCalendarEvent[], day: string) {
+  return events.filter((event) => {
+    const kind = calendarEventDayKind(event, day);
+    return kind === "single" || kind === "start" || kind === "end";
+  });
+}
+
+export function calendarActiveUpgradeEventsForDay(events: AdminCalendarEvent[], day: string) {
+  return events.filter(
+    (event) => event.type === "upgrade_stage" && calendarEventDayKind(event, day) === "active",
+  );
+}
+
+export type QualificationAttentionSummary = {
+  attention: CalendarDayQualificationSlot[];
+  normalCount: number;
+  missingCount: number;
+};
+
+export function summarizeDayQualifications(
+  qualifications: CalendarDayQualificationSlot[],
+): QualificationAttentionSummary {
+  const attention: CalendarDayQualificationSlot[] = [];
+  let normalCount = 0;
+  let missingCount = 0;
+
+  for (const qualification of qualifications) {
+    const record = qualification.record;
+    if (!record) {
+      missingCount += 1;
+    } else if (record.daysRemaining <= 30) {
+      attention.push(qualification);
+    } else {
+      normalCount += 1;
+    }
+  }
+
+  attention.sort((a, b) => {
+    const aDays = a.record?.daysRemaining ?? Number.POSITIVE_INFINITY;
+    const bDays = b.record?.daysRemaining ?? Number.POSITIVE_INFINITY;
+    return aDays - bDays || a.qualificationName.localeCompare(b.qualificationName, "zh-CN");
+  });
+
+  return { attention, normalCount, missingCount };
 }
 
 export function moveCalendarAnchor(view: CalendarView, anchor: string, direction: -1 | 1) {

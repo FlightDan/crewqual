@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
+    environment:
+      POSTGRES_DB: crewqual
+      POSTGRES_USER: crewqual
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crewqual -d crewqual"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${ACCEPTANCE_DB_PORT:-55432}:5432"
+    networks: [internal]
+
+  migrate:
+    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    command: ["pnpm", "db:migrate"]
+    environment: &app-env
+      NODE_ENV: production
+      SERVICE_MODE: remote
+      APP_ORIGIN: ${APP_ORIGIN:?APP_ORIGIN is required}
+      DATABASE_URL: postgresql://crewqual:${POSTGRES_PASSWORD}@postgres:5432/crewqual
+      DIRECT_URL: postgresql://crewqual:${POSTGRES_PASSWORD}@postgres:5432/crewqual
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
+      S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT is required}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      S3_SSE_KMS_KEY_ID: ${S3_SSE_KMS_KEY_ID:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      SMS_ADAPTER: disabled
+      FEISHU_ADAPTER: disabled
+      VLM_ADAPTER: disabled
+      CREWQUAL_ACCEPTANCE_EXTERNALS_DISABLED: "1"
+      ACCEPTANCE_ENVIRONMENT_ID: "1"
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+
+  bootstrap:
+    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    command: ["pnpm", "db:bootstrap"]
+    environment:
+      <<: *app-env
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?INITIAL_ADMIN_EMAIL is required}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD is required}
+      INITIAL_ADMIN_TOTP_SECRET: ${INITIAL_ADMIN_TOTP_SECRET:?INITIAL_ADMIN_TOTP_SECRET is required}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [internal]
+
+  web:
+    image: ${RELEASE_WEB_IMAGE:?RELEASE_WEB_IMAGE is required}
+    environment: *app-env
+    ports:
+      - "${ACCEPTANCE_WEB_PORT:-3010}:3000"
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    networks: [internal]
+
+  worker:
+    image: ${RELEASE_WORKER_IMAGE:?RELEASE_WORKER_IMAGE is required}
+    environment: *app-env
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    volumes:
+      - backup-data:/backups
+    networks: [internal]
+
+volumes:
+  postgres-data:
+  backup-data:
+
+networks:
+  internal:

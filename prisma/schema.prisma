@@ -115,8 +115,23 @@ enum NotificationChannel {
 enum NotificationStatus {
   QUEUED
   SENDING
+  PROVIDER_ACCEPTED
+  DELIVERED
+  UNKNOWN
   SENT
   FAILED
+}
+
+enum QualificationRecordAction {
+  CONFIRM
+  CORRECT_AND_CONFIRM
+  ROLLBACK
+  ADMIN_IMPORT
+}
+
+enum UploadReservationStatus {
+  ACTIVE
+  RELEASED
 }
 
 enum NotificationType {
@@ -151,158 +166,161 @@ enum TemplateInstallationStatus {
 }
 
 model Organization {
-  id                 String                           @id @default(uuid()) @db.Uuid
-  code               String                           @unique
-  name               String
-  defaultLocale      String                           @default("zh-CN")
-  active             Boolean                          @default(true)
-  version            Int                              @default(1)
-  createdAt          DateTime                         @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime                         @updatedAt @db.Timestamptz(3)
-  units              OrganizationUnit[]
-  people             Person[]
-  positions          Position[]
+  id                       String                             @id @default(uuid()) @db.Uuid
+  code                     String                             @unique
+  name                     String
+  defaultLocale            String                             @default("zh-CN")
+  active                   Boolean                            @default(true)
+  version                  Int                                @default(1)
+  createdAt                DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                           @updatedAt @db.Timestamptz(3)
+  units                    OrganizationUnit[]
+  people                   Person[]
+  positions                Position[]
   qualificationDefinitions QualificationDefinition[]
-  templateInstallations OrganizationTemplateInstallation[]
-  admins             AdminUser[]
+  templateInstallations    OrganizationTemplateInstallation[]
+  admins                   AdminUser[]
 
   @@index([active, name])
 }
 
 model OrganizationUnit {
-  id                       String      @id @default(uuid()) @db.Uuid
-  code                     String      @unique
+  id                       String             @id @default(uuid()) @db.Uuid
+  code                     String             @unique
   name                     String
-  timezone                 String      @default("Asia/Shanghai")
-  contactName              String      @default("")
-  contactEmail             String      @default("")
-  contactPhone             String      @default("")
-  active                   Boolean     @default(true)
-  notificationRouting      Json        @default("[]")
-  notificationChannelState Json        @default("{\"inApp\":true,\"sms\":false,\"feishu\":false}")
-  version                  Int         @default(1)
-  organizationId          String?     @db.Uuid
-  parentId                String?     @db.Uuid
-  createdAt                DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime    @updatedAt @db.Timestamptz(3)
+  timezone                 String             @default("Asia/Shanghai")
+  contactName              String             @default("")
+  contactEmail             String             @default("")
+  contactPhone             String             @default("")
+  active                   Boolean            @default(true)
+  notificationRouting      Json               @default("[]")
+  notificationChannelState Json               @default("{\"inApp\":true,\"sms\":false,\"feishu\":false}")
+  version                  Int                @default(1)
+  organizationId           String?            @db.Uuid
+  parentId                 String?            @db.Uuid
+  createdAt                DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime           @updatedAt @db.Timestamptz(3)
   pilots                   Pilot[]
   people                   Person[]
   admins                   AdminUser[]
-  organization            Organization? @relation(fields: [organizationId], references: [id])
-  parent                  OrganizationUnit? @relation("OrganizationUnitTree", fields: [parentId], references: [id])
-  children                OrganizationUnit[] @relation("OrganizationUnitTree")
+  organization             Organization?      @relation(fields: [organizationId], references: [id])
+  parent                   OrganizationUnit?  @relation("OrganizationUnitTree", fields: [parentId], references: [id])
+  children                 OrganizationUnit[] @relation("OrganizationUnitTree")
 
   @@index([organizationId, parentId, active])
 }
 
 model Person {
-  id             String                    @id @default(uuid()) @db.Uuid
-  organizationId String                    @db.Uuid
-  unitId         String?                   @db.Uuid
-  employeeNumber String                    @unique
-  mobile         String
-  displayName    String
-  initials       String
-  active         Boolean                   @default(true)
-  version        Int                       @default(1)
-  createdAt      DateTime                  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                  @updatedAt @db.Timestamptz(3)
-  organization   Organization              @relation(fields: [organizationId], references: [id])
-  unit           OrganizationUnit?         @relation(fields: [unitId], references: [id])
-  pilotProfile   PilotProfile?
-  positionAssignments PersonPositionAssignment[]
-  qualificationAssignments QualificationAssignment[]
-  qualificationRecords QualificationRecord[]
+  id                          String                       @id @default(uuid()) @db.Uuid
+  organizationId              String                       @db.Uuid
+  unitId                      String?                      @db.Uuid
+  employeeNumber              String                       @unique
+  mobile                      String
+  displayName                 String
+  initials                    String
+  active                      Boolean                      @default(true)
+  version                     Int                          @default(1)
+  createdAt                   DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                     @updatedAt @db.Timestamptz(3)
+  organization                Organization                 @relation(fields: [organizationId], references: [id])
+  unit                        OrganizationUnit?            @relation(fields: [unitId], references: [id])
+  pilotProfile                PilotProfile?
+  positionAssignments         PersonPositionAssignment[]
+  qualificationAssignments    QualificationAssignment[]
+  qualificationRecords        QualificationRecord[]
   qualificationUpdateRequests QualificationUpdateRequest[]
-  evidenceImages EvidenceImage[]
-  upgradePlans UpgradePlan[]
-  notifications NotificationDelivery[]
-  auditEvents AuditEvent[]
-  legacyPilot  Pilot?
+  evidenceImages              EvidenceImage[]
+  upgradePlans                UpgradePlan[]
+  notifications               NotificationDelivery[]
+  auditEvents                 AuditEvent[]
+  legacyPilot                 Pilot?
 
   @@index([organizationId, active, displayName])
   @@index([unitId, active])
 }
 
 model Pilot {
-  id             String                       @id @default(uuid()) @db.Uuid
-  employeeNumber String                       @unique
-  mobile         String
-  displayName    String
-  initials       String
-  role           String
-  aircraftType   String
-  rankLabel      String
-  unitId         String                       @db.Uuid
-  active         Boolean                      @default(true)
-  version        Int                          @default(1)
-  createdAt      DateTime                     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                     @updatedAt @db.Timestamptz(3)
-  personId       String?                      @unique @db.Uuid
-  unit           OrganizationUnit             @relation(fields: [unitId], references: [id])
-  qualifications QualificationRecord[]
-  updateRequests QualificationUpdateRequest[]
-  accessTokens   PilotAccessToken[]
-  sessions       PilotSession[]
-  upgradePlans   UpgradePlan[]
-  notifications  NotificationDelivery[]
-  evidenceImages EvidenceImage[]
-  auditEvents    AuditEvent[]
-  person         Person?                      @relation(fields: [personId], references: [id])
-  profile        PilotProfile?
+  id                 String                       @id @default(uuid()) @db.Uuid
+  employeeNumber     String                       @unique
+  mobile             String
+  displayName        String
+  initials           String
+  role               String
+  aircraftType       String
+  rankLabel          String
+  unitId             String                       @db.Uuid
+  active             Boolean                      @default(true)
+  version            Int                          @default(1)
+  createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime                     @updatedAt @db.Timestamptz(3)
+  personId           String?                      @unique @db.Uuid
+  unit               OrganizationUnit             @relation(fields: [unitId], references: [id])
+  qualifications     QualificationRecord[]
+  updateRequests     QualificationUpdateRequest[]
+  accessTokens       PilotAccessToken[]
+  sessions           PilotSession[]
+  upgradePlans       UpgradePlan[]
+  notifications      NotificationDelivery[]
+  uploadReservations UploadReservation[]
+  evidenceImages     EvidenceImage[]
+  auditEvents        AuditEvent[]
+  person             Person?                      @relation(fields: [personId], references: [id])
+  profile            PilotProfile?
 }
 
 model PilotProfile {
-  id             String   @id @default(uuid()) @db.Uuid
-  personId       String   @unique @db.Uuid
-  legacyPilotId  String?  @unique @db.Uuid
-  aircraftType   String
-  dutyLabel      String
-  rankLabel      String
-  createdAt      DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
-  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  legacyPilot    Pilot?   @relation(fields: [legacyPilotId], references: [id])
+  id            String   @id @default(uuid()) @db.Uuid
+  personId      String   @unique @db.Uuid
+  legacyPilotId String?  @unique @db.Uuid
+  aircraftType  String
+  dutyLabel     String
+  rankLabel     String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  person        Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  legacyPilot   Pilot?   @relation(fields: [legacyPilotId], references: [id])
 }
 
 model Position {
-  id                 String                    @id @default(uuid()) @db.Uuid
-  organizationId     String                    @db.Uuid
-  code               String
-  name               String
-  description        String                    @default("")
-  translations       Json                      @default("{}")
-  active             Boolean                   @default(true)
-  sortOrder          Int                       @default(0)
-  sourcePackCode     String?
-  sourcePackVersion  Int?
-  customizedAt       DateTime?                 @db.Timestamptz(3)
-  version            Int                       @default(1)
-  createdAt          DateTime                  @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime                  @updatedAt @db.Timestamptz(3)
-  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignments        PersonPositionAssignment[]
-  requirements       QualificationRequirement[]
+  id                String                     @id @default(uuid()) @db.Uuid
+  organizationId    String                     @db.Uuid
+  code              String
+  name              String
+  description       String                     @default("")
+  translations      Json                       @default("{}")
+  active            Boolean                    @default(true)
+  sortOrder         Int                        @default(0)
+  sourcePackCode    String?
+  sourcePackVersion Int?
+  customizedAt      DateTime?                  @db.Timestamptz(3)
+  version           Int                        @default(1)
+  createdAt         DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                   @updatedAt @db.Timestamptz(3)
+  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments       PersonPositionAssignment[]
+  requirements      QualificationRequirement[]
 
   @@unique([organizationId, code])
   @@index([organizationId, active, sortOrder])
 }
 
 model PersonPositionAssignment {
-  id             String                   @id @default(uuid()) @db.Uuid
-  personId       String                   @db.Uuid
-  positionId     String                   @db.Uuid
-  status         PositionAssignmentStatus @default(ACTIVE)
-  isPrimary      Boolean                  @default(false)
-  effectiveFrom  DateTime                 @default(now()) @db.Date
-  effectiveTo    DateTime?                @db.Date
-  version        Int                      @default(1)
-  createdAt      DateTime                 @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                 @updatedAt @db.Timestamptz(3)
-  person         Person                   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  position       Position                 @relation(fields: [positionId], references: [id])
+  id                       String                    @id @default(uuid()) @db.Uuid
+  personId                 String                    @db.Uuid
+  positionId               String?                   @db.Uuid
+  positionCodeSnapshot     String?
+  positionNameSnapshot     String?
+  status                   PositionAssignmentStatus  @default(ACTIVE)
+  isPrimary                Boolean                   @default(false)
+  effectiveFrom            DateTime                  @default(now()) @db.Date
+  effectiveTo              DateTime?                 @db.Date
+  version                  Int                       @default(1)
+  createdAt                DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                  @updatedAt @db.Timestamptz(3)
+  person                   Person                    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  position                 Position?                 @relation(fields: [positionId], references: [id], onDelete: SetNull)
   qualificationAssignments QualificationAssignment[]
-  upgradePlans   UpgradePlan[]
+  upgradePlans             UpgradePlan[]
 
   @@unique([personId, positionId, effectiveFrom])
   @@index([personId, status, isPrimary])
@@ -325,23 +343,24 @@ model Permission {
 }
 
 model AdminUser {
-  id                   String            @id @default(uuid()) @db.Uuid
-  email                String            @unique
-  displayName          String
-  passwordHash         String
-  totpSecretCiphertext String            @db.Text
-  active               Boolean           @default(true)
-  failedAttempts       Int               @default(0)
-  lockedUntil          DateTime?         @db.Timestamptz(3)
-  unitId               String?           @db.Uuid
-  organizationId       String?           @db.Uuid
-  version              Int               @default(1)
-  createdAt            DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime          @updatedAt @db.Timestamptz(3)
-  unit                 OrganizationUnit? @relation(fields: [unitId], references: [id])
-  organization         Organization?     @relation(fields: [organizationId], references: [id])
-  roles                AdminUserRole[]
-  sessions             AdminSession[]
+  id                     String                 @id @default(uuid()) @db.Uuid
+  email                  String                 @unique
+  displayName            String
+  passwordHash           String
+  totpSecretCiphertext   String                 @db.Text
+  active                 Boolean                @default(true)
+  failedAttempts         Int                    @default(0)
+  lockedUntil            DateTime?              @db.Timestamptz(3)
+  unitId                 String?                @db.Uuid
+  organizationId         String?                @db.Uuid
+  version                Int                    @default(1)
+  createdAt              DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime               @updatedAt @db.Timestamptz(3)
+  unit                   OrganizationUnit?      @relation(fields: [unitId], references: [id])
+  organization           Organization?          @relation(fields: [organizationId], references: [id])
+  roles                  AdminUserRole[]
+  sessions               AdminSession[]
+  notificationDeliveries NotificationDelivery[]
 }
 
 model AdminUserRole {
@@ -418,79 +437,79 @@ model QualificationType {
 }
 
 model QualificationDefinition {
-  id                    String                         @id @default(uuid()) @db.Uuid
-  organizationId        String                         @db.Uuid
-  code                  String
-  name                  String
-  description           String                         @default("")
-  translations          Json                           @default("{}")
-  category              String                         @default("aviation")
-  active                Boolean                        @default(true)
-  requiresEvidence      Boolean                        @default(true)
-  requiresHumanReview   Boolean                        @default(true)
-  allowAutoApproval     Boolean                        @default(false)
-  fieldSchema           Json                           @default("{}")
-  validityRule          Json
-  reminders             Json
-  ocrChecks             Json
-  parameterRestriction  Json
-  sortOrder             Int                            @default(0)
-  sourcePackCode        String?
-  sourcePackVersion     Int?
-  legacyQualificationTypeId String?                    @db.Uuid
-  customizedAt          DateTime?                      @db.Timestamptz(3)
-  version               Int                            @default(1)
-  createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
-  updatedAt             DateTime                       @updatedAt @db.Timestamptz(3)
-  organization          Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requirements          QualificationRequirement[]
-  assignments           QualificationAssignment[]
-  records               QualificationRecord[]
-  updateRequests        QualificationUpdateRequest[]
+  id                        String                       @id @default(uuid()) @db.Uuid
+  organizationId            String                       @db.Uuid
+  code                      String
+  name                      String
+  description               String                       @default("")
+  translations              Json                         @default("{}")
+  category                  String                       @default("aviation")
+  active                    Boolean                      @default(true)
+  requiresEvidence          Boolean                      @default(true)
+  requiresHumanReview       Boolean                      @default(true)
+  allowAutoApproval         Boolean                      @default(false)
+  fieldSchema               Json                         @default("{}")
+  validityRule              Json
+  reminders                 Json
+  ocrChecks                 Json
+  parameterRestriction      Json
+  sortOrder                 Int                          @default(0)
+  sourcePackCode            String?
+  sourcePackVersion         Int?
+  legacyQualificationTypeId String?                      @db.Uuid
+  customizedAt              DateTime?                    @db.Timestamptz(3)
+  version                   Int                          @default(1)
+  createdAt                 DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                     @updatedAt @db.Timestamptz(3)
+  organization              Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requirements              QualificationRequirement[]
+  assignments               QualificationAssignment[]
+  records                   QualificationRecord[]
+  updateRequests            QualificationUpdateRequest[]
 
   @@unique([organizationId, code])
   @@index([organizationId, active, sortOrder])
 }
 
 model QualificationRequirement {
-  id                    String                  @id @default(uuid()) @db.Uuid
-  positionId            String                  @db.Uuid
-  qualificationDefinitionId String               @db.Uuid
-  required              Boolean                 @default(true)
-  upgradePrerequisite   Boolean                 @default(false)
-  active                Boolean                 @default(true)
-  sortOrder             Int                     @default(0)
-  sourcePackCode        String?
-  sourcePackVersion     Int?
-  customizedAt          DateTime?               @db.Timestamptz(3)
-  version               Int                     @default(1)
-  createdAt             DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
-  position              Position                @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  qualificationDefinition QualificationDefinition @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
-  assignments           QualificationAssignment[]
+  id                        String                    @id @default(uuid()) @db.Uuid
+  positionId                String                    @db.Uuid
+  qualificationDefinitionId String                    @db.Uuid
+  required                  Boolean                   @default(true)
+  upgradePrerequisite       Boolean                   @default(false)
+  active                    Boolean                   @default(true)
+  sortOrder                 Int                       @default(0)
+  sourcePackCode            String?
+  sourcePackVersion         Int?
+  customizedAt              DateTime?                 @db.Timestamptz(3)
+  version                   Int                       @default(1)
+  createdAt                 DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                  @updatedAt @db.Timestamptz(3)
+  position                  Position                  @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  qualificationDefinition   QualificationDefinition   @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
+  assignments               QualificationAssignment[]
 
   @@unique([positionId, qualificationDefinitionId])
   @@index([positionId, active, sortOrder])
 }
 
 model QualificationAssignment {
-  id                    String                        @id @default(uuid()) @db.Uuid
-  personId              String                        @db.Uuid
-  qualificationDefinitionId String                     @db.Uuid
-  requirementId         String?                       @db.Uuid
-  positionAssignmentId  String?                       @db.Uuid
-  source                QualificationAssignmentSource
-  active                Boolean                       @default(true)
-  assignedAt            DateTime                      @default(now()) @db.Timestamptz(3)
-  endedAt               DateTime?                     @db.Timestamptz(3)
-  version               Int                           @default(1)
-  createdAt             DateTime                      @default(now()) @db.Timestamptz(3)
-  updatedAt             DateTime                      @updatedAt @db.Timestamptz(3)
-  person                Person                        @relation(fields: [personId], references: [id], onDelete: Cascade)
-  qualificationDefinition QualificationDefinition    @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
-  requirement           QualificationRequirement?    @relation(fields: [requirementId], references: [id], onDelete: SetNull)
-  positionAssignment   PersonPositionAssignment?    @relation(fields: [positionAssignmentId], references: [id], onDelete: SetNull)
+  id                        String                        @id @default(uuid()) @db.Uuid
+  personId                  String                        @db.Uuid
+  qualificationDefinitionId String                        @db.Uuid
+  requirementId             String?                       @db.Uuid
+  positionAssignmentId      String?                       @db.Uuid
+  source                    QualificationAssignmentSource
+  active                    Boolean                       @default(true)
+  assignedAt                DateTime                      @default(now()) @db.Timestamptz(3)
+  endedAt                   DateTime?                     @db.Timestamptz(3)
+  version                   Int                           @default(1)
+  createdAt                 DateTime                      @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime                      @updatedAt @db.Timestamptz(3)
+  person                    Person                        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  qualificationDefinition   QualificationDefinition       @relation(fields: [qualificationDefinitionId], references: [id], onDelete: Cascade)
+  requirement               QualificationRequirement?     @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  positionAssignment        PersonPositionAssignment?     @relation(fields: [positionAssignmentId], references: [id], onDelete: SetNull)
 
   @@unique([positionAssignmentId, requirementId])
   @@index([personId, active, qualificationDefinitionId])
@@ -498,34 +517,34 @@ model QualificationAssignment {
 }
 
 model TemplatePack {
-  id                String                         @id @default(uuid()) @db.Uuid
-  code              String
-  version           Int
-  industryCode      String                         @default("aviation")
-  name              String
-  description       String                         @default("")
-  translations      Json                           @default("{}")
-  payload           Json
-  checksum          String
-  active            Boolean                        @default(true)
-  createdAt         DateTime                       @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime                       @updatedAt @db.Timestamptz(3)
-  installations     OrganizationTemplateInstallation[]
+  id            String                             @id @default(uuid()) @db.Uuid
+  code          String
+  version       Int
+  industryCode  String                             @default("aviation")
+  name          String
+  description   String                             @default("")
+  translations  Json                               @default("{}")
+  payload       Json
+  checksum      String
+  active        Boolean                            @default(true)
+  createdAt     DateTime                           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                           @updatedAt @db.Timestamptz(3)
+  installations OrganizationTemplateInstallation[]
 
   @@unique([code, version])
   @@index([industryCode, active])
 }
 
 model OrganizationTemplateInstallation {
-  id               String                    @id @default(uuid()) @db.Uuid
-  organizationId   String                    @db.Uuid
-  templatePackId   String                    @db.Uuid
-  status           TemplateInstallationStatus
-  result           Json                      @default("{}")
-  installedAt      DateTime                  @default(now()) @db.Timestamptz(3)
-  installedBy      String?                   @db.Uuid
-  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  templatePack     TemplatePack              @relation(fields: [templatePackId], references: [id])
+  id             String                     @id @default(uuid()) @db.Uuid
+  organizationId String                     @db.Uuid
+  templatePackId String                     @db.Uuid
+  status         TemplateInstallationStatus
+  result         Json                       @default("{}")
+  installedAt    DateTime                   @default(now()) @db.Timestamptz(3)
+  installedBy    String?                    @db.Uuid
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  templatePack   TemplatePack               @relation(fields: [templatePackId], references: [id])
 
   @@unique([organizationId, templatePackId])
   @@index([organizationId, installedAt])
@@ -545,6 +564,15 @@ model QualificationRecord {
   levelOrParameter          String
   qualificationRuleSnapshot Json
   status                    QualificationRecordStatus   @default(ACTIVE)
+  lineageId                 String                      @default(uuid()) @db.Uuid
+  revisionNumber            Int                         @default(1)
+  supersedesRecordId        String?                     @db.Uuid
+  restoresRecordId          String?                     @db.Uuid
+  action                    QualificationRecordAction   @default(CONFIRM)
+  actorId                   String?                     @db.Uuid
+  reason                    String?
+  requestId                 String?
+  activatedAt               DateTime?                   @db.Timestamptz(3)
   lastVerifiedAt            DateTime?                   @db.Timestamptz(3)
   version                   Int                         @default(1)
   createdAt                 DateTime                    @default(now()) @db.Timestamptz(3)
@@ -552,10 +580,16 @@ model QualificationRecord {
   pilot                     Pilot                       @relation(fields: [pilotId], references: [id], onDelete: Cascade)
   person                    Person?                     @relation(fields: [personId], references: [id], onDelete: SetNull)
   qualificationType         QualificationType           @relation(fields: [qualificationTypeId], references: [id])
-  qualificationDefinition  QualificationDefinition?    @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
+  qualificationDefinition   QualificationDefinition?    @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
   updateRequest             QualificationUpdateRequest?
   evidence                  QualificationEvidence[]
+  corrections               QualificationCorrection[]
+  supersedesRecord          QualificationRecord?        @relation("QualificationRevisionSupersedes", fields: [supersedesRecordId], references: [id])
+  supersededBy              QualificationRecord[]       @relation("QualificationRevisionSupersedes")
+  restoresRecord            QualificationRecord?        @relation("QualificationRevisionRestores", fields: [restoresRecordId], references: [id])
+  restoredBy                QualificationRecord[]       @relation("QualificationRevisionRestores")
 
+  @@unique([lineageId, revisionNumber])
   @@index([pilotId, status])
   @@index([qualificationTypeId, expiryDate])
   @@index([personId, status])
@@ -587,88 +621,92 @@ model EvidenceImage {
 }
 
 model ImageOptimizationTask {
-  id               String                      @id @default(uuid()) @db.Uuid
-  evidenceImageId  String                      @unique @db.Uuid
-  sourceObjectKey  String
-  targetObjectKey  String?
-  status           ImageOptimizationTaskStatus @default(QUEUED)
-  attemptCount     Int                         @default(0)
-  errorMessage     String?
-  createdAt        DateTime                    @default(now()) @db.Timestamptz(3)
-  startedAt        DateTime?                   @db.Timestamptz(3)
-  completedAt      DateTime?                   @db.Timestamptz(3)
-  evidenceImage    EvidenceImage               @relation(fields: [evidenceImageId], references: [id], onDelete: Cascade)
+  id              String                      @id @default(uuid()) @db.Uuid
+  evidenceImageId String                      @unique @db.Uuid
+  sourceObjectKey String
+  targetObjectKey String?
+  status          ImageOptimizationTaskStatus @default(QUEUED)
+  attemptCount    Int                         @default(0)
+  errorMessage    String?
+  createdAt       DateTime                    @default(now()) @db.Timestamptz(3)
+  startedAt       DateTime?                   @db.Timestamptz(3)
+  completedAt     DateTime?                   @db.Timestamptz(3)
+  evidenceImage   EvidenceImage               @relation(fields: [evidenceImageId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
 }
 
 model MediaOptimizationSetting {
-  id            String   @id @default("global")
-  enabled       Boolean  @default(false)
-  idleMinutes   Int      @default(5)
-  batchSize     Int      @default(5)
-  version       Int      @default(1)
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  id          String   @id @default("global")
+  enabled     Boolean  @default(false)
+  idleMinutes Int      @default(5)
+  batchSize   Int      @default(5)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model BackupTarget {
-  id               String           @id @default(uuid()) @db.Uuid
-  name             String
-  type             BackupTargetType
-  endpoint         String
-  basePath         String
-  secretCiphertext String?          @db.Text
-  encryptionEnabled Boolean         @default(true)
-  active           Boolean          @default(true)
-  version          Int              @default(1)
-  lastTestedAt     DateTime?        @db.Timestamptz(3)
-  lastTestMessage  String           @default("")
-  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
-  plans            BackupPlan[]
+  id                String           @id @default(uuid()) @db.Uuid
+  name              String
+  type              BackupTargetType
+  endpoint          String
+  basePath          String
+  secretCiphertext  String?          @db.Text
+  encryptionEnabled Boolean          @default(true)
+  active            Boolean          @default(true)
+  version           Int              @default(1)
+  lastTestedAt      DateTime?        @db.Timestamptz(3)
+  lastTestMessage   String           @default("")
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
+  plans             BackupPlan[]
 }
 
 model BackupPlan {
-  id              String       @id @default(uuid()) @db.Uuid
-  name            String
-  source          BackupSource
-  mode            BackupMode
-  targetId        String       @db.Uuid
-  cron            String
-  timezone        String       @default("Asia/Shanghai")
-  retentionCount  Int          @default(30)
-  retentionDays   Int          @default(90)
-  enabled         Boolean      @default(true)
-  version         Int          @default(1)
-  lastSuccessfulAt DateTime?   @db.Timestamptz(3)
-  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
-  target          BackupTarget @relation(fields: [targetId], references: [id])
-  runs            BackupRun[]
+  id               String       @id @default(uuid()) @db.Uuid
+  name             String
+  source           BackupSource
+  mode             BackupMode
+  targetId         String       @db.Uuid
+  cron             String
+  timezone         String       @default("Asia/Shanghai")
+  retentionCount   Int          @default(30)
+  retentionDays    Int          @default(90)
+  enabled          Boolean      @default(true)
+  version          Int          @default(1)
+  lastSuccessfulAt DateTime?    @db.Timestamptz(3)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+  target           BackupTarget @relation(fields: [targetId], references: [id])
+  runs             BackupRun[]
+
   @@index([enabled, source])
 }
 
 model BackupRun {
-  id             String         @id @default(uuid()) @db.Uuid
-  planId         String         @db.Uuid
+  id             String          @id @default(uuid()) @db.Uuid
+  planId         String          @db.Uuid
+  scheduledFor   DateTime        @default(now()) @db.Timestamptz(3)
   status         BackupRunStatus @default(QUEUED)
   mode           BackupMode
-  startedAt      DateTime?      @db.Timestamptz(3)
-  completedAt    DateTime?      @db.Timestamptz(3)
+  startedAt      DateTime?       @db.Timestamptz(3)
+  completedAt    DateTime?       @db.Timestamptz(3)
   artifactPath   String?
   manifestSha256 String?
-  bytesWritten   BigInt         @default(0)
+  bytesWritten   BigInt          @default(0)
   errorMessage   String?
-  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
-  plan           BackupPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  plan           BackupPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, scheduledFor])
   @@index([planId, createdAt])
   @@index([status, createdAt])
 }
 
 model QualificationEvidence {
   id                    String                      @id @default(uuid()) @db.Uuid
-  evidenceImageId       String                      @unique @db.Uuid
+  evidenceImageId       String                      @db.Uuid
   qualificationRecordId String?                     @db.Uuid
   updateRequestId       String?                     @db.Uuid
   createdAt             DateTime                    @default(now()) @db.Timestamptz(3)
@@ -680,36 +718,37 @@ model QualificationEvidence {
 }
 
 model QualificationUpdateRequest {
-  id                        String                  @id @default(uuid()) @db.Uuid
-  pilotId                   String                  @db.Uuid
-  personId                  String?                 @db.Uuid
-  qualificationTypeId       String                  @db.Uuid
-  qualificationDefinitionId String?                 @db.Uuid
-  qualificationRecordId     String?                 @unique @db.Uuid
+  id                        String                    @id @default(uuid()) @db.Uuid
+  pilotId                   String                    @db.Uuid
+  personId                  String?                   @db.Uuid
+  qualificationTypeId       String                    @db.Uuid
+  qualificationDefinitionId String?                   @db.Uuid
+  qualificationRecordId     String?                   @unique @db.Uuid
   credentialNumber          String
-  issueDate                 DateTime                @db.Date
-  trainingDate              DateTime?               @db.Date
-  expiryDate                DateTime?               @db.Date
+  issueDate                 DateTime                  @db.Date
+  trainingDate              DateTime?                 @db.Date
+  expiryDate                DateTime?                 @db.Date
   issuingAuthority          String
   levelOrParameter          String
   qualificationRuleSnapshot Json
   // Immutable snapshot of the values submitted by the pilot. The mutable
   // columns above hold the latest human-corrected values used for a decision.
   submittedFields           Json
-  status                    UpdateRequestStatus     @default(PENDING)
-  expectedVersion           Int                     @default(0)
-  version                   Int                     @default(1)
-  submittedAt               DateTime                @default(now()) @db.Timestamptz(3)
-  decidedAt                 DateTime?               @db.Timestamptz(3)
+  status                    UpdateRequestStatus       @default(PENDING)
+  expectedVersion           Int                       @default(0)
+  version                   Int                       @default(1)
+  submittedAt               DateTime                  @default(now()) @db.Timestamptz(3)
+  decidedAt                 DateTime?                 @db.Timestamptz(3)
   decisionNote              String?
   returnReason              String?
-  pilot                     Pilot                   @relation(fields: [pilotId], references: [id], onDelete: Cascade)
-  person                    Person?                 @relation(fields: [personId], references: [id], onDelete: SetNull)
-  qualificationType         QualificationType       @relation(fields: [qualificationTypeId], references: [id])
-  qualificationDefinition  QualificationDefinition? @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
-  qualificationRecord       QualificationRecord?    @relation(fields: [qualificationRecordId], references: [id])
+  pilot                     Pilot                     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  person                    Person?                   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  qualificationType         QualificationType         @relation(fields: [qualificationTypeId], references: [id])
+  qualificationDefinition   QualificationDefinition?  @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
+  qualificationRecord       QualificationRecord?      @relation(fields: [qualificationRecordId], references: [id])
   evidence                  QualificationEvidence[]
   verifications             VerificationResult[]
+  corrections               QualificationCorrection[]
 
   @@index([status, submittedAt])
   @@index([personId, status, submittedAt])
@@ -726,6 +765,23 @@ model VerificationResult {
   request   QualificationUpdateRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@index([requestId, createdAt])
+}
+
+model QualificationCorrection {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  qualificationRecordId String?                     @db.Uuid
+  updateRequestId       String?                     @db.Uuid
+  actorId               String?                     @db.Uuid
+  reason                String
+  before                Json
+  after                 Json
+  requestId             String
+  createdAt             DateTime                    @default(now()) @db.Timestamptz(3)
+  qualificationRecord   QualificationRecord?        @relation(fields: [qualificationRecordId], references: [id], onDelete: SetNull)
+  updateRequest         QualificationUpdateRequest? @relation(fields: [updateRequestId], references: [id], onDelete: SetNull)
+
+  @@index([qualificationRecordId, createdAt])
+  @@index([updateRequestId, createdAt])
 }
 
 model RecognitionTask {
@@ -838,6 +894,7 @@ model NotificationDelivery {
   status                  NotificationStatus    @default(QUEUED)
   pilotId                 String?               @db.Uuid
   personId                String?               @db.Uuid
+  adminUserId             String?               @db.Uuid
   target                  String
   summary                 String
   message                 String
@@ -857,12 +914,14 @@ model NotificationDelivery {
   version                 Int                   @default(1)
   pilot                   Pilot?                @relation(fields: [pilotId], references: [id], onDelete: SetNull)
   person                  Person?               @relation(fields: [personId], references: [id], onDelete: SetNull)
+  adminUser               AdminUser?            @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
   attempts                NotificationAttempt[]
 
   @@index([status, createdAt])
   @@index([status, nextAttemptAt])
   @@index([pilotId, readAt, createdAt])
   @@index([personId, readAt, createdAt])
+  @@index([adminUserId, readAt, createdAt])
 }
 
 model NotificationAttempt {
@@ -902,6 +961,20 @@ model RateLimitBucket {
   windowStart DateTime @db.Timestamptz(3)
   count       Int      @default(0)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model UploadReservation {
+  id            String                  @id @default(uuid()) @db.Uuid
+  pilotId       String                  @db.Uuid
+  bytesReserved Int
+  status        UploadReservationStatus @default(ACTIVE)
+  createdAt     DateTime                @default(now()) @db.Timestamptz(3)
+  expiresAt     DateTime                @db.Timestamptz(3)
+  releasedAt    DateTime?               @db.Timestamptz(3)
+  pilot         Pilot                   @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  @@index([pilotId, status, expiresAt])
+  @@index([pilotId, createdAt])
 }
 
 model SystemIntegrationSetting {

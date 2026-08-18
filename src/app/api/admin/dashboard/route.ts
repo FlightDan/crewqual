@@ -28,17 +28,10 @@ export async function GET(request: NextRequest) {
     );
     const weekStart = new Date(weekStartShanghai.getTime() - 8 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 86400000 - 1);
-    const [activeRecords, pendingReviewCount, delayedUpgradeCount, pendingReviews, weeklyStages] =
+    const [activeRecords, pendingReviewCount, pendingReviews, weeklyStages, delayedStages] =
       await Promise.all([
         activeQualifications,
         db.qualificationUpdateRequest.count({ where: { status: "PENDING", ...scope } }),
-        db.upgradePlan.count({
-          where: {
-            lifecycleStatus: "ACTIVE",
-            stages: { some: { status: "DELAYED" } },
-            ...scope,
-          },
-        }),
         db.qualificationUpdateRequest.findMany({
           where: { status: "PENDING", ...scope },
           include: {
@@ -47,12 +40,22 @@ export async function GET(request: NextRequest) {
             verifications: { orderBy: { createdAt: "desc" }, take: 1 },
           },
           orderBy: { submittedAt: "asc" },
-          take: 5,
         }),
         db.upgradeStage.findMany({
           where: {
             plannedStart: { gte: weekStart, lte: weekEnd },
             plan: { lifecycleStatus: { not: "CANCELLED" }, ...scope },
+          },
+          include: { plan: { include: { pilot: true } } },
+          orderBy: { plannedStart: "asc" },
+        }),
+        db.upgradeStage.findMany({
+          where: {
+            status: "DELAYED",
+            plan: {
+              lifecycleStatus: { not: "CANCELLED" },
+              ...scope,
+            },
           },
           include: { plan: { include: { pilot: true } } },
           orderBy: { plannedStart: "asc" },
@@ -82,8 +85,14 @@ export async function GET(request: NextRequest) {
       })
       .filter((item) => item.daysRemaining <= 30)
       .sort((a, b) => a.daysRemaining - b.daysRemaining)
-      .map(({ pilotId, pilotName, qualification }) => ({ pilotId, pilotName, qualification }));
-    const weeklyUpgrades = weeklyStages.map((stage) => ({
+      .map(({ pilotId, pilotName, qualification, daysRemaining }) => ({
+        pilotId,
+        pilotName,
+        qualification,
+        daysRemaining,
+      }));
+    const mapUpgradeItem = (stage: (typeof weeklyStages)[number]) => ({
+      planId: stage.plan.id,
       pilotId: stage.plan.pilotId,
       pilotName: stage.plan.pilot.displayName,
       role: stage.plan.pilot.role,
@@ -100,7 +109,9 @@ export async function GET(request: NextRequest) {
         ...(stage.resultSummary ? { resultSummary: stage.resultSummary } : {}),
         ...(stage.delayDays == null ? {} : { delayDays: stage.delayDays }),
       },
-    }));
+    });
+    const weeklyUpgrades = weeklyStages.map(mapUpgradeItem);
+    const delayedUpgrades = delayedStages.map(mapUpgradeItem);
     return jsonData(
       {
         expiredCount: dateStates.filter((state) => state.daysRemaining < 0).length,
@@ -112,10 +123,11 @@ export async function GET(request: NextRequest) {
         ).length,
         pendingReviewCount,
         weeklyUpgradeCount: weeklyUpgrades.length,
-        delayedUpgradeCount,
+        delayedUpgradeCount: delayedUpgrades.length,
         pendingReviews: pendingReviews.map(mapReview),
         qualificationAlerts,
         weeklyUpgrades,
+        delayedUpgrades,
       },
       requestId,
     );

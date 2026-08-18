@@ -461,19 +461,23 @@ export const remoteUpgradePlanService: UpgradePlanService = {
 };
 
 export const remoteQualificationConfigService: ApplicationServices["qualificationConfigs"] = {
-  list() {
-    return admin<QualificationConfig[]>("/api/admin/qualification-configs");
+  list(positionCode) {
+    return admin<QualificationConfig[]>(
+      `/api/admin/qualification-configs?positionCode=${encodeURIComponent(positionCode)}`,
+    );
   },
-  getById(id) {
-    return admin<QualificationConfig | null>(`/api/admin/qualification-configs/${id}`);
+  getById(positionCode, id) {
+    return admin<QualificationConfig | null>(
+      `/api/admin/qualification-configs/${id}?positionCode=${encodeURIComponent(positionCode)}`,
+    );
   },
-  save(id, input: QualificationConfigInput & { expectedVersion?: number }) {
+  save(positionCode, id, input: QualificationConfigInput & { expectedVersion?: number }) {
     return admin<QualificationConfig>(
-      `/api/admin/qualification-configs?id=${encodeURIComponent(id)}`,
+      `/api/admin/qualification-configs?id=${encodeURIComponent(id)}&positionCode=${encodeURIComponent(positionCode)}`,
       { method: "PATCH", body: JSON.stringify(input) },
     );
   },
-  createSupplemental(input) {
+  create(input) {
     return admin<QualificationConfig>("/api/admin/qualification-configs", {
       method: "POST",
       body: JSON.stringify(input),

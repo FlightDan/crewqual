@@ -22,6 +22,7 @@ describe("AdminSettingsView", () => {
     render(<AdminSettingsView />);
 
     expect(await screen.findByRole("heading", { name: "组织与单位" })).toBeVisible();
+    expect(screen.getByText("32 名人员 · 4 名管理员")).toBeVisible();
     await user.click(screen.getByRole("button", { name: /管理员与权限/ }));
     expect(screen.getByRole("heading", { name: "管理员与权限" })).toBeVisible();
     expect(screen.getAllByText("admin@crewqual.local")).not.toHaveLength(0);
@@ -61,5 +62,21 @@ describe("AdminSettingsView", () => {
     expect(window.sessionStorage.getItem(storageKey)).not.toContain(
       "plain-text-secret-must-not-persist",
     );
+  });
+
+  it("blocks ordinary deletion when a position has history and offers the super-admin force flow", async () => {
+    const user = userEvent.setup();
+    render(<AdminSettingsView />);
+    await screen.findByRole("heading", { name: "组织与单位" });
+    await user.click(screen.getByRole("button", { name: /职位管理/ }));
+    await user.click(screen.getAllByRole("button", { name: "删除" })[0]!);
+
+    const dialog = screen.getByRole("dialog", { name: "删除职位：飞行员" });
+    await user.click(within(dialog).getByRole("button", { name: "确认删除" }));
+    expect(await within(dialog).findByText("该职位存在历史关联，无法安全删除")).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "强制删除并保留历史" }));
+    expect(within(dialog).getByText("确认强制删除并保留历史？")).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "确认强制删除" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("职位已强制删除"));
   });
 });

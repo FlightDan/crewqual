@@ -8,6 +8,17 @@ const memberCookie = "crewqual_member_session";
 export function middleware(request: NextRequest) {
   const remoteMode = isRemoteServiceMode();
   const { pathname } = request.nextUrl;
+  if (
+    process.env.CREWQUAL_MAINTENANCE_MODE === "1" &&
+    pathname.startsWith("/api/") &&
+    !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+    pathname !== "/api/health"
+  ) {
+    return NextResponse.json(
+      { error: { code: "MAINTENANCE", message: "系统正在维护，请稍后重试" } },
+      { status: 503, headers: { "retry-after": "60", "cache-control": "no-store" } },
+    );
+  }
   if (!remoteMode && pathname.startsWith("/api/") && pathname !== "/api/health") {
     return new NextResponse(null, { status: 404 });
   }

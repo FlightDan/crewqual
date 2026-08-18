@@ -54,6 +54,13 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (["COMPLETED", "CANCELLED"].includes(existing.lifecycleStatus)) {
       throw new ApiError("PLAN_READ_ONLY", "已完成或已取消的计划不可修改", 409);
     }
+    if (input.pilotId !== existing.pilotId) {
+      throw new ApiError(
+        "PLAN_REASSIGN_REQUIRED",
+        "人员或职位关联必须使用专用 reassign 操作，并填写原因",
+        409,
+      );
+    }
 
     const currentSelections = existing.inspectionItems
       .map((item) => `${item.inspectionItemId}:${item.stage.order}`)
@@ -63,7 +70,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       .sort();
     if (existing.lifecycleStatus === "ACTIVE") {
       const structuralChange =
-        input.pilotId !== existing.pilotId ||
         input.type.toUpperCase() !== existing.type ||
         input.startDate !== existing.startDate.toISOString().slice(0, 10) ||
         input.endDate !== existing.endDate.toISOString().slice(0, 10) ||

@@ -9,6 +9,7 @@ export type ApiFailure = {
     code: string;
     message: string;
     fieldErrors?: Record<string, string[]>;
+    details?: unknown;
     requestId: string;
   };
 };
@@ -17,12 +18,20 @@ export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
   readonly fieldErrors?: Record<string, string[]>;
+  readonly details?: unknown;
 
-  constructor(code: string, message: string, status = 400, fieldErrors?: Record<string, string[]>) {
+  constructor(
+    code: string,
+    message: string,
+    status = 400,
+    fieldErrors?: Record<string, string[]>,
+    details?: unknown,
+  ) {
     super(message);
     this.code = code;
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.details = details;
     this.name = "ApiError";
   }
 }
@@ -86,12 +95,23 @@ export function jsonError(error: unknown, requestId: string) {
       code: normalized.code,
       message: normalized.message,
       ...(normalized.fieldErrors ? { fieldErrors: normalized.fieldErrors } : {}),
+      ...(normalized.details !== undefined ? { details: normalized.details } : {}),
       requestId,
     },
   };
+  const retryAfter =
+    normalized.details &&
+    typeof normalized.details === "object" &&
+    "retryAfterSeconds" in normalized.details
+      ? String((normalized.details as { retryAfterSeconds: number }).retryAfterSeconds)
+      : undefined;
   return NextResponse.json(body, {
     status: normalized.status,
-    headers: { "x-request-id": requestId, "cache-control": "no-store" },
+    headers: {
+      "x-request-id": requestId,
+      "cache-control": "no-store",
+      ...(retryAfter ? { "retry-after": retryAfter } : {}),
+    },
   });
 }
 

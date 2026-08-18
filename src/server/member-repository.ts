@@ -34,9 +34,8 @@ function organizationWhere(admin: AuthenticatedAdmin) {
 const memberInclude = {
   pilotProfile: true,
   positionAssignments: {
-    where: { status: "ACTIVE" as const },
     include: { position: true },
-    orderBy: { isPrimary: "desc" as const },
+    orderBy: { status: "asc" as const },
   },
   qualificationAssignments: {
     where: { active: true },
@@ -100,13 +99,15 @@ function serializeMember(person: IncludedMember) {
         name: assignment.qualificationDefinition.name,
         description: assignment.qualificationDefinition.description,
         positionCode:
-          assignment.positionAssignment?.position.code ??
-          assignment.requirement?.position.code ??
+          assignment.positionAssignment?.position?.code ??
+          assignment.positionAssignment?.positionCodeSnapshot ??
+          assignment.requirement?.position?.code ??
           null,
         positionName:
-          assignment.positionAssignment?.position.name ??
-          assignment.requirement?.position.name ??
-          null,
+          assignment.positionAssignment?.position?.name ??
+          assignment.positionAssignment?.positionNameSnapshot ??
+          assignment.requirement?.position?.name ??
+          "已删除职位",
         source: assignment.source,
         required: assignment.requirement?.required ?? true,
         upgradePrerequisite: assignment.requirement?.upgradePrerequisite ?? false,
@@ -134,8 +135,17 @@ function serializeMember(person: IncludedMember) {
     { missing: 0, expired: 0, due: 0, valid: 0 },
   );
   const primary =
+    person.positionAssignments?.find(
+      (assignment: any) => assignment.status === "ACTIVE" && assignment.isPrimary,
+    ) ??
+    person.positionAssignments?.find((assignment: any) => assignment.status === "ACTIVE") ??
     person.positionAssignments?.find((assignment: any) => assignment.isPrimary) ??
     person.positionAssignments?.[0];
+  const positionLabel = (assignment: any) => ({
+    code: assignment.position?.code ?? assignment.positionCodeSnapshot ?? null,
+    name: assignment.position?.name ?? assignment.positionNameSnapshot ?? "已删除职位",
+  });
+  const primaryLabel = primary ? positionLabel(primary) : null;
   return {
     id: person.id,
     employeeNumber: person.employeeNumber,
@@ -146,13 +156,11 @@ function serializeMember(person: IncludedMember) {
     version: person.version,
     organizationId: person.organizationId,
     unitId: person.unitId,
-    primaryPosition: primary
-      ? { code: primary.position.code, name: primary.position.name, assignmentId: primary.id }
-      : null,
+    primaryPosition: primary ? { ...primaryLabel, assignmentId: primary.id } : null,
     positions: (person.positionAssignments ?? []).map((assignment: any) => ({
-      code: assignment.position.code,
-      name: assignment.position.name,
+      ...positionLabel(assignment),
       assignmentId: assignment.id,
+      status: assignment.status,
       isPrimary: assignment.isPrimary,
       effectiveFrom: dateOnly(assignment.effectiveFrom),
       effectiveTo: dateOnly(assignment.effectiveTo),

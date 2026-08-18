@@ -47,6 +47,10 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
 
   React.useEffect(() => {
     if (!remoteMode) {
+      if (positionCode !== "PILOT") {
+        setItems([]);
+        return;
+      }
       const now = Date.now();
       setItems(
         state.pilots

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
     if (!current) throw new ApiError("NOT_FOUND", "通知记录不存在", 404);
     if (!current.pilotId) throw new Error("Notification has no pilot target");
-    if (current.status !== "FAILED") {
+    if (!["FAILED", "UNKNOWN"].includes(current.status)) {
       throw new ApiError("INVALID_NOTIFICATION_STATE", "只有发送失败的通知可以重试", 409);
     }
     const delivery = await db.$transaction(async (tx) => {

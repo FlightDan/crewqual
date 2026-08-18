@@ -1,11 +1,7 @@
-node_modules
-.next
-.next-*
-coverage
-playwright-report
-test-results
+# Legal and contributor documents retain their authored Markdown layout.
+CLA.md
+CONTRIBUTING.md
+README.md
+SECURITY.md
 pnpm-lock.yaml
-next-env.d.ts
-*.tsbuildinfo
-src/generated/**
-prisma/migrations/**
+src/generated/prisma/**

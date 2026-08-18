@@ -82,6 +82,7 @@ export const ModelName = {
   QualificationEvidence: 'QualificationEvidence',
   QualificationUpdateRequest: 'QualificationUpdateRequest',
   VerificationResult: 'VerificationResult',
+  QualificationCorrection: 'QualificationCorrection',
   RecognitionTask: 'RecognitionTask',
   UpgradePlan: 'UpgradePlan',
   UpgradeStage: 'UpgradeStage',
@@ -91,6 +92,7 @@ export const ModelName = {
   NotificationAttempt: 'NotificationAttempt',
   AuditEvent: 'AuditEvent',
   RateLimitBucket: 'RateLimitBucket',
+  UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
   SecurityPolicy: 'SecurityPolicy',
   WorkerHeartbeat: 'WorkerHeartbeat'
@@ -222,6 +224,8 @@ export const PersonPositionAssignmentScalarFieldEnum = {
   id: 'id',
   personId: 'personId',
   positionId: 'positionId',
+  positionCodeSnapshot: 'positionCodeSnapshot',
+  positionNameSnapshot: 'positionNameSnapshot',
   status: 'status',
   isPrimary: 'isPrimary',
   effectiveFrom: 'effectiveFrom',
@@ -455,6 +459,15 @@ export const QualificationRecordScalarFieldEnum = {
   levelOrParameter: 'levelOrParameter',
   qualificationRuleSnapshot: 'qualificationRuleSnapshot',
   status: 'status',
+  lineageId: 'lineageId',
+  revisionNumber: 'revisionNumber',
+  supersedesRecordId: 'supersedesRecordId',
+  restoresRecordId: 'restoresRecordId',
+  action: 'action',
+  actorId: 'actorId',
+  reason: 'reason',
+  requestId: 'requestId',
+  activatedAt: 'activatedAt',
   lastVerifiedAt: 'lastVerifiedAt',
   version: 'version',
   createdAt: 'createdAt',
@@ -555,6 +568,7 @@ export type BackupPlanScalarFieldEnum = (typeof BackupPlanScalarFieldEnum)[keyof
 export const BackupRunScalarFieldEnum = {
   id: 'id',
   planId: 'planId',
+  scheduledFor: 'scheduledFor',
   status: 'status',
   mode: 'mode',
   startedAt: 'startedAt',
@@ -617,6 +631,21 @@ export const VerificationResultScalarFieldEnum = {
 } as const
 
 export type VerificationResultScalarFieldEnum = (typeof VerificationResultScalarFieldEnum)[keyof typeof VerificationResultScalarFieldEnum]
+
+
+export const QualificationCorrectionScalarFieldEnum = {
+  id: 'id',
+  qualificationRecordId: 'qualificationRecordId',
+  updateRequestId: 'updateRequestId',
+  actorId: 'actorId',
+  reason: 'reason',
+  before: 'before',
+  after: 'after',
+  requestId: 'requestId',
+  createdAt: 'createdAt'
+} as const
+
+export type QualificationCorrectionScalarFieldEnum = (typeof QualificationCorrectionScalarFieldEnum)[keyof typeof QualificationCorrectionScalarFieldEnum]
 
 
 export const RecognitionTaskScalarFieldEnum = {
@@ -720,6 +749,7 @@ export const NotificationDeliveryScalarFieldEnum = {
   status: 'status',
   pilotId: 'pilotId',
   personId: 'personId',
+  adminUserId: 'adminUserId',
   target: 'target',
   summary: 'summary',
   message: 'message',
@@ -781,6 +811,19 @@ export const RateLimitBucketScalarFieldEnum = {
 } as const
 
 export type RateLimitBucketScalarFieldEnum = (typeof RateLimitBucketScalarFieldEnum)[keyof typeof RateLimitBucketScalarFieldEnum]
+
+
+export const UploadReservationScalarFieldEnum = {
+  id: 'id',
+  pilotId: 'pilotId',
+  bytesReserved: 'bytesReserved',
+  status: 'status',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt',
+  releasedAt: 'releasedAt'
+} as const
+
+export type UploadReservationScalarFieldEnum = (typeof UploadReservationScalarFieldEnum)[keyof typeof UploadReservationScalarFieldEnum]
 
 
 export const SystemIntegrationSettingScalarFieldEnum = {

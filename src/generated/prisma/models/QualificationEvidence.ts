@@ -200,18 +200,18 @@ export type QualificationEvidenceOrderByWithRelationInput = {
 
 export type QualificationEvidenceWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  evidenceImageId?: string
   evidenceImageId_qualificationRecordId_updateRequestId?: Prisma.QualificationEvidenceEvidenceImageIdQualificationRecordIdUpdateRequestIdCompoundUniqueInput
   AND?: Prisma.QualificationEvidenceWhereInput | Prisma.QualificationEvidenceWhereInput[]
   OR?: Prisma.QualificationEvidenceWhereInput[]
   NOT?: Prisma.QualificationEvidenceWhereInput | Prisma.QualificationEvidenceWhereInput[]
+  evidenceImageId?: Prisma.UuidFilter<"QualificationEvidence"> | string
   qualificationRecordId?: Prisma.UuidNullableFilter<"QualificationEvidence"> | string | null
   updateRequestId?: Prisma.UuidNullableFilter<"QualificationEvidence"> | string | null
   createdAt?: Prisma.DateTimeFilter<"QualificationEvidence"> | Date | string
   evidenceImage?: Prisma.XOR<Prisma.EvidenceImageScalarRelationFilter, Prisma.EvidenceImageWhereInput>
   qualificationRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
   updateRequest?: Prisma.XOR<Prisma.QualificationUpdateRequestNullableScalarRelationFilter, Prisma.QualificationUpdateRequestWhereInput> | null
-}, "id" | "evidenceImageId" | "evidenceImageId_qualificationRecordId_updateRequestId">
+}, "id" | "evidenceImageId_qualificationRecordId_updateRequestId">
 
 export type QualificationEvidenceOrderByWithAggregationInput = {
   id?: Prisma.SortOrder

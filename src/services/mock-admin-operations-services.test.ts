@@ -132,6 +132,33 @@ describe("fourth-batch operation services", () => {
     ).toEqual([]);
   });
 
+  it("keeps qualification events on their expiry date while stages remain active across a range", async () => {
+    const services = createMockAdminOperationsServices(
+      createAdminStateStore(createInitialAdminState()),
+      clock,
+      createSequenceIdGenerator(),
+    );
+
+    const expiryDay = (
+      await services.calendar.listEvents({
+        from: "2026-08-14",
+        to: "2026-08-14",
+        q: "MOCK-1522",
+      })
+    ).data;
+    expect(expiryDay.filter((event) => event.type === "qualification_expiry")).toHaveLength(1);
+
+    const activeDay = (
+      await services.calendar.listEvents({
+        from: "2026-08-15",
+        to: "2026-08-15",
+        q: "MOCK-1522",
+      })
+    ).data;
+    expect(activeDay.filter((event) => event.type === "qualification_expiry")).toHaveLength(0);
+    expect(activeDay.filter((event) => event.type === "upgrade_stage")).toHaveLength(1);
+  });
+
   it("reschedules a stage once and synchronizes calendar and notification logs", async () => {
     const store = createAdminStateStore(createInitialAdminState());
     const services = createMockAdminOperationsServices(store, clock, createSequenceIdGenerator());
@@ -272,35 +299,63 @@ describe("fourth-batch operation services", () => {
     const config = store.getSnapshot().qualificationConfigs[0]!;
     const beforeQualification = structuredClone(store.getSnapshot().pilots[0]!.qualifications[0]);
     await expect(
-      services.qualificationConfigs.save(config.id, {
+      services.qualificationConfigs.save("PILOT", config.id, {
         ...config,
         name: "被改名的核心项目",
       }),
     ).rejects.toThrow("不可改名");
     await expect(
-      services.qualificationConfigs.save(config.id, {
+      services.qualificationConfigs.save("PILOT", config.id, {
         ...config,
         reminders: { firstDays: 20, secondDays: 30 },
       }),
     ).rejects.toThrow("首次提醒天数");
     await expect(
-      services.qualificationConfigs.save(config.id, {
+      services.qualificationConfigs.save("PILOT", config.id, {
         ...config,
         parameterRestriction: { enabled: true, description: "" },
       }),
     ).rejects.toThrow("请填写说明");
-    await services.qualificationConfigs.save(config.id, {
+    const saved = await services.qualificationConfigs.save("PILOT", config.id, {
       ...config,
       reminders: { firstDays: 90, secondDays: 45 },
+      expectedVersion: 1,
     });
+    expect(saved.data.version).toBe(2);
+    await expect(
+      services.qualificationConfigs.save("PILOT", config.id, {
+        ...config,
+        reminders: { firstDays: 100, secondDays: 50 },
+        expectedVersion: 1,
+      }),
+    ).rejects.toThrow("其他管理员修改");
     expect(store.getSnapshot().pilots[0]!.qualifications[0]).toEqual(beforeQualification);
     const supplemental = (
-      await services.qualificationConfigs.createSupplemental({
+      await services.qualificationConfigs.create({
         ...config,
+        positionCode: "PILOT",
+        kind: "supplemental",
         name: "高原机场补充训练",
       })
     ).data;
     expect(supplemental).toMatchObject({ core: false, name: "高原机场补充训练" });
+    await expect(
+      services.qualificationConfigs.save("PILOT", supplemental.id, {
+        ...supplemental,
+        name: config.name,
+      }),
+    ).rejects.toThrow("同名资质");
+    await expect(
+      services.qualificationConfigs.create({
+        ...config,
+        positionCode: "UNKNOWN_POSITION",
+        kind: "supplemental",
+        name: "无效职位资质",
+      }),
+    ).rejects.toThrow("职位不存在");
+    await expect(services.qualificationConfigs.list("UNKNOWN_POSITION")).rejects.toThrow(
+      "职位不存在",
+    );
     expect(store.getSnapshot().qualificationConfigs.filter((item) => item.core)).toHaveLength(6);
   });
 

@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
         code: position.code,
         name: position.name,
         description: position.description,
+        active: position.active,
+        sortOrder: position.sortOrder,
         memberCount: position.assignments.length,
         requiredQualificationCount: required.length,
         missingCount: missing,

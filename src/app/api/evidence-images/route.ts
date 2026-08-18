@@ -3,13 +3,19 @@ import { ApiError, assertSameOrigin, getRequestId, jsonData, jsonError } from "@
 import { assertCsrf, authenticatePilot } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
 import { deletePrivateEvidence, putPrivateEvidence, validateProcessedJpeg } from "@/server/storage";
+import { releaseUpload, reserveUpload } from "@/server/upload-quotas";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
+  let reservationId: string | null = null;
   try {
     assertSameOrigin(request);
     const pilot = await authenticatePilot(request);
     await assertCsrf(request, pilot.csrfToken);
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    if (contentLength > 10 * 1024 * 1024 + 64 * 1024) {
+      throw new ApiError("IMAGE_TOO_LARGE", "图片不能超过 10 MiB", 413);
+    }
     let form: FormData;
     try {
       form = await request.formData();
@@ -24,6 +30,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("INVALID_IMAGE", "只允许上传处理后的 JPEG 图片", 422);
     }
     const bytes = new Uint8Array(await value.arrayBuffer());
+    reservationId = await reserveUpload(getPrisma(), pilot.id, bytes.byteLength);
     const metadata = await validateProcessedJpeg(bytes);
     const storageBytes = metadata.storageBytes ?? bytes;
     const storageByteSize = metadata.storageByteSize ?? metadata.byteSize;
@@ -48,6 +55,7 @@ export async function POST(request: NextRequest) {
       await deletePrivateEvidence(objectKey).catch(() => undefined);
       throw error;
     }
+    if (reservationId) await releaseUpload(getPrisma(), reservationId);
     return jsonData(
       {
         id: image.id,
@@ -63,6 +71,7 @@ export async function POST(request: NextRequest) {
       201,
     );
   } catch (error) {
+    if (reservationId) await releaseUpload(getPrisma(), reservationId).catch(() => undefined);
     return jsonError(error, requestId);
   }
 }

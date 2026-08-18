@@ -1,5 +1,12 @@
 export type SettingsSectionId =
-  "organization" | "admins" | "notifications" | "ai" | "security" | "media" | "backups";
+  | "organization"
+  | "positions"
+  | "admins"
+  | "notifications"
+  | "ai"
+  | "security"
+  | "media"
+  | "backups";
 
 export type MediaOptimizationSetting = {
   id: "global";
@@ -68,6 +75,20 @@ export type SettingsUnit = {
   active: boolean;
   adminCount: number;
   pilotCount: number;
+  updatedAt: string;
+  version: number;
+};
+
+export type SettingsPosition = {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
+  sortOrder: number;
+  memberCount: number;
+  qualificationCount: number;
   updatedAt: string;
   version: number;
 };
@@ -165,6 +186,7 @@ export type SystemHealthItem = {
 
 export type AdminSettingsSnapshot = {
   units: SettingsUnit[];
+  positions: SettingsPosition[];
   admins: SettingsAdminAccount[];
   notificationChannels: NotificationChannelSetting[];
   notificationRoutes: NotificationRoute[];

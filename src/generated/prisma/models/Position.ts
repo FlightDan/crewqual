@@ -585,6 +585,11 @@ export type PositionSumOrderByAggregateInput = {
   version?: Prisma.SortOrder
 }
 
+export type PositionNullableScalarRelationFilter = {
+  is?: Prisma.PositionWhereInput | null
+  isNot?: Prisma.PositionWhereInput | null
+}
+
 export type PositionScalarRelationFilter = {
   is?: Prisma.PositionWhereInput
   isNot?: Prisma.PositionWhereInput
@@ -650,10 +655,12 @@ export type PositionCreateNestedOneWithoutAssignmentsInput = {
   connect?: Prisma.PositionWhereUniqueInput
 }
 
-export type PositionUpdateOneRequiredWithoutAssignmentsNestedInput = {
+export type PositionUpdateOneWithoutAssignmentsNestedInput = {
   create?: Prisma.XOR<Prisma.PositionCreateWithoutAssignmentsInput, Prisma.PositionUncheckedCreateWithoutAssignmentsInput>
   connectOrCreate?: Prisma.PositionCreateOrConnectWithoutAssignmentsInput
   upsert?: Prisma.PositionUpsertWithoutAssignmentsInput
+  disconnect?: Prisma.PositionWhereInput | boolean
+  delete?: Prisma.PositionWhereInput | boolean
   connect?: Prisma.PositionWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.PositionUpdateToOneWithWhereWithoutAssignmentsInput, Prisma.PositionUpdateWithoutAssignmentsInput>, Prisma.PositionUncheckedUpdateWithoutAssignmentsInput>
 }

@@ -5,7 +5,9 @@ import {
   ocrChecksSchema,
   parameterRestrictionSchema,
   validityRuleSchema,
+  reminderRuleSchema,
 } from "@/lib/qualification-rules";
+import { qualificationCustomFieldsSchema } from "@/lib/qualification-fields";
 
 const isoDate = z
   .string()
@@ -149,12 +151,10 @@ export const upgradePlanDraftSchema = z
 export const qualificationConfigInputBaseSchema = z.object({
   name: z.string().trim().min(2, "资质名称至少需要 2 个字符"),
   active: z.boolean(),
+  customFields: qualificationCustomFieldsSchema,
   parameterRestriction: parameterRestrictionSchema,
   validityRule: validityRuleSchema,
-  reminders: z.object({
-    firstDays: z.number().int().min(1).max(365),
-    secondDays: z.number().int().min(1).max(365),
-  }),
+  reminders: reminderRuleSchema,
   ocrChecks: ocrChecksSchema,
 });
 

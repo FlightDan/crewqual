@@ -10,10 +10,15 @@ export async function GET(request: NextRequest) {
   const startedAt = Date.now();
   try {
     const config = getServerConfig();
+    const probe = new URL(request.url).searchParams.get("probe");
+    if (probe === "liveness") {
+      return jsonData({ status: "ok", probe: "liveness" }, requestId);
+    }
     if (config.SERVICE_MODE === "mock") {
       const response = jsonData(
         {
           status: "ok",
+          probe: "readiness",
           mode: "mock",
           database: "not_used",
           storage: "not_used",
@@ -43,6 +48,7 @@ export async function GET(request: NextRequest) {
     const response = jsonData(
       {
         status,
+        probe: "readiness",
         mode: "remote",
         database: "ok",
         storage,

@@ -197,6 +197,11 @@ export type QualificationUpdateRequest = Prisma.QualificationUpdateRequestModel
  */
 export type VerificationResult = Prisma.VerificationResultModel
 /**
+ * Model QualificationCorrection
+ * 
+ */
+export type QualificationCorrection = Prisma.QualificationCorrectionModel
+/**
  * Model RecognitionTask
  * 
  */
@@ -241,6 +246,11 @@ export type AuditEvent = Prisma.AuditEventModel
  * 
  */
 export type RateLimitBucket = Prisma.RateLimitBucketModel
+/**
+ * Model UploadReservation
+ * 
+ */
+export type UploadReservation = Prisma.UploadReservationModel
 /**
  * Model SystemIntegrationSetting
  * 

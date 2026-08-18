@@ -288,6 +288,7 @@ export type AdminUserWhereInput = {
   organization?: Prisma.XOR<Prisma.OrganizationNullableScalarRelationFilter, Prisma.OrganizationWhereInput> | null
   roles?: Prisma.AdminUserRoleListRelationFilter
   sessions?: Prisma.AdminSessionListRelationFilter
+  notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
 }
 
 export type AdminUserOrderByWithRelationInput = {
@@ -308,6 +309,7 @@ export type AdminUserOrderByWithRelationInput = {
   organization?: Prisma.OrganizationOrderByWithRelationInput
   roles?: Prisma.AdminUserRoleOrderByRelationAggregateInput
   sessions?: Prisma.AdminSessionOrderByRelationAggregateInput
+  notificationDeliveries?: Prisma.NotificationDeliveryOrderByRelationAggregateInput
 }
 
 export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
@@ -331,6 +333,7 @@ export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
   organization?: Prisma.XOR<Prisma.OrganizationNullableScalarRelationFilter, Prisma.OrganizationWhereInput> | null
   roles?: Prisma.AdminUserRoleListRelationFilter
   sessions?: Prisma.AdminSessionListRelationFilter
+  notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
 }, "id" | "email">
 
 export type AdminUserOrderByWithAggregationInput = {
@@ -389,6 +392,7 @@ export type AdminUserCreateInput = {
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUncheckedCreateInput = {
@@ -407,6 +411,7 @@ export type AdminUserUncheckedCreateInput = {
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUpdateInput = {
@@ -425,6 +430,7 @@ export type AdminUserUpdateInput = {
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateInput = {
@@ -443,6 +449,7 @@ export type AdminUserUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserCreateManyInput = {
@@ -564,6 +571,11 @@ export type AdminUserScalarRelationFilter = {
   isNot?: Prisma.AdminUserWhereInput
 }
 
+export type AdminUserNullableScalarRelationFilter = {
+  is?: Prisma.AdminUserWhereInput | null
+  isNot?: Prisma.AdminUserWhereInput | null
+}
+
 export type AdminUserCreateNestedManyWithoutOrganizationInput = {
   create?: Prisma.XOR<Prisma.AdminUserCreateWithoutOrganizationInput, Prisma.AdminUserUncheckedCreateWithoutOrganizationInput> | Prisma.AdminUserCreateWithoutOrganizationInput[] | Prisma.AdminUserUncheckedCreateWithoutOrganizationInput[]
   connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutOrganizationInput | Prisma.AdminUserCreateOrConnectWithoutOrganizationInput[]
@@ -676,6 +688,22 @@ export type AdminUserUpdateOneRequiredWithoutSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutSessionsInput, Prisma.AdminUserUpdateWithoutSessionsInput>, Prisma.AdminUserUncheckedUpdateWithoutSessionsInput>
 }
 
+export type AdminUserCreateNestedOneWithoutNotificationDeliveriesInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedCreateWithoutNotificationDeliveriesInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutNotificationDeliveriesInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+}
+
+export type AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedCreateWithoutNotificationDeliveriesInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutNotificationDeliveriesInput
+  upsert?: Prisma.AdminUserUpsertWithoutNotificationDeliveriesInput
+  disconnect?: Prisma.AdminUserWhereInput | boolean
+  delete?: Prisma.AdminUserWhereInput | boolean
+  connect?: Prisma.AdminUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutNotificationDeliveriesInput, Prisma.AdminUserUpdateWithoutNotificationDeliveriesInput>, Prisma.AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput>
+}
+
 export type AdminUserCreateWithoutOrganizationInput = {
   id?: string
   email: string
@@ -691,6 +719,7 @@ export type AdminUserCreateWithoutOrganizationInput = {
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUncheckedCreateWithoutOrganizationInput = {
@@ -708,6 +737,7 @@ export type AdminUserUncheckedCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserCreateOrConnectWithoutOrganizationInput = {
@@ -770,6 +800,7 @@ export type AdminUserCreateWithoutUnitInput = {
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUncheckedCreateWithoutUnitInput = {
@@ -787,6 +818,7 @@ export type AdminUserUncheckedCreateWithoutUnitInput = {
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserCreateOrConnectWithoutUnitInput = {
@@ -830,6 +862,7 @@ export type AdminUserCreateWithoutRolesInput = {
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUncheckedCreateWithoutRolesInput = {
@@ -847,6 +880,7 @@ export type AdminUserUncheckedCreateWithoutRolesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserCreateOrConnectWithoutRolesInput = {
@@ -880,6 +914,7 @@ export type AdminUserUpdateWithoutRolesInput = {
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutRolesInput = {
@@ -897,6 +932,7 @@ export type AdminUserUncheckedUpdateWithoutRolesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserCreateWithoutSessionsInput = {
@@ -914,6 +950,7 @@ export type AdminUserCreateWithoutSessionsInput = {
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserUncheckedCreateWithoutSessionsInput = {
@@ -931,6 +968,7 @@ export type AdminUserUncheckedCreateWithoutSessionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
 }
 
 export type AdminUserCreateOrConnectWithoutSessionsInput = {
@@ -964,6 +1002,7 @@ export type AdminUserUpdateWithoutSessionsInput = {
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutSessionsInput = {
@@ -981,6 +1020,95 @@ export type AdminUserUncheckedUpdateWithoutSessionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+}
+
+export type AdminUserCreateWithoutNotificationDeliveriesInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
+  roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+}
+
+export type AdminUserUncheckedCreateWithoutNotificationDeliveriesInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  unitId?: string | null
+  organizationId?: string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type AdminUserCreateOrConnectWithoutNotificationDeliveriesInput = {
+  where: Prisma.AdminUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedCreateWithoutNotificationDeliveriesInput>
+}
+
+export type AdminUserUpsertWithoutNotificationDeliveriesInput = {
+  update: Prisma.XOR<Prisma.AdminUserUpdateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput>
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedCreateWithoutNotificationDeliveriesInput>
+  where?: Prisma.AdminUserWhereInput
+}
+
+export type AdminUserUpdateToOneWithWhereWithoutNotificationDeliveriesInput = {
+  where?: Prisma.AdminUserWhereInput
+  data: Prisma.XOR<Prisma.AdminUserUpdateWithoutNotificationDeliveriesInput, Prisma.AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput>
+}
+
+export type AdminUserUpdateWithoutNotificationDeliveriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
+  organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
+  roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+}
+
+export type AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type AdminUserCreateManyOrganizationInput = {
@@ -1013,6 +1141,7 @@ export type AdminUserUpdateWithoutOrganizationInput = {
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutOrganizationInput = {
@@ -1030,6 +1159,7 @@ export type AdminUserUncheckedUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateManyWithoutOrganizationInput = {
@@ -1077,6 +1207,7 @@ export type AdminUserUpdateWithoutUnitInput = {
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutUnitInput = {
@@ -1094,6 +1225,7 @@ export type AdminUserUncheckedUpdateWithoutUnitInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserUncheckedUpdateManyWithoutUnitInput = {
@@ -1119,11 +1251,13 @@ export type AdminUserUncheckedUpdateManyWithoutUnitInput = {
 export type AdminUserCountOutputType = {
   roles: number
   sessions: number
+  notificationDeliveries: number
 }
 
 export type AdminUserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   roles?: boolean | AdminUserCountOutputTypeCountRolesArgs
   sessions?: boolean | AdminUserCountOutputTypeCountSessionsArgs
+  notificationDeliveries?: boolean | AdminUserCountOutputTypeCountNotificationDeliveriesArgs
 }
 
 /**
@@ -1150,6 +1284,13 @@ export type AdminUserCountOutputTypeCountSessionsArgs<ExtArgs extends runtime.Ty
   where?: Prisma.AdminSessionWhereInput
 }
 
+/**
+ * AdminUserCountOutputType without action
+ */
+export type AdminUserCountOutputTypeCountNotificationDeliveriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.NotificationDeliveryWhereInput
+}
+
 
 export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1169,6 +1310,7 @@ export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   organization?: boolean | Prisma.AdminUser$organizationArgs<ExtArgs>
   roles?: boolean | Prisma.AdminUser$rolesArgs<ExtArgs>
   sessions?: boolean | Prisma.AdminUser$sessionsArgs<ExtArgs>
+  notificationDeliveries?: boolean | Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>
   _count?: boolean | Prisma.AdminUserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["adminUser"]>
 
@@ -1230,6 +1372,7 @@ export type AdminUserInclude<ExtArgs extends runtime.Types.Extensions.InternalAr
   organization?: boolean | Prisma.AdminUser$organizationArgs<ExtArgs>
   roles?: boolean | Prisma.AdminUser$rolesArgs<ExtArgs>
   sessions?: boolean | Prisma.AdminUser$sessionsArgs<ExtArgs>
+  notificationDeliveries?: boolean | Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>
   _count?: boolean | Prisma.AdminUserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AdminUserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1248,6 +1391,7 @@ export type $AdminUserPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     organization: Prisma.$OrganizationPayload<ExtArgs> | null
     roles: Prisma.$AdminUserRolePayload<ExtArgs>[]
     sessions: Prisma.$AdminSessionPayload<ExtArgs>[]
+    notificationDeliveries: Prisma.$NotificationDeliveryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1661,6 +1805,7 @@ export interface Prisma__AdminUserClient<T, Null = never, ExtArgs extends runtim
   organization<T extends Prisma.AdminUser$organizationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$organizationArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   roles<T extends Prisma.AdminUser$rolesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$rolesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminUserRolePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sessions<T extends Prisma.AdminUser$sessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  notificationDeliveries<T extends Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationDeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2187,6 +2332,30 @@ export type AdminUser$sessionsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.AdminSessionScalarFieldEnum | Prisma.AdminSessionScalarFieldEnum[]
+}
+
+/**
+ * AdminUser.notificationDeliveries
+ */
+export type AdminUser$notificationDeliveriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the NotificationDelivery
+   */
+  select?: Prisma.NotificationDeliverySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the NotificationDelivery
+   */
+  omit?: Prisma.NotificationDeliveryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.NotificationDeliveryInclude<ExtArgs> | null
+  where?: Prisma.NotificationDeliveryWhereInput
+  orderBy?: Prisma.NotificationDeliveryOrderByWithRelationInput | Prisma.NotificationDeliveryOrderByWithRelationInput[]
+  cursor?: Prisma.NotificationDeliveryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.NotificationDeliveryScalarFieldEnum | Prisma.NotificationDeliveryScalarFieldEnum[]
 }
 
 /**

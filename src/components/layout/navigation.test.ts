@@ -18,6 +18,7 @@ describe("admin route navigation", () => {
 
   it("provides correct desktop/mobile titles and only real routes are links", () => {
     expect(getAdminRouteTitle("/admin/dashboard")).toBe("系统总览 Dashboard");
+    expect(getAdminRouteTitle("/admin/calendar")).toBe("统一日历");
     expect(getAdminRouteTitle("/admin/members/member-demo-01")).toBe("成员详情档案");
     expect(getAdminRouteTitle("/admin/reviews/REV-1001")).toBe("资质审核工作台");
     expect(mobileBottomItems.map((item) => item.label)).toEqual([

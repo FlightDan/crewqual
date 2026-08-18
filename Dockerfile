@@ -1,8 +1,20 @@
 FROM node:22.12-bookworm-slim AS base
+ARG VCS_REF=unknown
+ARG VERSION=unknown
+ARG SOURCE_URL=https://example.invalid/crewqual
+LABEL org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.source="$SOURCE_URL"
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates openssl postgresql-client rclone \
+  && apt-get install -y --no-install-recommends ca-certificates openssl wget gnupg rclone \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-16 \
   && rm -rf /var/lib/apt/lists/* \
-  && npm install --global pnpm@10.15.0
+  && npm install --global pnpm@10.15.0 \
+  && pg_dump --version | grep -E ' 16\\.'
 WORKDIR /app
 
 FROM base AS deps
@@ -33,6 +45,13 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts/bootstrap-production.ts ./scripts/bootstrap-production.ts
 COPY --from=builder /app/scripts/migrate-member-architecture.ts ./scripts/migrate-member-architecture.ts
 CMD ["pnpm", "db:bootstrap"]
+
+FROM migration AS ops-runner
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/tsconfig.scripts.json ./tsconfig.scripts.json
+CMD ["node", "--import", "tsx", "scripts/release/verify.ts", "db-check"]
 
 FROM base AS worker-runner
 ENV NODE_ENV=production

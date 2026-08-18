@@ -1,0 +1,53 @@
+name: verify
+
+on:
+  push:
+    tags: ["v0.1.0-rc.*", "v0.1.0"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout immutable revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+      - name: Format
+        run: corepack pnpm format
+      - name: Lint
+        run: corepack pnpm lint
+      - name: Application typecheck
+        run: corepack pnpm typecheck
+      - name: Script and Prisma typecheck
+        run: corepack pnpm typecheck:scripts
+      - name: Unit tests
+        run: corepack pnpm test
+      - name: Production build
+        run: corepack pnpm build
+
+  browser:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm build
+      - run: corepack pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: PLAYWRIGHT_PRODUCTION=1 corepack pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=3

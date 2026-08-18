@@ -1,6 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { CORE_QUALIFICATION_CATALOG } from "../src/types/services";
 import { PILOT_TEMPLATE_PACK, templatePackChecksum } from "../src/server/template-packs";
 
@@ -72,7 +72,7 @@ async function ensureTemplatePack() {
 }
 
 async function installPilotPack(
-  tx: PrismaClient,
+  tx: Prisma.TransactionClient,
   organizationId: string,
   packId: string,
   summary: MigrationSummary,
@@ -269,10 +269,10 @@ async function migrate() {
               requiresHumanReview: true,
               allowAutoApproval: false,
               fieldSchema: { fields: [] },
-              validityRule: type.validityRule,
-              reminders: type.reminders,
-              ocrChecks: type.ocrChecks,
-              parameterRestriction: type.parameterRestriction,
+              validityRule: type.validityRule as never,
+              reminders: type.reminders as never,
+              ocrChecks: type.ocrChecks as never,
+              parameterRestriction: type.parameterRestriction as never,
               sortOrder: type.core ? 0 : 100,
               legacyQualificationTypeId: type.id,
             },

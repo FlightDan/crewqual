@@ -20,6 +20,10 @@ function totp(secret: string) {
   return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, "0");
 }
 
+const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.com";
+const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "change-me";
+const adminTotpSecret = process.env.E2E_ADMIN_TOTP_SECRET ?? "JBSWY3DPEHPK3PXP";
+
 const e2eRequestAddress = `crewqual-e2e-${randomUUID()}`;
 const e2ePilotEmployeeNumber = process.env.E2E_PILOT_EMPLOYEE_NUMBER ?? "CQ-1049";
 const e2eCredentialNumber =
@@ -50,13 +54,13 @@ async function loginPilot(page: Page) {
 async function loginAdmin(page: Page) {
   const response = await page.request.post("/api/admin/login", {
     headers: {
-      origin: "http://127.0.0.1:3000",
+      origin: process.env.RELEASE_BASE_URL ?? "http://127.0.0.1:3000",
       "x-forwarded-for": e2eRequestAddress,
     },
     data: {
-      email: "admin@example.com",
-      password: "change-me",
-      totpCode: totp("JBSWY3DPEHPK3PXP"),
+      email: adminEmail,
+      password: adminPassword,
+      totpCode: totp(adminTotpSecret),
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -148,7 +152,9 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       const parsed = new URL(url);
       return `${parsed.pathname}${parsed.search}`;
     });
-    expect(initialPaths.some((path) => path === "/api/admin/qualification-configs")).toBe(true);
+    expect(
+      initialPaths.some((path) => path === "/api/admin/qualification-configs?positionCode=PILOT"),
+    ).toBe(true);
     expect(
       initialPaths.some(
         (path) =>

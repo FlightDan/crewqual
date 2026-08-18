@@ -601,7 +601,9 @@ export async function approveReview(
         replacement = await tx.qualificationRecord.create({
           data: {
             pilotId: request.pilotId,
+            personId: request.personId,
             qualificationTypeId: request.qualificationTypeId,
+            qualificationDefinitionId: request.qualificationDefinitionId,
             credentialNumber: request.credentialNumber,
             issueDate: request.issueDate,
             trainingDate: request.trainingDate,
@@ -611,6 +613,13 @@ export async function approveReview(
             issuingAuthority: request.issuingAuthority,
             levelOrParameter: request.levelOrParameter,
             qualificationRuleSnapshot: snapshot,
+            lineageId: current?.lineageId,
+            revisionNumber: current ? current.revisionNumber + 1 : 1,
+            supersedesRecordId: current?.id,
+            action: "CONFIRM",
+            actorId: admin.id,
+            requestId: input.requestId,
+            activatedAt: new Date(),
             lastVerifiedAt: new Date(),
             version: request.expectedVersion + 1,
           },
@@ -789,30 +798,44 @@ export async function correctReview(
     (field) => current[field] !== next[field],
   );
   if (changedFields.length === 0) return getAdminReview(admin, id);
-  const updated = await db.qualificationUpdateRequest.updateMany({
-    where: { id, status: "PENDING", version: request.version },
-    data: {
-      credentialNumber: next.credentialNumber,
-      issueDate: new Date(`${next.issueDate}T00:00:00.000Z`),
-      trainingDate: next.trainingDate ? new Date(`${next.trainingDate}T00:00:00.000Z`) : null,
-      expiryDate: next.expiryDate ? new Date(`${next.expiryDate}T00:00:00.000Z`) : null,
-      issuingAuthority: next.issuingAuthority,
-      levelOrParameter: next.levelOrParameter,
-      version: { increment: 1 },
-    },
-  });
-  if (updated.count !== 1) throw new ApiError("VERSION_CONFLICT", "该申请已经处理", 409);
-  await db.auditEvent.create({
-    data: {
-      actorType: "admin",
-      actorId: admin.id,
-      pilotId: request.pilotId,
-      action: "qualification.corrected",
-      entityType: "QualificationUpdateRequest",
-      entityId: id,
-      detail: { changedFields },
-      requestId,
-    },
+  await db.$transaction(async (tx: any) => {
+    const updated = await tx.qualificationUpdateRequest.updateMany({
+      where: { id, status: "PENDING", version: request.version },
+      data: {
+        credentialNumber: next.credentialNumber,
+        issueDate: new Date(`${next.issueDate}T00:00:00.000Z`),
+        trainingDate: next.trainingDate ? new Date(`${next.trainingDate}T00:00:00.000Z`) : null,
+        expiryDate: next.expiryDate ? new Date(`${next.expiryDate}T00:00:00.000Z`) : null,
+        issuingAuthority: next.issuingAuthority,
+        levelOrParameter: next.levelOrParameter,
+        submittedFields: next,
+        version: { increment: 1 },
+      },
+    });
+    if (updated.count !== 1) throw new ApiError("VERSION_CONFLICT", "该申请已经处理", 409);
+    await tx.qualificationCorrection.create({
+      data: {
+        updateRequestId: id,
+        actorId: admin.id,
+        reason: "review_correction",
+        before: current,
+        after: next,
+        requestId,
+      },
+    });
+    await tx.auditEvent.create({
+      data: {
+        actorType: "admin",
+        actorId: admin.id,
+        pilotId: request.pilotId,
+        personId: request.personId,
+        action: "qualification.corrected",
+        entityType: "QualificationUpdateRequest",
+        entityId: id,
+        detail: { before: current, after: next, changedFields, reason: "review_correction" },
+        requestId,
+      },
+    });
   });
   return getAdminReview(admin, id);
 }

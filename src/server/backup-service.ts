@@ -81,6 +81,27 @@ export async function listBackupSettings(admin: AuthenticatedAdmin) {
 
 export async function createBackupTarget(admin: AuthenticatedAdmin, input: any) {
   requireBackupAdmin(admin);
+  if (input.type === "LOCAL" && process.env.NODE_ENV === "production") {
+    throw new ApiError("LOCAL_BACKUP_DISABLED", "生产正式备份必须使用远端 S3 目标", 422);
+  }
+  if (input.type === "LOCAL" && !input.endpoint.startsWith("/backups")) {
+    throw new ApiError(
+      "INVALID_LOCAL_BACKUP_PATH",
+      "本地备份只能写入 Worker 的 /backups staging 卷",
+      422,
+    );
+  }
+  if (input.type === "S3") {
+    let endpoint: URL;
+    try {
+      endpoint = new URL(input.endpoint);
+    } catch {
+      throw new ApiError("INVALID_BACKUP_ENDPOINT", "S3 目标地址无效", 422);
+    }
+    if (endpoint.protocol !== "https:" && process.env.NODE_ENV === "production") {
+      throw new ApiError("INSECURE_BACKUP_ENDPOINT", "生产 S3 目标必须使用 HTTPS", 422);
+    }
+  }
   const secret = typeof input.secret === "string" ? input.secret : "";
   const target = await getPrisma().backupTarget.create({
     data: {
@@ -97,6 +118,16 @@ export async function createBackupTarget(admin: AuthenticatedAdmin, input: any) 
 
 export async function saveBackupTarget(admin: AuthenticatedAdmin, input: any) {
   requireBackupAdmin(admin);
+  if (input.type === "LOCAL" && process.env.NODE_ENV === "production") {
+    throw new ApiError("LOCAL_BACKUP_DISABLED", "生产正式备份必须使用远端 S3 目标", 422);
+  }
+  if (input.type === "LOCAL" && !String(input.endpoint).startsWith("/backups")) {
+    throw new ApiError(
+      "INVALID_LOCAL_BACKUP_PATH",
+      "本地备份只能写入 Worker 的 /backups staging 卷",
+      422,
+    );
+  }
   const current = await getPrisma().backupTarget.findUnique({ where: { id: input.id } });
   if (!current) throw new ApiError("BACKUP_TARGET_NOT_FOUND", "备份目标不存在", 404);
   const updated = await getPrisma().backupTarget.updateMany({

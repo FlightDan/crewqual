@@ -12,6 +12,37 @@ function captureRuntimeErrors(page: Page) {
 }
 
 test.describe("admin review workflow", () => {
+  test("dashboard prioritizes overview and reveals actionable metric details", async ({ page }) => {
+    await page.goto("/admin/dashboard");
+
+    const desktopNavigation = page.getByRole("navigation", { name: "管理员主导航" });
+    await expect(desktopNavigation.getByRole("link").first()).toHaveText("总览");
+
+    const metrics = [
+      ["已过期资质", /查看成员档案/],
+      ["7 日内到期", /查看成员档案/],
+      ["30 日内到期", /查看成员档案/],
+      ["待审核更新", /进入人工审核/],
+      ["本周升级节点", /查看升级计划/],
+      ["已延期节点", /查看升级计划/],
+    ] as const;
+
+    for (const [label, actionName] of metrics) {
+      const card = page.getByTestId(`dashboard-stat-${label}`);
+      const count = Number.parseInt(await card.locator("p").nth(1).innerText(), 10);
+      await card.click();
+      const details = page.getByRole("dialog", { name: `${label}明细` });
+      await expect(details).toBeVisible();
+      if (count > 0) {
+        await expect(details.getByRole("link", { name: actionName })).toHaveCount(count);
+      } else {
+        await expect(details.getByText("当前没有需要处理的事项")).toBeVisible();
+      }
+      await details.getByRole("button", { name: "关闭待处理事项明细" }).click();
+      await expect(details).toBeHidden();
+    }
+  });
+
   test("dashboard review approval updates the shared queue and summary", async ({ page }) => {
     await page.goto("/admin/dashboard");
     await expect(page.getByTestId("dashboard-stat-待审核更新").locator("p").nth(1)).toContainText(
@@ -91,7 +122,7 @@ test.describe("admin review workflow", () => {
       "机组年度复训合格证",
       "危险品运输培训合格证",
       "ICAO英语语言能力等级签注",
-      "汉语语言能力评估",
+      "ICAO汉语语言能力等级签注",
       "模拟机复训（每6个月）",
     ]) {
       await expect(desktopDetail.getByText(name, { exact: false }).first()).toBeVisible();

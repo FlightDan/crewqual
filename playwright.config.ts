@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const productionServer = process.env.PLAYWRIGHT_PRODUCTION === "1";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -11,12 +13,13 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command:
-      "NODE_ENV=development SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 corepack pnpm exec next dev --hostname 127.0.0.1 --port 3000",
+    command: productionServer
+      ? "NODE_ENV=production SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 corepack pnpm exec next start --hostname 127.0.0.1 --port 3000"
+      : "NODE_ENV=development SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 corepack pnpm exec next dev --hostname 127.0.0.1 --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: false,
     env: {
-      NODE_ENV: "development",
+      NODE_ENV: productionServer ? "production" : "development",
       SERVICE_MODE: "mock",
       NEXT_PUBLIC_SERVICE_MODE: "mock",
       CREWQUAL_TEST_NO_EXTERNAL: "1",

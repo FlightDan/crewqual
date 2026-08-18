@@ -41,6 +41,9 @@ export async function putPrivateObjectAtKey(
       Body: bytes,
       ContentType: contentType,
       Metadata: { sha256 },
+      ...(config.S3_SSE_KMS_KEY_ID
+        ? { ServerSideEncryption: "aws:kms" as const, SSEKMSKeyId: config.S3_SSE_KMS_KEY_ID }
+        : {}),
       CacheControl: "private, max-age=0, no-store",
     }),
   );
@@ -144,6 +147,9 @@ export async function putPrivateObject(
       Body: bytes,
       ContentType: contentType,
       Metadata: { sha256 },
+      ...(config.S3_SSE_KMS_KEY_ID
+        ? { ServerSideEncryption: "aws:kms" as const, SSEKMSKeyId: config.S3_SSE_KMS_KEY_ID }
+        : {}),
       CacheControl: "private, max-age=0, no-store",
     }),
   );

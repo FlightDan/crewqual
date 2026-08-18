@@ -43,6 +43,28 @@ export async function POST(request: NextRequest) {
       where: { code: input.qualificationId, active: true },
     });
     if (!qualificationType) throw new ApiError("NOT_FOUND", "资质项目不存在", 404);
+    let canonical: { personId: string; qualificationDefinitionId: string } | null = null;
+    if (
+      typeof db.pilot?.findUnique === "function" &&
+      typeof db.qualificationDefinition?.findFirst === "function"
+    ) {
+      const profile = await db.pilot.findUnique({
+        where: { id: pilot.id },
+        select: { personId: true, person: { select: { organizationId: true } } },
+      });
+      if (profile?.personId && profile.person?.organizationId) {
+        const definition = await db.qualificationDefinition.findFirst({
+          where: {
+            organizationId: profile.person.organizationId,
+            legacyQualificationTypeId: qualificationType.id,
+            active: true,
+          },
+          select: { id: true },
+        });
+        if (definition)
+          canonical = { personId: profile.personId, qualificationDefinitionId: definition.id };
+      }
+    }
     const validation = validateQualificationRuleFields(
       {
         issueDate: input.issueDate,
@@ -98,7 +120,9 @@ export async function POST(request: NextRequest) {
       const created = await tx.qualificationUpdateRequest.create({
         data: {
           pilotId: pilot.id,
+          personId: canonical?.personId,
           qualificationTypeId: qualificationType.id,
+          qualificationDefinitionId: canonical?.qualificationDefinitionId,
           credentialNumber: input.credentialNumber,
           issueDate: new Date(`${input.issueDate}T00:00:00.000Z`),
           trainingDate: input.trainingDate ? new Date(`${input.trainingDate}T00:00:00.000Z`) : null,

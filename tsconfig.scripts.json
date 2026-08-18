@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": ["scripts/**/*.ts", "prisma/**/*.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", ".next", "e2e"]
+}

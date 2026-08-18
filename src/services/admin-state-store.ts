@@ -4,9 +4,9 @@ import { mockStorageKey } from "@/services/temp-storage";
 export const adminStorageKey = "admin-state";
 export const legacyAdminStorageKey = "admin-state:v3";
 
-type AdminStatePayload = { version: 5; data: AdminMockState };
+type AdminStatePayload = { version: 6; data: AdminMockState };
 
-function isAdminStateV4(value: unknown): value is AdminMockState {
+function isAdminState(value: unknown, requirePositionScope: boolean): value is AdminMockState {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<AdminMockState>;
   return (
@@ -46,6 +46,8 @@ function isAdminStateV4(value: unknown): value is AdminMockState {
         Boolean(config) &&
         typeof config.id === "string" &&
         typeof config.name === "string" &&
+        (!requirePositionScope ||
+          (typeof config.positionCode === "string" && typeof config.locked === "boolean")) &&
         Boolean(config.validityRule),
     ) &&
     Array.isArray(candidate.notificationLogs) &&
@@ -59,9 +61,28 @@ function readPayload(raw: string | null): AdminMockState | null {
   if (!raw) return null;
   const parsed: unknown = JSON.parse(raw);
   if (!parsed || typeof parsed !== "object") return null;
-  const payload = parsed as Partial<AdminStatePayload> & { version?: number };
-  if (payload.version !== 5 || !isAdminStateV4(payload.data)) return null;
-  return payload.data;
+  const payload = parsed as { version?: number; data?: unknown };
+  if (payload.version === 6 && isAdminState(payload.data, true)) {
+    return {
+      ...payload.data,
+      qualificationConfigs: payload.data.qualificationConfigs.map((config) => ({
+        ...config,
+        customFields: config.customFields ?? [],
+      })),
+    };
+  }
+  if (payload.version === 5 && isAdminState(payload.data, false)) {
+    return {
+      ...payload.data,
+      qualificationConfigs: payload.data.qualificationConfigs.map((config) => ({
+        ...config,
+        positionCode: config.positionCode ?? "PILOT",
+        locked: config.locked ?? config.core,
+        customFields: config.customFields ?? [],
+      })),
+    };
+  }
+  return null;
 }
 
 export interface AdminStateStore {
@@ -105,7 +126,7 @@ export function createAdminStateStore(initialState = createInitialAdminState()):
   const persist = () => {
     if (typeof window === "undefined") return;
     try {
-      const payload: AdminStatePayload = { version: 5, data: state };
+      const payload: AdminStatePayload = { version: 6, data: state };
       window.sessionStorage.setItem(mockStorageKey(adminStorageKey), JSON.stringify(payload));
     } catch {
       // Mutation still succeeds in memory when session storage is unavailable.

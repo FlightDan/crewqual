@@ -382,6 +382,13 @@ export type EnumQualificationRecordStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel> | $Enums.QualificationRecordStatus
 }
 
+export type EnumQualificationRecordActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.QualificationRecordAction | Prisma.EnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  in?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel> | $Enums.QualificationRecordAction
+}
+
 export type EnumQualificationRecordStatusWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.QualificationRecordStatus | Prisma.EnumQualificationRecordStatusFieldRefInput<$PrismaModel>
   in?: $Enums.QualificationRecordStatus[] | Prisma.ListEnumQualificationRecordStatusFieldRefInput<$PrismaModel>
@@ -390,6 +397,16 @@ export type EnumQualificationRecordStatusWithAggregatesFilter<$PrismaModel = nev
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel>
+}
+
+export type EnumQualificationRecordActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.QualificationRecordAction | Prisma.EnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  in?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumQualificationRecordActionWithAggregatesFilter<$PrismaModel> | $Enums.QualificationRecordAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel>
 }
 
 export type EnumImageOptimizationTaskStatusFilter<$PrismaModel = never> = {
@@ -742,6 +759,23 @@ export type EnumNotificationStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumNotificationStatusFilter<$PrismaModel>
 }
 
+export type EnumUploadReservationStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.UploadReservationStatus | Prisma.EnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel> | $Enums.UploadReservationStatus
+}
+
+export type EnumUploadReservationStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.UploadReservationStatus | Prisma.EnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUploadReservationStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadReservationStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
+}
+
 export type NestedUuidFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -1092,6 +1126,13 @@ export type NestedEnumQualificationRecordStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel> | $Enums.QualificationRecordStatus
 }
 
+export type NestedEnumQualificationRecordActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.QualificationRecordAction | Prisma.EnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  in?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel> | $Enums.QualificationRecordAction
+}
+
 export type NestedEnumQualificationRecordStatusWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.QualificationRecordStatus | Prisma.EnumQualificationRecordStatusFieldRefInput<$PrismaModel>
   in?: $Enums.QualificationRecordStatus[] | Prisma.ListEnumQualificationRecordStatusFieldRefInput<$PrismaModel>
@@ -1100,6 +1141,16 @@ export type NestedEnumQualificationRecordStatusWithAggregatesFilter<$PrismaModel
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumQualificationRecordStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumQualificationRecordActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.QualificationRecordAction | Prisma.EnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  in?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.QualificationRecordAction[] | Prisma.ListEnumQualificationRecordActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumQualificationRecordActionWithAggregatesFilter<$PrismaModel> | $Enums.QualificationRecordAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumQualificationRecordActionFilter<$PrismaModel>
 }
 
 export type NestedEnumImageOptimizationTaskStatusFilter<$PrismaModel = never> = {
@@ -1423,6 +1474,23 @@ export type NestedEnumNotificationStatusWithAggregatesFilter<$PrismaModel = neve
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumNotificationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumNotificationStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumUploadReservationStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.UploadReservationStatus | Prisma.EnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel> | $Enums.UploadReservationStatus
+}
+
+export type NestedEnumUploadReservationStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.UploadReservationStatus | Prisma.EnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.UploadReservationStatus[] | Prisma.ListEnumUploadReservationStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumUploadReservationStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadReservationStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
 }
 
 

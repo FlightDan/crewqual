@@ -28,6 +28,14 @@ export const reminderRuleSchema = z
   .object({
     firstDays: z.number().int().min(1).max(365),
     secondDays: z.number().int().min(1).max(365),
+    dueRecipients: z
+      .array(z.enum(["PERSON", "ADMIN", "SUPER_ADMIN"]))
+      .max(3)
+      .default(["PERSON"]),
+    expiredRecipients: z
+      .array(z.enum(["PERSON", "ADMIN", "SUPER_ADMIN"]))
+      .max(3)
+      .default(["PERSON"]),
   })
   .refine((value) => value.firstDays > value.secondDays, {
     message: "首次提醒天数必须大于再次提醒天数",
@@ -152,7 +160,12 @@ export function parseValidityRule(value: unknown): QualificationValidityRule {
 export function parseReminderRule(value: unknown): QualificationReminderRule {
   const parsed = reminderRuleSchema.safeParse(value);
   if (!parsed.success) {
-    return { firstDays: 90, secondDays: 30 };
+    return {
+      firstDays: 90,
+      secondDays: 30,
+      dueRecipients: ["PERSON"],
+      expiredRecipients: ["PERSON"],
+    };
   }
   return parsed.data;
 }
@@ -270,7 +283,11 @@ export function reminderWindow(
     return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
   };
   const daysRemaining = Math.round((dateParts(expiryDate) - dateParts(now)) / 86_400_000);
-  if (daysRemaining < 0) return { daysRemaining, kind: "expired" as const };
+  // The expiry date is valid for the entire local calendar day.  Expired
+  // escalation starts on the following calendar boundary for eligibility,
+  // while reminder routing treats the configured "expired" window as a
+  // same-day operational alert when daysRemaining is zero.
+  if (daysRemaining <= 0) return { daysRemaining, kind: "expired" as const };
   if (daysRemaining <= configured.secondDays) return { daysRemaining, kind: "second" as const };
   if (daysRemaining <= configured.firstDays) return { daysRemaining, kind: "first" as const };
   return null;

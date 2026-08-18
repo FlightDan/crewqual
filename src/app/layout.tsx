@@ -14,7 +14,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     ? {}
     : { "data-mock-instance-id": getMockInstanceId() };
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <body {...mockAttributes}>
         <ApplicationServicesProvider>{children}</ApplicationServicesProvider>
       </body>

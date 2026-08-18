@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { QualificationConfigView } from "@/components/admin/qualification-config-view";
+import { redirect } from "next/navigation";
 
 export default function QualificationConfigPage() {
-  return (
-    <Suspense>
-      <QualificationConfigView />
-    </Suspense>
-  );
+  redirect("/admin/members/positions/PILOT/qualifications");
 }

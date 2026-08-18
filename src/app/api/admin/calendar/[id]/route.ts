@@ -25,7 +25,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
               unit: true,
               person: {
                 include: {
-                  positionAssignments: { where: { status: "ACTIVE" }, include: { position: true } },
+                  positionAssignments: {
+                    include: { position: true },
+                    orderBy: { status: "asc" },
+                  },
                 },
               },
             },
@@ -46,8 +49,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
           pilotName: record.pilot.displayName,
           employeeNumber: record.pilot.employeeNumber,
           unit: record.pilot.unit.name,
-          positionCode: record.pilot.person?.positionAssignments[0]?.position.code,
-          positionName: record.pilot.person?.positionAssignments[0]?.position.name,
+          positionCode:
+            record.pilot.person?.positionAssignments[0]?.position?.code ??
+            record.pilot.person?.positionAssignments[0]?.positionCodeSnapshot ??
+            undefined,
+          positionName:
+            record.pilot.person?.positionAssignments[0]?.position?.name ??
+            record.pilot.person?.positionAssignments[0]?.positionNameSnapshot ??
+            undefined,
           qualificationId: record.qualificationType.code,
           qualificationName: record.qualificationType.name,
           qualificationValidityRule: record.qualificationType.validityRule,

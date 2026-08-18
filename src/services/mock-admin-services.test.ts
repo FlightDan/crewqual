@@ -21,6 +21,12 @@ describe("admin Mock service state", () => {
       pendingReviewCount: 4,
       delayedUpgradeCount: 3,
     });
+    expect(summary.qualificationAlerts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ daysRemaining: expect.any(Number) })]),
+    );
+    expect(summary.weeklyUpgrades.every((item) => Boolean(item.planId))).toBe(true);
+    expect(summary.delayedUpgrades).toHaveLength(summary.delayedUpgradeCount);
+    expect(summary.delayedUpgrades.every((item) => Boolean(item.planId))).toBe(true);
     expect(summary.pendingReviews.every((review) => review.humanStatus === "pending")).toBe(true);
     expect((await services.reviews.getById("REV-1001")).data?.humanStatus).toBe("pending");
   });
@@ -230,7 +236,7 @@ describe("admin Mock service state", () => {
       "机组年度复训合格证",
       "危险品运输培训合格证",
       "ICAO英语语言能力等级签注",
-      "汉语语言能力评估",
+      "ICAO汉语语言能力等级签注",
       "模拟机复训（每6个月）",
     ]);
     expect(pilot.upgradePlan?.stages.map((stage) => stage.name)).toEqual(UPGRADE_STAGE_NAMES);

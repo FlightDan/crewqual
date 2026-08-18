@@ -47,13 +47,13 @@ export function RemoteAdminStateProvider({ children }: { children: React.ReactNo
       (!adminSession.isSuperAdmin && !adminSession.session?.unit)
     )
       return;
-    if (pathname === "/admin/qualification-config") return;
+    if (pathname === "/admin/qualification-config" || pathname?.endsWith("/qualifications")) return;
     let active = true;
     void Promise.allSettled([
       services.pilotDirectory.list({ page: 1, pageSize: 100 }),
       services.reviews.list({ page: 1, pageSize: 100 }),
       services.upgradePlans.list({ page: 1, pageSize: 100 }),
-      services.qualificationConfigs.list(),
+      services.qualificationConfigs.list("PILOT"),
       services.notifications.list({ page: 1, pageSize: 100 }),
     ])
       .then(([pilotsResult, reviewsResult, plansResult, configsResult, notificationsResult]) => {

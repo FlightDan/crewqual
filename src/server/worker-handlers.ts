@@ -1,6 +1,12 @@
 import type { FeishuAdapter, SmsAdapter } from "@/server/providers";
 import { reminderWindow as calculateReminderWindow } from "@/lib/qualification-rules";
-import { emitDeliveryFailureAlert, emitPilotNotification } from "@/server/notifications";
+import {
+  emitDeliveryFailureAlert,
+  emitPilotNotification,
+  emitQualificationReminder,
+} from "@/server/notifications";
+import { parseReminderRule } from "@/lib/qualification-rules";
+import { dateOnlyForTimezone } from "@/lib/date-only";
 import { decryptSettingSecret } from "@/server/crypto";
 import { getServerConfig } from "@/server/config";
 import { persistVerificationForEvidence } from "@/server/qualification-verification";
@@ -138,6 +144,7 @@ export async function processNotificationJob(
   const delivery = { ...candidate, status: "SENDING", attemptCount: attemptNumber };
 
   let accepted = delivery.channel === "IN_APP";
+  let providerMessageId: string | null = null;
   let detail = "in-app delivery";
   let errorCategory: string | null = null;
   try {
@@ -163,6 +170,7 @@ export async function processNotificationJob(
         idempotencyKey,
       });
       accepted = result.accepted;
+      providerMessageId = result.providerId ?? null;
       detail = result.providerId ? `provider=${result.providerId}` : "sms adapter response";
     } else if (delivery.channel === "FEISHU") {
       const result = await adapters.feishu.send({
@@ -171,35 +179,62 @@ export async function processNotificationJob(
         idempotencyKey,
       });
       accepted = result.accepted;
+      providerMessageId = result.providerId ?? null;
       detail = result.providerId ? `provider=${result.providerId}` : "feishu adapter response";
     }
   } catch (error) {
     accepted = false;
     const message = error instanceof Error ? error.message : "notification adapter failed";
-    errorCategory = message.includes("Timeout")
-      ? "timeout"
-      : message.includes("HTTP")
-        ? "provider_http"
-        : message === "SECURE_PAYLOAD_EXPIRED"
-          ? "payload_expired"
-          : "provider_error";
+    errorCategory =
+      message === "PROVIDER_PROTOCOL_ERROR"
+        ? "provider_protocol"
+        : message.includes("Timeout")
+          ? "timeout"
+          : message.includes("HTTP")
+            ? "provider_http"
+            : message === "SECURE_PAYLOAD_EXPIRED"
+              ? "payload_expired"
+              : "provider_error";
     detail = errorCategory;
   }
 
   if (!accepted && !errorCategory) errorCategory = "provider_rejected";
   const retryLimit = Math.max(0, delivery.retryLimit ?? 0);
   const shouldRetry =
-    !accepted && attemptNumber <= retryLimit && errorCategory !== "payload_expired";
+    !accepted &&
+    attemptNumber <= retryLimit &&
+    errorCategory !== "payload_expired" &&
+    errorCategory !== "provider_protocol";
   const retryDelaySeconds = Math.min(3600, 30 * 2 ** Math.max(0, attemptNumber - 1));
   const retryAt = shouldRetry ? new Date(now.getTime() + retryDelaySeconds * 1000) : null;
-  const finalStatus = accepted ? "SENT" : shouldRetry ? "QUEUED" : "FAILED";
+  const unknownOutcome =
+    !accepted && !shouldRetry && ["timeout", "provider_protocol"].includes(errorCategory ?? "");
+  // IN_APP is delivered locally.  An external provider response only proves
+  // acceptance; a later receipt (when supported) is required to mark it
+  // delivered.  Keep the worker return value backward compatible while the
+  // persisted state is explicit.
+  const finalStatus = accepted
+    ? delivery.channel === "IN_APP"
+      ? "SENT"
+      : "PROVIDER_ACCEPTED"
+    : shouldRetry
+      ? "QUEUED"
+      : unknownOutcome
+        ? "UNKNOWN"
+        : "FAILED";
   await db.$transaction(async (tx: any) => {
     await tx.notificationAttempt.create({
       data: {
         deliveryId: delivery.id,
         attemptNumber,
         retryCycle: delivery.retryCycle ?? 0,
-        status: accepted ? "SENT" : "FAILED",
+        status: accepted
+          ? delivery.channel === "IN_APP"
+            ? "SENT"
+            : "PROVIDER_ACCEPTED"
+          : unknownOutcome
+            ? "UNKNOWN"
+            : "FAILED",
         errorCategory,
         detail: delivery.channel === "IN_APP" ? "站内通知已投递到 Pilot 收件箱" : detail,
       },
@@ -213,6 +248,7 @@ export async function processNotificationJob(
         nextAttemptAt: retryAt,
         lastErrorCategory: errorCategory,
         finalFailureReason: !accepted && !shouldRetry ? detail : null,
+        providerMessageId,
         ...(accepted || errorCategory === "payload_expired"
           ? { securePayloadCiphertext: null, securePayloadExpiresAt: null }
           : {}),
@@ -231,7 +267,9 @@ export async function processNotificationJob(
     }
   });
   if (shouldRetry) return { status: "retrying" as const, retryAt: retryAt! };
-  return { status: finalStatus.toLowerCase() as "sent" | "failed" };
+  return {
+    status: accepted ? "sent" : (finalStatus.toLowerCase() as "failed" | "unknown"),
+  };
 }
 
 /**
@@ -261,15 +299,19 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
         },
       },
       qualificationType: { select: { name: true, reminders: true } },
+      qualificationDefinition: { select: { name: true, reminders: true } },
     },
   });
   let created = 0;
   for (const record of records) {
     if (!record.expiryDate) continue;
+    const rule = parseReminderRule(
+      record.qualificationDefinition?.reminders ?? record.qualificationType.reminders,
+    );
     const window = calculateReminderWindow(
       record.expiryDate,
       now,
-      record.qualificationType.reminders,
+      rule,
       record.pilot.unit.timezone,
     );
     if (!window) continue;
@@ -278,18 +320,74 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
       window.kind === "expired"
         ? `${record.pilot.displayName} 的${record.qualificationType.name}已过期，请尽快处理。`
         : `${record.pilot.displayName} 的${record.qualificationType.name}将在 ${window.daysRemaining} 天后到期。`;
-    const result = await db.$transaction((tx: any) =>
-      emitPilotNotification(tx, {
+    const recipients = window.kind === "expired" ? rule.expiredRecipients : rule.dueRecipients;
+    if (recipients.length === 0) continue;
+    const result = await db.$transaction((tx: any) => {
+      const input = {
         eventKey: `qualification-expiry:${record.id}:${window.kind}`,
-        type: "qualification_expiry",
+        type: "qualification_expiry" as const,
         pilotId: record.pilotId,
         summary,
         message,
-      }),
-    );
+      };
+      return recipients.every((recipient) => recipient === "PERSON")
+        ? emitPilotNotification(tx, input)
+        : emitQualificationReminder(tx, { ...input, recipients });
+    });
     created += result.created;
   }
-  return { scannedAt: now.toISOString(), scanned: records.length, created };
+  let upgradeCreated = 0;
+  if (typeof db.upgradePlan?.findMany === "function") {
+    const plans = await db.upgradePlan.findMany({
+      where: { lifecycleStatus: { in: ["ACTIVE", "PAUSED"] }, pilot: { active: true } },
+      select: {
+        id: true,
+        title: true,
+        pilotId: true,
+        pilot: { select: { displayName: true, unit: { select: { timezone: true } } } },
+        stages: {
+          where: { status: { not: "COMPLETED" } },
+          select: { id: true, name: true, plannedStart: true, status: true },
+        },
+      },
+    });
+    for (const plan of plans) {
+      const timezone = plan.pilot.unit?.timezone ?? "Asia/Shanghai";
+      const today = dateOnlyForTimezone(now, timezone);
+      for (const stage of plan.stages) {
+        const planned = stage.plannedStart.toISOString().slice(0, 10);
+        const todayMs = Date.parse(`${today}T00:00:00Z`);
+        const plannedMs = Date.parse(`${planned}T00:00:00Z`);
+        const days = Math.round((plannedMs - todayMs) / 86_400_000);
+        if (days < 0 || days > 7) continue;
+        await db.notificationDelivery?.updateMany?.({
+          where: {
+            type: "UPGRADE_STAGE_REMINDER",
+            status: "QUEUED",
+            pilotId: plan.pilotId,
+            dedupeKey: { startsWith: `upgrade-stage-reminder:${stage.id}:` },
+            NOT: { dedupeKey: `upgrade-stage-reminder:${stage.id}:${planned}` },
+          },
+          data: { status: "FAILED", finalFailureReason: "计划日期已变更" },
+        });
+        const result = await db.$transaction((tx: any) =>
+          emitPilotNotification(tx, {
+            eventKey: `upgrade-stage-reminder:${stage.id}:${planned}`,
+            type: "upgrade_stage_reminder",
+            pilotId: plan.pilotId,
+            summary: `升级节点将在 ${days === 0 ? "今天" : `${days} 天后`}开始：${stage.name}`,
+            message: `${plan.pilot.displayName}，升级计划「${plan.title}」的${stage.name}节点即将开始，请提前准备。`,
+          }),
+        );
+        upgradeCreated += result.created;
+      }
+    }
+  }
+  return {
+    scannedAt: now.toISOString(),
+    scanned: records.length,
+    created: created + upgradeCreated,
+  };
 }
 
 export async function processCleanupJob(
@@ -297,20 +395,26 @@ export async function processCleanupJob(
   deleteEvidence: (objectKey: string) => Promise<unknown>,
   now = new Date(),
 ) {
-  const orphaned = await db.evidenceImage.findMany({
-    where: { status: "orphaned", expiresAt: { lt: now } },
-    take: 100,
-  });
   let deleted = 0;
-  for (const image of orphaned) {
-    try {
-      await deleteEvidence(image.objectKey);
-      await db.evidenceImage.delete({ where: { id: image.id } });
-      deleted += 1;
-    } catch {
-      // Keep the row for a later retry. Deleting it after an object-storage
-      // failure would permanently orphan the remote object.
+  // Continue paging until the backlog is drained (or a safe per-run ceiling
+  // is reached) so a fixed daily `take: 100` cannot leave an unbounded queue.
+  for (let page = 0; page < 20; page += 1) {
+    const orphaned = await db.evidenceImage.findMany({
+      where: { status: "orphaned", expiresAt: { lt: now } },
+      take: 100,
+    });
+    if (!orphaned.length) break;
+    for (const image of orphaned) {
+      try {
+        await deleteEvidence(image.objectKey);
+        await db.evidenceImage.delete({ where: { id: image.id } });
+        deleted += 1;
+      } catch {
+        // Keep the row for a later retry. Deleting it after an object-storage
+        // failure would permanently orphan the remote object.
+      }
     }
+    if (orphaned.length < 100) break;
   }
   return { deleted };
 }
@@ -395,7 +499,9 @@ export async function processImageOptimizationJob(
           data: { status: "COMPLETED", targetObjectKey, completedAt: now, errorMessage: null },
         });
       });
-      await deletePrivateEvidence(task.sourceObjectKey).catch(() => undefined);
+      // Keep the original immutable evidence object.  Historical revisions
+      // and backup manifests may still reference it; a later GC pass may
+      // delete it only after every reference and retention window expires.
       converted += 1;
     } catch (error) {
       if (targetObjectKey) await deletePrivateEvidence(targetObjectKey).catch(() => undefined);

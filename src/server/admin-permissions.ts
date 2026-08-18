@@ -16,6 +16,7 @@ export const ADMIN_PERMISSION_CODES = [
   "notifications.retry",
   "settings.read",
   "settings.units.write",
+  "settings.positions.write",
   "settings.notifications.write",
   "settings.admins.write",
   "settings.security.write",
@@ -42,6 +43,7 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "notifications.retry",
     "settings.read",
     "settings.units.write",
+    "settings.positions.write",
     "settings.notifications.write",
   ],
   REVIEWER: [
@@ -51,6 +53,7 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "reviews.decide",
     "operations.read",
     "notifications.read",
+    "settings.read",
   ],
   VIEWER: [
     "dashboard.read",
@@ -58,6 +61,7 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "reviews.read",
     "operations.read",
     "notifications.read",
+    "settings.read",
   ],
 };
 

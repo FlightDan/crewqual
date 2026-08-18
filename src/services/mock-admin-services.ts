@@ -851,17 +851,33 @@ export function createMockAdminServices(
         start: startOfWeek(clock.now(), { weekStartsOn: 1 }),
         end: endOfWeek(clock.now(), { weekStartsOn: 1 }),
       };
-      const weeklyUpgrades = state.pilots.flatMap((pilot) =>
-        (activePlanFor(pilot, state.upgradePlans)?.stages ?? [])
+      const weeklyUpgrades = state.pilots.flatMap((pilot) => {
+        const plan = activePlanFor(pilot, state.upgradePlans);
+        return (plan?.stages ?? [])
           .filter((stage) => isWithinInterval(parseISO(stage.plannedStart), week))
           .map((stage) => ({
+            planId: plan!.id,
             pilotId: pilot.id,
             pilotName: pilot.displayName,
             role: pilot.role,
-            planTitle: activePlanFor(pilot, state.upgradePlans)!.title,
+            planTitle: plan!.title,
             stage,
-          })),
-      );
+          }));
+      });
+      const delayedUpgrades = state.upgradePlans.flatMap((plan) => {
+        const pilot = state.pilots.find((item) => item.id === plan.pilotId);
+        if (!pilot || plan.lifecycleStatus === "cancelled") return [];
+        return plan.stages
+          .filter((stage) => stage.status === "delayed" || (stage.delayDays ?? 0) > 0)
+          .map((stage) => ({
+            planId: plan.id,
+            pilotId: pilot.id,
+            pilotName: pilot.displayName,
+            role: pilot.role,
+            planTitle: plan.title,
+            stage,
+          }));
+      });
       const summary: AdminDashboardSummary = {
         expiredCount: qualifications.filter((item) => item.dateState.status === "expired").length,
         dueIn7DaysCount: qualifications.filter((item) => item.dateState.window === "due_7").length,
@@ -871,9 +887,7 @@ export function createMockAdminServices(
         pendingReviewCount: state.reviews.filter((review) => review.humanStatus === "pending")
           .length,
         weeklyUpgradeCount: weeklyUpgrades.length,
-        delayedUpgradeCount: state.upgradePlans
-          .flatMap((plan) => plan.stages)
-          .filter((stage) => stage.status === "delayed" || (stage.delayDays ?? 0) > 0).length,
+        delayedUpgradeCount: delayedUpgrades.length,
         pendingReviews: copy(
           state.reviews
             .filter((review) => review.humanStatus === "pending")
@@ -888,8 +902,10 @@ export function createMockAdminServices(
             pilotId: item.pilot.id,
             pilotName: item.pilot.displayName,
             qualification: item.qualification,
+            daysRemaining: item.dateState.daysRemaining,
           })),
         weeklyUpgrades: copy(weeklyUpgrades),
+        delayedUpgrades: copy(delayedUpgrades),
       };
       return { data: summary, source: "mock" };
     },

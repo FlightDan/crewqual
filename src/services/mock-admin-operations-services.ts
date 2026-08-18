@@ -7,6 +7,7 @@ import {
   upgradeStageRescheduleSchema,
 } from "@/lib/admin-operations-validation";
 import { deriveQualificationDateState, systemClock } from "@/lib/qualification-date-status";
+import { adminSettingsService } from "@/services/admin-settings-service";
 import { adminStateStore, type AdminStateStore } from "@/services/admin-state-store";
 import { CORE_QUALIFICATION_IDS } from "@/types/services";
 import type {
@@ -46,6 +47,13 @@ function copy<T>(value: T): T {
 
 function timestamp(clock: Clock): string {
   return format(clock.now(), "yyyy-MM-dd HH:mm");
+}
+
+async function assertQualificationPosition(positionCode: string) {
+  const position = (await adminSettingsService.listPositions()).find(
+    (item) => item.code === positionCode,
+  );
+  if (!position) throw new Error("职位不存在");
 }
 
 function paginate<T>(items: T[], requestedPage = 1, pageSize = 8): PaginatedResult<T> {
@@ -839,28 +847,57 @@ export function createMockAdminOperationsServices(
   };
 
   const qualificationConfigs: QualificationConfigService = {
-    async list() {
-      return { data: copy(store.getSnapshot().qualificationConfigs), source: "mock" };
+    async list(positionCode) {
+      await assertQualificationPosition(positionCode);
+      return {
+        data: copy(
+          store
+            .getSnapshot()
+            .qualificationConfigs.filter((item) => item.positionCode === positionCode),
+        ),
+        source: "mock",
+      };
     },
-    async getById(id) {
-      const config = store.getSnapshot().qualificationConfigs.find((item) => item.id === id);
+    async getById(positionCode, id) {
+      await assertQualificationPosition(positionCode);
+      const config = store
+        .getSnapshot()
+        .qualificationConfigs.find((item) => item.id === id && item.positionCode === positionCode);
       return { data: config ? copy(config) : null, source: "mock" };
     },
-    async save(id, input) {
+    async save(positionCode, id, input) {
+      await assertQualificationPosition(positionCode);
+      const expectedVersion = input.expectedVersion;
       const validation = qualificationConfigInputSchema.safeParse(input);
       if (!validation.success) throw new Error(firstValidationMessage(validation.error));
       let result: QualificationConfig | null = null;
       store.update((state) => {
-        const config = state.qualificationConfigs.find((item) => item.id === id);
+        const config = state.qualificationConfigs.find(
+          (item) => item.id === id && item.positionCode === positionCode,
+        );
         if (!config) throw new Error("未找到资质配置");
-        if (config.core && validation.data.name !== config.name)
-          throw new Error("六项核心资质不可改名");
+        if (expectedVersion && expectedVersion !== (config.version ?? 1))
+          throw new Error("资质配置已被其他管理员修改，请刷新后重试");
+        if (config.locked && validation.data.name !== config.name)
+          throw new Error("模板核心资质不可改名");
+        if (config.locked && !validation.data.active) throw new Error("模板核心资质不可停用");
+        const normalizedName = validation.data.name.toLocaleLowerCase();
+        if (
+          state.qualificationConfigs.some(
+            (item) =>
+              item.id !== id &&
+              item.positionCode === positionCode &&
+              item.name.toLocaleLowerCase() === normalizedName,
+          )
+        )
+          throw new Error("当前职位已存在同名资质");
         result = {
           ...config,
           ...(validation.data as QualificationConfigInput),
-          name: config.core ? config.name : validation.data.name,
-          active: config.core ? true : validation.data.active,
+          name: config.locked ? config.name : validation.data.name,
+          active: config.locked ? true : validation.data.active,
           updatedAt: timestamp(clock),
+          version: (config.version ?? 1) + 1,
         };
         return {
           ...state,
@@ -871,23 +908,33 @@ export function createMockAdminOperationsServices(
       });
       return { data: copy(result!), source: "mock" };
     },
-    async createSupplemental(input) {
-      const validation = qualificationConfigInputSchema.safeParse(input);
+    async create(input) {
+      const { positionCode, kind, ...configInput } = input;
+      await assertQualificationPosition(positionCode);
+      const validation = qualificationConfigInputSchema.safeParse(configInput);
       if (!validation.success) throw new Error(firstValidationMessage(validation.error));
       let result: QualificationConfig | null = null;
       store.update((state) => {
         const name = validation.data.name.toLocaleLowerCase();
-        if (state.qualificationConfigs.some((item) => item.name.toLocaleLowerCase() === name))
+        if (
+          state.qualificationConfigs.some(
+            (item) => item.positionCode === positionCode && item.name.toLocaleLowerCase() === name,
+          )
+        )
           throw new Error("资质项目名称已存在");
         const occurredAt = timestamp(clock);
         const id = ids.next("custom");
         result = {
           ...(validation.data as QualificationConfigInput),
           id,
-          code: `QUAL-CUSTOM-${id.split("-").at(-1)}`,
-          core: false,
+          qualificationId: id,
+          positionCode,
+          code: `${positionCode.toLowerCase().replaceAll("_", "-")}-custom-${id.split("-").at(-1)}`,
+          core: kind === "core",
+          locked: false,
           createdAt: occurredAt,
           updatedAt: occurredAt,
+          version: 1,
         };
         return { ...state, qualificationConfigs: [...state.qualificationConfigs, result!] };
       });

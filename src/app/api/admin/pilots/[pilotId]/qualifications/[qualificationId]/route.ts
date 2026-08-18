@@ -62,7 +62,7 @@ export async function POST(
     if (!type) throw new ApiError("NOT_FOUND", "资质类型不存在或已停用", 404);
     const pilot = await db.pilot.findFirst({
       where: { id: pilotId, active: true, ...relatedPilotUnitWhere(admin) },
-      select: { id: true },
+      select: { id: true, personId: true, person: { select: { organizationId: true } } },
     });
     if (!pilot) throw new ApiError("PILOT_NOT_FOUND", "未找到飞行员", 404);
     const validation = validateQualificationRuleFields(
@@ -83,6 +83,17 @@ export async function POST(
         Object.fromEntries(validation.errors.map((error) => [error.field, [error.message]])),
       );
     }
+    const definition =
+      pilot.personId && pilot.person?.organizationId
+        ? await db.qualificationDefinition.findFirst({
+            where: {
+              organizationId: pilot.person.organizationId,
+              legacyQualificationTypeId: type.id,
+              active: true,
+            },
+            select: { id: true },
+          })
+        : null;
     const created = (await db.$transaction(async (tx) => {
       const active = await tx.qualificationRecord.findFirst({
         where: { pilotId: pilot.id, qualificationTypeId: type.id, status: "ACTIVE" },
@@ -94,7 +105,9 @@ export async function POST(
       const record = await tx.qualificationRecord.create({
         data: {
           pilotId: pilot.id,
+          personId: pilot.personId,
           qualificationTypeId: type.id,
+          qualificationDefinitionId: definition?.id,
           credentialNumber: input.credentialNumber,
           issueDate: new Date(`${input.issueDate}T00:00:00.000Z`),
           trainingDate: input.trainingDate ? new Date(`${input.trainingDate}T00:00:00.000Z`) : null,
@@ -105,6 +118,11 @@ export async function POST(
           levelOrParameter: input.levelOrParameter,
           qualificationRuleSnapshot: qualificationRuleSnapshot(type),
           status: "ACTIVE",
+          action: "ADMIN_IMPORT",
+          actorId: admin.id,
+          reason: "管理员直接录入并确认",
+          requestId,
+          activatedAt: new Date(),
           lastVerifiedAt: new Date(),
         },
         include: { qualificationType: true },
@@ -197,7 +215,15 @@ export async function PATCH(
     const updated = await db.$transaction(async (tx) => {
       const claimed = await tx.qualificationRecord.updateMany({
         where: { id: existing.id, version: existing.version, status: "ACTIVE" },
+        data: { status: "REPLACED", version: { increment: 1 } },
+      });
+      if (claimed.count !== 1) throw new Error("VERSION_CONFLICT");
+      const replacement = await tx.qualificationRecord.create({
         data: {
+          pilotId: existing.pilotId,
+          personId: existing.personId,
+          qualificationTypeId: existing.qualificationTypeId,
+          qualificationDefinitionId: existing.qualificationDefinitionId,
           credentialNumber: after.credentialNumber,
           issueDate: new Date(`${after.issueDate}T00:00:00.000Z`),
           trainingDate: after.trainingDate ? new Date(`${after.trainingDate}T00:00:00.000Z`) : null,
@@ -209,11 +235,29 @@ export async function PATCH(
           qualificationRuleSnapshot:
             existing.qualificationRuleSnapshot ??
             qualificationRuleSnapshot(existing.qualificationType),
+          status: "ACTIVE",
+          lineageId: existing.lineageId,
+          revisionNumber: existing.revisionNumber + 1,
+          supersedesRecordId: existing.id,
+          action: "CORRECT_AND_CONFIRM",
+          actorId: admin.id,
+          reason: "管理员纠正并确认",
+          requestId,
+          activatedAt: new Date(),
           lastVerifiedAt: new Date(),
-          version: { increment: 1 },
+        },
+        include: { qualificationType: true },
+      });
+      await tx.qualificationCorrection.create({
+        data: {
+          qualificationRecordId: replacement.id,
+          actorId: admin.id,
+          reason: "admin_active_correction",
+          before,
+          after,
+          requestId,
         },
       });
-      if (claimed.count !== 1) throw new Error("VERSION_CONFLICT");
       await tx.auditEvent.create({
         data: {
           actorType: "admin",
@@ -221,15 +265,12 @@ export async function PATCH(
           pilotId,
           action: "qualification.admin_updated",
           entityType: "QualificationRecord",
-          entityId: existing.id,
+          entityId: replacement.id,
           detail: { qualificationId, changedFields, before, after },
           requestId,
         },
       });
-      return tx.qualificationRecord.findUniqueOrThrow({
-        where: { id: existing.id },
-        include: { qualificationType: true },
-      });
+      return replacement;
     });
     return jsonData(mapQualificationRecord(updated), requestId);
   } catch (error) {

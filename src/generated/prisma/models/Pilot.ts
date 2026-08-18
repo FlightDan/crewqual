@@ -295,6 +295,7 @@ export type PilotWhereInput = {
   sessions?: Prisma.PilotSessionListRelationFilter
   upgradePlans?: Prisma.UpgradePlanListRelationFilter
   notifications?: Prisma.NotificationDeliveryListRelationFilter
+  uploadReservations?: Prisma.UploadReservationListRelationFilter
   evidenceImages?: Prisma.EvidenceImageListRelationFilter
   auditEvents?: Prisma.AuditEventListRelationFilter
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
@@ -323,6 +324,7 @@ export type PilotOrderByWithRelationInput = {
   sessions?: Prisma.PilotSessionOrderByRelationAggregateInput
   upgradePlans?: Prisma.UpgradePlanOrderByRelationAggregateInput
   notifications?: Prisma.NotificationDeliveryOrderByRelationAggregateInput
+  uploadReservations?: Prisma.UploadReservationOrderByRelationAggregateInput
   evidenceImages?: Prisma.EvidenceImageOrderByRelationAggregateInput
   auditEvents?: Prisma.AuditEventOrderByRelationAggregateInput
   person?: Prisma.PersonOrderByWithRelationInput
@@ -354,6 +356,7 @@ export type PilotWhereUniqueInput = Prisma.AtLeast<{
   sessions?: Prisma.PilotSessionListRelationFilter
   upgradePlans?: Prisma.UpgradePlanListRelationFilter
   notifications?: Prisma.NotificationDeliveryListRelationFilter
+  uploadReservations?: Prisma.UploadReservationListRelationFilter
   evidenceImages?: Prisma.EvidenceImageListRelationFilter
   auditEvents?: Prisma.AuditEventListRelationFilter
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
@@ -422,6 +425,7 @@ export type PilotCreateInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -449,6 +453,7 @@ export type PilotUncheckedCreateInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -474,6 +479,7 @@ export type PilotUpdateInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -501,6 +507,7 @@ export type PilotUncheckedUpdateInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -842,6 +849,20 @@ export type PilotUpdateOneWithoutAuditEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutAuditEventsInput, Prisma.PilotUpdateWithoutAuditEventsInput>, Prisma.PilotUncheckedUpdateWithoutAuditEventsInput>
 }
 
+export type PilotCreateNestedOneWithoutUploadReservationsInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutUploadReservationsInput, Prisma.PilotUncheckedCreateWithoutUploadReservationsInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutUploadReservationsInput
+  connect?: Prisma.PilotWhereUniqueInput
+}
+
+export type PilotUpdateOneRequiredWithoutUploadReservationsNestedInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutUploadReservationsInput, Prisma.PilotUncheckedCreateWithoutUploadReservationsInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutUploadReservationsInput
+  upsert?: Prisma.PilotUpsertWithoutUploadReservationsInput
+  connect?: Prisma.PilotWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutUploadReservationsInput, Prisma.PilotUpdateWithoutUploadReservationsInput>, Prisma.PilotUncheckedUpdateWithoutUploadReservationsInput>
+}
+
 export type PilotCreateWithoutUnitInput = {
   id?: string
   employeeNumber: string
@@ -861,6 +882,7 @@ export type PilotCreateWithoutUnitInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -887,6 +909,7 @@ export type PilotUncheckedCreateWithoutUnitInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -958,6 +981,7 @@ export type PilotCreateWithoutPersonInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
@@ -983,6 +1007,7 @@ export type PilotUncheckedCreateWithoutPersonInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1024,6 +1049,7 @@ export type PilotUpdateWithoutPersonInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
@@ -1049,6 +1075,7 @@ export type PilotUncheckedUpdateWithoutPersonInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1074,6 +1101,7 @@ export type PilotCreateWithoutProfileInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1100,6 +1128,7 @@ export type PilotUncheckedCreateWithoutProfileInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
 }
@@ -1140,6 +1169,7 @@ export type PilotUpdateWithoutProfileInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1166,6 +1196,7 @@ export type PilotUncheckedUpdateWithoutProfileInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
 }
@@ -1189,6 +1220,7 @@ export type PilotCreateWithoutAccessTokensInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1215,6 +1247,7 @@ export type PilotUncheckedCreateWithoutAccessTokensInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1255,6 +1288,7 @@ export type PilotUpdateWithoutAccessTokensInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1281,6 +1315,7 @@ export type PilotUncheckedUpdateWithoutAccessTokensInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1305,6 +1340,7 @@ export type PilotCreateWithoutSessionsInput = {
   accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1331,6 +1367,7 @@ export type PilotUncheckedCreateWithoutSessionsInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1371,6 +1408,7 @@ export type PilotUpdateWithoutSessionsInput = {
   accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1397,6 +1435,7 @@ export type PilotUncheckedUpdateWithoutSessionsInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1421,6 +1460,7 @@ export type PilotCreateWithoutQualificationsInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1447,6 +1487,7 @@ export type PilotUncheckedCreateWithoutQualificationsInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1487,6 +1528,7 @@ export type PilotUpdateWithoutQualificationsInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1513,6 +1555,7 @@ export type PilotUncheckedUpdateWithoutQualificationsInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1538,6 +1581,7 @@ export type PilotCreateWithoutEvidenceImagesInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
@@ -1564,6 +1608,7 @@ export type PilotUncheckedCreateWithoutEvidenceImagesInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
 }
@@ -1604,6 +1649,7 @@ export type PilotUpdateWithoutEvidenceImagesInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
@@ -1630,6 +1676,7 @@ export type PilotUncheckedUpdateWithoutEvidenceImagesInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
 }
@@ -1653,6 +1700,7 @@ export type PilotCreateWithoutUpdateRequestsInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1679,6 +1727,7 @@ export type PilotUncheckedCreateWithoutUpdateRequestsInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1719,6 +1768,7 @@ export type PilotUpdateWithoutUpdateRequestsInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1745,6 +1795,7 @@ export type PilotUncheckedUpdateWithoutUpdateRequestsInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1769,6 +1820,7 @@ export type PilotCreateWithoutUpgradePlansInput = {
   accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1795,6 +1847,7 @@ export type PilotUncheckedCreateWithoutUpgradePlansInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1835,6 +1888,7 @@ export type PilotUpdateWithoutUpgradePlansInput = {
   accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1861,6 +1915,7 @@ export type PilotUncheckedUpdateWithoutUpgradePlansInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -1885,6 +1940,7 @@ export type PilotCreateWithoutNotificationsInput = {
   accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
@@ -1911,6 +1967,7 @@ export type PilotUncheckedCreateWithoutNotificationsInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
@@ -1951,6 +2008,7 @@ export type PilotUpdateWithoutNotificationsInput = {
   accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -1977,6 +2035,7 @@ export type PilotUncheckedUpdateWithoutNotificationsInput = {
   accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -2002,6 +2061,7 @@ export type PilotCreateWithoutAuditEventsInput = {
   sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
@@ -2028,6 +2088,7 @@ export type PilotUncheckedCreateWithoutAuditEventsInput = {
   sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
   upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
   notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
 }
@@ -2068,6 +2129,7 @@ export type PilotUpdateWithoutAuditEventsInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
@@ -2094,7 +2156,128 @@ export type PilotUncheckedUpdateWithoutAuditEventsInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
+  profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+}
+
+export type PilotCreateWithoutUploadReservationsInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  role: string
+  aircraftType: string
+  rankLabel: string
+  active?: boolean
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit: Prisma.OrganizationUnitCreateNestedOneWithoutPilotsInput
+  qualifications?: Prisma.QualificationRecordCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
+  person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
+  profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+}
+
+export type PilotUncheckedCreateWithoutUploadReservationsInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  role: string
+  aircraftType: string
+  rankLabel: string
+  unitId: string
+  active?: boolean
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  personId?: string | null
+  qualifications?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
+  profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+}
+
+export type PilotCreateOrConnectWithoutUploadReservationsInput = {
+  where: Prisma.PilotWhereUniqueInput
+  create: Prisma.XOR<Prisma.PilotCreateWithoutUploadReservationsInput, Prisma.PilotUncheckedCreateWithoutUploadReservationsInput>
+}
+
+export type PilotUpsertWithoutUploadReservationsInput = {
+  update: Prisma.XOR<Prisma.PilotUpdateWithoutUploadReservationsInput, Prisma.PilotUncheckedUpdateWithoutUploadReservationsInput>
+  create: Prisma.XOR<Prisma.PilotCreateWithoutUploadReservationsInput, Prisma.PilotUncheckedCreateWithoutUploadReservationsInput>
+  where?: Prisma.PilotWhereInput
+}
+
+export type PilotUpdateToOneWithWhereWithoutUploadReservationsInput = {
+  where?: Prisma.PilotWhereInput
+  data: Prisma.XOR<Prisma.PilotUpdateWithoutUploadReservationsInput, Prisma.PilotUncheckedUpdateWithoutUploadReservationsInput>
+}
+
+export type PilotUpdateWithoutUploadReservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneRequiredWithoutPilotsNestedInput
+  qualifications?: Prisma.QualificationRecordUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
+  person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
+  profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+}
+
+export type PilotUncheckedUpdateWithoutUploadReservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  unitId?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualifications?: Prisma.QualificationRecordUncheckedUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
 }
 
@@ -2133,6 +2316,7 @@ export type PilotUpdateWithoutUnitInput = {
   sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
@@ -2159,6 +2343,7 @@ export type PilotUncheckedUpdateWithoutUnitInput = {
   sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
   upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
   notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
@@ -2192,6 +2377,7 @@ export type PilotCountOutputType = {
   sessions: number
   upgradePlans: number
   notifications: number
+  uploadReservations: number
   evidenceImages: number
   auditEvents: number
 }
@@ -2203,6 +2389,7 @@ export type PilotCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.
   sessions?: boolean | PilotCountOutputTypeCountSessionsArgs
   upgradePlans?: boolean | PilotCountOutputTypeCountUpgradePlansArgs
   notifications?: boolean | PilotCountOutputTypeCountNotificationsArgs
+  uploadReservations?: boolean | PilotCountOutputTypeCountUploadReservationsArgs
   evidenceImages?: boolean | PilotCountOutputTypeCountEvidenceImagesArgs
   auditEvents?: boolean | PilotCountOutputTypeCountAuditEventsArgs
 }
@@ -2262,6 +2449,13 @@ export type PilotCountOutputTypeCountNotificationsArgs<ExtArgs extends runtime.T
 /**
  * PilotCountOutputType without action
  */
+export type PilotCountOutputTypeCountUploadReservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.UploadReservationWhereInput
+}
+
+/**
+ * PilotCountOutputType without action
+ */
 export type PilotCountOutputTypeCountEvidenceImagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.EvidenceImageWhereInput
 }
@@ -2296,6 +2490,7 @@ export type PilotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   sessions?: boolean | Prisma.Pilot$sessionsArgs<ExtArgs>
   upgradePlans?: boolean | Prisma.Pilot$upgradePlansArgs<ExtArgs>
   notifications?: boolean | Prisma.Pilot$notificationsArgs<ExtArgs>
+  uploadReservations?: boolean | Prisma.Pilot$uploadReservationsArgs<ExtArgs>
   evidenceImages?: boolean | Prisma.Pilot$evidenceImagesArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Pilot$auditEventsArgs<ExtArgs>
   person?: boolean | Prisma.Pilot$personArgs<ExtArgs>
@@ -2367,6 +2562,7 @@ export type PilotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   sessions?: boolean | Prisma.Pilot$sessionsArgs<ExtArgs>
   upgradePlans?: boolean | Prisma.Pilot$upgradePlansArgs<ExtArgs>
   notifications?: boolean | Prisma.Pilot$notificationsArgs<ExtArgs>
+  uploadReservations?: boolean | Prisma.Pilot$uploadReservationsArgs<ExtArgs>
   evidenceImages?: boolean | Prisma.Pilot$evidenceImagesArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Pilot$auditEventsArgs<ExtArgs>
   person?: boolean | Prisma.Pilot$personArgs<ExtArgs>
@@ -2392,6 +2588,7 @@ export type $PilotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     sessions: Prisma.$PilotSessionPayload<ExtArgs>[]
     upgradePlans: Prisma.$UpgradePlanPayload<ExtArgs>[]
     notifications: Prisma.$NotificationDeliveryPayload<ExtArgs>[]
+    uploadReservations: Prisma.$UploadReservationPayload<ExtArgs>[]
     evidenceImages: Prisma.$EvidenceImagePayload<ExtArgs>[]
     auditEvents: Prisma.$AuditEventPayload<ExtArgs>[]
     person: Prisma.$PersonPayload<ExtArgs> | null
@@ -2813,6 +3010,7 @@ export interface Prisma__PilotClient<T, Null = never, ExtArgs extends runtime.Ty
   sessions<T extends Prisma.Pilot$sessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PilotSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   upgradePlans<T extends Prisma.Pilot$upgradePlansArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$upgradePlansArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UpgradePlanPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notifications<T extends Prisma.Pilot$notificationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationDeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  uploadReservations<T extends Prisma.Pilot$uploadReservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$uploadReservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   evidenceImages<T extends Prisma.Pilot$evidenceImagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$evidenceImagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EvidenceImagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   auditEvents<T extends Prisma.Pilot$auditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$auditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   person<T extends Prisma.Pilot$personArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$personArgs<ExtArgs>>): Prisma.Prisma__PersonClient<runtime.Types.Result.GetResult<Prisma.$PersonPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
@@ -3402,6 +3600,30 @@ export type Pilot$notificationsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.NotificationDeliveryScalarFieldEnum | Prisma.NotificationDeliveryScalarFieldEnum[]
+}
+
+/**
+ * Pilot.uploadReservations
+ */
+export type Pilot$uploadReservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the UploadReservation
+   */
+  select?: Prisma.UploadReservationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the UploadReservation
+   */
+  omit?: Prisma.UploadReservationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UploadReservationInclude<ExtArgs> | null
+  where?: Prisma.UploadReservationWhereInput
+  orderBy?: Prisma.UploadReservationOrderByWithRelationInput | Prisma.UploadReservationOrderByWithRelationInput[]
+  cursor?: Prisma.UploadReservationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.UploadReservationScalarFieldEnum | Prisma.UploadReservationScalarFieldEnum[]
 }
 
 /**

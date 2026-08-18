@@ -7,10 +7,10 @@ import {
 } from "@/services/admin-state-store";
 import { mockStorageKey } from "@/services/temp-storage";
 
-describe("AdminStateStore v5 persistence", () => {
+describe("AdminStateStore v6 persistence", () => {
   beforeEach(() => window.sessionStorage.clear());
 
-  it("persists and restores an explicitly versioned v5 payload", () => {
+  it("persists and restores an explicitly versioned v6 payload", () => {
     const first = createAdminStateStore(createInitialAdminState());
     first.update((state) => ({
       ...state,
@@ -21,7 +21,7 @@ describe("AdminStateStore v5 persistence", () => {
     expect(
       JSON.parse(window.sessionStorage.getItem(mockStorageKey(adminStorageKey))!),
     ).toMatchObject({
-      version: 5,
+      version: 6,
       data: { upgradePlans: expect.any(Array), qualificationConfigs: expect.any(Array) },
     });
     const restored = createAdminStateStore(createInitialAdminState());
@@ -40,7 +40,7 @@ describe("AdminStateStore v5 persistence", () => {
     window.sessionStorage.setItem(
       mockStorageKey(adminStorageKey),
       JSON.stringify({
-        version: 5,
+        version: 6,
         data: {
           pilots: [null],
           reviews: [],
@@ -62,5 +62,27 @@ describe("AdminStateStore v5 persistence", () => {
     const migrated = createAdminStateStore(createInitialAdminState());
     expect(migrated.getSnapshot().pilots).toHaveLength(5);
     expect(window.sessionStorage.getItem(mockStorageKey(legacyAdminStorageKey))).toBeNull();
+  });
+
+  it("migrates v5 qualification configs into the pilot position", () => {
+    const legacy = createInitialAdminState();
+    const legacyConfigs = legacy.qualificationConfigs.map((config) => {
+      const legacyConfig: Partial<typeof config> = { ...config };
+      delete legacyConfig.positionCode;
+      delete legacyConfig.locked;
+      return legacyConfig;
+    });
+    window.sessionStorage.setItem(
+      mockStorageKey(adminStorageKey),
+      JSON.stringify({
+        version: 5,
+        data: { ...legacy, qualificationConfigs: legacyConfigs },
+      }),
+    );
+
+    const restored = createAdminStateStore(createInitialAdminState()).getSnapshot();
+    expect(restored.qualificationConfigs).toHaveLength(6);
+    expect(restored.qualificationConfigs.every((item) => item.positionCode === "PILOT")).toBe(true);
+    expect(restored.qualificationConfigs.every((item) => item.locked)).toBe(true);
   });
 });

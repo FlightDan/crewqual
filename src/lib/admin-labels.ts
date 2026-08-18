@@ -45,6 +45,9 @@ export const channelLabels: Record<NotificationChannel, string> = {
 export const deliveryLabels: Record<NotificationDeliveryStatus, string> = {
   queued: "待发送",
   sending: "发送中",
+  provider_accepted: "供应商已接受（待回执）",
+  delivered: "已送达",
+  unknown: "状态未知",
   sent: "已发送（演示）",
   failed: "发送失败",
 };

@@ -181,7 +181,7 @@ export function OrganizationSettingsSection({
                     </span>
                     <span className="mt-1 block text-xs text-muted">{unit.code}</span>
                     <span className="mt-2 block text-xs text-secondary">
-                      {unit.pilotCount} 名飞行员 · {unit.adminCount} 名管理员
+                      {unit.pilotCount} 名人员 · {unit.adminCount} 名管理员
                     </span>
                   </button>
                 ))}

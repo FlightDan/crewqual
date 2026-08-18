@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,13 +15,13 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => params,
 }));
 
-function renderView() {
+function renderView(positionCode = "PILOT") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <QualificationConfigView />
+      <QualificationConfigView positionCode={positionCode} />
     </QueryClientProvider>,
   );
 }
@@ -131,7 +131,7 @@ describe("QualificationConfigView selection", () => {
     });
     const save = vi
       .spyOn(applicationServices.qualificationConfigs, "save")
-      .mockImplementation(async (id, input) => {
+      .mockImplementation(async (_positionCode, id, input) => {
         const current = configs.find((config) => config.id === id)!;
         const { expectedVersion, ...values } = input as QualificationConfigInput & {
           expectedVersion?: number;
@@ -154,7 +154,7 @@ describe("QualificationConfigView selection", () => {
     await user.type(firstDays, "90");
     await user.click(screen.getByRole("button", { name: "保存并查看影响摘要" }));
     await user.click(screen.getByRole("button", { name: "确认保存" }));
-    await screen.findByText(/现有飞行员生效记录未被回写/);
+    await screen.findByText(/现有生效记录未被回写/);
 
     await user.clear(firstDays);
     await user.type(firstDays, "100");
@@ -162,23 +162,78 @@ describe("QualificationConfigView selection", () => {
     await user.click(screen.getByRole("button", { name: "确认保存" }));
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 
-    expect(save.mock.calls[0]?.[1]).toMatchObject({ expectedVersion: 1 });
-    expect(save.mock.calls[1]?.[1]).toMatchObject({ expectedVersion: 2 });
+    expect(save.mock.calls[0]?.[2]).toMatchObject({ expectedVersion: 1 });
+    expect(save.mock.calls[1]?.[2]).toMatchObject({ expectedVersion: 2 });
   });
 
-  it("adds a supplemental config to the cache and selects it", async () => {
+  it("adds a position-scoped supplemental config to the cache and selects it", async () => {
     const user = userEvent.setup();
     renderView();
     await screen.findByTestId("qualification-config-editor");
 
     await user.click(screen.getByRole("button", { name: "新增资质项目" }));
-    await user.type(screen.getByLabelText("补充资质名称 *"), "CRM专项训练");
-    await user.click(screen.getByRole("button", { name: "创建补充项目" }));
+    const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    await user.type(within(dialog).getByLabelText("资质项目名称 *"), "CRM专项训练");
+    await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
 
     expect(
       await screen.findByRole("heading", { name: /CRM专项训练 - 资质项目配置/ }),
     ).toBeVisible();
     expect(screen.getByText("资质项目（7）")).toBeVisible();
     expect(window.location.search).toMatch(/^\?config=custom-/);
+  });
+
+  it("starts non-pilot positions empty and creates an independent core config", async () => {
+    const user = userEvent.setup();
+    renderView("CABIN_CREW");
+
+    expect(await screen.findByText("当前职位还没有资质项目")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "新增资质项目" }));
+    const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    await user.type(within(dialog).getByLabelText("资质项目名称 *"), "客舱应急训练");
+    await user.selectOptions(within(dialog).getByLabelText("资质类型"), "core");
+    await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
+
+    expect(
+      await screen.findByRole("heading", { name: /客舱应急训练 - 资质项目配置/ }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "核心资质 1" })).toBeVisible();
+    expect((await applicationServices.qualificationConfigs.list("PILOT")).data).toHaveLength(6);
+    expect((await applicationServices.qualificationConfigs.list("CABIN_CREW")).data).toHaveLength(
+      1,
+    );
+  });
+
+  it("adds a custom core-qualification field with content and length rules", async () => {
+    const user = userEvent.setup();
+    renderView();
+    await screen.findByTestId("qualification-config-editor");
+
+    await user.click(screen.getByRole("button", { name: "添加条目" }));
+    await user.type(screen.getByLabelText("条目名称 *"), "执照编号");
+    await user.selectOptions(screen.getByLabelText("可填写内容 *"), "alphanumeric");
+    await user.clear(screen.getByLabelText("最少位数"));
+    await user.type(screen.getByLabelText("最少位数"), "8");
+    await user.clear(screen.getByLabelText("最多位数"));
+    await user.type(screen.getByLabelText("最多位数"), "8");
+    await user.type(screen.getByLabelText("填写提示"), "请输入 8 位英文和数字");
+
+    await user.click(screen.getByRole("button", { name: "保存并查看影响摘要" }));
+    await user.click(screen.getByRole("button", { name: "确认保存" }));
+    await screen.findByText(/现有生效记录未被回写/);
+
+    const saved = (await applicationServices.qualificationConfigs.list("PILOT")).data.find(
+      (item) => item.id === "config-medical-certificate",
+    );
+    expect(saved?.customFields).toEqual([
+      expect.objectContaining({
+        label: "执照编号",
+        valueType: "alphanumeric",
+        required: true,
+        minLength: 8,
+        maxLength: 8,
+        placeholder: "请输入 8 位英文和数字",
+      }),
+    ]);
   });
 });
