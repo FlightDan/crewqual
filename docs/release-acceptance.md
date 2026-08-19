@@ -6,7 +6,7 @@ prefixes supplied by the operator.
 
 ```bash
 corepack pnpm release:manifest .artifacts/migration-checksums.json
-corepack pnpm release:verify -- --tag v0.2.0-rc.1 --profile rc
+corepack pnpm release:verify -- --tag v0.3.1-rc.1 --profile rc
 ```
 
 Build each immutable runtime image with the same source revision before
