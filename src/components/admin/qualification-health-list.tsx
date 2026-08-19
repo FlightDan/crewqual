@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { Qualification } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationText } from "@/lib/messages";
 
 function qualificationTone(status: Qualification["status"]) {
   if (status === "expired") return "danger" as const;
@@ -9,6 +11,7 @@ function qualificationTone(status: Qualification["status"]) {
 }
 
 export function QualificationHealthList({ qualifications }: { qualifications: Qualification[] }) {
+  const { t } = useI18n();
   return (
     <div className="grid gap-3" data-testid="qualification-health-list">
       {qualifications.map((qualification, index) => (
@@ -18,13 +21,16 @@ export function QualificationHealthList({ qualifications }: { qualifications: Qu
               {index + 1}. {qualification.name}
             </h4>
             <Badge tone={qualificationTone(qualification.status)} className="shrink-0 py-0.5">
-              {qualification.statusLabel}
+              {localizedQualificationText(qualification.statusLabel, t)}
             </Badge>
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-secondary">
-            <span>{qualification.parameter ?? "合格"}</span>
+            <span>{qualification.parameter ?? t("qualification.pass")}</span>
             <span>
-              有效期至：{qualification.expiresOn} · {qualification.remainingLabel}
+              {t("qualification.expiry", {
+                date: qualification.expiresOn,
+                remaining: localizedQualificationText(qualification.remainingLabel, t),
+              })}
             </span>
           </div>
         </Card>

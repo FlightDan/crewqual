@@ -1,6 +1,7 @@
 import type { SetupLocale } from "@/types/setup";
 
 const zhCN = {
+  languageName: "简体中文",
   productSubtitle: "机组资质合规系统",
   wizardVersion: "系统部署向导",
   steps: [
@@ -87,6 +88,8 @@ const zhCN = {
     empty: "没有找到可安装的职位模板。你可以稍后在系统设置中添加职位。",
   },
   backup: {
+    localType: "本地存储",
+    defaultTargetName: "本地默认备份目录",
     title: "保护你的数据",
     description: "建议启用自动备份。你可以使用推荐设置，也可以展开高级选项。",
     enable: "启用自动备份",
@@ -115,6 +118,7 @@ const zhCN = {
     advancedHelp: "包含远端凭据和目标子目录设置",
     disabled: "自动备份已关闭，可稍后在系统设置 → 备份与恢复中启用。",
     valid: "目标配置有效",
+    localPathError: "本地备份必须使用 /backups 目录",
   },
   notifications: {
     title: "设置通知渠道",
@@ -205,6 +209,7 @@ type WidenCopy<T> = T extends string
 type SetupCopy = WidenCopy<typeof zhCN>;
 
 const enUS: SetupCopy = {
+  languageName: "English",
   productSubtitle: "Crew qualification compliance",
   wizardVersion: "Deployment wizard",
   steps: [
@@ -293,6 +298,8 @@ const enUS: SetupCopy = {
     empty: "No installable templates were found. You can add positions later in System settings.",
   },
   backup: {
+    localType: "Local storage",
+    defaultTargetName: "Default local backup",
     title: "Protect your data",
     description: "Automatic backup is recommended. Use the preset or expand the advanced options.",
     enable: "Enable automatic backup",
@@ -321,6 +328,7 @@ const enUS: SetupCopy = {
     advancedHelp: "Remote credentials and target subdirectory",
     disabled: "Automatic backup is off. Enable it later in System settings → Backup & restore.",
     valid: "Target configuration is valid",
+    localPathError: "Local backups must use the /backups directory",
   },
   notifications: {
     title: "Set notification channels",

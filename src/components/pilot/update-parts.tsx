@@ -30,6 +30,7 @@ import type {
   DocumentAssistState,
 } from "@/types/services";
 import { processImageToJpeg, readImageSize } from "@/lib/image-processing";
+import { useI18n } from "@/components/i18n-provider";
 
 export function ImageCropDialog({
   file,
@@ -42,6 +43,7 @@ export function ImageCropDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (blob: Blob) => void;
 }) {
+  const { t } = useI18n();
   const [sourceUrl, setSourceUrl] = React.useState("");
   const [crop, setCrop] = React.useState<Crop>({ unit: "%", x: 0, y: 0, width: 100, height: 100 });
   const [pixelCrop, setPixelCrop] = React.useState<PixelCrop | null>(null);
@@ -75,7 +77,7 @@ export function ImageCropDialog({
       onConfirm(await processImageToJpeg(file, cropPixels));
       onOpenChange(false);
     } catch {
-      setError("读取或压缩图片失败，请转换为 JPEG/PNG 后重试");
+      setError(t("update.cropError"));
     } finally {
       setBusy(false);
     }
@@ -84,10 +86,8 @@ export function ImageCropDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>裁切证照图片</DialogTitle>
-        <DialogDescription>
-          默认选中整张图片。确认后会校正方向、压缩为 JPEG 并上传。
-        </DialogDescription>
+        <DialogTitle>{t("update.cropTitle")}</DialogTitle>
+        <DialogDescription>{t("update.cropDescription")}</DialogDescription>
         {sourceUrl ? (
           <div className="max-h-[55vh] overflow-auto rounded-lg bg-slate-100 p-2">
             <ReactCrop
@@ -99,7 +99,7 @@ export function ImageCropDialog({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={sourceUrl}
-                alt="待裁切凭证"
+                alt={t("update.cropPreviewAlt")}
                 onLoad={async () => {
                   imageSize.current = await readImageSize(file!);
                   setPixelCrop({
@@ -122,7 +122,7 @@ export function ImageCropDialog({
         ) : null}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-            取消
+            {t("update.cancelCrop")}
           </Button>
           <Button
             type="button"
@@ -130,7 +130,7 @@ export function ImageCropDialog({
             disabled={busy || !pixelCrop}
             loading={busy}
           >
-            确认裁切并上传
+            {t("update.confirmCrop")}
           </Button>
         </div>
       </DialogContent>
@@ -139,12 +139,14 @@ export function ImageCropDialog({
 }
 
 export function UpdateSteps({ active }: { active: 1 | 2 | 3 }) {
+  const { t } = useI18n();
+  const labels = [t("update.step.upload"), t("update.step.form"), t("update.step.submit")];
   return (
     <ol
-      aria-label="更新进度"
+      aria-label={t("update.progress")}
       className="-mx-4 flex items-center justify-between border-y border-border bg-card px-4 py-3 text-xs"
     >
-      {["上传凭证", "手动填写", "审核并提交"].map((label, index) => {
+      {labels.map((label, index) => {
         const number = (index + 1) as 1 | 2 | 3;
         return (
           <li
@@ -179,6 +181,7 @@ export function CredentialUpload({
   error?: string;
   onFile: (file: File) => void;
 }) {
+  const { locale, t } = useI18n();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const choose = () => inputRef.current?.click();
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +192,7 @@ export function CredentialUpload({
   return (
     <section className="space-y-3" aria-labelledby="document-upload-title">
       <h2 id="document-upload-title" className="text-[13px] font-bold text-secondary">
-        证照图像上传
+        {t("update.uploadTitle")}
       </h2>
       <input
         ref={inputRef}
@@ -206,7 +209,11 @@ export function CredentialUpload({
           <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100">
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="凭证本地预览" className="size-full object-cover" />
+              <img
+                src={previewUrl}
+                alt={t("update.uploadAlt")}
+                className="size-full object-cover"
+              />
             ) : (
               <FileImage aria-hidden="true" className="size-6 text-muted" />
             )}
@@ -214,7 +221,12 @@ export function CredentialUpload({
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-primary">{documentName}</p>
             <p className="text-[11px] text-muted">
-              已成功上传 · {(documentSize / 1024 / 1024).toFixed(1)} MB
+              {t("update.uploaded", {
+                size: new Intl.NumberFormat(locale, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                }).format(documentSize / 1024 / 1024),
+              })}
             </p>
           </div>
           <Button
@@ -224,7 +236,7 @@ export function CredentialUpload({
             onClick={choose}
             className="shrink-0 px-2"
           >
-            重新上传
+            {t("update.reupload")}
           </Button>
         </div>
       ) : (
@@ -237,9 +249,9 @@ export function CredentialUpload({
           )}
         >
           <Camera aria-hidden="true" className="size-8 text-brand" />
-          <span className="mt-2 text-sm font-semibold text-brand">点击拍照或选择图片</span>
+          <span className="mt-2 text-sm font-semibold text-brand">{t("update.chooseImage")}</span>
           <span className="mt-1 text-xs text-muted">
-            <span id="document-upload-help">支持 JPEG、PNG、WebP、AVIF、GIF，确认裁切后上传</span>
+            <span id="document-upload-help">{t("update.imageHelp")}</span>
           </span>
         </button>
       )}
@@ -259,18 +271,19 @@ export function DateSourceLabel({
   source?: DateFieldSource;
   confidence?: number;
 }) {
+  const { t } = useI18n();
   if (!source) return null;
   if (source === "ai") {
     return (
       <span className="whitespace-nowrap rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
-        AI识别 · {Math.round((confidence ?? 0.98) * 100)}%
+        {t("update.aiDetected", { confidence: Math.round((confidence ?? 0.98) * 100) })}
       </span>
     );
   }
   if (source === "manual_modified") {
     return (
       <span className="whitespace-nowrap rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-secondary">
-        已手动修改
+        {t("update.manualModified")}
       </span>
     );
   }
@@ -288,10 +301,13 @@ export function DateCandidates({
   onSelect: (candidate: DateCandidate) => void;
   onIgnore: () => void;
 }) {
+  const { t } = useI18n();
   return (
-    <div className="rounded-lg bg-card p-3 shadow-popover" aria-label="候选日期选择区">
+    <div className="rounded-lg bg-card p-3 shadow-popover" aria-label={t("update.candidateArea")}>
       <p className="mb-3 text-[13px] font-bold text-primary">
-        请选择对应的{field === "issueDate" ? "签发" : "到期"}日期
+        {t("update.chooseDate", {
+          type: field === "issueDate" ? t("update.issueDate") : t("update.expiryDate"),
+        })}
       </p>
       <div className="space-y-2">
         {candidates.map((candidate, index) => (
@@ -314,7 +330,7 @@ export function DateCandidates({
         ))}
       </div>
       <Button type="button" variant="ghost" size="sm" className="mt-2 w-full" onClick={onIgnore}>
-        暂不使用
+        {t("update.ignoreCandidate")}
       </Button>
     </div>
   );
@@ -353,6 +369,7 @@ export function AssistStatusCard({
   onUseAi?: () => void;
   onKeepManual?: () => void;
 }) {
+  const { t } = useI18n();
   if (state.kind === "idle" || state.kind === "ambiguous") return null;
   const tone =
     state.kind === "recognized" || state.kind === "matched"
@@ -360,40 +377,46 @@ export function AssistStatusCard({
       : state.kind === "conflict" || state.kind === "mismatch"
         ? "border-warning bg-orange-50 text-warning"
         : "border-border bg-card text-secondary";
-  let title = "AI辅助";
+  let title = t("update.aiAssist");
   let description = "";
   switch (state.kind) {
     case "recognizing":
-      title = "正在识别凭证日期";
-      description = "您可以继续填写其他信息，无需等待。";
+      title = t("update.recognizing");
+      description = t("update.continueFilling");
       break;
     case "recognized":
-      title = "日期识别完成";
-      description = "已识别并引入空白日期，请在提交前核对。";
+      title = t("update.recognized");
+      description = t("update.recognizedDescription");
       break;
     case "reviewing":
-      title = "AI正在审核您的材料";
-      description = "审核为可选步骤，不影响合法表单提交。";
+      title = t("update.reviewing");
+      description = t("update.reviewOptional");
       break;
     case "matched":
-      title = "AI审核完成";
-      description = "凭证与表单信息未发现明显差异。";
+      title = t("update.matched");
+      description = t("update.matchedDescription");
       break;
     case "conflict":
-      title = "AI识别日期与您填写的日期不同";
-      description = `默认保留手动日期 ${state.manualValue}；AI候选为 ${state.aiCandidate.value}。`;
+      title = t("update.conflict");
+      description = t("update.conflictDescription", {
+        manual: state.manualValue,
+        candidate: state.aiCandidate.value,
+      });
       break;
     case "mismatch":
-      title = "AI发现可能不一致";
-      description = `${state.message}（凭证：${state.documentValue}，表单：${state.formValue}）。此警告不会阻断提交。`;
+      title = t("update.mismatch");
+      description = t("update.mismatchDescription", {
+        document: state.documentValue,
+        form: state.formValue,
+      });
       break;
     case "busy":
-      title = "AI识别系统繁忙";
-      description = "您可以手动填写并直接提交，服务器将在后台继续处理。";
+      title = t("update.busy");
+      description = t("update.busyDescription");
       break;
     case "skipped":
-      title = "已跳过AI审核";
-      description = "请核对手动填写的信息后提交。";
+      title = t("update.skipped");
+      description = t("update.skippedDescription");
       break;
   }
   return (
@@ -406,26 +429,26 @@ export function AssistStatusCard({
       {state.kind === "busy" ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
-            <RefreshCw aria-hidden="true" className="size-3.5" /> 稍后重试
+            <RefreshCw aria-hidden="true" className="size-3.5" /> {t("update.retryLater")}
           </Button>
           <Button type="button" size="sm" onClick={onSkip}>
-            跳过并直接提交
+            {t("update.skipSubmit")}
           </Button>
         </div>
       ) : null}
       {state.kind === "conflict" ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={onKeepManual}>
-            保留手动填写
+            {t("update.keepManual")}
           </Button>
           <Button type="button" size="sm" onClick={onUseAi}>
-            使用AI日期
+            {t("update.useAiDate")}
           </Button>
         </div>
       ) : null}
       {state.kind === "reviewing" ? (
         <Button type="button" variant="link" size="sm" className="mt-2" onClick={onSkip}>
-          跳过AI审核
+          {t("update.skipReview")}
         </Button>
       ) : null}
     </div>
@@ -443,6 +466,7 @@ export function AiReviewPanel({
   onReview: () => void;
   onSkip: () => void;
 }) {
+  const { t } = useI18n();
   const showActions = !["reviewing", "matched", "mismatch", "busy"].includes(state.kind);
   return (
     <section
@@ -451,16 +475,14 @@ export function AiReviewPanel({
     >
       <div>
         <h2 id="ai-review-title" className="text-[13px] font-bold text-secondary">
-          AI辅助审核（可选）
+          {t("update.aiPanelTitle")}
         </h2>
-        <p className="mt-1 text-xs leading-5 text-secondary">
-          AI仅辅助识别并引入日期，其他信息由您手动填写。所有内容均可修改，请在提交前核对。
-        </p>
+        <p className="mt-1 text-xs leading-5 text-secondary">{t("update.aiPanelDescription")}</p>
       </div>
       {showActions ? (
         <div className="space-y-1">
           <Button type="button" className="w-full" disabled={disabled} onClick={onReview}>
-            开始AI审核
+            {t("update.startReview")}
           </Button>
           <Button
             type="button"
@@ -469,7 +491,7 @@ export function AiReviewPanel({
             disabled={disabled}
             onClick={onSkip}
           >
-            跳过AI审核
+            {t("update.skipReview")}
           </Button>
         </div>
       ) : null}
@@ -488,21 +510,24 @@ export function SubmitConfirmDialog({
   onSubmit: () => void;
   submitting: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm rounded-xl p-5">
-        <DialogTitle className="text-base font-bold text-primary">AI辅助处理尚未完成</DialogTitle>
+        <DialogTitle className="text-base font-bold text-primary">
+          {t("update.pendingTitle")}
+        </DialogTitle>
         <DialogDescription className="mt-2 text-[13px] leading-5 text-secondary">
-          可直接提交，服务器将在后台继续处理，不会影响本次申请。
+          {t("update.pendingDescription")}
         </DialogDescription>
         <div className="mt-4 grid grid-cols-2 gap-2 pr-6">
           <DialogClose asChild>
             <Button type="button" variant="secondary">
-              继续等待
+              {t("update.continueWaiting")}
             </Button>
           </DialogClose>
           <Button type="button" loading={submitting} onClick={onSubmit}>
-            直接提交
+            {t("update.submitDirect")}
           </Button>
         </div>
       </DialogContent>
@@ -511,10 +536,11 @@ export function SubmitConfirmDialog({
 }
 
 export function AiNotice() {
+  const { t } = useI18n();
   return (
     <div className="flex gap-2 rounded-md bg-blue-50 p-3 text-xs leading-5 text-brand">
       <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-      <p>AI只会填充空白日期，不会覆盖手动填写，也不会自动填写证件编号、签发机构或等级/参数。</p>
+      <p>{t("update.aiNotice")}</p>
     </div>
   );
 }

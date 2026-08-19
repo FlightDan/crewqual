@@ -150,9 +150,9 @@ export async function POST(
         }`,
         pilotId: plan.pilotId,
         type: action === "reschedule" ? "stage_date_changed" : "stage_completed",
-        summary:
-          action === "reschedule" ? `节点日期变更：${existing.name}` : `节点完成：${existing.name}`,
-        message: "升级节点信息已更新，请查看最新计划。",
+        templateKey:
+          action === "reschedule" ? "upgrade.stage.rescheduled" : "upgrade.stage.completed",
+        templateParams: { stageCode: existing.code, stageOrder: existing.order },
       });
       return tx.upgradePlan.findUnique({
         where: { id },

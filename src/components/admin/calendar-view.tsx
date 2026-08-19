@@ -24,6 +24,7 @@ import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { Select } from "@/components/ui/select";
 import { Toast } from "@/components/ui/toast";
 import { FieldLabel } from "@/components/ui/form-field";
+import { useI18n } from "@/components/i18n-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import {
   OPERATIONS_TODAY,
@@ -39,13 +40,13 @@ import {
   validCalendarView,
   validIsoDate,
 } from "@/lib/calendar-utils";
-import { lifecycleLabels } from "@/lib/admin-labels";
 import {
   adminQualificationRecordUpdateSchema,
   upgradeStageCompletionSchema,
   upgradeStageRescheduleSchema,
 } from "@/lib/admin-operations-validation";
 import { calculateExpectedExpiry } from "@/lib/qualification-rules";
+import { localizeError } from "@/lib/error-i18n";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import { useAdminSession } from "@/services/admin-session-provider";
@@ -57,15 +58,10 @@ import type {
   ReviewCredentialFields,
 } from "@/types/services";
 
-const viewOptions = [
-  { label: "90天列表", value: "agenda" },
-  { label: "月历", value: "month" },
-  { label: "周历", value: "week" },
-  { label: "人员时间线", value: "timeline" },
-];
+const viewOptionKeys = ["agenda", "month", "week", "timeline"] as const;
 const defaultCalendarPositionOptions = ["PILOT"];
 
-const weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+const weekdayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 type QualificationEditTarget = {
   pilotId: string;
@@ -78,9 +74,12 @@ function eventTone(event: AdminCalendarEvent) {
   return (event.daysRemaining ?? 0) < 0 ? ("danger" as const) : ("warning" as const);
 }
 
-function eventTypeLabel(event: AdminCalendarEvent) {
-  if (event.type === "upgrade_stage") return "升级节点";
-  return (event.daysRemaining ?? 0) < 0 ? "资质过期" : "资质临期";
+function eventTypeLabel(
+  event: AdminCalendarEvent,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  if (event.type === "upgrade_stage") return t("calendar.event.upgrade");
+  return (event.daysRemaining ?? 0) < 0 ? t("calendar.event.expired") : t("calendar.event.due");
 }
 
 function useMobile() {
@@ -99,13 +98,15 @@ function SquadronMultiSelect({
   options,
   value,
   onChange,
-  label = "中队",
+  label,
 }: {
   options: string[];
   value: string[];
   onChange: (value: string[]) => void;
   label?: string;
 }) {
+  const { t } = useI18n();
+  const resolvedLabel = label ?? t("calendar.squadron");
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
   const listId = React.useId();
@@ -128,10 +129,10 @@ function SquadronMultiSelect({
 
   const summary =
     value.length === 0
-      ? `全部${label}`
+      ? t("calendar.all", { label: resolvedLabel })
       : value.length === 1
         ? value[0]
-        : `已选 ${value.length} 个${label}`;
+        : t("calendar.selected", { count: value.length, label: resolvedLabel });
 
   const toggle = (option: string) => {
     const next = value.includes(option)
@@ -142,7 +143,7 @@ function SquadronMultiSelect({
 
   return (
     <div ref={rootRef} className="relative space-y-1">
-      <FieldLabel htmlFor={`${listId}-trigger`}>{label}</FieldLabel>
+      <FieldLabel htmlFor={`${listId}-trigger`}>{resolvedLabel}</FieldLabel>
       <button
         id={`${listId}-trigger`}
         type="button"
@@ -161,12 +162,14 @@ function SquadronMultiSelect({
         <div
           id={listId}
           role="group"
-          aria-label={`选择${label}，可多选`}
+          aria-label={t("calendar.multiSelectAria", { label: resolvedLabel })}
           className="absolute left-0 top-full z-50 mt-1 w-full min-w-56 rounded-md border border-border bg-card p-2 shadow-lg"
         >
           <div className="flex items-center justify-between border-b border-border px-2 pb-2">
             <span className="text-xs font-semibold text-secondary">
-              {value.length ? `已选择 ${value.length} 项` : "当前显示全部"}
+              {value.length
+                ? t("calendar.selectedItems", { count: value.length })
+                : t("calendar.showAll")}
             </span>
             {value.length ? (
               <button
@@ -174,7 +177,7 @@ function SquadronMultiSelect({
                 className="min-h-8 px-1 text-xs font-semibold text-brand"
                 onClick={() => onChange([])}
               >
-                清除
+                {t("calendar.clear")}
               </button>
             ) : null}
           </div>
@@ -204,7 +207,7 @@ function SquadronMultiSelect({
                 );
               })
             ) : (
-              <p className="px-2 py-3 text-xs text-muted">暂无可筛选的中队</p>
+              <p className="px-2 py-3 text-xs text-muted">{t("calendar.noSquadrons")}</p>
             )}
           </div>
         </div>
@@ -214,6 +217,7 @@ function SquadronMultiSelect({
 }
 
 export function CalendarViewPage() {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -372,7 +376,7 @@ export function CalendarViewPage() {
         if (active) setEvents(result.data);
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "日历加载失败");
+        if (active) setError(localizeError(reason, t, "calendar.loadError"));
       });
     return () => {
       active = false;
@@ -387,6 +391,7 @@ export function CalendarViewPage() {
     refreshRevision,
     squadrons,
     state,
+    t,
     type,
     view,
   ]);
@@ -410,7 +415,7 @@ export function CalendarViewPage() {
         if (active) setRoster(result.data);
       })
       .catch((reason: unknown) => {
-        if (active) setRosterError(reason instanceof Error ? reason.message : "人员资质加载失败");
+        if (active) setRosterError(localizeError(reason, t, "calendar.rosterError"));
       })
       .finally(() => {
         if (active) setRosterLoading(false);
@@ -418,7 +423,7 @@ export function CalendarViewPage() {
     return () => {
       active = false;
     };
-  }, [anchor, calendar, qualification, positions, q, refreshRevision, squadrons, state, type]);
+  }, [anchor, calendar, qualification, positions, q, refreshRevision, squadrons, state, t, type]);
 
   React.useEffect(() => {
     let active = true;
@@ -434,12 +439,12 @@ export function CalendarViewPage() {
         if (!result.data) updateParams({ event: null });
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "事件详情加载失败");
+        if (active) setError(localizeError(reason, t, "calendar.eventError"));
       });
     return () => {
       active = false;
     };
-  }, [calendar, refreshRevision, selectedId, state, updateParams]);
+  }, [calendar, refreshRevision, selectedId, state, t, updateParams]);
 
   const selectDate = (date: string) => {
     setDayDrawerOpen(mobile);
@@ -494,10 +499,10 @@ export function CalendarViewPage() {
         <div
           data-testid="calendar-toolbar"
           className="flex flex-nowrap items-center justify-end gap-1 lg:col-start-2 lg:row-start-1"
-          aria-label="日历日期导航"
+          aria-label={t("calendar.dateNav")}
         >
           <IconButton
-            label="上一周期"
+            label={t("calendar.previous")}
             variant="secondary"
             size="sm"
             className="h-9 min-h-9 w-9 px-0"
@@ -511,10 +516,10 @@ export function CalendarViewPage() {
             className="h-9 min-h-9 px-2"
             onClick={() => updateParams({ date: today })}
           >
-            <RotateCcw className="size-3.5" /> 今天
+            <RotateCcw className="size-3.5" /> {t("calendar.today")}
           </Button>
           <IconButton
-            label="下一周期"
+            label={t("calendar.next")}
             variant="secondary"
             size="sm"
             className="h-9 min-h-9 w-9 px-0"
@@ -523,7 +528,7 @@ export function CalendarViewPage() {
             <ChevronRight className="size-3.5" />
           </IconButton>
           <DateField
-            aria-label="选择日期"
+            aria-label={t("calendar.selectDate")}
             value={anchor}
             className="h-9 min-h-9 w-[7.75rem] px-2 text-xs"
             onChange={(event) => {
@@ -536,12 +541,16 @@ export function CalendarViewPage() {
             size="sm"
             className="relative h-9 min-h-9 px-2"
             data-testid="calendar-filter-trigger"
-            aria-label={activeFilterCount ? `筛选，已启用 ${activeFilterCount} 项` : "筛选"}
+            aria-label={
+              activeFilterCount
+                ? t("calendar.filterActive", { count: activeFilterCount })
+                : t("calendar.filter")
+            }
             aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen(true)}
           >
             <Filter aria-hidden="true" className="size-3.5" />
-            筛选
+            {t("calendar.filter")}
             {activeFilterCount ? (
               <span
                 aria-hidden="true"
@@ -607,24 +616,27 @@ export function CalendarViewPage() {
 
       <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DrawerContent side="right" className="w-[min(25rem,calc(100vw-1rem))] overflow-y-auto p-5">
-          <DrawerTitle className="text-lg font-bold">日历筛选</DrawerTitle>
+          <DrawerTitle className="text-lg font-bold">{t("calendar.filterTitle")}</DrawerTitle>
           <DrawerDescription className="mt-1 text-sm text-secondary">
-            筛选会即时生效并保存在页面地址中。
+            {t("calendar.filterDescription")}
           </DrawerDescription>
           <div className="mt-6 space-y-4">
             <Select
-              label="视图"
+              label={t("calendar.view")}
               value={view}
-              options={viewOptions}
+              options={viewOptionKeys.map((value) => ({
+                value,
+                label: t(`calendar.view.${value}`),
+              }))}
               onChange={(event) => updateParams({ view: event.target.value })}
             />
             <Select
-              label="事件类型"
+              label={t("calendar.eventType")}
               value={type}
               options={[
-                { label: "全部事件", value: "all" },
-                { label: "资质到期/临期", value: "qualification_expiry" },
-                { label: "升级节点", value: "upgrade_stage" },
+                { label: t("calendar.allEvents"), value: "all" },
+                { label: t("calendar.qualificationEvent"), value: "qualification_expiry" },
+                { label: t("calendar.event.upgrade"), value: "upgrade_stage" },
               ]}
               onChange={(event) => updateParams({ type: event.target.value })}
             />
@@ -634,16 +646,16 @@ export function CalendarViewPage() {
               onChange={(next) => updateParams({ units: next.join(",") || null })}
             />
             <SquadronMultiSelect
-              label="职位"
+              label={t("calendar.position")}
               options={positionOptions}
               value={positions}
               onChange={(next) => updateParams({ positions: next.join(",") || null })}
             />
             <Select
-              label="资质项目"
+              label={t("calendar.qualification")}
               value={qualification}
               options={[
-                { label: "全部六项核心资质", value: "all" },
+                { label: t("calendar.allCore"), value: "all" },
                 ...state.qualificationConfigs
                   .filter((item) => item.core && item.qualificationId)
                   .map((item) => ({ label: item.name, value: item.qualificationId! })),
@@ -651,9 +663,9 @@ export function CalendarViewPage() {
               onChange={(event) => updateParams({ qualification: event.target.value })}
             />
             <Input
-              label="搜索成员"
+              label={t("calendar.searchMember")}
               value={q}
-              placeholder="姓名或员工号"
+              placeholder={t("calendar.searchPlaceholder")}
               onChange={(event) => updateParams({ q: event.target.value })}
             />
           </div>
@@ -672,10 +684,10 @@ export function CalendarViewPage() {
                 })
               }
             >
-              重置筛选
+              {t("calendar.reset")}
             </Button>
             <Button type="button" onClick={() => setFiltersOpen(false)}>
-              完成
+              {t("calendar.done")}
             </Button>
           </div>
         </DrawerContent>
@@ -687,9 +699,9 @@ export function CalendarViewPage() {
             side="right"
             className="w-[min(24rem,calc(100vw-1rem))] overflow-y-auto p-4"
           >
-            <DrawerTitle className="text-base font-bold">日程节点详细信息</DrawerTitle>
+            <DrawerTitle className="text-base font-bold">{t("calendar.detailTitle")}</DrawerTitle>
             <DrawerDescription className="mt-1 text-xs text-muted">
-              查看节点详情并执行当前权限允许的操作
+              {t("calendar.detailDescription")}
             </DrawerDescription>
             <div className="mt-4">
               <EventDetail
@@ -714,9 +726,11 @@ export function CalendarViewPage() {
             side="right"
             className="w-[min(24rem,calc(100vw-1rem))] overflow-y-auto p-4"
           >
-            <DrawerTitle className="text-base font-bold">{anchor} 当日人员资质</DrawerTitle>
+            <DrawerTitle className="text-base font-bold">
+              {t("calendar.dayQualifications", { date: anchor })}
+            </DrawerTitle>
             <DrawerDescription className="mt-1 text-xs text-muted">
-              资质状态按所选日期计算
+              {t("calendar.dayDescription")}
             </DrawerDescription>
             <div className="mt-4">
               <DayQualificationPanel
@@ -752,11 +766,11 @@ export function CalendarViewPage() {
       />
       <Toast
         open={toastOpen}
-        title="资质记录已更新"
+        title={t("calendar.updatedTitle")}
         tone="success"
         onClose={() => setToastOpen(false)}
       >
-        日历事件和当日人员资质已重新计算。
+        {t("calendar.updatedDescription")}
       </Toast>
     </PageContainer>
   );
@@ -766,12 +780,16 @@ function countUpgradePlans(events: AdminCalendarEvent[]) {
   return new Set(events.map((event) => event.planId ?? event.id)).size;
 }
 
-function calendarEventTitle(event: AdminCalendarEvent, kind?: CalendarEventDayKind) {
+function calendarEventTitle(
+  event: AdminCalendarEvent,
+  kind: CalendarEventDayKind | undefined,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
   if (event.type !== "upgrade_stage") return event.title;
   if (!kind) return event.title;
-  if (kind === "start") return `${event.title} · 开始`;
-  if (kind === "end") return `${event.title} · 结束`;
-  if (kind === "single") return `${event.title} · 当日节点`;
+  if (kind === "start") return `${event.title} · ${t("calendar.start")}`;
+  if (kind === "end") return `${event.title} · ${t("calendar.end")}`;
+  if (kind === "single") return `${event.title} · ${t("calendar.todayNode")}`;
   return event.title;
 }
 
@@ -786,6 +804,7 @@ function MonthCalendar({
   onDate: (date: string) => void;
   onEvent: (event: AdminCalendarEvent, date: string) => void;
 }) {
+  const { t } = useI18n();
   const days = calendarDays("month", anchor);
   const month = anchor.slice(0, 7);
   const selectedEvents = calendarBoundaryEventsForDay(events, anchor);
@@ -793,15 +812,15 @@ function MonthCalendar({
   return (
     <div className="space-y-3">
       <Card className="overflow-hidden shadow-none" data-testid="month-calendar">
-        <div role="grid" aria-label="月历" className="grid grid-cols-7">
+        <div role="grid" aria-label={t("calendar.dayGrid")} className="grid grid-cols-7">
           <div role="row" className="contents">
-            {weekdays.map((day) => (
+            {weekdayKeys.map((day) => (
               <div
                 role="columnheader"
                 key={day}
                 className="border-b border-border bg-slate-50 px-1 py-2 text-center text-[10px] font-semibold text-secondary sm:text-xs"
               >
-                {day}
+                {t(`calendar.week.${day}`)}
               </div>
             ))}
           </div>
@@ -819,7 +838,11 @@ function MonthCalendar({
                 >
                   <button
                     type="button"
-                    aria-label={`${day}，${dayEvents.length}项事件，${activeUpgradeCount}个升级`}
+                    aria-label={t("calendar.dayAria", {
+                      date: day,
+                      events: dayEvents.length,
+                      upgrades: activeUpgradeCount,
+                    })}
                     onClick={() => onDate(day)}
                     className="flex w-full items-center gap-1.5 text-left"
                   >
@@ -828,7 +851,7 @@ function MonthCalendar({
                     </span>
                     {activeUpgradeCount ? (
                       <span className="hidden shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-secondary sm:inline-flex">
-                        {activeUpgradeCount}个升级
+                        {t("calendar.upgradeCount", { count: activeUpgradeCount })}
                       </span>
                     ) : null}
                     {markerCount ? (
@@ -844,12 +867,12 @@ function MonthCalendar({
                         className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-semibold ${event.type === "upgrade_stage" ? "bg-blue-50 text-info" : (event.daysRemaining ?? 0) < 0 ? "bg-red-50 text-danger" : "bg-orange-50 text-warning"}`}
                       >
                         {event.pilotName} ·{" "}
-                        {calendarEventTitle(event, calendarEventDayKind(event, day))}
+                        {calendarEventTitle(event, calendarEventDayKind(event, day), t)}
                       </button>
                     ))}
                     {dayEvents.length > 2 ? (
                       <span className="block text-[10px] text-muted">
-                        还有 {dayEvents.length - 2} 项
+                        {t("calendar.more", { count: dayEvents.length - 2 })}
                       </span>
                     ) : null}
                   </div>
@@ -860,7 +883,7 @@ function MonthCalendar({
         </div>
       </Card>
       <div className="space-y-2 sm:hidden">
-        <h3 className="text-sm font-bold">{anchor} 当日事件</h3>
+        <h3 className="text-sm font-bold">{t("calendar.dayEvents", { date: anchor })}</h3>
         {selectedEvents.length ? (
           selectedEvents.map((event) => (
             <EventCard
@@ -871,7 +894,7 @@ function MonthCalendar({
             />
           ))
         ) : !selectedActiveEvents.length ? (
-          <EmptyState title="当日无事件" description="选择其他日期查看日程。" />
+          <EmptyState title={t("calendar.noEvents")} description={t("calendar.otherDate")} />
         ) : null}
         {selectedActiveEvents.length ? (
           <button
@@ -879,7 +902,7 @@ function MonthCalendar({
             onClick={() => onDate(anchor)}
             className="w-full rounded-lg border border-blue-100 bg-blue-50 p-3 text-left text-xs font-semibold text-info"
           >
-            当日有 {countUpgradePlans(selectedActiveEvents)} 个活跃中的升级计划，点击查看人员
+            {t("calendar.activePlans", { count: countUpgradePlans(selectedActiveEvents) })}
           </button>
         ) : null}
       </div>
@@ -898,6 +921,7 @@ function WeekCalendar({
   onDate: (date: string) => void;
   onEvent: (event: AdminCalendarEvent, date?: string) => void;
 }) {
+  const { t } = useI18n();
   const days = calendarDays("week", anchor);
   return (
     <Card className="overflow-x-auto shadow-none" data-testid="week-calendar">
@@ -905,7 +929,7 @@ function WeekCalendar({
         {days.map((day, index) => (
           <section key={day} className="min-h-96 border-r border-border p-2 last:border-r-0">
             <h3 className="border-b border-border pb-2 text-xs font-bold">
-              {weekdays[index]} · {day.slice(5)}
+              {t(`calendar.week.${weekdayKeys[index]}`)} · {day.slice(5)}
             </h3>
             <div className="mt-2 space-y-2">
               {calendarBoundaryEventsForDay(events, day).map((event) => (
@@ -923,8 +947,9 @@ function WeekCalendar({
                   onClick={() => onDate(day)}
                   className="w-full rounded border border-blue-100 bg-blue-50 p-2 text-left text-[11px] font-semibold text-info hover:bg-blue-100"
                 >
-                  当日有 {countUpgradePlans(calendarActiveUpgradeEventsForDay(events, day))}{" "}
-                  个活跃中的升级计划
+                  {t("calendar.activePlanShort", {
+                    count: countUpgradePlans(calendarActiveUpgradeEventsForDay(events, day)),
+                  })}
                 </button>
               ) : null}
             </div>
@@ -942,9 +967,10 @@ function AgendaCalendar({
   events: AdminCalendarEvent[];
   onEvent: (event: AdminCalendarEvent) => void;
 }) {
+  const { t } = useI18n();
   const groups = Map.groupBy(events, (event) => event.date);
   if (!events.length)
-    return <EmptyState title="没有符合条件的日程" description="请调整日期、类型或搜索条件。" />;
+    return <EmptyState title={t("calendar.noAgenda")} description={t("calendar.adjustQuery")} />;
   return (
     <div className="space-y-4" data-testid="agenda-calendar">
       {[...groups.entries()].map(([date, items]) => (
@@ -968,12 +994,15 @@ function TimelineCalendar({
   events: AdminCalendarEvent[];
   onEvent: (event: AdminCalendarEvent) => void;
 }) {
+  const { t } = useI18n();
   const groups = Map.groupBy(
     events,
     (event) => `${event.pilotId}|${event.pilotName}|${event.employeeNumber}`,
   );
   if (!events.length)
-    return <EmptyState title="没有符合条件的人员事件" description="请调整筛选条件。" />;
+    return (
+      <EmptyState title={t("calendar.noPeopleEvents")} description={t("calendar.adjustFilter")} />
+    );
   return (
     <Card className="overflow-x-auto p-3 shadow-none" data-testid="timeline-calendar">
       <div className="min-w-[720px] space-y-3">
@@ -1014,6 +1043,7 @@ function EventCard({
   compact?: boolean;
   dayKind?: CalendarEventDayKind;
 }) {
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -1021,9 +1051,9 @@ function EventCard({
       className={`w-full rounded-lg border border-border bg-card text-left hover:border-brand ${compact ? "p-2" : "p-3"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="truncate text-xs font-bold">{calendarEventTitle(event, dayKind)}</p>
+        <p className="truncate text-xs font-bold">{calendarEventTitle(event, dayKind, t)}</p>
         <Badge tone={eventTone(event)} className="shrink-0 py-0.5 text-[10px]">
-          {eventTypeLabel(event)}
+          {eventTypeLabel(event, t)}
         </Badge>
       </div>
       <p className="mt-1 truncate text-xs text-secondary">
@@ -1031,7 +1061,7 @@ function EventCard({
       </p>
       <p className="mt-1 text-[10px] text-muted">
         {event.date}
-        {event.endDate !== event.date ? ` 至 ${event.endDate}` : ""}
+        {event.endDate !== event.date ? ` ${t("calendar.rangeTo")} ${event.endDate}` : ""}
       </p>
     </button>
   );
@@ -1060,6 +1090,7 @@ function DayQualificationPanel({
   onEdit: (target: QualificationEditTarget) => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Card
       className={
@@ -1070,11 +1101,14 @@ function DayQualificationPanel({
       data-testid="calendar-day-qualification-roster"
     >
       <div>
-        <h2 className="text-base font-bold">{date} 当日人员资质</h2>
+        <h2 className="text-base font-bold">{t("calendar.dayRoster", { date })}</h2>
         <p className="mt-1 text-xs text-muted">
           {roster
-            ? `${roster.pilots.length} 人 · ${roster.eventCount} 个节点`
-            : "资质状态按所选日期计算"}
+            ? t("calendar.rosterSummary", {
+                people: roster.pilots.length,
+                events: roster.eventCount,
+              })
+            : t("calendar.rosterStatus")}
         </p>
       </div>
       {error ? (
@@ -1085,7 +1119,7 @@ function DayQualificationPanel({
         <Skeleton className="mt-4 h-64" />
       ) : !roster?.pilots.length ? (
         <div className="mt-4">
-          <EmptyState title="当日无匹配人员节点" description="请调整日期或顶部筛选条件。" />
+          <EmptyState title={t("calendar.noRoster")} description={t("calendar.adjustDateFilter")} />
         </div>
       ) : (
         <div className="mt-4 space-y-4">
@@ -1106,7 +1140,7 @@ function DayQualificationPanel({
                   href={`/admin/pilots/${pilot.pilotId}`}
                   className="shrink-0 text-xs font-semibold text-brand"
                 >
-                  档案
+                  {t("calendar.profile")}
                 </Link>
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
@@ -1125,7 +1159,9 @@ function DayQualificationPanel({
                         {summary.attention.map((qualification) => {
                           const record = qualification.record;
                           const statusLabel =
-                            record?.daysRemaining === 0 ? "当日到期" : record?.statusLabel;
+                            record?.daysRemaining === 0
+                              ? t("calendar.expiryToday")
+                              : record?.statusLabel;
                           return (
                             <div
                               key={qualification.qualificationId}
@@ -1138,7 +1174,7 @@ function DayQualificationPanel({
                                 {record ? (
                                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                     <span className="text-[11px] text-muted">
-                                      {record.expiryDate || "长期有效"}
+                                      {record.expiryDate || t("calendar.expiryLong")}
                                     </span>
                                     <Badge
                                       tone={qualificationTone(record)}
@@ -1149,13 +1185,16 @@ function DayQualificationPanel({
                                   </div>
                                 ) : (
                                   <Badge tone="neutral" className="mt-1 py-0.5 text-[10px]">
-                                    未建档
+                                    {t("calendar.notFiled")}
                                   </Badge>
                                 )}
                               </div>
                               {canWrite && record ? (
                                 <IconButton
-                                  label={`编辑${pilot.pilotName}的${qualification.qualificationName}`}
+                                  label={t("calendar.editQualification", {
+                                    pilot: pilot.pilotName,
+                                    qualification: qualification.qualificationName,
+                                  })}
                                   variant="ghost"
                                   size="sm"
                                   onClick={() =>
@@ -1176,9 +1215,13 @@ function DayQualificationPanel({
                     ) : null}
                     {summary.normalCount || summary.missingCount ? (
                       <p className="mt-2 text-[11px] text-muted">
-                        {summary.normalCount ? `其余 ${summary.normalCount} 项正常` : null}
+                        {summary.normalCount
+                          ? t("calendar.otherNormal", { count: summary.normalCount })
+                          : null}
                         {summary.normalCount && summary.missingCount ? " · " : null}
-                        {summary.missingCount ? `另有 ${summary.missingCount} 项未建档` : null}
+                        {summary.missingCount
+                          ? t("calendar.otherMissing", { count: summary.missingCount })
+                          : null}
                       </p>
                     ) : null}
                   </>
@@ -1201,6 +1244,7 @@ function QualificationEditDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (target: QualificationEditTarget, values: ReviewCredentialFields) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const record = target?.qualification.record;
   const [values, setValues] = React.useState<ReviewCredentialFields>({
     credentialNumber: "",
@@ -1274,19 +1318,19 @@ function QualificationEditDialog({
         validation.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
       );
       setFieldErrors(next);
-      setError(validation.error.issues[0]?.message ?? "请检查资质字段");
+      setError(validation.error.issues[0]?.message ?? t("calendar.checkFields"));
       return;
     }
     if (target.qualification.validityRule.kind === "manual_expiry" && !values.expiryDate) {
-      setFieldErrors({ expiryDate: "请填写到期日期" });
-      setError("请填写到期日期");
+      setFieldErrors({ expiryDate: t("calendar.fillExpiry") });
+      setError(t("calendar.fillExpiry"));
       return;
     }
     setLoading(true);
     try {
       await onSave(target, values);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "资质保存失败");
+      setError(localizeError(reason, t, "calendar.qualificationSaveError"));
     } finally {
       setLoading(false);
     }
@@ -1298,15 +1342,17 @@ function QualificationEditDialog({
       onOpenChange={(open) => !loading && onOpenChange(open)}
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="text-lg font-bold">编辑资质</DialogTitle>
+        <DialogTitle className="text-lg font-bold">{t("calendar.editTitle")}</DialogTitle>
         <DialogDescription className="mt-1 text-sm text-muted">
-          {target?.pilotName} · {target?.qualification.qualificationName}
-          ；保存后直接更新生效记录并留下审计记录。
+          {t("calendar.editDescription", {
+            pilot: target?.pilotName ?? "",
+            qualification: target?.qualification.qualificationName ?? "",
+          })}
         </DialogDescription>
         <div className="mt-4 space-y-3">
           {error ? <Alert tone="danger">{error}</Alert> : null}
           <Input
-            label="证件编号"
+            label={t("calendar.credentialNumber")}
             required
             value={values.credentialNumber}
             onChange={(event) => update("credentialNumber", event.target.value)}
@@ -1314,7 +1360,7 @@ function QualificationEditDialog({
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <DateField
-              label="签发日期"
+              label={t("calendar.issueDate")}
               required
               value={values.issueDate}
               onChange={(event) => update("issueDate", event.target.value)}
@@ -1323,7 +1369,7 @@ function QualificationEditDialog({
             {target?.qualification.validityRule.kind === "fixed_months" &&
             target.qualification.validityRule.baseDateField === "trainingDate" ? (
               <DateField
-                label="培训日期"
+                label={t("calendar.trainingDate")}
                 required
                 value={values.trainingDate}
                 onChange={(event) => update("trainingDate", event.target.value)}
@@ -1332,7 +1378,7 @@ function QualificationEditDialog({
             ) : null}
             {target?.qualification.validityRule.kind !== "non_expiring" ? (
               <DateField
-                label="到期日期"
+                label={t("calendar.expiryDate")}
                 required
                 readOnly={target?.qualification.validityRule.kind === "fixed_months"}
                 value={values.expiryDate}
@@ -1342,14 +1388,14 @@ function QualificationEditDialog({
             ) : null}
           </div>
           <Input
-            label="签发机构"
+            label={t("calendar.issuingAuthority")}
             required
             value={values.issuingAuthority}
             onChange={(event) => update("issuingAuthority", event.target.value)}
             error={fieldErrors.issuingAuthority}
           />
           <Input
-            label="等级/参数"
+            label={t("calendar.level")}
             required
             value={values.levelOrParameter}
             onChange={(event) => update("levelOrParameter", event.target.value)}
@@ -1357,10 +1403,10 @@ function QualificationEditDialog({
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button loading={loading} disabled={unchanged} onClick={() => void save()}>
-              保存资质
+              {t("calendar.saveQualification")}
             </Button>
           </div>
         </div>
@@ -1382,6 +1428,7 @@ function EventDetail({
   onUpdated?: () => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const { upgradePlans } = useApplicationServices();
   const { hasPermission } = useAdminSession();
   const canWrite = hasPermission("operations.write");
@@ -1405,9 +1452,7 @@ function EventDetail({
     setFieldErrors({});
   }, [event]);
   if (!event)
-    return (
-      <Card className="p-5 text-sm text-muted shadow-none">选择日历事件后在此查看详细信息。</Card>
-    );
+    return <Card className="p-5 text-sm text-muted shadow-none">{t("calendar.selectEvent")}</Card>;
   const reschedule = async () => {
     if (!event.planId || !event.stageId || loading) return;
     setError("");
@@ -1422,7 +1467,7 @@ function EventDetail({
         validation.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
       );
       setFieldErrors(next);
-      setError(validation.error.issues[0]?.message ?? "请检查节点日期");
+      setError(validation.error.issues[0]?.message ?? t("calendar.checkDates"));
       return;
     }
     setLoading(true);
@@ -1435,15 +1480,9 @@ function EventDetail({
       setRescheduleOpen(false);
       onUpdated?.();
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "调整失败";
+      const message = localizeError(reason, t, "calendar.adjustError");
       setError(message);
-      if (message.includes("整体计划周期")) {
-        setFieldErrors({ plannedStart: message, plannedEnd: message });
-      } else if (message.includes("前一") || message.includes("开始日期")) {
-        setFieldErrors({ plannedStart: message });
-      } else if (message.includes("后一") || message.includes("结束日期")) {
-        setFieldErrors({ plannedEnd: message });
-      }
+      setFieldErrors({ plannedStart: message, plannedEnd: message });
     } finally {
       setLoading(false);
     }
@@ -1462,7 +1501,7 @@ function EventDetail({
           validation.error.issues.map((issue) => [String(issue.path[0]), issue.message]),
         ),
       );
-      setError(validation.error.issues[0]?.message ?? "请检查完成结果");
+      setError(validation.error.issues[0]?.message ?? t("calendar.checkResult"));
       return;
     }
     setLoading(true);
@@ -1474,7 +1513,7 @@ function EventDetail({
       setCompleteOpen(false);
       onUpdated?.();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "登记失败");
+      setError(localizeError(reason, t, "calendar.recordError"));
     } finally {
       setLoading(false);
     }
@@ -1485,85 +1524,85 @@ function EventDetail({
       data-testid="calendar-event-detail"
     >
       <div className="flex items-start justify-between gap-2">
-        <Badge tone={eventTone(event)}>{eventTypeLabel(event)}</Badge>
+        <Badge tone={eventTone(event)}>{eventTypeLabel(event, t)}</Badge>
         {!compact ? (
           <Button variant="ghost" size="sm" onClick={onClose}>
-            关闭
+            {t("calendar.close")}
           </Button>
         ) : null}
       </div>
       <h3 className="mt-3 text-lg font-bold">{event.title}</h3>
       <dl className="mt-4 grid grid-cols-[88px_1fr] gap-x-3 gap-y-3 text-sm">
-        <dt className="text-muted">计划对象</dt>
+        <dt className="text-muted">{t("calendar.planObject")}</dt>
         <dd className="font-semibold">
           {event.pilotName}（{event.employeeNumber}）
         </dd>
-        <dt className="text-muted">所属中队</dt>
+        <dt className="text-muted">{t("calendar.unit")}</dt>
         <dd>{event.unit}</dd>
-        <dt className="text-muted">职位</dt>
+        <dt className="text-muted">{t("calendar.job")}</dt>
         <dd>
           {event.positionName ??
-            (event.positionCode === "PILOT" ? "飞行员" : (event.positionCode ?? "—"))}
+            (event.positionCode === "PILOT" ? t("positions.pilot") : (event.positionCode ?? "—"))}
         </dd>
         {event.type === "qualification_expiry" ? (
           <>
-            <dt className="text-muted">资质项目</dt>
+            <dt className="text-muted">{t("calendar.qualificationItem")}</dt>
             <dd>{event.qualificationName}</dd>
-            <dt className="text-muted">到期日期</dt>
+            <dt className="text-muted">{t("calendar.expiryDate")}</dt>
             <dd>{event.date}</dd>
-            <dt className="text-muted">剩余/逾期</dt>
+            <dt className="text-muted">{t("calendar.remainingLabel")}</dt>
             <dd>
               {(event.daysRemaining ?? 0) < 0
-                ? `已逾期 ${Math.abs(event.daysRemaining!)} 天`
-                : `剩余 ${event.daysRemaining} 天`}
+                ? t("calendar.expiredDays", { days: Math.abs(event.daysRemaining!) })
+                : t("calendar.remainingDays", { days: event.daysRemaining ?? 0 })}
             </dd>
           </>
         ) : (
           <>
-            <dt className="text-muted">所属计划</dt>
+            <dt className="text-muted">{t("calendar.plan")}</dt>
             <dd>
               {event.planNumber} · {event.planTitle}
             </dd>
-            <dt className="text-muted">节点周期</dt>
+            <dt className="text-muted">{t("calendar.stagePeriod")}</dt>
             <dd>
-              {event.date} 至 {event.endDate}
+              {event.date} {t("calendar.rangeTo")} {event.endDate}
             </dd>
-            <dt className="text-muted">责任人</dt>
+            <dt className="text-muted">{t("calendar.owner")}</dt>
             <dd>{event.owner}</dd>
-            <dt className="text-muted">状态</dt>
+            <dt className="text-muted">{t("calendar.status")}</dt>
             <dd>
               {event.stageStatus}
-              {event.planLifecycleStatus ? ` · ${lifecycleLabels[event.planLifecycleStatus]}` : ""}
+              {event.planLifecycleStatus
+                ? ` · ${t(`upgradePlans.lifecycle.${event.planLifecycleStatus}`)}`
+                : ""}
             </dd>
-            <dt className="text-muted">备注</dt>
-            <dd>{event.notes || "无"}</dd>
-            <dt className="text-muted">检查项目</dt>
-            <dd>{event.inspectionItems?.join("、") || "无"}</dd>
+            <dt className="text-muted">{t("calendar.notes")}</dt>
+            <dd>{event.notes || t("calendar.none")}</dd>
+            <dt className="text-muted">{t("calendar.inspection")}</dt>
+            <dd>{event.inspectionItems?.join(" · ") || t("calendar.none")}</dd>
           </>
         )}
       </dl>
       {event.type === "qualification_expiry" ? (
         <div className="mt-5">
-          <Alert tone="info">到期日与飞行员当前生效资质记录关联。</Alert>
+          <Alert tone="info">{t("calendar.expiryLinked")}</Alert>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {canWrite && onEditQualification ? (
               <Button variant="secondary" onClick={onEditQualification}>
-                <Pencil className="size-4" /> 编辑此资质
+                <Pencil className="size-4" /> {t("calendar.editThis")}
               </Button>
             ) : null}
             <Link
               href={`/admin/pilots/${event.pilotId}`}
               className="inline-flex min-h-11 items-center justify-center text-sm font-semibold text-brand"
             >
-              进入飞行员档案
+              {t("calendar.pilotProfile")}
             </Link>
           </div>
         </div>
       ) : event.readonly || !canWrite ? (
         <Alert tone="info" className="mt-5">
-          {event.readonly
-            ? "该计划已完成或已取消，日历历史事件只读。"
-            : "当前账号只有查看权限，不能调整节点。"}
+          {event.readonly ? t("calendar.readonlyHistory") : t("calendar.readonlyPermission")}
         </Alert>
       ) : (
         <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -1575,7 +1614,7 @@ function EventDetail({
               setRescheduleOpen(true);
             }}
           >
-            调整节点日期
+            {t("calendar.reschedule")}
           </Button>
           <Button
             onClick={() => {
@@ -1585,50 +1624,52 @@ function EventDetail({
             }}
             disabled={event.stageStatus === "completed" || event.planLifecycleStatus !== "active"}
           >
-            登记完成结果
+            {t("calendar.completeResult")}
           </Button>
           {event.planLifecycleStatus !== "active" ? (
-            <p className="col-span-full text-xs text-muted">
-              仅进行中的计划可以登记节点完成；可先进入计划详情启动或恢复。
-            </p>
+            <p className="col-span-full text-xs text-muted">{t("calendar.activeOnly")}</p>
           ) : null}
           <Link
             href={`/admin/upgrade-plans/${event.planId}`}
             className="col-span-full inline-flex min-h-11 items-center justify-center text-sm font-semibold text-brand"
           >
-            查看计划详情
+            {t("calendar.viewPlan")}
           </Link>
         </div>
       )}
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
         <DialogContent>
-          <DialogTitle className="text-lg font-bold">调整节点日期</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{t("calendar.rescheduleTitle")}</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted">
-            日期须位于整体计划范围内，并保持六节点固定顺序。
+            {t("calendar.rescheduleDescription")}
           </DialogDescription>
           <div className="mt-4 space-y-3">
             {error ? <Alert tone="danger">{error}</Alert> : null}
             <DateField
-              label="计划开始日期"
+              label={t("calendar.plannedStart")}
               required
               value={start}
               onChange={(e) => setStart(e.target.value)}
               error={fieldErrors.plannedStart}
             />
             <DateField
-              label="计划结束日期"
+              label={t("calendar.plannedEnd")}
               required
               value={end}
               onChange={(e) => setEnd(e.target.value)}
               error={fieldErrors.plannedEnd}
             />
-            <Textarea label="备注" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Textarea
+              label={t("calendar.note")}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setRescheduleOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button loading={loading} onClick={() => void reschedule()}>
-                保存调整
+                {t("calendar.saveAdjustment")}
               </Button>
             </div>
           </div>
@@ -1636,21 +1677,21 @@ function EventDetail({
       </Dialog>
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
         <DialogContent>
-          <DialogTitle className="text-lg font-bold">登记完成结果</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{t("calendar.completeTitle")}</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-muted">
-            不能跳过尚未完成的中间节点。
+            {t("calendar.completeDescription")}
           </DialogDescription>
           <div className="mt-4 space-y-3">
             {error ? <Alert tone="danger">{error}</Alert> : null}
             <DateField
-              label="完成日期"
+              label={t("calendar.completionDate")}
               required
               value={completedOn}
               onChange={(e) => setCompletedOn(e.target.value)}
               error={fieldErrors.completedOn}
             />
             <Textarea
-              label="结果摘要"
+              label={t("calendar.resultSummary")}
               required
               value={result}
               onChange={(e) => setResult(e.target.value)}
@@ -1658,10 +1699,10 @@ function EventDetail({
             />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setCompleteOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button loading={loading} onClick={() => void complete()}>
-                确认完成
+                {t("calendar.confirmComplete")}
               </Button>
             </div>
           </div>

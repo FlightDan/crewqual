@@ -50,8 +50,8 @@ export type NotificationDeliveryMinAggregateOutputType = {
   personId: string | null
   adminUserId: string | null
   target: string | null
-  summary: string | null
-  message: string | null
+  locale: string | null
+  templateKey: string | null
   createdAt: Date | null
   startedAt: Date | null
   sentAt: Date | null
@@ -78,8 +78,8 @@ export type NotificationDeliveryMaxAggregateOutputType = {
   personId: string | null
   adminUserId: string | null
   target: string | null
-  summary: string | null
-  message: string | null
+  locale: string | null
+  templateKey: string | null
   createdAt: Date | null
   startedAt: Date | null
   sentAt: Date | null
@@ -106,8 +106,9 @@ export type NotificationDeliveryCountAggregateOutputType = {
   personId: number
   adminUserId: number
   target: number
-  summary: number
-  message: number
+  locale: number
+  templateKey: number
+  templateParams: number
   createdAt: number
   startedAt: number
   sentAt: number
@@ -150,8 +151,8 @@ export type NotificationDeliveryMinAggregateInputType = {
   personId?: true
   adminUserId?: true
   target?: true
-  summary?: true
-  message?: true
+  locale?: true
+  templateKey?: true
   createdAt?: true
   startedAt?: true
   sentAt?: true
@@ -178,8 +179,8 @@ export type NotificationDeliveryMaxAggregateInputType = {
   personId?: true
   adminUserId?: true
   target?: true
-  summary?: true
-  message?: true
+  locale?: true
+  templateKey?: true
   createdAt?: true
   startedAt?: true
   sentAt?: true
@@ -206,8 +207,9 @@ export type NotificationDeliveryCountAggregateInputType = {
   personId?: true
   adminUserId?: true
   target?: true
-  summary?: true
-  message?: true
+  locale?: true
+  templateKey?: true
+  templateParams?: true
   createdAt?: true
   startedAt?: true
   sentAt?: true
@@ -321,8 +323,9 @@ export type NotificationDeliveryGroupByOutputType = {
   personId: string | null
   adminUserId: string | null
   target: string
-  summary: string
-  message: string
+  locale: string
+  templateKey: string
+  templateParams: runtime.JsonValue
   createdAt: Date
   startedAt: Date | null
   sentAt: Date | null
@@ -372,8 +375,9 @@ export type NotificationDeliveryWhereInput = {
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
-  summary?: Prisma.StringFilter<"NotificationDelivery"> | string
-  message?: Prisma.StringFilter<"NotificationDelivery"> | string
+  locale?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateKey?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateParams?: Prisma.JsonFilter<"NotificationDelivery">
   createdAt?: Prisma.DateTimeFilter<"NotificationDelivery"> | Date | string
   startedAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
@@ -404,8 +408,9 @@ export type NotificationDeliveryOrderByWithRelationInput = {
   personId?: Prisma.SortOrderInput | Prisma.SortOrder
   adminUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   target?: Prisma.SortOrder
-  summary?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  locale?: Prisma.SortOrder
+  templateKey?: Prisma.SortOrder
+  templateParams?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -439,8 +444,9 @@ export type NotificationDeliveryWhereUniqueInput = Prisma.AtLeast<{
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
-  summary?: Prisma.StringFilter<"NotificationDelivery"> | string
-  message?: Prisma.StringFilter<"NotificationDelivery"> | string
+  locale?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateKey?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateParams?: Prisma.JsonFilter<"NotificationDelivery">
   createdAt?: Prisma.DateTimeFilter<"NotificationDelivery"> | Date | string
   startedAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
@@ -471,8 +477,9 @@ export type NotificationDeliveryOrderByWithAggregationInput = {
   personId?: Prisma.SortOrderInput | Prisma.SortOrder
   adminUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   target?: Prisma.SortOrder
-  summary?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  locale?: Prisma.SortOrder
+  templateKey?: Prisma.SortOrder
+  templateParams?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -507,8 +514,9 @@ export type NotificationDeliveryScalarWhereWithAggregatesInput = {
   personId?: Prisma.UuidNullableWithAggregatesFilter<"NotificationDelivery"> | string | null
   adminUserId?: Prisma.UuidNullableWithAggregatesFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
-  summary?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
-  message?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
+  locale?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
+  templateKey?: Prisma.StringWithAggregatesFilter<"NotificationDelivery"> | string
+  templateParams?: Prisma.JsonWithAggregatesFilter<"NotificationDelivery">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"NotificationDelivery"> | Date | string
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"NotificationDelivery"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"NotificationDelivery"> | Date | string | null
@@ -532,8 +540,9 @@ export type NotificationDeliveryCreateInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -564,8 +573,9 @@ export type NotificationDeliveryUncheckedCreateInput = {
   personId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -590,8 +600,9 @@ export type NotificationDeliveryUpdateInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -622,8 +633,9 @@ export type NotificationDeliveryUncheckedUpdateInput = {
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -651,8 +663,9 @@ export type NotificationDeliveryCreateManyInput = {
   personId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -676,8 +689,9 @@ export type NotificationDeliveryUpdateManyMutationInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -704,8 +718,9 @@ export type NotificationDeliveryUncheckedUpdateManyInput = {
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -742,8 +757,9 @@ export type NotificationDeliveryCountOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
-  summary?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  locale?: Prisma.SortOrder
+  templateKey?: Prisma.SortOrder
+  templateParams?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
@@ -777,8 +793,8 @@ export type NotificationDeliveryMaxOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
-  summary?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  locale?: Prisma.SortOrder
+  templateKey?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
@@ -805,8 +821,8 @@ export type NotificationDeliveryMinOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   adminUserId?: Prisma.SortOrder
   target?: Prisma.SortOrder
-  summary?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  locale?: Prisma.SortOrder
+  templateKey?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
@@ -994,8 +1010,9 @@ export type NotificationDeliveryCreateWithoutPersonInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1024,8 +1041,9 @@ export type NotificationDeliveryUncheckedCreateWithoutPersonInput = {
   pilotId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1082,8 +1100,9 @@ export type NotificationDeliveryScalarWhereInput = {
   personId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   adminUserId?: Prisma.UuidNullableFilter<"NotificationDelivery"> | string | null
   target?: Prisma.StringFilter<"NotificationDelivery"> | string
-  summary?: Prisma.StringFilter<"NotificationDelivery"> | string
-  message?: Prisma.StringFilter<"NotificationDelivery"> | string
+  locale?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateKey?: Prisma.StringFilter<"NotificationDelivery"> | string
+  templateParams?: Prisma.JsonFilter<"NotificationDelivery">
   createdAt?: Prisma.DateTimeFilter<"NotificationDelivery"> | Date | string
   startedAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"NotificationDelivery"> | Date | string | null
@@ -1107,8 +1126,9 @@ export type NotificationDeliveryCreateWithoutPilotInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1137,8 +1157,9 @@ export type NotificationDeliveryUncheckedCreateWithoutPilotInput = {
   personId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1189,8 +1210,9 @@ export type NotificationDeliveryCreateWithoutAdminUserInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1219,8 +1241,9 @@ export type NotificationDeliveryUncheckedCreateWithoutAdminUserInput = {
   pilotId?: string | null
   personId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1271,8 +1294,9 @@ export type NotificationDeliveryCreateWithoutAttemptsInput = {
   channel: $Enums.NotificationChannel
   status?: $Enums.NotificationStatus
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1302,8 +1326,9 @@ export type NotificationDeliveryUncheckedCreateWithoutAttemptsInput = {
   personId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1343,8 +1368,9 @@ export type NotificationDeliveryUpdateWithoutAttemptsInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1374,8 +1400,9 @@ export type NotificationDeliveryUncheckedUpdateWithoutAttemptsInput = {
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1401,8 +1428,9 @@ export type NotificationDeliveryCreateManyPersonInput = {
   pilotId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1426,8 +1454,9 @@ export type NotificationDeliveryUpdateWithoutPersonInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1456,8 +1485,9 @@ export type NotificationDeliveryUncheckedUpdateWithoutPersonInput = {
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1484,8 +1514,9 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutPersonInput = {
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1511,8 +1542,9 @@ export type NotificationDeliveryCreateManyPilotInput = {
   personId?: string | null
   adminUserId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1536,8 +1568,9 @@ export type NotificationDeliveryUpdateWithoutPilotInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1566,8 +1599,9 @@ export type NotificationDeliveryUncheckedUpdateWithoutPilotInput = {
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1594,8 +1628,9 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutPilotInput = {
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   adminUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1621,8 +1656,9 @@ export type NotificationDeliveryCreateManyAdminUserInput = {
   pilotId?: string | null
   personId?: string | null
   target: string
-  summary: string
-  message: string
+  locale?: string
+  templateKey: string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   startedAt?: Date | string | null
   sentAt?: Date | string | null
@@ -1646,8 +1682,9 @@ export type NotificationDeliveryUpdateWithoutAdminUserInput = {
   channel?: Prisma.EnumNotificationChannelFieldUpdateOperationsInput | $Enums.NotificationChannel
   status?: Prisma.EnumNotificationStatusFieldUpdateOperationsInput | $Enums.NotificationStatus
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1676,8 +1713,9 @@ export type NotificationDeliveryUncheckedUpdateWithoutAdminUserInput = {
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1704,8 +1742,9 @@ export type NotificationDeliveryUncheckedUpdateManyWithoutAdminUserInput = {
   pilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   target?: Prisma.StringFieldUpdateOperationsInput | string
-  summary?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  locale?: Prisma.StringFieldUpdateOperationsInput | string
+  templateKey?: Prisma.StringFieldUpdateOperationsInput | string
+  templateParams?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1763,8 +1802,9 @@ export type NotificationDeliverySelect<ExtArgs extends runtime.Types.Extensions.
   personId?: boolean
   adminUserId?: boolean
   target?: boolean
-  summary?: boolean
-  message?: boolean
+  locale?: boolean
+  templateKey?: boolean
+  templateParams?: boolean
   createdAt?: boolean
   startedAt?: boolean
   sentAt?: boolean
@@ -1796,8 +1836,9 @@ export type NotificationDeliverySelectCreateManyAndReturn<ExtArgs extends runtim
   personId?: boolean
   adminUserId?: boolean
   target?: boolean
-  summary?: boolean
-  message?: boolean
+  locale?: boolean
+  templateKey?: boolean
+  templateParams?: boolean
   createdAt?: boolean
   startedAt?: boolean
   sentAt?: boolean
@@ -1827,8 +1868,9 @@ export type NotificationDeliverySelectUpdateManyAndReturn<ExtArgs extends runtim
   personId?: boolean
   adminUserId?: boolean
   target?: boolean
-  summary?: boolean
-  message?: boolean
+  locale?: boolean
+  templateKey?: boolean
+  templateParams?: boolean
   createdAt?: boolean
   startedAt?: boolean
   sentAt?: boolean
@@ -1858,8 +1900,9 @@ export type NotificationDeliverySelectScalar = {
   personId?: boolean
   adminUserId?: boolean
   target?: boolean
-  summary?: boolean
-  message?: boolean
+  locale?: boolean
+  templateKey?: boolean
+  templateParams?: boolean
   createdAt?: boolean
   startedAt?: boolean
   sentAt?: boolean
@@ -1876,7 +1919,7 @@ export type NotificationDeliverySelectScalar = {
   version?: boolean
 }
 
-export type NotificationDeliveryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "dedupeKey" | "type" | "channel" | "status" | "pilotId" | "personId" | "adminUserId" | "target" | "summary" | "message" | "createdAt" | "startedAt" | "sentAt" | "readAt" | "nextAttemptAt" | "attemptCount" | "retryLimit" | "retryCycle" | "lastErrorCategory" | "finalFailureReason" | "providerMessageId" | "securePayloadCiphertext" | "securePayloadExpiresAt" | "version", ExtArgs["result"]["notificationDelivery"]>
+export type NotificationDeliveryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "dedupeKey" | "type" | "channel" | "status" | "pilotId" | "personId" | "adminUserId" | "target" | "locale" | "templateKey" | "templateParams" | "createdAt" | "startedAt" | "sentAt" | "readAt" | "nextAttemptAt" | "attemptCount" | "retryLimit" | "retryCycle" | "lastErrorCategory" | "finalFailureReason" | "providerMessageId" | "securePayloadCiphertext" | "securePayloadExpiresAt" | "version", ExtArgs["result"]["notificationDelivery"]>
 export type NotificationDeliveryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.NotificationDelivery$pilotArgs<ExtArgs>
   person?: boolean | Prisma.NotificationDelivery$personArgs<ExtArgs>
@@ -1913,8 +1956,9 @@ export type $NotificationDeliveryPayload<ExtArgs extends runtime.Types.Extension
     personId: string | null
     adminUserId: string | null
     target: string
-    summary: string
-    message: string
+    locale: string
+    templateKey: string
+    templateParams: runtime.JsonValue
     createdAt: Date
     startedAt: Date | null
     sentAt: Date | null
@@ -2365,8 +2409,9 @@ export interface NotificationDeliveryFieldRefs {
   readonly personId: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly adminUserId: Prisma.FieldRef<"NotificationDelivery", 'String'>
   readonly target: Prisma.FieldRef<"NotificationDelivery", 'String'>
-  readonly summary: Prisma.FieldRef<"NotificationDelivery", 'String'>
-  readonly message: Prisma.FieldRef<"NotificationDelivery", 'String'>
+  readonly locale: Prisma.FieldRef<"NotificationDelivery", 'String'>
+  readonly templateKey: Prisma.FieldRef<"NotificationDelivery", 'String'>
+  readonly templateParams: Prisma.FieldRef<"NotificationDelivery", 'Json'>
   readonly createdAt: Prisma.FieldRef<"NotificationDelivery", 'DateTime'>
   readonly startedAt: Prisma.FieldRef<"NotificationDelivery", 'DateTime'>
   readonly sentAt: Prisma.FieldRef<"NotificationDelivery", 'DateTime'>

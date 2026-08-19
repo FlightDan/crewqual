@@ -13,6 +13,8 @@ import {
 } from "@/components/admin/settings/settings-shared";
 import { backupSettingsService } from "@/services/backup-settings-service";
 import type { BackupSettingsSnapshot } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 const emptyTarget = {
   name: "",
@@ -30,6 +32,7 @@ export function BackupSettingsSection({
   canWrite: boolean;
   notify: SettingsFeedback;
 }) {
+  const { t } = useI18n();
   const [snapshot, setSnapshot] = React.useState<BackupSettingsSnapshot | null>(null);
   const [target, setTarget] = React.useState(emptyTarget);
   const [plan, setPlan] = React.useState({
@@ -50,8 +53,8 @@ export function BackupSettingsSection({
       backupSettingsService
         .load()
         .then(setSnapshot)
-        .catch((reason) => setError(reason instanceof Error ? reason.message : "备份设置加载失败")),
-    [],
+        .catch((reason) => setError(localizeError(reason, t, "settingsBackup.loadError"))),
+    [t],
   );
   React.useEffect(() => {
     void load();
@@ -62,9 +65,9 @@ export function BackupSettingsSection({
       await backupSettingsService.createTarget(target);
       setTarget(emptyTarget);
       await load();
-      notify("success", "备份目标已保存");
+      notify("success", t("settingsBackup.targetSaved"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "备份目标保存失败");
+      setError(localizeError(reason, t, "settingsBackup.targetSaveError"));
     } finally {
       setSaving(false);
     }
@@ -79,9 +82,9 @@ export function BackupSettingsSection({
       });
       setPlan({ ...plan, name: "" });
       await load();
-      notify("success", "备份计划已保存");
+      notify("success", t("settingsBackup.planSaved"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "备份计划保存失败");
+      setError(localizeError(reason, t, "settingsBackup.planSaveError"));
     } finally {
       setSaving(false);
     }
@@ -90,20 +93,20 @@ export function BackupSettingsSection({
     try {
       await backupSettingsService.runNow(planId);
       await load();
-      notify("success", "备份已加入队列");
+      notify("success", t("settingsBackup.queued"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "备份启动失败");
+      setError(localizeError(reason, t, "settingsBackup.startError"));
     }
   };
   const restore = async (runId: string) => {
-    const confirmation = window.prompt("这是破坏性操作，请输入：恢复");
-    if (confirmation !== "恢复") return;
+    const confirmation = window.prompt(t("settingsBackup.restorePrompt"));
+    if (confirmation !== t("settingsBackup.restoreToken")) return;
     try {
       await backupSettingsService.restore(runId, confirmation);
       await load();
-      notify("success", "恢复任务已提交");
+      notify("success", t("settingsBackup.restoreSubmitted"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "恢复失败");
+      setError(localizeError(reason, t, "settingsBackup.restoreError"));
     }
   };
   const testTarget = async (targetId: string) => {
@@ -111,37 +114,37 @@ export function BackupSettingsSection({
       const result = await backupSettingsService.testTarget(targetId);
       notify(
         result.ok ? "success" : "danger",
-        result.ok ? "目标连接成功" : "目标连接失败",
+        result.ok ? t("settingsBackup.connectionOk") : t("settingsBackup.connectionFailed"),
         result.message,
       );
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "目标测试失败");
+      setError(localizeError(reason, t, "settingsBackup.testError"));
     }
   };
   return (
     <div className="space-y-5">
       <SettingsSectionHeader
-        title="备份与恢复"
-        description="图库和数据库分别配置备份计划，支持本地、SMB、FTP/FTPS、WebDAV 和 S3 目标。数据库当前只允许全量备份。"
+        title={t("settingsBackup.title")}
+        description={t("settingsBackup.description")}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <Card>
         <CardContent className="space-y-4 p-5">
-          <h3 className="font-semibold">新增备份目标</h3>
+          <h3 className="font-semibold">{t("settingsBackup.newTarget")}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="名称"
+              label={t("settingsBackup.name")}
               value={target.name}
               disabled={!canWrite}
               onChange={(event) => setTarget({ ...target, name: event.target.value })}
             />
             <Select
-              label="类型"
+              label={t("settingsBackup.type")}
               value={target.type}
               disabled={!canWrite}
               options={[
-                { label: "本地", value: "LOCAL" },
+                { label: t("settingsBackup.local"), value: "LOCAL" },
                 { label: "SMB", value: "SMB" },
                 { label: "FTP / FTPS", value: "FTP" },
                 { label: "WebDAV", value: "WEBDAV" },
@@ -150,19 +153,19 @@ export function BackupSettingsSection({
               onChange={(event) => setTarget({ ...target, type: event.target.value })}
             />
             <Input
-              label="端点 / 本地目录"
+              label={t("settingsBackup.endpoint")}
               value={target.endpoint}
               disabled={!canWrite}
               onChange={(event) => setTarget({ ...target, endpoint: event.target.value })}
             />
             <Input
-              label="目标目录"
+              label={t("settingsBackup.basePath")}
               value={target.basePath}
               disabled={!canWrite}
               onChange={(event) => setTarget({ ...target, basePath: event.target.value })}
             />
             <Input
-              label="账号与密钥 JSON（可选）"
+              label={t("settingsBackup.secret")}
               type="password"
               value={target.secret}
               disabled={!canWrite}
@@ -174,8 +177,8 @@ export function BackupSettingsSection({
             checked={target.encryptionEnabled}
             disabled={!canWrite}
             onChange={(event) => setTarget({ ...target, encryptionEnabled: event.target.checked })}
-            label="备份文件加密"
-            helperText="关闭前请确认目标存储可信；密钥只保存加密后的密文。"
+            label={t("settingsBackup.encrypt")}
+            helperText={t("settingsBackup.encryptHelp")}
           />
           <div className="flex justify-end">
             <Button
@@ -184,14 +187,14 @@ export function BackupSettingsSection({
               disabled={!canWrite || !target.name || (target.encryptionEnabled && !target.secret)}
               onClick={() => void createTarget()}
             >
-              保存目标
+              {t("settingsBackup.saveTarget")}
             </Button>
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="p-5">
-          <h3 className="font-semibold">已配置目标</h3>
+          <h3 className="font-semibold">{t("settingsBackup.configuredTargets")}</h3>
           <div className="mt-3 space-y-2 text-sm">
             {snapshot?.targets.length ? (
               snapshot.targets.map((item) => (
@@ -201,7 +204,9 @@ export function BackupSettingsSection({
                 >
                   <span>
                     {item.name} · {item.type} ·{" "}
-                    {item.secretConfigured ? "已配置密钥" : "未配置密钥"}
+                    {item.secretConfigured
+                      ? t("settingsBackup.secretSet")
+                      : t("settingsBackup.secretUnset")}
                   </span>
                   <Button
                     type="button"
@@ -209,33 +214,33 @@ export function BackupSettingsSection({
                     disabled={!canWrite}
                     onClick={() => void testTarget(item.id)}
                   >
-                    测试连接
+                    {t("settingsBackup.test")}
                   </Button>
                 </div>
               ))
             ) : (
-              <p className="text-secondary">暂无备份目标</p>
+              <p className="text-secondary">{t("settingsBackup.noTargets")}</p>
             )}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="space-y-4 p-5">
-          <h3 className="font-semibold">新增备份计划</h3>
+          <h3 className="font-semibold">{t("settingsBackup.newPlan")}</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <Input
-              label="计划名称"
+              label={t("settingsBackup.planName")}
               value={plan.name}
               disabled={!canWrite}
               onChange={(event) => setPlan({ ...plan, name: event.target.value })}
             />
             <Select
-              label="数据源"
+              label={t("settingsBackup.source")}
               value={plan.source}
               disabled={!canWrite}
               options={[
-                { label: "图库", value: "GALLERY" },
-                { label: "数据库", value: "DATABASE" },
+                { label: t("settingsBackup.gallery"), value: "GALLERY" },
+                { label: t("settingsBackup.database"), value: "DATABASE" },
               ]}
               onChange={(event) =>
                 setPlan({
@@ -246,21 +251,21 @@ export function BackupSettingsSection({
               }
             />
             <Select
-              label="模式"
+              label={t("settingsBackup.mode")}
               value={plan.mode}
               disabled={!canWrite || plan.source === "DATABASE"}
               options={[
-                { label: "全量", value: "FULL" },
-                { label: "增量", value: "INCREMENTAL" },
+                { label: t("settingsBackup.full"), value: "FULL" },
+                { label: t("settingsBackup.incremental"), value: "INCREMENTAL" },
               ]}
               onChange={(event) => setPlan({ ...plan, mode: event.target.value })}
             />
             <Select
-              label="备份目标"
+              label={t("settingsBackup.target")}
               value={plan.targetId}
               disabled={!canWrite}
               options={[
-                { label: "请选择", value: "" },
+                { label: t("settingsBackup.choose"), value: "" },
                 ...(snapshot?.targets ?? []).map((item) => ({ label: item.name, value: item.id })),
               ]}
               onChange={(event) => setPlan({ ...plan, targetId: event.target.value })}
@@ -272,13 +277,13 @@ export function BackupSettingsSection({
               onChange={(event) => setPlan({ ...plan, cron: event.target.value })}
             />
             <Input
-              label="时区"
+              label={t("settingsBackup.timezone")}
               value={plan.timezone}
               disabled={!canWrite}
               onChange={(event) => setPlan({ ...plan, timezone: event.target.value })}
             />
             <Input
-              label="最多保留份数"
+              label={t("settingsBackup.retentionCount")}
               type="number"
               min={1}
               value={plan.retentionCount}
@@ -286,7 +291,7 @@ export function BackupSettingsSection({
               onChange={(event) => setPlan({ ...plan, retentionCount: Number(event.target.value) })}
             />
             <Input
-              label="最长保留天数"
+              label={t("settingsBackup.retentionDays")}
               type="number"
               min={1}
               value={plan.retentionDays}
@@ -301,14 +306,14 @@ export function BackupSettingsSection({
               disabled={!canWrite || !plan.name || !plan.targetId}
               onClick={() => void createPlan()}
             >
-              保存计划
+              {t("settingsBackup.savePlan")}
             </Button>
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="p-5">
-          <h3 className="font-semibold">最近运行</h3>
+          <h3 className="font-semibold">{t("settingsBackup.recentRuns")}</h3>
           <div className="mt-3 space-y-2 text-sm">
             {snapshot?.runs.length ? (
               snapshot.runs.map((run) => (
@@ -317,21 +322,27 @@ export function BackupSettingsSection({
                   className="flex flex-wrap justify-between gap-2 border-b border-border py-2"
                 >
                   <span>
-                    {run.planName} · {run.source === "GALLERY" ? "图库" : "数据库"} ·{" "}
-                    {run.mode === "FULL" ? "全量" : "增量"}
+                    {run.planName} ·{" "}
+                    {run.source === "GALLERY"
+                      ? t("settingsBackup.gallery")
+                      : t("settingsBackup.database")}{" "}
+                    ·{" "}
+                    {run.mode === "FULL"
+                      ? t("settingsBackup.full")
+                      : t("settingsBackup.incremental")}
                   </span>
                   <span>{run.status}</span>
                 </div>
               ))
             ) : (
-              <p className="text-secondary">暂无运行记录</p>
+              <p className="text-secondary">{t("settingsBackup.noRuns")}</p>
             )}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="p-5">
-          <h3 className="font-semibold">计划与操作</h3>
+          <h3 className="font-semibold">{t("settingsBackup.planOperations")}</h3>
           <div className="mt-3 space-y-2 text-sm">
             {snapshot?.plans.length ? (
               snapshot.plans.map((item) => (
@@ -340,7 +351,11 @@ export function BackupSettingsSection({
                   className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2"
                 >
                   <span>
-                    {item.name} · {item.source === "GALLERY" ? "图库" : "数据库"} · {item.cron}
+                    {item.name} ·{" "}
+                    {item.source === "GALLERY"
+                      ? t("settingsBackup.gallery")
+                      : t("settingsBackup.database")}{" "}
+                    · {item.cron}
                   </span>
                   <Button
                     type="button"
@@ -348,12 +363,12 @@ export function BackupSettingsSection({
                     disabled={!canWrite}
                     onClick={() => void runNow(item.id)}
                   >
-                    立即备份
+                    {t("settingsBackup.runNow")}
                   </Button>
                 </div>
               ))
             ) : (
-              <p className="text-secondary">暂无备份计划</p>
+              <p className="text-secondary">{t("settingsBackup.noPlans")}</p>
             )}
           </div>
           <div className="mt-4 space-y-2 text-sm">
@@ -363,7 +378,8 @@ export function BackupSettingsSection({
               .map((run) => (
                 <div key={`restore-${run.id}`} className="flex items-center justify-between gap-2">
                   <span>
-                    恢复：{run.planName} · {run.createdAt.slice(0, 16).replace("T", " ")}
+                    {t("settingsBackup.restorePrefix")}
+                    {run.planName} · {run.createdAt.slice(0, 16).replace("T", " ")}
                   </span>
                   <Button
                     type="button"
@@ -371,7 +387,7 @@ export function BackupSettingsSection({
                     disabled={!canWrite}
                     onClick={() => void restore(run.id)}
                   >
-                    恢复
+                    {t("settingsBackup.restore")}
                   </Button>
                 </div>
               ))}

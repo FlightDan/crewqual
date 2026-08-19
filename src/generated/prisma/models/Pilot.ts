@@ -40,7 +40,7 @@ export type PilotMinAggregateOutputType = {
   mobile: string | null
   displayName: string | null
   initials: string | null
-  role: string | null
+  roleCode: string | null
   aircraftType: string | null
   rankLabel: string | null
   unitId: string | null
@@ -57,7 +57,7 @@ export type PilotMaxAggregateOutputType = {
   mobile: string | null
   displayName: string | null
   initials: string | null
-  role: string | null
+  roleCode: string | null
   aircraftType: string | null
   rankLabel: string | null
   unitId: string | null
@@ -74,7 +74,7 @@ export type PilotCountAggregateOutputType = {
   mobile: number
   displayName: number
   initials: number
-  role: number
+  roleCode: number
   aircraftType: number
   rankLabel: number
   unitId: number
@@ -101,7 +101,7 @@ export type PilotMinAggregateInputType = {
   mobile?: true
   displayName?: true
   initials?: true
-  role?: true
+  roleCode?: true
   aircraftType?: true
   rankLabel?: true
   unitId?: true
@@ -118,7 +118,7 @@ export type PilotMaxAggregateInputType = {
   mobile?: true
   displayName?: true
   initials?: true
-  role?: true
+  roleCode?: true
   aircraftType?: true
   rankLabel?: true
   unitId?: true
@@ -135,7 +135,7 @@ export type PilotCountAggregateInputType = {
   mobile?: true
   displayName?: true
   initials?: true
-  role?: true
+  roleCode?: true
   aircraftType?: true
   rankLabel?: true
   unitId?: true
@@ -239,7 +239,7 @@ export type PilotGroupByOutputType = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -279,7 +279,7 @@ export type PilotWhereInput = {
   mobile?: Prisma.StringFilter<"Pilot"> | string
   displayName?: Prisma.StringFilter<"Pilot"> | string
   initials?: Prisma.StringFilter<"Pilot"> | string
-  role?: Prisma.StringFilter<"Pilot"> | string
+  roleCode?: Prisma.StringFilter<"Pilot"> | string
   aircraftType?: Prisma.StringFilter<"Pilot"> | string
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
@@ -308,7 +308,7 @@ export type PilotOrderByWithRelationInput = {
   mobile?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   initials?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  roleCode?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
@@ -341,7 +341,7 @@ export type PilotWhereUniqueInput = Prisma.AtLeast<{
   mobile?: Prisma.StringFilter<"Pilot"> | string
   displayName?: Prisma.StringFilter<"Pilot"> | string
   initials?: Prisma.StringFilter<"Pilot"> | string
-  role?: Prisma.StringFilter<"Pilot"> | string
+  roleCode?: Prisma.StringFilter<"Pilot"> | string
   aircraftType?: Prisma.StringFilter<"Pilot"> | string
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
@@ -369,7 +369,7 @@ export type PilotOrderByWithAggregationInput = {
   mobile?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   initials?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  roleCode?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
@@ -394,7 +394,7 @@ export type PilotScalarWhereWithAggregatesInput = {
   mobile?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   displayName?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   initials?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
-  role?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
+  roleCode?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   aircraftType?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   rankLabel?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   unitId?: Prisma.UuidWithAggregatesFilter<"Pilot"> | string
@@ -411,7 +411,7 @@ export type PilotCreateInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -438,7 +438,7 @@ export type PilotUncheckedCreateInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -465,7 +465,7 @@ export type PilotUpdateInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -492,7 +492,7 @@ export type PilotUncheckedUpdateInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -519,7 +519,7 @@ export type PilotCreateManyInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -536,7 +536,7 @@ export type PilotUpdateManyMutationInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -551,7 +551,7 @@ export type PilotUncheckedUpdateManyInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -583,7 +583,7 @@ export type PilotCountOrderByAggregateInput = {
   mobile?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   initials?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  roleCode?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
@@ -604,7 +604,7 @@ export type PilotMaxOrderByAggregateInput = {
   mobile?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   initials?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  roleCode?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
@@ -621,7 +621,7 @@ export type PilotMinOrderByAggregateInput = {
   mobile?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   initials?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  roleCode?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
@@ -869,7 +869,7 @@ export type PilotCreateWithoutUnitInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -895,7 +895,7 @@ export type PilotUncheckedCreateWithoutUnitInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -950,7 +950,7 @@ export type PilotScalarWhereInput = {
   mobile?: Prisma.StringFilter<"Pilot"> | string
   displayName?: Prisma.StringFilter<"Pilot"> | string
   initials?: Prisma.StringFilter<"Pilot"> | string
-  role?: Prisma.StringFilter<"Pilot"> | string
+  roleCode?: Prisma.StringFilter<"Pilot"> | string
   aircraftType?: Prisma.StringFilter<"Pilot"> | string
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
@@ -967,7 +967,7 @@ export type PilotCreateWithoutPersonInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -993,7 +993,7 @@ export type PilotUncheckedCreateWithoutPersonInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1035,7 +1035,7 @@ export type PilotUpdateWithoutPersonInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1061,7 +1061,7 @@ export type PilotUncheckedUpdateWithoutPersonInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1087,7 +1087,7 @@ export type PilotCreateWithoutProfileInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1113,7 +1113,7 @@ export type PilotUncheckedCreateWithoutProfileInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1155,7 +1155,7 @@ export type PilotUpdateWithoutProfileInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1181,7 +1181,7 @@ export type PilotUncheckedUpdateWithoutProfileInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1207,7 +1207,7 @@ export type PilotCreateWithoutAccessTokensInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1233,7 +1233,7 @@ export type PilotUncheckedCreateWithoutAccessTokensInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1275,7 +1275,7 @@ export type PilotUpdateWithoutAccessTokensInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1301,7 +1301,7 @@ export type PilotUncheckedUpdateWithoutAccessTokensInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1327,7 +1327,7 @@ export type PilotCreateWithoutSessionsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1353,7 +1353,7 @@ export type PilotUncheckedCreateWithoutSessionsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1395,7 +1395,7 @@ export type PilotUpdateWithoutSessionsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1421,7 +1421,7 @@ export type PilotUncheckedUpdateWithoutSessionsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1447,7 +1447,7 @@ export type PilotCreateWithoutQualificationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1473,7 +1473,7 @@ export type PilotUncheckedCreateWithoutQualificationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1515,7 +1515,7 @@ export type PilotUpdateWithoutQualificationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1541,7 +1541,7 @@ export type PilotUncheckedUpdateWithoutQualificationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1567,7 +1567,7 @@ export type PilotCreateWithoutEvidenceImagesInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1593,7 +1593,7 @@ export type PilotUncheckedCreateWithoutEvidenceImagesInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1635,7 +1635,7 @@ export type PilotUpdateWithoutEvidenceImagesInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1661,7 +1661,7 @@ export type PilotUncheckedUpdateWithoutEvidenceImagesInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1687,7 +1687,7 @@ export type PilotCreateWithoutUpdateRequestsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1713,7 +1713,7 @@ export type PilotUncheckedCreateWithoutUpdateRequestsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1755,7 +1755,7 @@ export type PilotUpdateWithoutUpdateRequestsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1781,7 +1781,7 @@ export type PilotUncheckedUpdateWithoutUpdateRequestsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1807,7 +1807,7 @@ export type PilotCreateWithoutUpgradePlansInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1833,7 +1833,7 @@ export type PilotUncheckedCreateWithoutUpgradePlansInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1875,7 +1875,7 @@ export type PilotUpdateWithoutUpgradePlansInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1901,7 +1901,7 @@ export type PilotUncheckedUpdateWithoutUpgradePlansInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1927,7 +1927,7 @@ export type PilotCreateWithoutNotificationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -1953,7 +1953,7 @@ export type PilotUncheckedCreateWithoutNotificationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -1995,7 +1995,7 @@ export type PilotUpdateWithoutNotificationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2021,7 +2021,7 @@ export type PilotUncheckedUpdateWithoutNotificationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2047,7 +2047,7 @@ export type PilotCreateWithoutAuditEventsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -2073,7 +2073,7 @@ export type PilotUncheckedCreateWithoutAuditEventsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -2115,7 +2115,7 @@ export type PilotUpdateWithoutAuditEventsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2141,7 +2141,7 @@ export type PilotUncheckedUpdateWithoutAuditEventsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2167,7 +2167,7 @@ export type PilotCreateWithoutUploadReservationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -2193,7 +2193,7 @@ export type PilotUncheckedCreateWithoutUploadReservationsInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   unitId: string
@@ -2235,7 +2235,7 @@ export type PilotUpdateWithoutUploadReservationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2261,7 +2261,7 @@ export type PilotUncheckedUpdateWithoutUploadReservationsInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2287,7 +2287,7 @@ export type PilotCreateManyUnitInput = {
   mobile: string
   displayName: string
   initials: string
-  role: string
+  roleCode: string
   aircraftType: string
   rankLabel: string
   active?: boolean
@@ -2303,7 +2303,7 @@ export type PilotUpdateWithoutUnitInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2329,7 +2329,7 @@ export type PilotUncheckedUpdateWithoutUnitInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2355,7 +2355,7 @@ export type PilotUncheckedUpdateManyWithoutUnitInput = {
   mobile?: Prisma.StringFieldUpdateOperationsInput | string
   displayName?: Prisma.StringFieldUpdateOperationsInput | string
   initials?: Prisma.StringFieldUpdateOperationsInput | string
-  role?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -2474,7 +2474,7 @@ export type PilotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   mobile?: boolean
   displayName?: boolean
   initials?: boolean
-  role?: boolean
+  roleCode?: boolean
   aircraftType?: boolean
   rankLabel?: boolean
   unitId?: boolean
@@ -2504,7 +2504,7 @@ export type PilotSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   mobile?: boolean
   displayName?: boolean
   initials?: boolean
-  role?: boolean
+  roleCode?: boolean
   aircraftType?: boolean
   rankLabel?: boolean
   unitId?: boolean
@@ -2523,7 +2523,7 @@ export type PilotSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   mobile?: boolean
   displayName?: boolean
   initials?: boolean
-  role?: boolean
+  roleCode?: boolean
   aircraftType?: boolean
   rankLabel?: boolean
   unitId?: boolean
@@ -2542,7 +2542,7 @@ export type PilotSelectScalar = {
   mobile?: boolean
   displayName?: boolean
   initials?: boolean
-  role?: boolean
+  roleCode?: boolean
   aircraftType?: boolean
   rankLabel?: boolean
   unitId?: boolean
@@ -2553,7 +2553,7 @@ export type PilotSelectScalar = {
   personId?: boolean
 }
 
-export type PilotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "employeeNumber" | "mobile" | "displayName" | "initials" | "role" | "aircraftType" | "rankLabel" | "unitId" | "active" | "version" | "createdAt" | "updatedAt" | "personId", ExtArgs["result"]["pilot"]>
+export type PilotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "employeeNumber" | "mobile" | "displayName" | "initials" | "roleCode" | "aircraftType" | "rankLabel" | "unitId" | "active" | "version" | "createdAt" | "updatedAt" | "personId", ExtArgs["result"]["pilot"]>
 export type PilotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   unit?: boolean | Prisma.OrganizationUnitDefaultArgs<ExtArgs>
   qualifications?: boolean | Prisma.Pilot$qualificationsArgs<ExtArgs>
@@ -2600,7 +2600,7 @@ export type $PilotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     mobile: string
     displayName: string
     initials: string
-    role: string
+    roleCode: string
     aircraftType: string
     rankLabel: string
     unitId: string
@@ -3049,7 +3049,7 @@ export interface PilotFieldRefs {
   readonly mobile: Prisma.FieldRef<"Pilot", 'String'>
   readonly displayName: Prisma.FieldRef<"Pilot", 'String'>
   readonly initials: Prisma.FieldRef<"Pilot", 'String'>
-  readonly role: Prisma.FieldRef<"Pilot", 'String'>
+  readonly roleCode: Prisma.FieldRef<"Pilot", 'String'>
   readonly aircraftType: Prisma.FieldRef<"Pilot", 'String'>
   readonly rankLabel: Prisma.FieldRef<"Pilot", 'String'>
   readonly unitId: Prisma.FieldRef<"Pilot", 'String'>

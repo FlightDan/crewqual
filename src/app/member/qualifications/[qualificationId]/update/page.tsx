@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { QualificationUpdatePageClient } from "@/app/pilot/qualifications/[qualificationId]/update/qualification-update-page-client";
 import type { PilotFlowScenario } from "@/types/services";
+import { localizedTitle } from "@/lib/server-locale";
 
-export const metadata: Metadata = { title: "更新资质 · CrewQual" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${await localizedTitle("更新资质", "Update qualification")} · CrewQual` };
+}
 
 const scenarios = new Set<PilotFlowScenario>([
   "default",

@@ -5,7 +5,7 @@ import {
   createMockAdminOperationsServices,
   createSequenceIdGenerator,
 } from "@/services/mock-admin-operations-services";
-import { UPGRADE_STAGE_NAMES, type UpgradePlanDraft } from "@/types/services";
+import { UPGRADE_STAGE_CODES, UPGRADE_STAGE_NAMES, type UpgradePlanDraft } from "@/types/services";
 
 const clock = { now: () => new Date("2026-08-14T12:00:00+08:00") };
 
@@ -28,6 +28,7 @@ function planDraft(pilotId = "pilot-demo-05"): UpgradePlanDraft {
     leadDepartment: "测试中队",
     stages: UPGRADE_STAGE_NAMES.map((name, index) => ({
       id: `draft-${index}`,
+      code: UPGRADE_STAGE_CODES[index]!,
       name,
       status: "not_started",
       plannedStart: ranges[index]![0],

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/i18n-provider";
 
 export function Pagination({
   page,
@@ -11,9 +12,10 @@ export function Pagination({
   total: number;
   onPageChange: (page: number) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-secondary">
-      <p>共 {total} 条记录</p>
+      <p>{t("common.records", { count: total })}</p>
       <div className="flex items-center gap-2">
         <Button
           type="button"
@@ -22,9 +24,12 @@ export function Pagination({
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
-          上一页
+          {t("common.previousPage")}
         </Button>
-        <span aria-label={`第 ${page} 页，共 ${totalPages} 页`} className="px-2 font-semibold">
+        <span
+          aria-label={t("common.pageLabel", { page, pages: totalPages })}
+          className="px-2 font-semibold"
+        >
           {page} / {totalPages}
         </span>
         <Button
@@ -34,7 +39,7 @@ export function Pagination({
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
-          下一页
+          {t("common.nextPage")}
         </Button>
       </div>
     </div>

@@ -115,8 +115,8 @@ export async function POST(
         eventKey: `qualification-rollback:${replacement.id}`,
         pilotId: current.pilotId,
         type: "review_approved",
-        summary: "资质已回滚到历史版本",
-        message: "资质历史版本已恢复为当前生效版本，请查看详情。",
+        templateKey: "qualification.rollback",
+        templateParams: {},
       });
       return replacement;
     });

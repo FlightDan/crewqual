@@ -2,6 +2,7 @@ import { ApiError } from "@/server/api";
 import { requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import { pilotRoleLabel } from "@/lib/domain-i18n";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const DUE_WINDOW_DAYS = 90;
@@ -168,7 +169,8 @@ function serializeMember(person: IncludedMember) {
     pilotProfile: person.pilotProfile
       ? {
           aircraftType: person.pilotProfile.aircraftType,
-          dutyLabel: person.pilotProfile.dutyLabel,
+          dutyCode: person.pilotProfile.dutyCode,
+          dutyLabel: pilotRoleLabel(person.pilotProfile.dutyCode),
           rankLabel: person.pilotProfile.rankLabel,
         }
       : null,

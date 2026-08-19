@@ -1,4 +1,8 @@
-import { CORE_QUALIFICATION_CATALOG, UPGRADE_STAGE_NAMES } from "@/types/services";
+import {
+  CORE_QUALIFICATION_CATALOG,
+  UPGRADE_STAGE_CODES,
+  UPGRADE_STAGE_NAMES,
+} from "@/types/services";
 import type {
   AdminPilotEntity,
   AdminStateV4,
@@ -16,6 +20,7 @@ import type {
   UpgradePlanStageRecord,
   UpgradePlanType,
 } from "@/types/services";
+import { pilotRoleLabel } from "@/lib/domain-i18n";
 
 export type AdminMockState = AdminStateV4;
 export type { AdminPilotEntity } from "@/types/services";
@@ -53,10 +58,11 @@ function qualificationsFor(
 function stage(
   planId: string,
   index: number,
-  input: Omit<UpgradePlanStageRecord, "id" | "name">,
+  input: Omit<UpgradePlanStageRecord, "id" | "code" | "name">,
 ): UpgradePlanStageRecord {
   return {
     id: `${planId}-stage-${index + 1}`,
+    code: UPGRADE_STAGE_CODES[index]!,
     name: UPGRADE_STAGE_NAMES[index]!,
     ...input,
   };
@@ -74,7 +80,7 @@ function createPlan(input: {
   overallOwner: string;
   leadDepartment?: string;
   cancellationReason?: string;
-  stages: Array<Omit<UpgradePlanStageRecord, "id" | "name">>;
+  stages: Array<Omit<UpgradePlanStageRecord, "id" | "code" | "name">>;
 }): UpgradePlanRecord {
   return {
     ...input,
@@ -374,7 +380,7 @@ const pilots: AdminPilotEntity[] = [
     displayName: "周航（示例）",
     initials: "周",
     mobile: "13800001049",
-    role: "副驾驶",
+    roleCode: "FIRST_OFFICER",
     aircraftType: "A320",
     unit: "一大队一中队",
     unitCode: "DEMO",
@@ -394,7 +400,7 @@ const pilots: AdminPilotEntity[] = [
     displayName: "王澄（示例）",
     initials: "王",
     mobile: "13800001284",
-    role: "副驾驶",
+    roleCode: "FIRST_OFFICER",
     aircraftType: "A320",
     unit: "一大队一中队",
     unitCode: "DEMO",
@@ -414,7 +420,7 @@ const pilots: AdminPilotEntity[] = [
     displayName: "林川（示例）",
     initials: "林",
     mobile: "13800001156",
-    role: "副驾驶",
+    roleCode: "FIRST_OFFICER",
     aircraftType: "A320",
     unit: "一大队一中队",
     unitCode: "DEMO",
@@ -434,7 +440,7 @@ const pilots: AdminPilotEntity[] = [
     displayName: "吴岚（示例）",
     initials: "吴",
     mobile: "13800001522",
-    role: "机长",
+    roleCode: "CAPTAIN",
     aircraftType: "A320",
     unit: "一大队一中队",
     unitCode: "DEMO",
@@ -454,7 +460,7 @@ const pilots: AdminPilotEntity[] = [
     displayName: "赵宁（示例）",
     initials: "赵",
     mobile: "13800001301",
-    role: "副驾驶",
+    roleCode: "FIRST_OFFICER",
     aircraftType: "A320",
     unit: "一大队一中队",
     unitCode: "DEMO",
@@ -543,7 +549,7 @@ function createReview(input: {
     pilotId: pilot.id,
     pilotName: pilot.displayName,
     employeeNumber: pilot.employeeNumber,
-    role: pilot.role,
+    role: pilotRoleLabel(pilot.roleCode),
     qualificationId: input.qualificationId,
     qualificationName: qualification.name,
     submittedAt: input.submittedAt,

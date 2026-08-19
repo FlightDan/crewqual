@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 
 const toneClasses = {
   danger: "text-danger bg-red-50",
@@ -28,6 +29,7 @@ export function DashboardStatCard({
   onClick?: () => void;
   expanded?: boolean;
 }) {
+  const { t } = useI18n();
   const content = (
     <Card
       className={cn(
@@ -41,7 +43,9 @@ export function DashboardStatCard({
         className={`mt-2 inline-flex rounded-md px-2 py-1 text-2xl font-bold ${toneClasses[tone]}`}
       >
         {value}
-        <span className="ml-1 self-end pb-0.5 text-[11px] font-normal">项</span>
+        <span className="ml-1 self-end pb-0.5 text-[11px] font-normal">
+          {t("dashboardStat.items")}
+        </span>
       </p>
       <div className="mt-2 flex items-center gap-1 text-[11px] text-muted">
         <p className="min-w-0 flex-1 truncate">{note}</p>
@@ -61,7 +65,7 @@ export function DashboardStatCard({
     <button
       type="button"
       data-testid={testId}
-      aria-label={`查看${label}明细，共 ${value} 项`}
+      aria-label={t("dashboardStat.label", { label, count: value })}
       aria-haspopup="dialog"
       aria-expanded={expanded}
       className="group block w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"

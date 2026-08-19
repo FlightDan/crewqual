@@ -17,10 +17,17 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/misc";
 import { upgradeTypeLabels } from "@/lib/admin-labels";
 import { upgradePlanDraftSchema } from "@/lib/admin-operations-validation";
+import { localizeError } from "@/lib/error-i18n";
+import { useI18n } from "@/components/i18n-provider";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import { upgradePlanDraftRepository } from "@/services/session-repository";
-import { UPGRADE_STAGE_NAMES, type InspectionItem, type UpgradePlanDraft } from "@/types/services";
+import {
+  UPGRADE_STAGE_CODES,
+  UPGRADE_STAGE_NAMES,
+  type InspectionItem,
+  type UpgradePlanDraft,
+} from "@/types/services";
 
 const defaultStages: UpgradePlanDraft["stages"] = UPGRADE_STAGE_NAMES.map((name, index) => {
   const dates = [
@@ -33,6 +40,7 @@ const defaultStages: UpgradePlanDraft["stages"] = UPGRADE_STAGE_NAMES.map((name,
   ][index]!;
   return {
     id: `draft-stage-${index + 1}`,
+    code: UPGRADE_STAGE_CODES[index]!,
     name,
     status: "not_started",
     plannedStart: dates[0],
@@ -69,6 +77,7 @@ const defaults: UpgradePlanDraft = {
 type WizardStep = "basic" | "stages" | "confirm";
 
 export function UpgradePlanForm({ planId }: { planId?: string }) {
+  const { locale, t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -115,7 +124,7 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
     void upgradePlans.getById(planId).then((result) => {
       if (!active) return;
       if (!result.data) {
-        setServiceError("升级计划不存在或当前账号无权访问");
+        setServiceError(t("upgradeForm.notFound"));
         setHydrated(true);
         return;
       }
@@ -141,7 +150,7 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
     return () => {
       active = false;
     };
-  }, [planId, reset, upgradePlans]);
+  }, [planId, reset, t, upgradePlans]);
   React.useEffect(() => {
     let active = true;
     void upgradePlans.listInspectionItems().then((result) => {
@@ -227,7 +236,7 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
       setConfirmOpen(false);
       router.push(`/admin/upgrade-plans/${response.data.id}`);
     } catch (reason) {
-      setServiceError(reason instanceof Error ? reason.message : "创建失败，请检查输入后重试");
+      setServiceError(localizeError(reason, t, "upgradeForm.createError"));
       setConfirmOpen(false);
     } finally {
       setSubmitting(false);
@@ -243,22 +252,20 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
   return (
     <PageContainer className="space-y-5 pb-40 lg:pb-6">
       <AdminPageHeader
-        title={planId ? "编辑机组升级计划" : "新建机组升级计划"}
-        description="Desktop 同页编辑；Mobile 三步共用同一 React Hook Form + Zod DTO"
+        title={planId ? t("upgradeForm.editTitle") : t("upgradeForm.newTitle")}
+        description={t("upgradeForm.description")}
       />
       <WizardHeader step={step} />
       {serviceError ? <Alert tone="danger">{serviceError}</Alert> : null}
       {conflict ? (
-        <Alert tone="warning">
-          该飞行员已有活动计划 {conflict.planNumber}。仍可保存独立草稿，但不能创建并启动。
-        </Alert>
+        <Alert tone="warning">{t("upgradeForm.conflict", { plan: conflict.planNumber })}</Alert>
       ) : null}
       <section className={step === "basic" ? "block" : "hidden lg:block"}>
         <Card className="p-4 shadow-none">
-          <h3 className="text-base font-bold">Section 1 — 计划基本信息</h3>
+          <h3 className="text-base font-bold">{t("upgradeForm.basicSection")}</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Select
-              label="选择飞行员"
+              label={t("upgradeForm.pilot")}
               required
               options={state.pilots.map((item) => ({
                 value: item.id,
@@ -268,42 +275,42 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
               {...register("pilotId")}
             />
             <Input
-              label="计划名称"
+              label={t("upgradeForm.planName")}
               required
-              helperText="可自定义，但不得为空"
+              helperText={t("upgradeForm.planNameHelp")}
               error={errors.title?.message}
               {...register("title")}
             />
             <Select
-              label="计划类型"
+              label={t("upgradeForm.planType")}
               required
-              options={Object.entries(upgradeTypeLabels).map(([value, label]) => ({
+              options={Object.keys(upgradeTypeLabels).map((value) => ({
                 value,
-                label,
+                label: t(`upgradePlans.type.${value}`),
               }))}
               error={errors.type?.message}
               {...register("type")}
             />
             <DateField
-              label="预计开始日期"
+              label={t("upgradeForm.expectedStart")}
               required
               error={errors.startDate?.message}
               {...register("startDate")}
             />
             <DateField
-              label="预计结束日期"
+              label={t("upgradeForm.expectedEnd")}
               required
               error={errors.endDate?.message}
               {...register("endDate")}
             />
             <Input
-              label="总升级评估责任人"
+              label={t("upgradeForm.owner")}
               required
               error={errors.overallOwner?.message}
               {...register("overallOwner")}
             />
             <Input
-              label="主导部门"
+              label={t("upgradeForm.department")}
               required
               error={errors.leadDepartment?.message}
               {...register("leadDepartment")}
@@ -314,10 +321,8 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
       </section>
       <section className={step === "stages" ? "block" : "hidden lg:block"}>
         <Card className="mb-4 p-4 shadow-none">
-          <h3 className="text-base font-bold">检查项目</h3>
-          <p className="mt-1 text-xs text-muted">
-            检查项目独立于六个阶段，并固定保存规则版本快照。
-          </p>
+          <h3 className="text-base font-bold">{t("upgradeForm.inspection")}</h3>
+          <p className="mt-1 text-xs text-muted">{t("upgradeForm.inspectionDescription")}</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {inspectionItems.map((item) => {
               const selection = values.inspectionItemSelections?.find(
@@ -344,18 +349,18 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
                     <span>
                       {item.name}
                       <span className="mt-1 block text-xs font-normal text-muted">
-                        {item.description || `规则版本 v${item.ruleVersion}`}
+                        {item.description || `${t("common.ruleVersion")} v${item.ruleVersion}`}
                       </span>
                     </span>
                   </label>
                   {selection ? (
                     <Select
                       className="mt-3"
-                      label="归属阶段"
+                      label={t("upgradeForm.stageAssignment")}
                       value={String(selection.stageOrder)}
-                      options={UPGRADE_STAGE_NAMES.map((name, index) => ({
+                      options={UPGRADE_STAGE_CODES.map((code, index) => ({
                         value: String(index),
-                        label: `${index + 1}. ${name}`,
+                        label: `${index + 1}. ${t(`upgrade.stage.${code}`)}`,
                       }))}
                       onChange={(event) =>
                         setValue(
@@ -380,48 +385,47 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
         </Card>
         <Card className="p-4 shadow-none">
           <div>
-            <h3 className="text-base font-bold">Section 2 — 升级执行节点（固定路径）</h3>
-            <p className="mt-1 text-xs text-muted">
-              六个节点始终存在且顺序不可更改；应急生存训练仅为补充要求。
-            </p>
+            <h3 className="text-base font-bold">{t("upgradeForm.stageSection")}</h3>
+            <p className="mt-1 text-xs text-muted">{t("upgradeForm.stageDescription")}</p>
           </div>
           <div className="mt-4 space-y-3">
-            {UPGRADE_STAGE_NAMES.map((name, index) => (
-              <div key={name} className="rounded-lg border border-border p-3">
+            {UPGRADE_STAGE_CODES.map((code, index) => (
+              <div key={code} className="rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-bold">
                     <span className="mr-2 inline-flex size-6 items-center justify-center rounded-full bg-blue-50 text-xs text-brand">
                       {index + 1}
                     </span>
-                    {name}
+                    {t(`upgrade.stage.${code}`)}
                   </h4>
-                  <Badge tone="info">标准节点</Badge>
+                  <Badge tone="info">{t("upgradeForm.standardStage")}</Badge>
                 </div>
                 <input type="hidden" {...register(`stages.${index}.id`)} />
+                <input type="hidden" {...register(`stages.${index}.code`)} />
                 <input type="hidden" {...register(`stages.${index}.name`)} />
                 <input type="hidden" {...register(`stages.${index}.status`)} />
                 <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                   <DateField
-                    label="计划开始"
+                    label={t("upgradeForm.plannedStart")}
                     required
                     error={errors.stages?.[index]?.plannedStart?.message}
                     {...register(`stages.${index}.plannedStart`)}
                   />
                   <DateField
-                    label="计划结束"
+                    label={t("upgradeForm.plannedEnd")}
                     required
                     error={errors.stages?.[index]?.plannedEnd?.message}
                     {...register(`stages.${index}.plannedEnd`)}
                   />
                   <Input
-                    label="责任人"
+                    label={t("upgradeForm.stageOwner")}
                     required
                     error={errors.stages?.[index]?.owner?.message}
                     {...register(`stages.${index}.owner`)}
                     className="xl:col-span-1"
                   />
                   <Textarea
-                    label="备注/前置条件"
+                    label={t("upgradeForm.notes")}
                     error={errors.stages?.[index]?.notes?.message}
                     {...register(`stages.${index}.notes`)}
                     className="min-h-11 xl:col-span-2"
@@ -431,30 +435,30 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
             ))}
           </div>
           <Alert tone="info" className="mt-4">
-            计划启动后会写入通知队列；实际发送由已配置的渠道适配器决定。
+            {t("upgradeForm.startNotice")}
           </Alert>
         </Card>
       </section>
       <section className={step === "confirm" ? "block" : "hidden lg:block"}>
         <Card className="p-4 shadow-none">
-          <h3 className="text-base font-bold">Section 3 — 确认升级计划信息</h3>
+          <h3 className="text-base font-bold">{t("upgradeForm.confirmSection")}</h3>
           <div className="mt-4 grid gap-5 xl:grid-cols-2">
             <dl className="grid grid-cols-[100px_1fr] gap-3 text-sm">
-              <dt className="text-muted">待升级飞行员</dt>
+              <dt className="text-muted">{t("upgradeForm.pendingPilot")}</dt>
               <dd className="font-semibold">
                 {pilot?.displayName}（{pilot?.employeeNumber}）
               </dd>
-              <dt className="text-muted">计划名称</dt>
+              <dt className="text-muted">{t("upgradeForm.planName")}</dt>
               <dd className="font-semibold">{values.title}</dd>
-              <dt className="text-muted">计划类型</dt>
-              <dd>{values.type ? upgradeTypeLabels[values.type] : "—"}</dd>
-              <dt className="text-muted">预计日期</dt>
+              <dt className="text-muted">{t("upgradeForm.planType")}</dt>
+              <dd>{values.type ? t(`upgradePlans.type.${values.type}`) : "—"}</dd>
+              <dt className="text-muted">{t("upgradeForm.expectedDates")}</dt>
               <dd>
-                {values.startDate} 至 {values.endDate}
+                {values.startDate} {t("common.to")} {values.endDate}
               </dd>
-              <dt className="text-muted">评估责任人</dt>
+              <dt className="text-muted">{t("upgradeForm.assessmentOwner")}</dt>
               <dd>{values.overallOwner}</dd>
-              <dt className="text-muted">检查项目</dt>
+              <dt className="text-muted">{t("upgradeForm.inspection")}</dt>
               <dd>
                 {values.inspectionItemSelections
                   ?.map(
@@ -462,7 +466,7 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
                       inspectionItems.find((item) => item.id === selection.inspectionItemId)?.name,
                   )
                   .filter(Boolean)
-                  .join("、") || "未选择"}
+                  .join(locale === "zh-CN" ? "、" : ", ") || t("upgradeForm.notSelected")}
               </dd>
             </dl>
             <ol className="divide-y divide-border">
@@ -470,12 +474,14 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
                 <li key={stage.id} className="flex items-center justify-between gap-3 py-2 text-xs">
                   <div>
                     <p className="font-bold">
-                      {index + 1}. {stage.name}
+                      {index + 1}. {t(`upgrade.stage.${stage.code}`)}
                     </p>
-                    <p className="mt-1 text-muted">负责人：{stage.owner}</p>
+                    <p className="mt-1 text-muted">
+                      {t("upgradeForm.stageOwnerSummary", { owner: stage.owner })}
+                    </p>
                   </div>
                   <span className="text-brand">
-                    {stage.plannedStart} 至 {stage.plannedEnd}
+                    {stage.plannedStart} {t("common.to")} {stage.plannedEnd}
                   </span>
                 </li>
               ))}
@@ -488,20 +494,20 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
           href="/admin/upgrade-plans"
           className="inline-flex min-h-11 items-center font-semibold text-secondary"
         >
-          返回列表
+          {t("upgradeForm.backList")}
         </Link>
         <div className="flex gap-2">
           {planId ? (
             <Button loading={submitting} onClick={() => void create("draft")}>
-              保存整体修改
+              {t("upgradeForm.saveChanges")}
             </Button>
           ) : (
             <>
               <Button variant="secondary" loading={submitting} onClick={() => void create("draft")}>
-                仅保存为草稿
+                {t("upgradeForm.saveDraftOnly")}
               </Button>
               <Button disabled={Boolean(conflict)} onClick={() => setConfirmOpen(true)}>
-                创建升级计划并启动通知
+                {t("upgradeForm.createAndNotify")}
               </Button>
             </>
           )}
@@ -514,16 +520,16 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
             variant="secondary"
             onClick={() => setStep(step === "confirm" ? "stages" : "basic")}
           >
-            上一步
+            {t("upgradeForm.previous")}
           </Button>
         ) : null}
         {step === "basic" ? (
           <Button className="flex-1" onClick={() => void nextStep("stages")}>
-            下一步，配置节点计划
+            {t("upgradeForm.nextStages")}
           </Button>
         ) : step === "stages" ? (
           <Button className="flex-1" onClick={() => void nextStep("confirm")}>
-            下一步，确认创建
+            {t("upgradeForm.nextConfirm")}
           </Button>
         ) : (
           <>
@@ -533,23 +539,23 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
               loading={submitting}
               onClick={() => void create("draft")}
             >
-              保存草稿
+              {t("upgradeForm.saveDraft")}
             </Button>
             <Button
               className="flex-1"
               disabled={Boolean(conflict)}
               onClick={() => setConfirmOpen(true)}
             >
-              确认创建计划
+              {t("upgradeForm.confirmCreate")}
             </Button>
           </>
         )}
       </div>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
-          <DialogTitle className="text-lg font-bold">最终确认创建并启动</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{t("upgradeForm.finalConfirm")}</DialogTitle>
           <DialogDescription className="mt-1 text-sm leading-6 text-muted">
-            计划、日历节点与通知队列将在同一操作中创建；发送结果可在通知日志查看。
+            {t("upgradeForm.finalDescription")}
           </DialogDescription>
           {serviceError ? (
             <Alert tone="danger" className="mt-4">
@@ -558,10 +564,10 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
           ) : null}
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
-              返回检查
+              {t("upgradeForm.backCheck")}
             </Button>
             <Button loading={submitting} onClick={() => void create("start")}>
-              确认创建并启动
+              {t("upgradeForm.confirmStart")}
             </Button>
           </div>
         </DialogContent>
@@ -571,10 +577,11 @@ export function UpgradePlanForm({ planId }: { planId?: string }) {
 }
 
 function WizardHeader({ step }: { step: WizardStep }) {
+  const { t } = useI18n();
   const steps: Array<[WizardStep, string]> = [
-    ["basic", "基本信息"],
-    ["stages", "配置升级节点"],
-    ["confirm", "确认创建"],
+    ["basic", t("upgradeForm.step.basic")],
+    ["stages", t("upgradeForm.step.stages")],
+    ["confirm", t("upgradeForm.step.confirm")],
   ];
   const active = steps.findIndex(([value]) => value === step);
   return (

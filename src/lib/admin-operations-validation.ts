@@ -1,6 +1,6 @@
 import { isMatch, isValid, parseISO } from "date-fns";
 import { z } from "zod";
-import { UPGRADE_STAGE_NAMES } from "@/types/services";
+import { UPGRADE_STAGE_CODES } from "@/lib/domain-i18n";
 import {
   ocrChecksSchema,
   parameterRestrictionSchema,
@@ -67,7 +67,8 @@ export const adminQualificationRecordUpdateSchema = adminQualificationRecordFiel
 
 const stageSchema = z.object({
   id: z.string(),
-  name: z.enum(UPGRADE_STAGE_NAMES),
+  code: z.enum(UPGRADE_STAGE_CODES),
+  name: z.string().trim().min(1),
   status: z.enum(["completed", "in_progress", "delayed", "scheduled", "not_started"]),
   plannedStart: isoDate,
   plannedEnd: isoDate,
@@ -117,11 +118,11 @@ export const upgradePlanDraftSchema = z
       });
     }
     value.stages.forEach((stage, index) => {
-      if (stage.name !== UPGRADE_STAGE_NAMES[index]) {
+      if (stage.code !== UPGRADE_STAGE_CODES[index]) {
         context.addIssue({
           code: "custom",
-          message: "六个核心节点名称与顺序不可更改",
-          path: ["stages", index, "name"],
+          message: "六个核心节点标识与顺序不可更改",
+          path: ["stages", index, "code"],
         });
       }
       if (stage.plannedEnd < stage.plannedStart) {

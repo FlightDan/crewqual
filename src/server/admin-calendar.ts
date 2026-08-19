@@ -3,6 +3,7 @@ import { deriveQualificationDateState } from "@/lib/qualification-date-status";
 import { requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import { upgradeStageLabel } from "@/lib/domain-i18n";
 import {
   CORE_QUALIFICATION_IDS,
   type AdminCalendarEvent,
@@ -128,7 +129,7 @@ export async function listAdminCalendarEvents(
       type: "upgrade_stage" as const,
       date: dateOnly(item.plannedStart),
       endDate: dateOnly(item.plannedEnd),
-      title: item.name,
+      title: upgradeStageLabel(item.code, "zh-CN", item.order),
       pilotId: item.plan.pilotId,
       pilotName: item.plan.pilot.displayName,
       employeeNumber: item.plan.pilot.employeeNumber,
@@ -140,7 +141,8 @@ export async function listAdminCalendarEvents(
       planTitle: item.plan.title,
       planLifecycleStatus: String(item.plan.lifecycleStatus).toLowerCase() as any,
       stageId: item.id,
-      stageName: item.name,
+      stageCode: item.code,
+      stageName: upgradeStageLabel(item.code, "zh-CN", item.order),
       stageStatus: String(item.status).toLowerCase() as any,
       owner: item.owner,
       notes: item.notes,

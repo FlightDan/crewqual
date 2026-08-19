@@ -25,25 +25,7 @@ import type {
   PilotUpgradeFilter,
   PilotStatusFilter,
 } from "@/types/services";
-
-const healthOptions = [
-  { label: "全部健康度", value: "all" },
-  { label: "正常", value: "normal" },
-  { label: "临期", value: "expiring" },
-  { label: "存在过期", value: "expired" },
-];
-
-const upgradeOptions = [
-  { label: "全部升级状态", value: "all" },
-  { label: "进行中", value: "active" },
-  { label: "无活动计划", value: "none" },
-];
-
-const statusOptions = [
-  { label: "全部人员状态", value: "all" },
-  { label: "启用", value: "active" },
-  { label: "停用", value: "inactive" },
-];
+import { useI18n } from "@/components/i18n-provider";
 
 export function PilotListView({ positionCode }: { positionCode?: string } = {}) {
   const pathname = usePathname();
@@ -51,6 +33,7 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
   const searchParams = useSearchParams();
   const state = useAdminState();
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const q = searchParams.get("q") ?? "";
   const health = (searchParams.get("health") ?? "all") as "all" | PilotHealth;
   const upgrade = (searchParams.get("upgrade") ?? "all") as PilotUpgradeFilter;
@@ -107,11 +90,15 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title={positionCode === "PILOT" ? "飞行员成员管理与资质大盘" : "成员管理与资质大盘"}
+        title={
+          positionCode === "PILOT"
+            ? `${t("portal.pilot")}${t("navigation.members")}`
+            : t("navigation.members")
+        }
         description={
           positionCode
-            ? `职位：${positionCode}。新增、批量导入和维护成员，并监控资质健康度`
-            : "新增、批量导入和维护成员，并监控全部资质健康度"
+            ? `${positionCode} · ${t("members.positionDescription")}`
+            : t("members.positionDescription")
         }
         action={<PilotManagementActions onCompleted={() => setRevision((value) => value + 1)} />}
       />
@@ -133,13 +120,13 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
             className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted"
           />
           <Input
-            aria-label="移动端飞行员查询"
+            aria-label={t("adminPilot.searchNameEmployee")}
             name="q"
             disabled={!interactive}
             defaultValue={searchValue}
             key={q}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="搜索姓名、员工号..."
+            placeholder={t("adminPilot.searchPlaceholder")}
             className="pl-9"
           />
         </form>
@@ -150,7 +137,7 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
           onClick={() => setFiltersOpen(true)}
         >
           <Filter aria-hidden="true" className="size-4" />
-          筛选
+          {t("adminPilot.filter")}
         </Button>
       </div>
 
@@ -173,13 +160,13 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
 
       <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DrawerContent side="right" className="overflow-y-auto p-5">
-          <DrawerTitle className="text-lg font-bold">筛选成员</DrawerTitle>
+          <DrawerTitle className="text-lg font-bold">{t("adminPilot.filterMembers")}</DrawerTitle>
           <DrawerDescription className="mt-1 text-sm text-secondary">
-            筛选会同步到 URL，刷新后仍然保留。
+            {t("adminPilot.filterDescription")}
           </DrawerDescription>
           <div className="mt-6">{filters}</div>
           <Button type="button" className="mt-6 w-full" onClick={() => setFiltersOpen(false)}>
-            完成
+            {t("adminPilot.done")}
           </Button>
         </DrawerContent>
       </Drawer>
@@ -212,6 +199,23 @@ function PilotFilters({
   onStatusChange: (value: string) => void;
   onReset: () => void;
 }) {
+  const { t } = useI18n();
+  const healthOptions = [
+    { label: t("adminPilot.allHealth"), value: "all" },
+    { label: t("members.health.valid"), value: "normal" },
+    { label: t("adminPilot.expiring"), value: "expiring" },
+    { label: t("adminPilot.hasExpired"), value: "expired" },
+  ];
+  const upgradeOptions = [
+    { label: t("adminPilot.allUpgrade"), value: "all" },
+    { label: t("adminPilot.inProgress"), value: "active" },
+    { label: t("adminPilot.noActivePlan"), value: "none" },
+  ];
+  const statusOptions = [
+    { label: t("adminPilot.allPeople"), value: "all" },
+    { label: t("members.active"), value: "active" },
+    { label: t("members.inactive"), value: "inactive" },
+  ];
   return (
     <form
       className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px_180px_160px_auto]"
@@ -222,16 +226,16 @@ function PilotFilters({
       }}
     >
       <Input
-        aria-label="搜索姓名或员工号"
+        aria-label={t("adminPilot.searchNameEmployee")}
         name="q"
         disabled={disabled}
         defaultValue={searchValue}
         key={searchValue}
         onChange={(event) => onSearchValueChange(event.target.value)}
-        placeholder="搜索姓名、员工号..."
+        placeholder={t("adminPilot.searchPlaceholder")}
       />
       <Select
-        aria-label="资质健康度"
+        aria-label={t("adminPilot.health")}
         name="health"
         disabled={disabled}
         value={health}
@@ -239,7 +243,7 @@ function PilotFilters({
         options={healthOptions}
       />
       <Select
-        aria-label="升级状态"
+        aria-label={t("adminPilot.upgrade")}
         name="upgrade"
         disabled={disabled}
         value={upgrade}
@@ -247,7 +251,7 @@ function PilotFilters({
         options={upgradeOptions}
       />
       <Select
-        aria-label="人员状态"
+        aria-label={t("adminPilot.peopleStatus")}
         name="status"
         disabled={disabled}
         value={status}
@@ -256,10 +260,10 @@ function PilotFilters({
       />
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" disabled={disabled}>
-          搜索
+          {t("adminPilot.search")}
         </Button>
         <Button type="button" variant="ghost" disabled={disabled} onClick={onReset}>
-          重置
+          {t("adminPilot.reset")}
         </Button>
       </div>
     </form>
@@ -273,10 +277,11 @@ function PilotResults({
   items: AdminPilotListItem[];
   positionCode?: string;
 }) {
+  const { t } = useI18n();
   if (!items.length) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted">
-        未找到符合条件的飞行员
+        {t("adminPilot.noMatch")}
       </div>
     );
   }
@@ -287,15 +292,15 @@ function PilotResults({
           <thead className="bg-slate-50 text-xs text-secondary">
             <tr>
               {[
-                "员工号",
-                "姓名",
-                "当前职务",
-                "人员状态",
-                "资质健康度",
-                "已过期项数",
-                "临期项数",
-                "活动升级计划",
-                "管理操作",
+                t("adminPilot.employeeNumber"),
+                t("adminPilot.name"),
+                t("adminPilot.role"),
+                t("adminPilot.status"),
+                t("adminPilot.health"),
+                t("adminPilot.expiredCount"),
+                t("adminPilot.expiringCount"),
+                t("adminPilot.activePlan"),
+                t("adminPilot.actions"),
               ].map((heading) => (
                 <th key={heading} scope="col" className="px-4 py-3 font-semibold">
                   {heading}
@@ -318,7 +323,7 @@ function PilotResults({
                 </td>
                 <td className="px-4 py-3">
                   <Badge tone={pilot.active ? "success" : "neutral"}>
-                    {pilot.active ? "启用" : "停用"}
+                    {pilot.active ? t("members.active") : t("members.inactive")}
                   </Badge>
                 </td>
                 <td className="px-4 py-3">
@@ -327,14 +332,14 @@ function PilotResults({
                 <td className="px-4 py-3">{pilot.expiredCount}</td>
                 <td className="px-4 py-3">{pilot.expiringCount}</td>
                 <td className="max-w-[240px] px-4 py-3 text-secondary">
-                  {pilot.activeUpgradeTitle ?? "无活动计划"}
+                  {pilot.activeUpgradeTitle ?? t("adminPilot.noPlan")}
                 </td>
                 <td className="px-4 py-3">
                   <Link
                     href={`${positionCode ? "/admin/members" : "/admin/pilots"}/${pilot.id}`}
                     className="font-semibold text-brand"
                   >
-                    查看详情
+                    {t("members.viewDetails")}
                   </Link>
                 </td>
               </tr>
@@ -358,7 +363,7 @@ function PilotResults({
                   <div className="flex items-center gap-2">
                     <p className="font-bold">{pilot.displayName}</p>
                     <span className="text-xs text-muted">{pilot.employeeNumber}</span>
-                    {!pilot.active ? <Badge tone="neutral">停用</Badge> : null}
+                    {!pilot.active ? <Badge tone="neutral">{t("members.inactive")}</Badge> : null}
                   </div>
                   <p className="mt-0.5 text-xs text-secondary">
                     {pilot.role}（{pilot.aircraftType}）
@@ -369,7 +374,7 @@ function PilotResults({
               <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
                 <PilotHealthBadge health={pilot.health} />
                 <span className="truncate text-xs text-muted">
-                  {pilot.activeUpgradeTitle ?? "无活动升级计划"}
+                  {pilot.activeUpgradeTitle ?? t("adminPilot.noActiveUpgrade")}
                 </span>
               </div>
             </Card>

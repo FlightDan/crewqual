@@ -7,6 +7,7 @@ import {
 } from "@/server/notifications";
 import { parseReminderRule } from "@/lib/qualification-rules";
 import { dateOnlyForTimezone } from "@/lib/date-only";
+import { renderNotificationContent } from "@/lib/notification-i18n";
 import { decryptSettingSecret } from "@/server/crypto";
 import { getServerConfig } from "@/server/config";
 import { persistVerificationForEvidence } from "@/server/qualification-verification";
@@ -148,7 +149,7 @@ export async function processNotificationJob(
   let detail = "in-app delivery";
   let errorCategory: string | null = null;
   try {
-    let message = delivery.message;
+    let runtimeTemplateParams = delivery.templateParams;
     if (delivery.type === "PILOT_ACCESS_LINK" && delivery.securePayloadCiphertext) {
       if (
         !delivery.securePayloadExpiresAt ||
@@ -160,8 +161,19 @@ export async function processNotificationJob(
         token: string;
         ttlMinutes: number;
       };
-      message = `CrewQual 访问链接：${getServerConfig().APP_ORIGIN}/pilot/access/${securePayload.token}（${securePayload.ttlMinutes}分钟内有效）`;
+      runtimeTemplateParams = {
+        ...(delivery.templateParams && typeof delivery.templateParams === "object"
+          ? delivery.templateParams
+          : {}),
+        accessUrl: `${getServerConfig().APP_ORIGIN}/pilot/access/${securePayload.token}`,
+        ttlMinutes: securePayload.ttlMinutes,
+      };
     }
+    const { message } = renderNotificationContent({
+      templateKey: delivery.templateKey,
+      templateParams: runtimeTemplateParams,
+      locale: delivery.locale,
+    });
     const idempotencyKey = delivery.dedupeKey ?? delivery.id;
     if (delivery.channel === "SMS") {
       const result = await adapters.sms.send({
@@ -259,7 +271,9 @@ export async function processNotificationJob(
         deliveryId: delivery.id,
         pilotId: delivery.pilotId ?? payload.pilotId ?? null,
         channel: delivery.channel,
-        summary: delivery.summary ?? "未命名通知",
+        locale: delivery.locale,
+        sourceTemplateKey: delivery.templateKey,
+        sourceTemplateParams: delivery.templateParams ?? {},
         errorCategory,
         finalFailureReason: detail,
         failedAt: now,
@@ -315,11 +329,6 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
       record.pilot.unit.timezone,
     );
     if (!window) continue;
-    const summary = `${record.qualificationType.name}${window.kind === "expired" ? "已过期" : "即将到期"}`;
-    const message =
-      window.kind === "expired"
-        ? `${record.pilot.displayName} 的${record.qualificationType.name}已过期，请尽快处理。`
-        : `${record.pilot.displayName} 的${record.qualificationType.name}将在 ${window.daysRemaining} 天后到期。`;
     const recipients = window.kind === "expired" ? rule.expiredRecipients : rule.dueRecipients;
     if (recipients.length === 0) continue;
     const result = await db.$transaction((tx: any) => {
@@ -327,8 +336,15 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
         eventKey: `qualification-expiry:${record.id}:${window.kind}`,
         type: "qualification_expiry" as const,
         pilotId: record.pilotId,
-        summary,
-        message,
+        templateKey:
+          window.kind === "expired"
+            ? ("qualification.expiry.expired" as const)
+            : ("qualification.expiry.due" as const),
+        templateParams: {
+          qualificationName: record.qualificationType.name,
+          pilotName: record.pilot.displayName,
+          daysRemaining: window.daysRemaining,
+        },
       };
       return recipients.every((recipient) => recipient === "PERSON")
         ? emitPilotNotification(tx, input)
@@ -347,7 +363,7 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
         pilot: { select: { displayName: true, unit: { select: { timezone: true } } } },
         stages: {
           where: { status: { not: "COMPLETED" } },
-          select: { id: true, name: true, plannedStart: true, status: true },
+          select: { id: true, code: true, order: true, plannedStart: true, status: true },
         },
       },
     });
@@ -375,8 +391,14 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
             eventKey: `upgrade-stage-reminder:${stage.id}:${planned}`,
             type: "upgrade_stage_reminder",
             pilotId: plan.pilotId,
-            summary: `升级节点将在 ${days === 0 ? "今天" : `${days} 天后`}开始：${stage.name}`,
-            message: `${plan.pilot.displayName}，升级计划「${plan.title}」的${stage.name}节点即将开始，请提前准备。`,
+            templateKey: "upgrade.stage.upcoming",
+            templateParams: {
+              pilotName: plan.pilot.displayName,
+              planTitle: plan.title,
+              stageCode: stage.code,
+              stageOrder: stage.order,
+              days,
+            },
           }),
         );
         upgradeCreated += result.created;

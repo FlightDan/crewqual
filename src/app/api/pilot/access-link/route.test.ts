@@ -61,6 +61,7 @@ describe("pilot access link secure outbox", () => {
       employeeNumber: "CQ-1",
       mobile: "13800138000",
       active: true,
+      unit: { organization: { defaultLocale: "zh-CN" } },
     });
     mocks.findToken.mockResolvedValue(null);
   });

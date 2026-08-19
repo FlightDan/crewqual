@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { boundedPositiveInt, getRequestId, jsonData, jsonError } from "@/server/api";
 import { authenticatePilot } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import { renderNotificationContent } from "@/lib/notification-i18n";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -27,8 +28,9 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           type: true,
-          summary: true,
-          message: true,
+          locale: true,
+          templateKey: true,
+          templateParams: true,
           createdAt: true,
           readAt: true,
         },
@@ -37,8 +39,9 @@ export async function GET(request: NextRequest) {
     return jsonData(
       {
         items: items.map((item) => ({
-          ...item,
+          id: item.id,
           type: item.type.toLowerCase(),
+          ...renderNotificationContent(item),
           createdAt: item.createdAt.toISOString(),
           readAt: item.readAt?.toISOString() ?? null,
         })),

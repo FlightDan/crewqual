@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 import type { PilotNotificationItem } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 type InboxResponse = {
   items: PilotNotificationItem[];
@@ -39,7 +41,7 @@ async function readJson<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   const body = (await response.json()) as { data?: T; error?: { message?: string } };
-  if (!response.ok || !body.data) throw new Error(body.error?.message ?? "通知请求失败");
+  if (!response.ok || !body.data) throw new Error(body.error?.message ?? "");
   return body.data;
 }
 
@@ -48,6 +50,7 @@ export function PilotNotificationsView({ portal = "pilot" }: { portal?: "pilot" 
   const [data, setData] = React.useState<InboxResponse | null>(null);
   const [error, setError] = React.useState("");
   const [marking, setMarking] = React.useState("");
+  const { locale, t } = useI18n();
 
   const load = React.useCallback(async () => {
     setError("");
@@ -58,9 +61,9 @@ export function PilotNotificationsView({ portal = "pilot" }: { portal?: "pilot" 
         ),
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "通知加载失败");
+      setError(localizeError(reason, t, "notifications.loadFailed"));
     }
-  }, [portal]);
+  }, [portal, t]);
 
   React.useEffect(() => void load(), [load]);
 
@@ -77,35 +80,46 @@ export function PilotNotificationsView({ portal = "pilot" }: { portal?: "pilot" 
       );
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "标记已读失败");
+      setError(localizeError(reason, t, "notifications.markReadFailed"));
     } finally {
       setMarking("");
     }
   };
 
   return (
-    <PilotShell title="消息通知" showBack portal={portal} variant="page" className="space-y-4">
+    <PilotShell
+      title={t("notifications.title")}
+      showBack
+      portal={portal}
+      variant="page"
+      className="space-y-4"
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-primary">消息通知</h1>
-          <p className="mt-1 text-xs text-secondary">未读 {data?.unreadCount ?? 0} 条</p>
+          <h1 className="text-lg font-bold text-primary">{t("notifications.title")}</h1>
+          <p className="mt-1 text-xs text-secondary">
+            {t("notifications.unread", { count: data?.unreadCount ?? 0 })}
+          </p>
         </div>
         <Link
           href={`${portalPath}/qualifications`}
           className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
         >
-          我的资质
+          {t("notifications.myQualifications")}
         </Link>
       </div>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {!data && !error ? (
-        <div aria-label="正在加载通知" className="space-y-3">
+        <div aria-label={t("notifications.loading")} className="space-y-3">
           <Skeleton className="h-28 w-full" />
           <Skeleton className="h-28 w-full" />
         </div>
       ) : null}
       {data && !data.items.length ? (
-        <EmptyState title="暂无通知" description="审核和资质提醒会显示在这里。" />
+        <EmptyState
+          title={t("notifications.empty")}
+          description={t("notifications.emptyDescription")}
+        />
       ) : null}
       <div className="space-y-3">
         {data?.items.map((item) => (
@@ -119,13 +133,16 @@ export function PilotNotificationsView({ portal = "pilot" }: { portal?: "pilot" 
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-sm font-bold text-primary">{item.summary}</h2>
               {!item.readAt ? (
-                <span className="mt-1 size-2 shrink-0 rounded-full bg-brand" aria-label="未读" />
+                <span
+                  className="mt-1 size-2 shrink-0 rounded-full bg-brand"
+                  aria-label={t("notifications.unreadLabel")}
+                />
               ) : null}
             </div>
             <p className="text-sm leading-6 text-secondary">{item.message}</p>
             <div className="flex items-center justify-between gap-3">
               <time className="text-[11px] text-muted" dateTime={item.createdAt}>
-                {new Date(item.createdAt).toLocaleString("zh-CN")}
+                {new Date(item.createdAt).toLocaleString(locale)}
               </time>
               {!item.readAt ? (
                 <Button
@@ -135,7 +152,7 @@ export function PilotNotificationsView({ portal = "pilot" }: { portal?: "pilot" 
                   onClick={() => void markRead(item.id)}
                 >
                   <Check aria-hidden="true" className="size-4" />
-                  标记已读
+                  {t("notifications.markRead")}
                 </Button>
               ) : null}
             </div>

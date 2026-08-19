@@ -8,6 +8,7 @@ import { enqueuePilotAccessSms, shouldSendPilotAccessSms } from "@/server/sms-ou
 import { consumeRateLimit, requestAddress } from "@/server/rate-limit";
 import { getRuntimeIntegration, getRuntimeSecurityPolicy } from "@/server/runtime-settings";
 import { enqueueInTransaction, QUEUES } from "@/server/jobs";
+import { normalizeAppLocale } from "@/lib/domain-i18n";
 
 const schema = z.object({
   employeeNumber: z.string().trim().min(1).max(64),
@@ -27,7 +28,10 @@ export async function POST(request: NextRequest) {
     const policy = await getRuntimeSecurityPolicy();
     if (!allowed) return jsonData({ accepted: true, retryAfterSeconds: 900 }, requestId, 202);
     const db = getPrisma();
-    const pilot = await db.pilot.findUnique({ where: { employeeNumber: input.employeeNumber } });
+    const pilot = await db.pilot.findUnique({
+      where: { employeeNumber: input.employeeNumber },
+      include: { unit: { include: { organization: true } } },
+    });
     const matches = Boolean(
       pilot && pilot.active && safeEqualHex(sha256(pilot.mobile), sha256(input.mobile)),
     );
@@ -67,8 +71,9 @@ export async function POST(request: NextRequest) {
             status: "QUEUED",
             pilotId: pilot.id,
             target: pilot.mobile,
-            summary: "Pilot 访问链接",
-            message: "CrewQual 一次性访问链接",
+            locale: normalizeAppLocale(pilot.unit.organization?.defaultLocale),
+            templateKey: "pilot.access_link",
+            templateParams: { ttlMinutes: policy.pilotAccessLinkTtlMinutes },
             retryLimit: sms.retryLimit,
             securePayloadCiphertext: encryptSettingSecret(
               JSON.stringify({ token: rawToken, ttlMinutes: policy.pilotAccessLinkTtlMinutes }),

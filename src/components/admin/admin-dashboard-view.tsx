@@ -17,6 +17,8 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { AdminDashboardSummary, QualificationReview } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationText } from "@/lib/messages";
 
 type DashboardMetricKey =
   "expired" | "due-7" | "due-30" | "pending-review" | "weekly-upgrade" | "delayed-upgrade";
@@ -25,6 +27,7 @@ export function AdminDashboardView() {
   const state = useAdminState();
   const { adminDashboard } = useApplicationServices();
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
   const canDecide = hasPermission("reviews.decide");
   const [summary, setSummary] = React.useState<AdminDashboardSummary | null>(null);
   const [quickApproval, setQuickApproval] = React.useState<QualificationReview | null>(null);
@@ -56,44 +59,44 @@ export function AdminDashboardView() {
   const stats = [
     {
       key: "expired",
-      label: "已过期资质",
+      label: t("dashboard.expired"),
       value: summary.expiredCount,
-      note: "需立即处理",
+      note: t("dashboard.note.immediate"),
       tone: "danger",
     },
     {
       key: "due-7",
-      label: "7 日内到期",
+      label: t("dashboard.due7"),
       value: summary.dueIn7DaysCount,
-      note: "亟需更新复训",
+      note: t("dashboard.note.urgent"),
       tone: "warning",
     },
     {
       key: "due-30",
-      label: "30 日内到期",
+      label: t("dashboard.due30"),
       value: summary.dueIn30DaysCount,
-      note: "正常跟进计划",
+      note: t("dashboard.note.followUp"),
       tone: "warning",
     },
     {
       key: "pending-review",
-      label: "待审核更新",
+      label: t("dashboard.pendingReview"),
       value: summary.pendingReviewCount,
-      note: "AI 仅供人工参考",
+      note: t("dashboard.note.manual"),
       tone: "info",
     },
     {
       key: "weekly-upgrade",
-      label: "本周升级节点",
+      label: t("dashboard.weeklyUpgrade"),
       value: summary.weeklyUpgradeCount,
-      note: "重点复审训练",
+      note: t("dashboard.note.training"),
       tone: "success",
     },
     {
       key: "delayed-upgrade",
-      label: "已延期节点",
+      label: t("dashboard.delayedUpgrade"),
       value: summary.delayedUpgradeCount,
-      note: "计划异常跟进",
+      note: t("dashboard.note.delayed"),
       tone: "purple",
     },
   ] as const;
@@ -101,12 +104,9 @@ export function AdminDashboardView() {
 
   return (
     <PageContainer className="space-y-6">
-      <AdminPageHeader
-        title="待处理资质事项"
-        description="中队范围内需要紧急关注和人工审核的任务"
-      />
+      <AdminPageHeader title={t("dashboard.title")} description={t("dashboard.description")} />
       <section
-        aria-label="管理员统计"
+        aria-label={t("dashboard.stats")}
         className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
       >
         {stats.map((stat) => (
@@ -127,15 +127,15 @@ export function AdminDashboardView() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 id="dashboard-reviews-title" className="text-base font-bold">
-              待审核资质更新申请（{summary.pendingReviewCount}）
+              {t("dashboard.reviewTitle", { count: summary.pendingReviewCount })}
             </h3>
-            <p className="mt-1 text-xs text-muted">所有审批均须由管理员确认，AI 不会自动审批</p>
+            <p className="mt-1 text-xs text-muted">{t("dashboard.reviewDescription")}</p>
           </div>
           <Link
             href="/admin/reviews"
             className="inline-flex items-center gap-1 text-xs font-semibold text-brand"
           >
-            进入工作台 <ArrowRight aria-hidden="true" className="size-4" />
+            {t("dashboard.openWorkspace")} <ArrowRight aria-hidden="true" className="size-4" />
           </Link>
         </div>
         <ResponsiveReviewList
@@ -150,12 +150,12 @@ export function AdminDashboardView() {
           <CardHeader>
             <div>
               <h3 className="text-sm font-bold">
-                临期与过期资质预警（{summary.qualificationAlerts.length}）
+                {t("dashboard.alertsTitle", { count: summary.qualificationAlerts.length })}
               </h3>
-              <p className="mt-1 text-xs text-muted">状态与剩余天数由共享时钟实时计算</p>
+              <p className="mt-1 text-xs text-muted">{t("dashboard.sharedClock")}</p>
             </div>
             <Link href="/admin/pilots" className="text-xs font-semibold text-brand">
-              查看全部
+              {t("dashboard.viewAll")}
             </Link>
           </CardHeader>
           <CardContent className="divide-y divide-border pt-3">
@@ -175,7 +175,7 @@ export function AdminDashboardView() {
                   tone={alert.qualification.status === "expired" ? "danger" : "warning"}
                   className="shrink-0"
                 >
-                  {alert.qualification.statusLabel}
+                  {localizedQualificationText(alert.qualification.statusLabel, t)}
                 </Badge>
               </Link>
             ))}
@@ -185,8 +185,8 @@ export function AdminDashboardView() {
         <Card className="shadow-none">
           <CardHeader>
             <div>
-              <h3 className="text-sm font-bold">本周计划内升级节点监督</h3>
-              <p className="mt-1 text-xs text-muted">第三批仅提供只读摘要</p>
+              <h3 className="text-sm font-bold">{t("dashboard.weeklyTitle")}</h3>
+              <p className="mt-1 text-xs text-muted">{t("dashboard.readOnlySummary")}</p>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 pt-3">
@@ -205,7 +205,7 @@ export function AdminDashboardView() {
                         {item.stage.name} · {item.planTitle}
                       </p>
                       <p className="mt-1 text-[11px] text-muted">
-                        计划日期：{item.stage.plannedStart}
+                        {t("dashboard.planDate", { start: item.stage.plannedStart })}
                       </p>
                     </div>
                     <UpgradeStageBadge status={item.stage.status} />
@@ -213,7 +213,7 @@ export function AdminDashboardView() {
                 </div>
               ))
             ) : (
-              <p className="py-8 text-center text-sm text-muted">本周暂无升级节点</p>
+              <p className="py-8 text-center text-sm text-muted">{t("dashboard.noWeekly")}</p>
             )}
           </CardContent>
         </Card>
@@ -243,17 +243,22 @@ export function AdminDashboardView() {
           <div className="flex items-start gap-4 border-b border-border p-5">
             <div className="min-w-0 flex-1">
               <DrawerTitle className="text-lg font-bold text-primary">
-                {selectedStat?.label ?? "待处理事项"}明细
+                {t("dashboard.detailTitle", {
+                  label: selectedStat?.label ?? t("dashboard.title"),
+                })}
               </DrawerTitle>
               <DrawerDescription className="mt-1 text-sm text-secondary">
                 {selectedStat
-                  ? `${selectedStat.note}，共 ${selectedStat.value} 项。选择事项进入对应处理页面。`
-                  : "选择事项进入对应处理页面。"}
+                  ? t("dashboard.detailDescription", {
+                      note: selectedStat.note,
+                      count: selectedStat.value,
+                    })
+                  : t("dashboard.detailDescriptionEmpty")}
               </DrawerDescription>
             </div>
             <button
               type="button"
-              aria-label="关闭待处理事项明细"
+              aria-label={t("dashboard.closeDetails")}
               className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-secondary transition hover:bg-slate-50 hover:text-primary"
               onClick={() => setSelectedMetric(null)}
             >
@@ -278,6 +283,7 @@ function DashboardMetricDetails({
   metric: DashboardMetricKey;
   summary: AdminDashboardSummary;
 }) {
+  const { t } = useI18n();
   if (metric === "expired" || metric === "due-7" || metric === "due-30") {
     const alerts = summary.qualificationAlerts.filter((alert) => {
       if (metric === "expired") return alert.daysRemaining < 0;
@@ -297,15 +303,15 @@ function DashboardMetricDetails({
                 <p className="truncate text-sm font-semibold text-primary">{alert.pilotName}</p>
                 <p className="mt-1 truncate text-xs text-secondary">{alert.qualification.name}</p>
                 <p className="mt-2 text-[11px] text-muted">
-                  到期日期：{alert.qualification.expiresOn}
+                  {t("dashboard.expiryDate", { date: alert.qualification.expiresOn })}
                 </p>
               </div>
               <Badge tone={alert.daysRemaining < 0 ? "danger" : "warning"} className="shrink-0">
-                {alert.qualification.remainingLabel}
+                {localizedQualificationText(alert.qualification.remainingLabel, t)}
               </Badge>
             </div>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand">
-              查看成员档案
+              {t("dashboard.openMember")}
               <ArrowRight aria-hidden="true" className="size-3.5" />
             </span>
           </Link>
@@ -329,12 +335,14 @@ function DashboardMetricDetails({
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-primary">{review.pilotName}</p>
                 <p className="mt-1 truncate text-xs text-secondary">{review.qualificationName}</p>
-                <p className="mt-2 text-[11px] text-muted">提交时间：{review.submittedAt}</p>
+                <p className="mt-2 text-[11px] text-muted">
+                  {t("dashboard.submittedAt", { date: review.submittedAt })}
+                </p>
               </div>
               <AiResultBadge status={review.aiStatus} />
             </div>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand">
-              进入人工审核
+              {t("dashboard.openReview")}
               <ArrowRight aria-hidden="true" className="size-3.5" />
             </span>
           </Link>
@@ -363,13 +371,16 @@ function DashboardMetricDetails({
                 {item.stage.name} · {item.planTitle}
               </p>
               <p className="mt-2 text-[11px] text-muted">
-                计划日期：{item.stage.plannedStart} 至 {item.stage.plannedEnd}
+                {t("dashboard.planDateRange", {
+                  start: item.stage.plannedStart,
+                  end: item.stage.plannedEnd,
+                })}
               </p>
             </div>
             <UpgradeStageBadge status={item.stage.status} />
           </div>
           <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand">
-            查看升级计划
+            {t("dashboard.openPlan")}
             <ArrowRight aria-hidden="true" className="size-3.5" />
           </span>
         </Link>
@@ -381,10 +392,11 @@ function DashboardMetricDetails({
 }
 
 function DashboardMetricEmpty() {
+  const { t } = useI18n();
   return (
     <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center">
-      <p className="text-sm font-semibold text-primary">当前没有需要处理的事项</p>
-      <p className="mt-1 text-xs text-muted">数据变化后会自动出现在这里</p>
+      <p className="text-sm font-semibold text-primary">{t("dashboard.emptyTitle")}</p>
+      <p className="mt-1 text-xs text-muted">{t("dashboard.emptyDescription")}</p>
     </div>
   );
 }

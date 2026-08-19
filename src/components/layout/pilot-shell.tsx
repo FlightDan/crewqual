@@ -5,6 +5,7 @@ import { Avatar } from "@/components/ui/misc";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PilotProfile } from "@/types/services";
+import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
 
 export const anonymousMockPilotProfile: PilotProfile = {
   id: "anonymous-mock",
@@ -17,7 +18,7 @@ export const anonymousMockPilotProfile: PilotProfile = {
 
 export function PilotShell({
   children,
-  title = "我的资质",
+  title,
   showBack = false,
   backHref,
   portal = "pilot",
@@ -37,6 +38,8 @@ export function PilotShell({
   const isPageHeader = variant === "page";
   const portalPath = portal === "member" ? "/member" : "/pilot";
   const resolvedBackHref = backHref ?? `${portalPath}/qualifications`;
+  const { t } = useI18n();
+  const resolvedTitle = title ?? t("qualifications.title");
   return (
     <div data-testid="pilot-shell" className="min-h-dvh w-full overflow-x-hidden bg-surface">
       <div
@@ -53,7 +56,7 @@ export function PilotShell({
             {showBack ? (
               <Link
                 href={resolvedBackHref}
-                aria-label="返回"
+                aria-label={t("common.back")}
                 className={cn(
                   "-ml-2 inline-flex size-11 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
                   isPageHeader
@@ -67,13 +70,13 @@ export function PilotShell({
               <Avatar
                 initials={profile.initials}
                 className="size-10 bg-brand text-white"
-                label={portal === "member" ? "成员账户" : "飞行员账户"}
+                label={portal === "member" ? t("portal.memberAccount") : t("portal.pilotAccount")}
               />
             )}
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 <p className="truncate text-base font-bold">
-                  {showBack || isPageHeader ? title : profile.displayName}
+                  {showBack || isPageHeader ? resolvedTitle : profile.displayName}
                 </p>
                 {!showBack && !isPageHeader ? (
                   <span className="rounded-sm bg-brand px-1.5 py-0.5 text-[10px] font-semibold">
@@ -83,23 +86,29 @@ export function PilotShell({
               </div>
               {!showBack && !isPageHeader ? (
                 <p className="truncate text-[11px] text-slate-400">
-                  工号：{profile.employeeNumber} · {profile.unit}
+                  {t("portal.employeeInfo", {
+                    employeeNumber: profile.employeeNumber,
+                    unit: profile.unit,
+                  })}
                 </p>
               ) : null}
             </div>
           </div>
-          {!showBack && !isPageHeader ? (
-            <Link
-              href={`${portalPath}/notifications`}
-              aria-label="通知"
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "text-white hover:bg-slate-800 hover:text-white",
-              )}
-            >
-              <Bell aria-hidden="true" className="size-5" />
-            </Link>
-          ) : null}
+          <div className="flex items-center gap-1">
+            <LocaleSwitcher />
+            {!showBack && !isPageHeader ? (
+              <Link
+                href={`${portalPath}/notifications`}
+                aria-label={t("navigation.notifications")}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon" }),
+                  "text-white hover:bg-slate-800 hover:text-white",
+                )}
+              >
+                <Bell aria-hidden="true" className="size-5" />
+              </Link>
+            ) : null}
+          </div>
         </header>
         <main className={cn("flex-1 px-4 py-5", className)}>{children}</main>
       </div>

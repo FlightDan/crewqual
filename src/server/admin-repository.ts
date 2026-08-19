@@ -13,6 +13,12 @@ import {
   type ReviewCredentialFieldsInput,
 } from "@/lib/admin-review-validation";
 import { emitPilotNotification } from "@/server/notifications";
+import {
+  normalizePilotRoleCode,
+  normalizeUpgradeStageCode,
+  pilotRoleLabel,
+  upgradeStageLabel,
+} from "@/lib/domain-i18n";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const dateOnly = (date: Date | null) => date?.toISOString().slice(0, 10) ?? "";
@@ -114,7 +120,8 @@ export async function listAdminPilots(
         displayName: pilot.displayName,
         initials: pilot.initials,
         mobile: pilot.mobile,
-        role: pilot.role,
+        roleCode: normalizePilotRoleCode(pilot.roleCode),
+        role: pilotRoleLabel(pilot.roleCode),
         aircraftType: pilot.aircraftType,
         unit: pilot.unit.name,
         unitCode: pilot.unit.code,
@@ -186,7 +193,8 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
     displayName: pilot.displayName,
     initials: pilot.initials,
     mobile: pilot.mobile,
-    role: pilot.role,
+    roleCode: normalizePilotRoleCode(pilot.roleCode),
+    role: pilotRoleLabel(pilot.roleCode),
     aircraftType: pilot.aircraftType,
     unit: pilot.unit.name,
     unitCode: pilot.unit.code,
@@ -247,7 +255,8 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
           leadDepartment: pilot.upgradePlans[0].leadDepartment,
           stages: pilot.upgradePlans[0].stages.map((stage: any) => ({
             id: stage.id,
-            name: stage.name,
+            code: normalizeUpgradeStageCode(stage.code, stage.order),
+            name: upgradeStageLabel(stage.code, "zh-CN", stage.order),
             status: stage.status.toLowerCase(),
             plannedStart: dateOnly(stage.plannedStart),
             plannedEnd: dateOnly(stage.plannedEnd),
@@ -346,7 +355,7 @@ export function mapReview(request: any) {
     pilotId: request.pilotId,
     pilotName: request.pilot.displayName,
     employeeNumber: request.pilot.employeeNumber,
-    role: request.pilot.role,
+    role: pilotRoleLabel(request.pilot.roleCode),
     qualificationId: request.qualificationType.code,
     qualificationName: request.qualificationType.name,
     validityRule: (() => {
@@ -666,8 +675,8 @@ export async function approveReview(
         eventKey: `review-approved:${id}:${request.version}`,
         pilotId: request.pilotId,
         type: "review_approved",
-        summary: "资质审核通过",
-        message: `${request.qualificationType.name}审核已通过`,
+        templateKey: "qualification.review.approved",
+        templateParams: { qualificationName: request.qualificationType.name },
       });
       return replacement;
     });
@@ -744,8 +753,8 @@ export async function returnReview(
       eventKey: `review-returned:${id}:${request.version}`,
       pilotId: request.pilotId,
       type: "review_returned",
-      summary: "资质申请需补充",
-      message: normalizedReason,
+      templateKey: "qualification.review.returned",
+      templateParams: { reason: normalizedReason },
     });
   });
 }

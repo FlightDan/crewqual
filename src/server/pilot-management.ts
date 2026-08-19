@@ -62,7 +62,7 @@ async function ensurePersonProjection(tx: any, pilot: any, unit: any) {
     update: {
       legacyPilotId: pilot.id,
       aircraftType: pilot.aircraftType,
-      dutyLabel: pilot.role,
+      dutyCode: pilot.roleCode,
       rankLabel: pilot.rankLabel,
     },
     create: {
@@ -70,7 +70,7 @@ async function ensurePersonProjection(tx: any, pilot: any, unit: any) {
       personId: person.id,
       legacyPilotId: pilot.id,
       aircraftType: pilot.aircraftType,
-      dutyLabel: pilot.role,
+      dutyCode: pilot.roleCode,
       rankLabel: pilot.rankLabel,
     },
   });
@@ -193,7 +193,7 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
     db.organizationUnit.findFirst({ where: { id: unitId, active: true } }),
     db.qualificationType.findMany({
       where: { active: true },
-      select: { id: true, name: true },
+      select: { id: true, code: true, name: true },
       orderBy: [{ core: "desc" }, { name: "asc" }],
     }),
     db.pilot.findMany({
@@ -220,7 +220,7 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
       pilot.displayName,
       pilot.mobile,
       pilot.aircraftType,
-      pilot.role,
+      pilot.roleCode,
       pilot.unit.code,
       pilot.rankLabel,
     ];
@@ -274,7 +274,7 @@ export async function createAdminPilot(
         initials: pilotInitials(input.displayName),
         mobile: input.mobile,
         aircraftType: input.aircraftType,
-        role: input.role,
+        roleCode: input.roleCode,
         rankLabel: input.rankCode,
         unitId: unit.id,
       },
@@ -330,7 +330,7 @@ export async function updateAdminPilot(
         initials: pilotInitials(input.displayName),
         mobile: input.mobile,
         aircraftType: input.aircraftType,
-        role: input.role,
+        roleCode: input.roleCode,
         rankLabel: input.rankCode,
         unitId: unit.id,
         active: input.active,
@@ -518,7 +518,7 @@ export async function importPilotCsv(
             initials: pilotInitials(row.input.displayName),
             mobile: row.input.mobile,
             aircraftType: row.input.aircraftType,
-            role: row.input.role,
+            roleCode: row.input.roleCode,
             rankLabel: row.input.rankCode,
             unitId: unit.id,
             version: { increment: 1 },
@@ -535,7 +535,7 @@ export async function importPilotCsv(
             initials: pilotInitials(row.input.displayName),
             mobile: row.input.mobile,
             aircraftType: row.input.aircraftType,
-            role: row.input.role,
+            roleCode: row.input.roleCode,
             rankLabel: row.input.rankCode,
             unitId: unit.id,
           },

@@ -1,14 +1,16 @@
 import { Badge } from "@/components/ui/badge";
 import type { QualificationReview, ReviewFieldComparison } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
-function sourceLabel(field: ReviewFieldComparison) {
-  if (field.source === "ai") return "AI 识别";
-  if (field.source === "manual_modified") return "AI 识别后被用户修改";
-  if (field.source === "manual") return "手动";
-  return "用户手动填写";
+function sourceLabel(field: ReviewFieldComparison, t: (key: string) => string) {
+  if (field.source === "ai") return t("reviewFields.ai");
+  if (field.source === "manual_modified") return t("reviewFields.modified");
+  if (field.source === "manual") return t("reviewFields.manual");
+  return t("reviewFields.user");
 }
 
 export function ReviewFieldComparisonList({ review }: { review: QualificationReview }) {
+  const { t } = useI18n();
   return (
     <dl className="divide-y divide-border" data-testid="review-field-comparisons">
       {review.fieldComparisons.map((field) => (
@@ -31,16 +33,22 @@ export function ReviewFieldComparisonList({ review }: { review: QualificationRev
                 }
                 className="py-0.5 text-[10px]"
               >
-                {field.correctedValue ? "已人工修正" : sourceLabel(field)}
+                {field.correctedValue ? t("reviewFields.corrected") : sourceLabel(field, t)}
               </Badge>
             </div>
             {field.correctedValue ? (
-              <p className="mt-1 text-[11px] text-muted">原提交值：{field.submittedValue}</p>
+              <p className="mt-1 text-[11px] text-muted">
+                {t("reviewFields.submitted")}
+                {field.submittedValue}
+              </p>
             ) : null}
             {field.aiOriginalValue ? (
               <p className="mt-1 text-[11px] text-muted">
-                AI 原始值：{field.aiOriginalValue}
-                {field.confidence ? ` · 置信度 ${Math.round(field.confidence * 100)}%` : ""}
+                {t("reviewFields.aiOriginal")}
+                {field.aiOriginalValue}
+                {field.confidence
+                  ? ` · ${t("reviewFields.confidence")} ${Math.round(field.confidence * 100)}%`
+                  : ""}
               </p>
             ) : null}
           </dd>

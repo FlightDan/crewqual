@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { boundedPositiveInt, getRequestId, jsonData, jsonError } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
+import { renderNotificationContent } from "@/lib/notification-i18n";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -25,18 +26,20 @@ export async function GET(request: NextRequest) {
     ]);
     return jsonData(
       {
-        items: items.map((item) => ({
-          id: item.id,
-          type: item.type.toLowerCase(),
-          status: item.status.toLowerCase(),
-          summary: item.summary,
-          message: item.message,
-          pilotId: item.pilotId,
-          pilotName: item.pilot?.displayName ?? "",
-          employeeNumber: item.pilot?.employeeNumber ?? "",
-          createdAt: item.createdAt.toISOString(),
-          readAt: item.readAt?.toISOString() ?? null,
-        })),
+        items: items.map((item) => {
+          const content = renderNotificationContent(item);
+          return {
+            id: item.id,
+            type: item.type.toLowerCase(),
+            status: item.status.toLowerCase(),
+            ...content,
+            pilotId: item.pilotId,
+            pilotName: item.pilot?.displayName ?? "",
+            employeeNumber: item.pilot?.employeeNumber ?? "",
+            createdAt: item.createdAt.toISOString(),
+            readAt: item.readAt?.toISOString() ?? null,
+          };
+        }),
         total,
         unread,
         page,

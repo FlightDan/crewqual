@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 
 const toneConfig = {
   info: { icon: Info, className: "border-blue-200", iconClassName: "text-info" },
@@ -24,6 +25,7 @@ export function Toast({
   onClose: () => void;
   tone?: keyof typeof toneConfig;
 }) {
+  const { t } = useI18n();
   if (!open) return null;
   const config = toneConfig[tone];
   const Icon = config.icon;
@@ -44,7 +46,7 @@ export function Toast({
         type="button"
         className="rounded p-1 text-muted hover:bg-slate-100"
         onClick={onClose}
-        aria-label="关闭提示"
+        aria-label={t("common.closeHint")}
       >
         <X className="size-4" />
       </button>

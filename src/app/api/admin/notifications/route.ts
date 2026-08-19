@@ -4,6 +4,7 @@ import { boundedPositiveInt, getRequestId, jsonData, jsonError } from "@/server/
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import { relatedPilotUnitWhere } from "@/server/admin-permissions";
+import { serializeNotification } from "@/server/serializers";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const querySchema = z.object({
@@ -14,30 +15,6 @@ const querySchema = z.object({
   to: z.string().date().optional(),
   q: z.string().trim().max(256).optional(),
 });
-
-function serialize(item: any) {
-  return {
-    id: item.id,
-    type: item.type.toLowerCase(),
-    channel: item.channel.toLowerCase(),
-    status: item.status.toLowerCase(),
-    pilotId: item.pilotId ?? undefined,
-    pilotName: item.pilot?.displayName ?? "",
-    employeeNumber: item.pilot?.employeeNumber,
-    target: item.target,
-    summary: item.summary,
-    message: item.message,
-    createdAt: item.createdAt.toISOString(),
-    sentAt: item.sentAt?.toISOString(),
-    attempts: item.attempts.map((attempt: any) => ({
-      id: attempt.id,
-      attemptedAt: attempt.attemptedAt.toISOString(),
-      status: attempt.status.toLowerCase(),
-      detail: attempt.detail,
-    })),
-    version: item.version,
-  };
-}
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -65,8 +42,7 @@ export async function GET(request: NextRequest) {
       ...(query.q
         ? {
             OR: [
-              { summary: { contains: query.q, mode: "insensitive" } },
-              { message: { contains: query.q, mode: "insensitive" } },
+              { templateKey: { contains: query.q, mode: "insensitive" } },
               { target: { contains: query.q, mode: "insensitive" } },
               {
                 pilot: {
@@ -104,7 +80,7 @@ export async function GET(request: NextRequest) {
     ]);
     return jsonData(
       {
-        items: items.map(serialize),
+        items: items.map(serializeNotification),
         total,
         page,
         pageSize,

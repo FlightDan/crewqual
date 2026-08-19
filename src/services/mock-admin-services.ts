@@ -38,6 +38,7 @@ import type {
   ReviewService,
   UpgradePlanRecord,
 } from "@/types/services";
+import { pilotRoleLabel } from "@/lib/domain-i18n";
 
 const administrator = "演示管理员";
 
@@ -88,7 +89,8 @@ function toListItem(
     displayName: pilot.displayName,
     initials: pilot.initials,
     mobile: pilot.mobile,
-    role: pilot.role,
+    roleCode: pilot.roleCode,
+    role: pilotRoleLabel(pilot.roleCode),
     aircraftType: pilot.aircraftType,
     unit: pilot.unit,
     unitCode: pilot.unitCode,
@@ -239,7 +241,7 @@ export function createMockAdminServices(
           pilot.displayName,
           pilot.mobile,
           pilot.aircraftType,
-          pilot.role,
+          pilot.roleCode,
           pilot.unitCode,
           pilot.rankLabel,
         ];
@@ -276,7 +278,7 @@ export function createMockAdminServices(
         displayName: input.displayName,
         initials: Array.from(input.displayName.replace(/\s+/g, "")).slice(0, 2).join(""),
         mobile: input.mobile,
-        role: input.role,
+        roleCode: input.roleCode,
         aircraftType: input.aircraftType,
         unit: unit.unit,
         unitCode: input.unitCode,
@@ -426,7 +428,7 @@ export function createMockAdminServices(
             displayName: row.input.displayName,
             initials: Array.from(row.input.displayName.replace(/\s+/g, "")).slice(0, 2).join(""),
             mobile: row.input.mobile,
-            role: row.input.role,
+            roleCode: row.input.roleCode,
             aircraftType: row.input.aircraftType,
             unit: unit.unit,
             unitCode: row.input.unitCode,
@@ -859,7 +861,7 @@ export function createMockAdminServices(
             planId: plan!.id,
             pilotId: pilot.id,
             pilotName: pilot.displayName,
-            role: pilot.role,
+            role: pilotRoleLabel(pilot.roleCode),
             planTitle: plan!.title,
             stage,
           }));
@@ -873,7 +875,7 @@ export function createMockAdminServices(
             planId: plan.id,
             pilotId: pilot.id,
             pilotName: pilot.displayName,
-            role: pilot.role,
+            role: pilotRoleLabel(pilot.roleCode),
             planTitle: plan.title,
             stage,
           }));

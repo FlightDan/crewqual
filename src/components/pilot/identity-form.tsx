@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { identitySchema } from "@/lib/pilot-validation";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { AccessLinkRequest } from "@/types/services";
+import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
 
 export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "member" }) {
   const portalPath = portal === "member" ? "/member" : "/pilot";
@@ -17,6 +18,7 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
   const { pilotIdentity } = useApplicationServices();
   const [interactive, setInteractive] = React.useState(false);
   const [sent, setSent] = React.useState(false);
+  const { t } = useI18n();
   React.useEffect(() => setInteractive(true), []);
   const {
     register,
@@ -39,23 +41,27 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
         <div className="flex size-14 items-center justify-center rounded-lg bg-brand text-white">
           <Plane aria-hidden="true" className="size-8" />
         </div>
-        <div>
-          <p className="text-2xl font-bold text-primary">CrewQual</p>
-          <p className="mt-1 text-xs font-semibold text-muted">
-            机组资质合规系统 · {portal === "member" ? "成员门户" : "飞行员门户"}
-          </p>
+        <div className="flex w-full items-start justify-between gap-3">
+          <div>
+            <p className="text-2xl font-bold text-primary">CrewQual</p>
+            <p className="mt-1 text-xs font-semibold text-muted">
+              {t("navigation.system")} ·{" "}
+              {portal === "member" ? t("portal.member") : t("portal.pilot")}
+            </p>
+          </div>
+          <LocaleSwitcher />
         </div>
       </div>
 
       <form onSubmit={submit} className="my-auto space-y-5 py-10" noValidate>
         <div>
           <h1 className="text-xl font-bold text-primary">
-            {portal === "member" ? "成员资质查询" : "飞行员资质查询"}
+            {portal === "member" ? t("portal.memberLookup") : t("portal.pilotLookup")}
           </h1>
-          <p className="mt-1 text-[13px] text-secondary">请输入您的员工信息以获取访问链接</p>
+          <p className="mt-1 text-[13px] text-secondary">{t("portal.identityHint")}</p>
           {sent ? (
             <p className="mt-3 rounded-md bg-emerald-50 p-3 text-xs leading-5 text-success">
-              请求已受理。如果信息匹配，访问链接会发送到登记手机号；无论是否匹配，页面都会显示相同结果。
+              {t("portal.requestAccepted")}
             </p>
           ) : null}
         </div>
@@ -66,11 +72,11 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
               className="pointer-events-none absolute left-3 top-[35px] z-10 size-4 text-secondary"
             />
             <Input
-              label="员工工号"
+              label={t("portal.employeeNumber")}
               required
               disabled={!interactive}
               autoComplete="username"
-              placeholder="例如：CQ-1049"
+              placeholder={t("portal.employeePlaceholder")}
               className="pl-9"
               error={errors.employeeNumber?.message}
               {...register("employeeNumber")}
@@ -82,13 +88,13 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
               className="pointer-events-none absolute left-3 top-[35px] z-10 size-4 text-secondary"
             />
             <Input
-              label="登记手机号"
+              label={t("portal.mobile")}
               required
               disabled={!interactive}
               inputMode="numeric"
               autoComplete="tel"
               maxLength={11}
-              placeholder="登记的11位手机号码"
+              placeholder={t("portal.mobilePlaceholder")}
               className="pl-9"
               error={errors.mobile?.message}
               {...register("mobile")}
@@ -103,17 +109,15 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
             disabled={!interactive}
             loading={isSubmitting}
           >
-            发送访问链接
+            {t("portal.requestLink")}
           </Button>
-          <p className="text-center text-[11px] leading-5 text-muted">
-            访问链接为一次性凭证，有效期 15 分钟
-          </p>
+          <p className="text-center text-[11px] leading-5 text-muted">{t("portal.linkRule")}</p>
         </div>
       </form>
 
       <p className="flex items-center gap-2 pb-6 text-[11px] text-muted">
         <LockKeyhole aria-hidden="true" className="size-3.5" />
-        您的信息仅用于身份验证
+        {t("portal.privacy")}
       </p>
     </main>
   );

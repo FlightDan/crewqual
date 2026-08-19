@@ -9,9 +9,12 @@ import {
   canAccessAdminNavItem,
   isAdminNavItemActive,
   useAdminPositions,
+  getAdminNavItemKey,
 } from "@/components/layout/navigation";
 import { cn } from "@/lib/utils";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
+import { legacyAdminNavLabels } from "@/lib/navigation-legacy";
 
 export function AdminNavigationTree({
   mobile = false,
@@ -25,16 +28,18 @@ export function AdminNavigationTree({
   const pathname = usePathname();
   const [positionFilter, setPositionFilter] = React.useState<string | null>(null);
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
   const positions = useAdminPositions(pathname);
   const [membersOpen, setMembersOpen] = React.useState(true);
   const [openPositions, setOpenPositions] = React.useState<Record<string, boolean>>({
     PILOT: true,
   });
   const visibleItems = adminNavItems.filter((item) => canAccessAdminNavItem(item, hasPermission));
-  const overviewItem = visibleItems.find((item) => item.label === "总览");
-  const membersItem = visibleItems.find((item) => item.label === "成员管理");
+  const overviewItem = visibleItems.find((item) => item.label === legacyAdminNavLabels.overview);
+  const membersItem = visibleItems.find((item) => item.label === legacyAdminNavLabels.members);
   const otherItems = visibleItems.filter(
-    (item) => item.label !== "总览" && item.label !== "成员管理",
+    (item) =>
+      item.label !== legacyAdminNavLabels.overview && item.label !== legacyAdminNavLabels.members,
   );
 
   React.useEffect(() => {
@@ -107,7 +112,7 @@ export function AdminNavigationTree({
     const active = isAdminNavItemActive(pathname, item);
     return (
       <React.Fragment key={item.label}>
-        {item.label === "待审核" ? (
+        {item.label === legacyAdminNavLabels.reviews ? (
           <div aria-hidden="true" className="my-2 border-t border-slate-800" />
         ) : null}
         {link(
@@ -116,8 +121,8 @@ export function AdminNavigationTree({
           "root",
           <>
             <Icon aria-hidden="true" className={mobile ? "size-5" : "size-[18px]"} />
-            <span>{item.label}</span>
-            {item.label === "待审核" && pendingReviewCount > 0 ? (
+            <span>{t(getAdminNavItemKey(item.label))}</span>
+            {item.label === legacyAdminNavLabels.reviews && pendingReviewCount > 0 ? (
               <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] text-white">
                 {pendingReviewCount}
               </span>
@@ -146,11 +151,15 @@ export function AdminNavigationTree({
               aria-expanded={membersOpen}
               onClick={() => setMembersOpen((open) => !open)}
             >
-              <span>成员管理</span>
+              <span>{t("navigation.members")}</span>
             </button>
             <button
               type="button"
-              aria-label={membersOpen ? "收起成员管理" : "展开成员管理"}
+              aria-label={
+                membersOpen
+                  ? `${t("navigation.collapse")}${t("navigation.members")}`
+                  : `${t("navigation.expand")}${t("navigation.members")}`
+              }
               aria-expanded={membersOpen}
               className="rounded p-1"
               onClick={() => setMembersOpen((open) => !open)}
@@ -186,7 +195,11 @@ export function AdminNavigationTree({
                       </Link>
                       <button
                         type="button"
-                        aria-label={expanded ? `收起${position.name}` : `展开${position.name}`}
+                        aria-label={
+                          expanded
+                            ? `${t("navigation.collapse")}${position.name}`
+                            : `${t("navigation.expand")}${position.name}`
+                        }
                         aria-expanded={expanded}
                         className="rounded p-1"
                         onClick={() => togglePosition(position.code)}
@@ -205,11 +218,16 @@ export function AdminNavigationTree({
                             position.qualificationHref,
                             qualificationActive,
                             "child",
-                            "资质管理",
+                            t("navigation.route.positionQualifications"),
                           )}
                         </React.Fragment>
                         <React.Fragment key={`${position.code}-upgrades`}>
-                          {link(position.upgradeHref, upgradeActive, "child", "升级计划")}
+                          {link(
+                            position.upgradeHref,
+                            upgradeActive,
+                            "child",
+                            t("navigation.route.upgradePlans"),
+                          )}
                         </React.Fragment>
                       </div>
                     ) : null}

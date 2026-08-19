@@ -12,7 +12,7 @@ import {
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import { emitPilotNotification } from "@/server/notifications";
-import { UPGRADE_STAGE_NAMES } from "@/types/services";
+import { UPGRADE_STAGE_CODES } from "@/types/services";
 import { serializeUpgradePlan } from "@/server/serializers";
 import { pilotUnitWhere, relatedPilotUnitWhere } from "@/server/admin-permissions";
 import { upgradePlanDraftSchema } from "@/lib/admin-operations-validation";
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
           stages: {
             create: input.stages.map((stage, order) => ({
               order,
-              name: UPGRADE_STAGE_NAMES[order]!,
+              code: UPGRADE_STAGE_CODES[order]!,
               status: input.action === "start" && order === 0 ? "SCHEDULED" : "NOT_STARTED",
               plannedStart: new Date(`${stage.plannedStart}T00:00:00.000Z`),
               plannedEnd: new Date(`${stage.plannedEnd}T00:00:00.000Z`),
@@ -285,8 +285,8 @@ export async function POST(request: NextRequest) {
           eventKey: `upgrade-created:${created.id}:1`,
           pilotId: input.pilotId,
           type: "upgrade_created",
-          summary: `升级计划已创建：${input.title}`,
-          message: "升级计划已经启动，请按计划查看并完成各检查节点。",
+          templateKey: "upgrade.plan.created",
+          templateParams: { planTitle: input.title },
         });
       }
       return tx.upgradePlan.findUniqueOrThrow({

@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { adminSettingsService } from "@/services/admin-settings-service";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 import type {
   AdminLoginMode,
   SecurityPolicy,
@@ -23,21 +25,6 @@ import type {
   SettingsSectionId,
   SettingsSession,
 } from "@/types/admin-settings";
-
-const loginModeOptions: Array<{ label: string; value: AdminLoginMode }> = [
-  { label: "密码 + TOTP（推荐）", value: "PASSWORD_TOTP" },
-  { label: "仅动态验证码（无普通密码）", value: "TOTP_ONLY" },
-  { label: "仅密码（不使用 TOTP）", value: "PASSWORD_ONLY" },
-];
-
-const auditSectionOptions: Array<{ label: string; value: "all" | SettingsSectionId }> = [
-  { label: "全部功能区", value: "all" },
-  { label: "组织与单位", value: "organization" },
-  { label: "管理员与权限", value: "admins" },
-  { label: "通知设置", value: "notifications" },
-  { label: "AI 与系统集成", value: "ai" },
-  { label: "安全与审计", value: "security" },
-];
 
 export function SecuritySettingsSection({
   policy,
@@ -56,6 +43,20 @@ export function SecuritySettingsSection({
   onSessionsChange: (sessions: SettingsSession[]) => void;
   notify: SettingsFeedback;
 }) {
+  const { t } = useI18n();
+  const loginModeOptions: Array<{ label: string; value: AdminLoginMode }> = [
+    { label: t("settingsSecurity.passwordTotp"), value: "PASSWORD_TOTP" },
+    { label: t("settingsSecurity.totpOnly"), value: "TOTP_ONLY" },
+    { label: t("settingsSecurity.passwordOnly"), value: "PASSWORD_ONLY" },
+  ];
+  const auditSectionOptions: Array<{ label: string; value: "all" | SettingsSectionId }> = [
+    { label: t("settingsSecurity.allAreas"), value: "all" },
+    { label: t("settingsOrg.title"), value: "organization" },
+    { label: t("settingsAccount.title"), value: "admins" },
+    { label: t("settingsNotify.title"), value: "notifications" },
+    { label: t("settings.ai.title"), value: "ai" },
+    { label: t("settingsSecurity.title"), value: "security" },
+  ];
   const [draft, setDraft] = React.useState(policy);
   const [saving, setSaving] = React.useState(false);
   const [sessionTarget, setSessionTarget] = React.useState<SettingsSession | null>(null);
@@ -78,19 +79,17 @@ export function SecuritySettingsSection({
       setCurrentPassword("");
       setCurrentTotpCode("");
       if (saved.reauthenticate && isRemoteServiceMode()) {
-        notify("success", "登录策略已更新", "所有管理员会话已失效，请按新策略重新登录。 ");
+        notify("success", t("settingsSecurity.saveSuccess"), t("settingsSecurity.reauthRemote"));
         window.location.assign("/admin/login?reason=security-policy-changed");
         return;
       }
       notify(
         "success",
-        "安全策略已保存",
-        saved.reauthenticate
-          ? "演示模式已更新策略；真实服务切换模式时会立即要求重新登录。"
-          : "新策略将应用于之后创建的会话和访问链接。 ",
+        t("settingsSecurity.saveSuccess"),
+        saved.reauthenticate ? t("settingsSecurity.reauthDemo") : t("settingsSecurity.applied"),
       );
     } catch (reason) {
-      notify("danger", "安全策略保存失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify("danger", t("settingsSecurity.saveError"), localizeError(reason, t));
     } finally {
       setSaving(false);
     }
@@ -104,7 +103,11 @@ export function SecuritySettingsSection({
       draft.maxFailedAttempts < 3 ||
       draft.lockoutMinutes < 5
     ) {
-      notify("danger", "安全策略无法保存", "请检查会话时长、失败次数和锁定时间的最小值。 ");
+      notify(
+        "danger",
+        t("settingsSecurity.invalidPolicy"),
+        t("settingsSecurity.invalidPolicyHelp"),
+      );
       return;
     }
     if (draft.adminLoginMode !== policy.adminLoginMode) {
@@ -128,9 +131,9 @@ export function SecuritySettingsSection({
       await adminSettingsService.revokeSession(sessionTarget.id);
       onSessionsChange(sessions.filter((item) => item.id !== sessionTarget.id));
       setSessionTarget(null);
-      notify("success", "管理员会话已结束", "该设备需要重新登录后才能访问系统。 ");
+      notify("success", t("settingsSecurity.sessionEnded"), t("settingsSecurity.sessionEndedHelp"));
     } catch (reason) {
-      notify("danger", "结束会话失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify("danger", t("settingsSecurity.endError"), localizeError(reason, t));
     } finally {
       setRevoking(false);
     }
@@ -147,15 +150,11 @@ export function SecuritySettingsSection({
   return (
     <section className="space-y-5" aria-labelledby="security-settings-title">
       <SettingsSectionHeader
-        title="安全与审计"
-        description="控制双重验证、会话和登录锁定策略，并追踪所有系统设置变更。"
+        title={t("settingsSecurity.title")}
+        description={t("settingsSecurity.description")}
       />
 
-      {!canWrite ? (
-        <Alert tone="info">
-          当前角色可以查看安全状态，但不能修改全局安全策略或结束其他管理员会话。
-        </Alert>
-      ) : null}
+      {!canWrite ? <Alert tone="info">{t("settingsSecurity.readonly")}</Alert> : null}
 
       <Card>
         <CardHeader>
@@ -164,17 +163,15 @@ export function SecuritySettingsSection({
               <ShieldCheck aria-hidden="true" className="size-5" />
             </span>
             <div>
-              <h3 className="font-bold">全局安全策略</h3>
-              <p className="mt-1 text-xs text-muted">
-                普通策略不会改变已签发会话；登录模式切换会立即撤销全部管理员会话。
-              </p>
+              <h3 className="font-bold">{t("settingsSecurity.global")}</h3>
+              <p className="mt-1 text-xs text-muted">{t("settingsSecurity.globalDescription")}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="rounded-md border border-border p-3">
             <Select
-              label="管理员登录模式"
+              label={t("settingsSecurity.loginMode")}
               options={loginModeOptions}
               value={draft.adminLoginMode}
               disabled={!canWrite}
@@ -182,13 +179,11 @@ export function SecuritySettingsSection({
                 setDraft({ ...draft, adminLoginMode: event.target.value as AdminLoginMode })
               }
             />
-            <p className="mt-2 text-xs text-muted">
-              “仅动态验证码”不属于标准双因素认证；切换模式会立即结束所有管理员会话。
-            </p>
+            <p className="mt-2 text-xs text-muted">{t("settingsSecurity.modeHelp")}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Input
-              label="管理员会话有效期（小时）"
+              label={t("settingsSecurity.adminTtl")}
               type="number"
               min={1}
               max={72}
@@ -199,7 +194,7 @@ export function SecuritySettingsSection({
               }
             />
             <Input
-              label="飞行员访问链接（分钟）"
+              label={t("settingsSecurity.linkTtl")}
               type="number"
               min={5}
               max={60}
@@ -210,7 +205,7 @@ export function SecuritySettingsSection({
               }
             />
             <Input
-              label="飞行员访问会话（分钟）"
+              label={t("settingsSecurity.pilotTtl")}
               type="number"
               min={15}
               max={480}
@@ -221,7 +216,7 @@ export function SecuritySettingsSection({
               }
             />
             <Input
-              label="连续失败锁定次数"
+              label={t("settingsSecurity.failedAttempts")}
               type="number"
               min={3}
               max={20}
@@ -232,7 +227,7 @@ export function SecuritySettingsSection({
               }
             />
             <Input
-              label="账号锁定时长（分钟）"
+              label={t("settingsSecurity.lockout")}
               type="number"
               min={5}
               max={1440}
@@ -246,7 +241,7 @@ export function SecuritySettingsSection({
           {canWrite ? (
             <div className="flex justify-end">
               <Button type="button" loading={saving} onClick={() => void save()}>
-                保存安全策略
+                {t("settingsSecurity.savePolicy")}
               </Button>
             </div>
           ) : null}
@@ -255,17 +250,19 @@ export function SecuritySettingsSection({
 
       <Dialog open={credentialDialogOpen} onOpenChange={setCredentialDialogOpen}>
         <DialogContent aria-describedby="security-mode-confirmation-description">
-          <DialogTitle className="text-lg font-bold">确认切换管理员登录模式</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            {t("settingsSecurity.modeConfirmTitle")}
+          </DialogTitle>
           <DialogDescription
             id="security-mode-confirmation-description"
             className="mt-1 text-sm text-secondary"
           >
-            切换后所有管理员会话会立即失效，所有人都必须按新模式重新登录。
+            {t("settingsSecurity.modeConfirmDescription")}
           </DialogDescription>
           <div className="mt-5 space-y-4">
             {draft.adminLoginMode !== "TOTP_ONLY" ? (
               <Input
-                label="当前超级管理员密码"
+                label={t("settingsSecurity.currentPassword")}
                 type="password"
                 autoComplete="current-password"
                 value={currentPassword}
@@ -275,7 +272,7 @@ export function SecuritySettingsSection({
             ) : null}
             {draft.adminLoginMode !== "PASSWORD_ONLY" ? (
               <Input
-                label="当前动态验证码（6 位）"
+                label={t("settingsSecurity.currentTotp")}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 pattern="[0-9]{6}"
@@ -292,10 +289,10 @@ export function SecuritySettingsSection({
               variant="secondary"
               onClick={() => setCredentialDialogOpen(false)}
             >
-              取消
+              {t("settingsSecurity.cancel")}
             </Button>
             <Button type="button" loading={saving} onClick={() => void confirmModeChange()}>
-              确认并立即切换
+              {t("settingsSecurity.confirmSwitch")}
             </Button>
           </div>
         </DialogContent>
@@ -304,8 +301,8 @@ export function SecuritySettingsSection({
       <Card>
         <CardHeader>
           <div>
-            <h3 className="font-bold">活跃管理员会话</h3>
-            <p className="mt-1 text-xs text-muted">IP 地址经过脱敏，仅用于识别异常登录。</p>
+            <h3 className="font-bold">{t("settingsSecurity.sessions")}</h3>
+            <p className="mt-1 text-xs text-muted">{t("settingsSecurity.sessionsDescription")}</p>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -320,7 +317,9 @@ export function SecuritySettingsSection({
               <div className="min-w-[180px] flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">{session.adminName}</p>
-                  {session.current ? <Badge tone="success">当前会话</Badge> : null}
+                  {session.current ? (
+                    <Badge tone="success">{t("settingsSecurity.currentSession")}</Badge>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-xs text-muted">
                   {session.browser} · {session.maskedIp}
@@ -328,11 +327,11 @@ export function SecuritySettingsSection({
               </div>
               <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs text-secondary">
                 <div>
-                  <dt className="text-muted">登录</dt>
+                  <dt className="text-muted">{t("settingsSecurity.login")}</dt>
                   <dd>{formatSettingsDate(session.createdAt)}</dd>
                 </div>
                 <div>
-                  <dt className="text-muted">最近活动</dt>
+                  <dt className="text-muted">{t("settingsSecurity.recentActivity")}</dt>
                   <dd>{formatSettingsDate(session.lastSeenAt)}</dd>
                 </div>
               </dl>
@@ -344,13 +343,15 @@ export function SecuritySettingsSection({
                   onClick={() => setSessionTarget(session)}
                 >
                   <LogOut aria-hidden="true" className="size-4" />
-                  结束会话
+                  {t("settingsSecurity.endSession")}
                 </Button>
               ) : null}
             </div>
           ))}
           {!sessions.length ? (
-            <p className="py-8 text-center text-sm text-muted">暂无活跃管理员会话</p>
+            <p className="py-8 text-center text-sm text-muted">
+              {t("settingsSecurity.noSessions")}
+            </p>
           ) : null}
         </CardContent>
       </Card>
@@ -360,21 +361,21 @@ export function SecuritySettingsSection({
           <div className="flex items-start gap-3">
             <History aria-hidden="true" className="mt-0.5 size-5 text-secondary" />
             <div>
-              <h3 className="font-bold">设置审计记录</h3>
-              <p className="mt-1 text-xs text-muted">密钥、密码和完整 Token 不会写入审计详情。</p>
+              <h3 className="font-bold">{t("settingsSecurity.audit")}</h3>
+              <p className="mt-1 text-xs text-muted">{t("settingsSecurity.auditDescription")}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
             <Input
-              aria-label="搜索审计记录"
-              placeholder="搜索操作者、单位或变更摘要"
+              aria-label={t("settingsSecurity.searchAudit")}
+              placeholder={t("settingsSecurity.searchPlaceholder")}
               value={auditQuery}
               onChange={(event) => setAuditQuery(event.target.value)}
             />
             <Select
-              aria-label="筛选审计功能区"
+              aria-label={t("settingsSecurity.filterAudit")}
               options={auditSectionOptions}
               value={auditSection}
               onChange={(event) => setAuditSection(event.target.value as "all" | SettingsSectionId)}
@@ -396,7 +397,7 @@ export function SecuritySettingsSection({
               </div>
             ))}
             {!filteredAudit.length ? (
-              <p className="py-8 text-center text-sm text-muted">没有符合条件的审计记录</p>
+              <p className="py-8 text-center text-sm text-muted">{t("settingsSecurity.noAudit")}</p>
             ) : null}
           </div>
         </CardContent>
@@ -407,24 +408,27 @@ export function SecuritySettingsSection({
         onOpenChange={(open) => !open && setSessionTarget(null)}
       >
         <DialogContent aria-describedby="revoke-session-description">
-          <DialogTitle className="text-lg font-bold">结束管理员会话</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{t("settingsSecurity.endTitle")}</DialogTitle>
           <DialogDescription
             id="revoke-session-description"
             className="mt-2 text-sm leading-6 text-secondary"
           >
             {sessionTarget
-              ? `${sessionTarget.adminName} 在 ${sessionTarget.browser} 上的会话将立即失效。`
+              ? t("settingsSecurity.endDescription", {
+                  name: sessionTarget.adminName,
+                  browser: sessionTarget.browser,
+                })
               : null}
           </DialogDescription>
           <Alert tone="warning" className="mt-4">
-            该操作无法撤销，对方需要重新登录。
+            {t("settingsSecurity.endWarning")}
           </Alert>
           <div className="mt-6 flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setSessionTarget(null)}>
-              取消
+              {t("settingsSecurity.cancel")}
             </Button>
             <Button type="button" variant="danger" loading={revoking} onClick={() => void revoke()}>
-              确认结束会话
+              {t("settingsSecurity.confirmEnd")}
             </Button>
           </div>
         </DialogContent>

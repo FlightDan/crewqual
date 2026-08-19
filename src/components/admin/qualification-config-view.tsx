@@ -19,9 +19,11 @@ import { Select } from "@/components/ui/select";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { qualificationConfigInputSchema } from "@/lib/admin-operations-validation";
 import { qualificationFieldValueTypeLabels } from "@/lib/qualification-fields";
+import { localizeError } from "@/lib/error-i18n";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { QualificationConfig, QualificationConfigInput, ValidityRule } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 const qualificationConfigsQueryKey = ["admin", "qualification-configs"] as const;
 type QualificationKind = "core" | "supplemental";
@@ -35,22 +37,27 @@ function PositionQualificationHeader({
   canWrite: boolean;
   onCreate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-5">
       <div>
-        <p className="text-xs font-medium text-muted">成员管理 / {positionName} / 资质管理</p>
+        <p className="text-xs font-medium text-muted">
+          {t("qualificationConfig.breadcrumb", { position: positionName })}
+        </p>
         <div className="mt-2 flex items-center gap-3">
-          <h2 className="text-xl font-bold text-primary">{positionName}资质管理</h2>
+          <h2 className="text-xl font-bold text-primary">
+            {t("qualificationConfig.title", { position: positionName })}
+          </h2>
           <Badge tone="info">{positionName}</Badge>
         </div>
         <p className="mt-1 text-sm text-secondary">
-          配置{positionName}所需资质、有效期规则、提醒策略和审核要求
+          {t("qualificationConfig.description", { position: positionName })}
         </p>
       </div>
       {canWrite ? (
         <Button onClick={onCreate}>
           <Plus className="size-4" />
-          新增资质项目
+          {t("qualificationConfig.create")}
         </Button>
       ) : null}
     </div>
@@ -78,36 +85,39 @@ function CreateQualificationDialog({
   loading: boolean;
   onCreate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle className="text-lg font-bold">新增资质项目</DialogTitle>
+        <DialogTitle className="text-lg font-bold">
+          {t("qualificationConfig.createTitle")}
+        </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-muted">
-          项目只属于当前职位；核心资质计入合规与升级硬约束，补充资质不计入核心完成率。
+          {t("qualificationConfig.createDescription")}
         </DialogDescription>
         <div className="mt-4 space-y-4">
           {error ? <Alert tone="danger">{error}</Alert> : null}
           <Input
-            label="资质项目名称"
+            label={t("qualificationConfig.name")}
             required
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
           />
           <Select
-            label="资质类型"
+            label={t("qualificationConfig.kind")}
             value={kind}
             onChange={(event) => onKindChange(event.target.value as QualificationKind)}
             options={[
-              { value: "supplemental", label: "补充资质" },
-              { value: "core", label: "核心资质" },
+              { value: "supplemental", label: t("qualificationConfig.supplemental") },
+              { value: "core", label: t("qualificationConfig.core") },
             ]}
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("qualificationConfig.cancel")}
             </Button>
             <Button loading={loading} onClick={onCreate}>
-              创建资质项目
+              {t("qualificationConfig.createAction")}
             </Button>
           </div>
         </div>
@@ -141,6 +151,7 @@ function configInput(config: QualificationConfig): QualificationConfigInput {
 }
 
 export function QualificationConfigView({ positionCode = "PILOT" }: { positionCode?: string }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const params = useSearchParams();
   const positions = useAdminPositions(pathname);
@@ -154,9 +165,9 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
   });
   const configs = React.useMemo(() => configsQuery.data ?? [], [configsQuery.data]);
   const positionNames: Record<string, string> = {
-    PILOT: "飞行员",
-    CABIN_CREW: "乘务员",
-    MAINTENANCE: "机务人员",
+    PILOT: t("positions.pilot"),
+    CABIN_CREW: t("positions.cabinCrew"),
+    MAINTENANCE: t("positions.maintenance"),
   };
   const positionName =
     positions.find((position) => position.code === positionCode)?.name ??
@@ -297,10 +308,12 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
       setNewKind("supplemental");
       setNewOpen(false);
       setSuccess(
-        created.data.core ? "已新增当前职位的核心资质项目。" : "已新增当前职位的补充资质项目。",
+        created.data.core
+          ? t("qualificationConfig.createdCore")
+          : t("qualificationConfig.createdSupplemental"),
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "新增失败");
+      setError(localizeError(reason, t, "qualificationConfig.createError"));
     } finally {
       setLoading(false);
     }
@@ -315,11 +328,15 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
   if (configsQuery.isError)
     return (
       <PageContainer>
-        <Alert tone="danger" title="资质配置加载失败">
+        <Alert tone="danger" title={t("qualificationConfig.loadError")}>
           <div className="space-y-3">
-            <p>{configsQuery.error instanceof Error ? configsQuery.error.message : "请稍后重试"}</p>
+            <p>
+              {configsQuery.error instanceof Error
+                ? configsQuery.error.message
+                : t("qualificationConfig.retryLater")}
+            </p>
             <Button variant="secondary" onClick={() => void configsQuery.refetch()}>
-              重新加载
+              {t("qualificationConfig.retry")}
             </Button>
           </div>
         </Alert>
@@ -335,8 +352,8 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
         />
         <Card className="p-8 shadow-none">
           <EmptyState
-            title="当前职位还没有资质项目"
-            description="从新增资质项目开始，为此职位建立完全独立的核心或补充资质要求。"
+            title={t("qualificationConfig.emptyTitle")}
+            description={t("qualificationConfig.emptyDescription")}
           />
         </Card>
         <CreateQualificationDialog
@@ -406,9 +423,9 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
       );
       reset(configInput(saved.data));
       setImpactOpen(false);
-      setSuccess("配置已保存，仅影响后续申请、合规与提醒计算。现有生效记录未被回写。");
+      setSuccess(t("qualificationConfig.saved"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "保存失败");
+      setError(localizeError(reason, t, "qualificationConfig.saveError"));
       setImpactOpen(false);
     } finally {
       setLoading(false);
@@ -424,13 +441,25 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ["all", `全部资质 ${configs.length}`],
-            ["core", `核心资质 ${configs.filter((item) => item.core).length}`],
+            ["all", t("qualificationConfig.filterAll", { count: configs.length })],
+            [
+              "core",
+              t("qualificationConfig.filterCore", {
+                count: configs.filter((item) => item.core).length,
+              }),
+            ],
             [
               "supplemental",
-              `补充资质 ${configs.filter((item) => !item.core && item.active).length}`,
+              t("qualificationConfig.filterSupplemental", {
+                count: configs.filter((item) => !item.core && item.active).length,
+              }),
             ],
-            ["inactive", `已停用 ${configs.filter((item) => !item.active).length}`],
+            [
+              "inactive",
+              t("qualificationConfig.filterInactive", {
+                count: configs.filter((item) => !item.active).length,
+              }),
+            ],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -444,16 +473,20 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
         ))}
       </div>
       {/* Existing detailed configuration form remains unchanged below. */}
-      {!canWrite ? (
-        <Alert tone="info">当前角色可以查看资质配置，但不能修改或新增项目。</Alert>
-      ) : null}
+      {!canWrite ? <Alert tone="info">{t("qualificationConfig.readonly")}</Alert> : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {success ? <Alert tone="success">{success}</Alert> : null}
       <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <Card className="p-3 shadow-none">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-bold">资质项目（{configs.length}）</h3>
-            <Badge tone="info">核心 {configs.filter((item) => item.core).length} 项</Badge>
+            <h3 className="text-sm font-bold">
+              {t("qualificationConfig.items", { count: configs.length })}
+            </h3>
+            <Badge tone="info">
+              {t("qualificationConfig.coreCount", {
+                count: configs.filter((item) => item.core).length,
+              })}
+            </Badge>
           </div>
           <div className="space-y-2">
             {filteredConfigs.map((config, index) => (
@@ -474,10 +507,14 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                       <span>{config.code}</span>
                       <Badge tone="info">{positionName}</Badge>
                       <Badge tone={config.core ? "danger" : "info"}>
-                        {config.core ? "核心资质" : "补充资质"}
+                        {config.core
+                          ? t("qualificationConfig.core")
+                          : t("qualificationConfig.supplemental")}
                       </Badge>
                       <Badge tone={config.active ? "success" : "neutral"}>
-                        {config.active ? "启用" : "停用"}
+                        {config.active
+                          ? t("qualificationConfig.enabled")
+                          : t("qualificationConfig.disabled")}
                       </Badge>
                     </div>
                   </div>
@@ -489,11 +526,17 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
         <Card className="p-4 shadow-none" data-testid="qualification-config-editor">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div>
-              <h3 className="text-base font-bold">{selected.name} - 资质项目配置</h3>
-              <p className="mt-1 text-xs text-muted">稳定编码：{selected.code}</p>
+              <h3 className="text-base font-bold">
+                {t("qualificationConfig.editorTitle", { name: selected.name })}
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                {t("qualificationConfig.stableCode", { code: selected.code })}
+              </p>
             </div>
             <Badge tone={selected.core ? "danger" : "info"}>
-              {selected.core ? "核心硬约束" : "补充项目"}
+              {selected.core
+                ? t("qualificationConfig.coreConstraint")
+                : t("qualificationConfig.supplementalItem")}
             </Badge>
           </div>
           <form
@@ -506,24 +549,33 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
             <fieldset disabled={!canWrite} className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
-                  label="资质项目名称"
+                  label={t("qualificationConfig.name")}
                   required
                   disabled={selected.locked}
-                  helperText={selected.locked ? "模板核心资质不可改名" : "同一职位内名称不得重复"}
+                  helperText={
+                    selected.locked
+                      ? t("qualificationConfig.renameLocked")
+                      : t("qualificationConfig.uniqueName")
+                  }
                   error={errors.name?.message}
                   {...register("name")}
                 />
-                <Input label="资质唯一识别码" disabled value={selected.code} readOnly />
+                <Input
+                  label={t("qualificationConfig.uniqueCode")}
+                  disabled
+                  value={selected.code}
+                  readOnly
+                />
               </div>
               <section
                 className="space-y-3 rounded-lg border border-border p-4"
-                aria-label="自定义填报条目"
+                aria-label={t("qualificationConfig.customFieldsAria")}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h4 className="text-sm font-bold">自定义填报条目</h4>
+                    <h4 className="text-sm font-bold">{t("qualificationConfig.customFields")}</h4>
                     <p className="mt-1 text-xs text-muted">
-                      为此资质增加需要填写的信息，并限制数字、英文或位数。
+                      {t("qualificationConfig.customFieldsDescription")}
                     </p>
                   </div>
                   <Button
@@ -543,12 +595,12 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                     }
                   >
                     <Plus aria-hidden="true" className="size-4" />
-                    添加条目
+                    {t("qualificationConfig.addField")}
                   </Button>
                 </div>
                 {!customFieldRows.length ? (
                   <p className="rounded-md bg-surface px-3 py-4 text-center text-xs text-muted">
-                    暂无自定义条目；点击“添加条目”开始配置。
+                    {t("qualificationConfig.noCustomFields")}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -560,30 +612,32 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                           className="space-y-3 rounded-md border border-border bg-surface p-3"
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-bold text-secondary">条目 {index + 1}</p>
+                            <p className="text-xs font-bold text-secondary">
+                              {t("qualificationConfig.field", { index: index + 1 })}
+                            </p>
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
-                              aria-label={`删除条目 ${index + 1}`}
+                              aria-label={`${t("qualificationConfig.removeField")} ${index + 1}`}
                               className="text-danger"
                               onClick={() => removeCustomField(index)}
                             >
                               <Trash2 aria-hidden="true" className="size-4" />
-                              删除
+                              {t("qualificationConfig.removeField")}
                             </Button>
                           </div>
                           <input type="hidden" {...register(`customFields.${index}.id`)} />
                           <div className="grid gap-3 md:grid-cols-2">
                             <Input
-                              label="条目名称"
+                              label={t("qualificationConfig.fieldName")}
                               required
-                              placeholder="例如：执照编号"
+                              placeholder={t("qualificationConfig.fieldExample")}
                               error={fieldErrors?.label?.message}
                               {...register(`customFields.${index}.label`)}
                             />
                             <Select
-                              label="可填写内容"
+                              label={t("qualificationConfig.valueType")}
                               required
                               options={Object.entries(qualificationFieldValueTypeLabels).map(
                                 ([value, label]) => ({ value, label }),
@@ -592,22 +646,22 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                               {...register(`customFields.${index}.valueType`)}
                             />
                             <Input
-                              label="最少位数"
+                              label={t("qualificationConfig.minLength")}
                               type="number"
                               min={0}
                               max={256}
-                              helperText="0 表示不限制"
+                              helperText={t("qualificationConfig.noLimit")}
                               error={fieldErrors?.minLength?.message}
                               {...register(`customFields.${index}.minLength`, {
                                 valueAsNumber: true,
                               })}
                             />
                             <Input
-                              label="最多位数"
+                              label={t("qualificationConfig.maxLength")}
                               type="number"
                               min={0}
                               max={256}
-                              helperText="与最少位数相同即为固定长度"
+                              helperText={t("qualificationConfig.fixedLength")}
                               error={fieldErrors?.maxLength?.message}
                               {...register(`customFields.${index}.maxLength`, {
                                 valueAsNumber: true,
@@ -615,13 +669,13 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                             />
                           </div>
                           <Input
-                            label="填写提示"
-                            placeholder="例如：请输入 8 位英文和数字"
+                            label={t("qualificationConfig.placeholder")}
+                            placeholder={t("qualificationConfig.placeholderExample")}
                             error={fieldErrors?.placeholder?.message}
                             {...register(`customFields.${index}.placeholder`)}
                           />
                           <Switch
-                            label="必填条目"
+                            label={t("qualificationConfig.required")}
                             checked={watch(`customFields.${index}.required`)}
                             onChange={(event) =>
                               setValue(`customFields.${index}.required`, event.target.checked, {
@@ -637,7 +691,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 )}
               </section>
               <Switch
-                label="显示等级/参数帮助说明"
+                label={t("qualificationConfig.parameterHelpToggle")}
                 checked={parameterEnabled}
                 onChange={(event) =>
                   setValue("parameterRestriction.enabled", event.target.checked, {
@@ -646,7 +700,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 }
               />
               <Textarea
-                label="等级/参数帮助说明"
+                label={t("qualificationConfig.parameterHelp")}
                 disabled={!parameterEnabled}
                 error={errors.parameterRestriction?.description?.message}
                 {...register("parameterRestriction.description")}
@@ -654,7 +708,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
               {parameterEnabled ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <Select
-                    label="服务端强制规则"
+                    label={t("qualificationConfig.serverRule")}
                     value={parameterMode}
                     onChange={(event) =>
                       setValue(
@@ -664,14 +718,14 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                       )
                     }
                     options={[
-                      { value: "none", label: "不强制（仅显示说明）" },
-                      { value: "allowed_values", label: "只允许指定值" },
-                      { value: "regex", label: "正则格式校验" },
+                      { value: "none", label: t("qualificationConfig.ruleNone") },
+                      { value: "allowed_values", label: t("qualificationConfig.ruleAllowed") },
+                      { value: "regex", label: t("qualificationConfig.ruleRegex") },
                     ]}
                   />
                   {parameterMode === "allowed_values" ? (
                     <Textarea
-                      label="允许值（每行一个）"
+                      label={t("qualificationConfig.allowedValues")}
                       value={parameterAllowedValues.join("\n")}
                       onChange={(event) =>
                         setValue(
@@ -687,8 +741,8 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                   ) : null}
                   {parameterMode === "regex" ? (
                     <Input
-                      label="正则表达式"
-                      placeholder="例如 ^A320-(I|II)$"
+                      label={t("qualificationConfig.regex")}
+                      placeholder={t("qualificationConfig.regexExample")}
                       {...register("parameterRestriction.enforcement.pattern")}
                     />
                   ) : null}
@@ -696,21 +750,27 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
               ) : null}
               {!selected.locked ? (
                 <Switch
-                  label={`启用此${selected.core ? "核心" : "补充"}资质项目`}
+                  label={t("qualificationConfig.enableItem", {
+                    kind: selected.core
+                      ? t("qualificationConfig.core")
+                      : t("qualificationConfig.supplemental"),
+                  })}
                   checked={watch("active")}
                   onChange={(event) =>
                     setValue("active", event.target.checked, { shouldDirty: true })
                   }
-                  helperText="停用后保留历史记录，但不再计入当前职位要求。"
+                  helperText={t("qualificationConfig.keepHistory")}
                 />
               ) : null}
               <fieldset>
-                <legend className="text-sm font-bold">有效期测算规则</legend>
+                <legend className="text-sm font-bold">
+                  {t("qualificationConfig.validityRule")}
+                </legend>
                 <div className="mt-2 grid gap-3 md:grid-cols-3">
                   {[
-                    { value: "fixed_months", label: "按基础日期自动计算" },
-                    { value: "manual_expiry", label: "人工指定到期日" },
-                    { value: "non_expiring", label: "长期有效" },
+                    { value: "fixed_months", label: t("qualificationConfig.fixedMonths") },
+                    { value: "manual_expiry", label: t("qualificationConfig.manualExpiry") },
+                    { value: "non_expiring", label: t("qualificationConfig.nonExpiring") },
                   ].map((option) => (
                     <label
                       key={option.value}
@@ -739,7 +799,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
               {validityKind === "fixed_months" ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <Select
-                    label="基础日期字段"
+                    label={t("qualificationConfig.baseDateField")}
                     required
                     value={
                       watch("validityRule.kind") === "fixed_months"
@@ -747,8 +807,8 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                         : "issueDate"
                     }
                     options={[
-                      { value: "issueDate", label: "发证日期" },
-                      { value: "trainingDate", label: "训练完成日期" },
+                      { value: "issueDate", label: t("qualificationConfig.issueDate") },
+                      { value: "trainingDate", label: t("qualificationConfig.trainingDate") },
                     ]}
                     onChange={(event) =>
                       setValue(
@@ -766,7 +826,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                     }
                   />
                   <Input
-                    label="有效期（月）"
+                    label={t("qualificationConfig.validityMonths")}
                     type="number"
                     min={1}
                     max={120}
@@ -777,10 +837,10 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 </div>
               ) : null}
               <div>
-                <h4 className="text-sm font-bold">两级临期提醒</h4>
+                <h4 className="text-sm font-bold">{t("qualificationConfig.reminders")}</h4>
                 <div className="mt-2 grid gap-4 md:grid-cols-2">
                   <Input
-                    label="首次提醒（到期前天数）"
+                    label={t("qualificationConfig.firstReminder")}
                     type="number"
                     min={1}
                     max={365}
@@ -789,7 +849,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                     {...register("reminders.firstDays", { valueAsNumber: true })}
                   />
                   <Input
-                    label="再次提醒（到期前天数）"
+                    label={t("qualificationConfig.secondReminder")}
                     type="number"
                     min={1}
                     max={365}
@@ -804,8 +864,8 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   {(
                     [
-                      ["dueRecipients", "临期提醒发送给"],
-                      ["expiredRecipients", "过期提醒发送给"],
+                      ["dueRecipients", t("qualificationConfig.dueRecipients")],
+                      ["expiredRecipients", t("qualificationConfig.expiredRecipients")],
                     ] as const
                   ).map(([field, label]) => (
                     <fieldset key={field} className="rounded-lg border border-border p-3">
@@ -813,9 +873,9 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                       <div className="mt-2 grid gap-2">
                         {(
                           [
-                            ["PERSON", "本人"],
-                            ["ADMIN", "本单位 ADMIN"],
-                            ["SUPER_ADMIN", "组织 SUPER_ADMIN"],
+                            ["PERSON", t("qualificationConfig.person")],
+                            ["ADMIN", t("qualificationConfig.admin")],
+                            ["SUPER_ADMIN", t("qualificationConfig.superAdmin")],
                           ] as const
                         ).map(([value, text]) => (
                           <Checkbox
@@ -827,20 +887,20 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                         ))}
                       </div>
                       <p className="mt-2 text-[11px] text-muted">
-                        可取消本人；全部取消表示关闭此类提醒。
+                        {t("qualificationConfig.cancelRecipient")}
                       </p>
                     </fieldset>
                   ))}
                 </div>
                 {dueRecipients.length === 0 || expiredRecipients.length === 0 ? (
                   <Alert tone="warning" className="mt-3">
-                    当前有一类提醒未配置接收人，该类提醒将被关闭。
+                    {t("qualificationConfig.noRecipient")}
                   </Alert>
                 ) : null}
               </div>
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
                 <Switch
-                  label="启用 AI/OCR 辅助核验配置"
+                  label={t("qualificationConfig.ocrToggle")}
                   checked={ocrEnabled}
                   onChange={(event) =>
                     setValue("ocrChecks.enabled", event.target.checked, { shouldDirty: true })
@@ -848,10 +908,10 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 />
                 <div className="mt-2 grid gap-1 md:grid-cols-2">
                   {[
-                    ["credentialNumber", "证件号/序列号"],
-                    ["holderMatch", "持有人姓名匹配"],
-                    ["expiryDate", "截止日期核对"],
-                    ["issuingAuthoritySeal", "签发机构/印章"],
+                    ["credentialNumber", t("qualificationConfig.credentialNumber")],
+                    ["holderMatch", t("qualificationConfig.holderMatch")],
+                    ["expiryDate", t("qualificationConfig.expiryDate")],
+                    ["issuingAuthoritySeal", t("qualificationConfig.issuingSeal")],
                   ].map(([field, label]) => (
                     <Checkbox
                       key={field}
@@ -864,7 +924,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                   ))}
                 </div>
                 <p className="mt-2 text-xs font-semibold text-brand">
-                  仅供辅助，不产生自动审批、自动退回或终审决定。
+                  {t("qualificationConfig.ocrDisclaimer")}
                 </p>
               </div>
               <div className="flex justify-end gap-2">
@@ -874,11 +934,11 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                   disabled={!isDirty}
                   onClick={() => reset(configInput(selected))}
                 >
-                  放弃修改
+                  {t("qualificationConfig.discard")}
                 </Button>
                 <Button type="submit" disabled={!isDirty}>
                   <Save className="size-4" />
-                  保存并查看影响摘要
+                  {t("qualificationConfig.saveImpact")}
                 </Button>
               </div>
             </fieldset>
@@ -887,17 +947,18 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
       </div>
       <Dialog open={impactOpen} onOpenChange={setImpactOpen}>
         <DialogContent>
-          <DialogTitle className="text-lg font-bold">配置影响摘要</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            {t("qualificationConfig.impactTitle")}
+          </DialogTitle>
           <DialogDescription className="mt-2 text-sm leading-6 text-secondary">
-            保存后，新规则只用于未来申请校验与提醒队列计算。不会追溯修改任何成员当前生效记录，也不会触发
-            AI 自动审批决定。
+            {t("qualificationConfig.impactDescription")}
           </DialogDescription>
           <div className="mt-5 flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setImpactOpen(false)}>
-              返回检查
+              {t("qualificationConfig.backCheck")}
             </Button>
             <Button loading={loading} onClick={() => void save()}>
-              确认保存
+              {t("qualificationConfig.confirmSave")}
             </Button>
           </div>
         </DialogContent>
@@ -923,9 +984,11 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
         }}
       >
         <DialogContent>
-          <DialogTitle className="text-lg font-bold">放弃未保存的配置修改？</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            {t("qualificationConfig.discardTitle")}
+          </DialogTitle>
           <DialogDescription className="mt-2 text-sm leading-6 text-secondary">
-            当前项目仍有未保存内容。切换后这些本地表单修改将被放弃，不会写入其他资质项目。
+            {t("qualificationConfig.discardDescription")}
           </DialogDescription>
           <div className="mt-5 flex justify-end gap-2">
             <Button
@@ -935,10 +998,10 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
                 replaceSelectedUrl(selected.id);
               }}
             >
-              继续编辑
+              {t("qualificationConfig.continueEdit")}
             </Button>
             <Button variant="danger" onClick={discardAndSelect}>
-              放弃并切换
+              {t("qualificationConfig.discardSwitch")}
             </Button>
           </div>
         </DialogContent>

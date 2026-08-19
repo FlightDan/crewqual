@@ -16,8 +16,10 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { QualificationReview } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export function ReviewDetailView({ reviewId }: { reviewId: string }) {
+  const { t } = useI18n();
   const state = useAdminState();
   const { reviews } = useApplicationServices();
   const { hasPermission } = useAdminSession();
@@ -44,11 +46,11 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
     return (
       <PageContainer>
         <EmptyState
-          title="未找到审核申请"
-          description="该审核 ID 不存在或已被移除。"
+          title={t("reviewDetail.notFound")}
+          description={t("reviewDetail.notFoundDescription")}
           action={
             <Link href="/admin/reviews" className="font-semibold text-brand">
-              返回审核队列
+              {t("reviewDetail.backQueue")}
             </Link>
           }
         />
@@ -59,34 +61,34 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
   return (
     <PageContainer className="space-y-5 pb-44 lg:pb-6">
       <AdminPageHeader
-        title="机组资质审核工作台"
-        description="人工复核凭证、提交字段、AI 辅助结果与当前生效记录"
+        title={t("reviewDetail.title")}
+        description={t("reviewDetail.description")}
         action={
           <Link
             href="/admin/reviews"
             className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand"
           >
             <ArrowLeft className="size-4" />
-            返回队列
+            {t("reviewDetail.back")}
           </Link>
         }
       />
 
-      <Alert tone="info">
-        AI 辅助结果仅供参考，不能触发自动审批。最终审核责任与决策均由管理员承担。
-      </Alert>
+      <Alert tone="info">{t("reviewDetail.aiNotice")}</Alert>
 
       <Card className="p-4 shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-              正在审核的资质更新申请 · {review.id}
+              {t("reviewDetail.reviewing", { id: review.id })}
             </p>
             <h3 className="mt-2 text-base font-bold">
               {review.pilotName}（{review.role} · {review.employeeNumber}）
             </h3>
             <p className="mt-1 text-sm text-secondary">{review.qualificationName}</p>
-            <p className="mt-1 text-xs text-muted">提交时间：{review.submittedAt}</p>
+            <p className="mt-1 text-xs text-muted">
+              {t("reviewDetail.submitted", { date: review.submittedAt })}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <ReviewStatusBadge status={review.humanStatus} />
@@ -103,7 +105,7 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
           <div className="grid items-start gap-5 md:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.2fr)]">
             <Card className="shadow-none">
               <CardHeader>
-                <h3 className="text-sm font-bold">已上传凭证预览</h3>
+                <h3 className="text-sm font-bold">{t("reviewDetail.uploaded")}</h3>
               </CardHeader>
               <CardContent>
                 <ReviewDocumentViewer review={review} />
@@ -112,8 +114,8 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
             <Card className="shadow-none">
               <CardHeader>
                 <div>
-                  <h3 className="text-sm font-bold">用户最终提交字段</h3>
-                  <p className="mt-1 text-xs text-muted">日期来源、AI 原始值与人工纠正均保留</p>
+                  <h3 className="text-sm font-bold">{t("reviewDetail.userFields")}</h3>
+                  <p className="mt-1 text-xs text-muted">{t("reviewDetail.fieldsDescription")}</p>
                 </div>
               </CardHeader>
               <CardContent className="pt-2">
@@ -127,10 +129,12 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-bold">
                   <Bot className="size-4 text-brand" />
-                  AI 辅助审核比对详情
+                  {t("reviewDetail.aiTitle")}
                 </h3>
                 <p className="mt-1 text-xs text-muted">
-                  仅供参考 · {review.aiReviewedAt ?? "本次不可用"}
+                  {t("reviewDetail.reference", {
+                    date: review.aiReviewedAt ?? t("reviewDetail.unavailable"),
+                  })}
                 </p>
               </div>
               <AiResultBadge status={review.aiStatus} />
@@ -139,8 +143,10 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
               <div className="rounded-md bg-slate-50 p-3">
                 <p className="text-sm font-semibold">{review.aiConclusion}</p>
                 <p className="mt-1 text-xs text-secondary">
-                  总体置信度：
-                  {review.aiConfidence ? `${Math.round(review.aiConfidence * 100)}%` : "不可用"}
+                  {t("reviewDetail.confidence")}
+                  {review.aiConfidence
+                    ? `${Math.round(review.aiConfidence * 100)}%`
+                    : t("reviewDetail.unavailableShort")}
                 </p>
               </div>
               {review.aiComparisons.map((comparison) => (
@@ -162,7 +168,7 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
               ))}
               <p className="flex gap-2 rounded-md bg-blue-50 p-3 text-xs leading-5 text-brand">
                 <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                AI 结果仅供参考，最终提交内容以用户确认及管理员人工纠正后的字段为准。
+                {t("reviewDetail.aiInfo")}
               </p>
             </CardContent>
           </Card>
@@ -171,17 +177,17 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
         <aside className="space-y-5">
           <Card className="shadow-none">
             <CardHeader>
-              <h3 className="text-sm font-bold">当前正式生效记录（更新前对比）</h3>
+              <h3 className="text-sm font-bold">{t("reviewDetail.currentRecord")}</h3>
             </CardHeader>
             <CardContent>
               {review.currentRecord ? (
                 <dl className="divide-y divide-border text-sm">
                   {[
-                    ["证件编号", review.currentRecord.credentialNumber],
-                    ["签发日期", review.currentRecord.issueDate],
-                    ["到期日期", review.currentRecord.expiryDate],
-                    ["签发机构", review.currentRecord.issuingAuthority],
-                    ["等级/参数", review.currentRecord.levelOrParameter],
+                    [t("reviewDetail.credential"), review.currentRecord.credentialNumber],
+                    [t("reviewDetail.issueDate"), review.currentRecord.issueDate],
+                    [t("reviewDetail.expiryDate"), review.currentRecord.expiryDate],
+                    [t("reviewDetail.issuingAuthority"), review.currentRecord.issuingAuthority],
+                    [t("reviewDetail.level"), review.currentRecord.levelOrParameter],
                   ].map(([label, value]) => (
                     <div key={label} className="grid grid-cols-[88px_1fr] gap-3 py-3">
                       <dt className="text-xs text-muted">{label}</dt>
@@ -190,19 +196,19 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
                   ))}
                 </dl>
               ) : (
-                <p className="text-sm text-muted">当前无正式生效记录</p>
+                <p className="text-sm text-muted">{t("reviewDetail.noRecord")}</p>
               )}
             </CardContent>
           </Card>
 
           <section aria-labelledby="review-decision-title">
             <h3 id="review-decision-title" className="sr-only">
-              审核决策操作
+              {t("reviewDetail.decision")}
             </h3>
             {canDecide ? (
               <ReviewDecisionBar review={review} />
             ) : (
-              <Alert tone="info">当前角色为只读访问，不能纠正字段或提交审核决定。</Alert>
+              <Alert tone="info">{t("reviewDetail.readonly")}</Alert>
             )}
           </section>
 
@@ -210,7 +216,7 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
             <CardHeader>
               <h3 className="flex items-center gap-2 text-sm font-bold">
                 <History className="size-4" />
-                人工纠正与审核审计
+                {t("reviewDetail.audit")}
               </h3>
             </CardHeader>
             <CardContent>

@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { enqueueInTransaction, QUEUES } from "@/server/jobs";
 import { getRuntimeIntegration } from "@/server/runtime-settings";
+import { normalizeAppLocale, type AppLocale } from "@/lib/domain-i18n";
+import type { NotificationTemplateKey, NotificationTemplateParams } from "@/lib/notification-i18n";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -82,8 +84,9 @@ export type PilotNotificationInput = {
   eventKey: string;
   type: DomainNotificationType;
   pilotId: string;
-  summary: string;
-  message: string;
+  templateKey: NotificationTemplateKey;
+  templateParams?: NotificationTemplateParams;
+  locale?: AppLocale;
   channels?: DomainNotificationChannel[];
 };
 
@@ -97,7 +100,9 @@ export type DeliveryFailureAlertInput = {
   deliveryId: string;
   pilotId: string | null;
   channel: DomainNotificationChannel;
-  summary: string;
+  locale: AppLocale;
+  sourceTemplateKey: NotificationTemplateKey;
+  sourceTemplateParams: NotificationTemplateParams;
   errorCategory: string | null;
   finalFailureReason: string;
   failedAt: Date;
@@ -122,8 +127,15 @@ export async function emitDeliveryFailureAlert(tx: any, input: DeliveryFailureAl
         status: "SENT",
         pilotId: input.pilotId,
         target: "ADMIN_NOTIFICATION_LOG",
-        summary: `通知投递失败：${input.summary}`,
-        message: `${input.channel} 投递已达到重试上限（${input.errorCategory ?? "unknown"}）：${input.finalFailureReason}`,
+        locale: input.locale,
+        templateKey: "delivery.failed",
+        templateParams: {
+          sourceTemplateKey: input.sourceTemplateKey,
+          sourceTemplateParams: input.sourceTemplateParams,
+          channel: input.channel,
+          errorCategory: input.errorCategory,
+          finalFailureReason: input.finalFailureReason,
+        },
         retryLimit: 0,
         sentAt: input.failedAt,
       },
@@ -147,13 +159,20 @@ export async function emitPilotNotification(tx: any, input: PilotNotificationInp
       employeeNumber: true,
       mobile: true,
       active: true,
-      unit: { select: { notificationRouting: true, notificationChannelState: true } },
+      unit: {
+        select: {
+          notificationRouting: true,
+          notificationChannelState: true,
+          organization: { select: { defaultLocale: true } },
+        },
+      },
     },
   });
   if (!pilot?.active) return { created: 0, queued: 0, deliveryIds: [] as string[] };
 
   const configuredChannels =
     input.channels ?? normalizedChannels(pilot.unit.notificationRouting, type);
+  const locale = normalizeAppLocale(input.locale ?? pilot.unit.organization?.defaultLocale);
   const enabled = enabledChannels(pilot.unit.notificationChannelState);
   const channels = configuredChannels.filter((channel) => enabled.has(channel));
   let created = 0;
@@ -176,8 +195,9 @@ export async function emitPilotNotification(tx: any, input: PilotNotificationInp
           status: channel === "IN_APP" ? "SENT" : "QUEUED",
           pilotId: pilot.id,
           target,
-          summary: input.summary,
-          message: input.message,
+          locale,
+          templateKey: input.templateKey,
+          templateParams: input.templateParams ?? {},
           retryLimit,
           sentAt: channel === "IN_APP" ? now : null,
         },
@@ -223,9 +243,19 @@ export async function emitQualificationReminder(tx: any, input: QualificationRem
   if (typeof tx.adminUser?.findMany !== "function") return { created, queued, deliveryIds };
   const pilot = await tx.pilot.findUnique({
     where: { id: input.pilotId },
-    select: { id: true, unitId: true, unit: { select: { organizationId: true } } },
+    select: {
+      id: true,
+      unitId: true,
+      unit: {
+        select: {
+          organizationId: true,
+          organization: { select: { defaultLocale: true } },
+        },
+      },
+    },
   });
   if (!pilot) return { created, queued, deliveryIds };
+  const locale = normalizeAppLocale(input.locale ?? pilot.unit.organization?.defaultLocale);
   let admins = await tx.adminUser.findMany({
     where: {
       active: true,
@@ -271,8 +301,9 @@ export async function emitQualificationReminder(tx: any, input: QualificationRem
           pilotId: input.pilotId,
           adminUserId: admin.id,
           target: admin.id,
-          summary: input.summary,
-          message: input.message,
+          locale,
+          templateKey: input.templateKey,
+          templateParams: input.templateParams ?? {},
           retryLimit: 0,
           sentAt: new Date(),
         },

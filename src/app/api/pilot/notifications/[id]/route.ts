@@ -2,18 +2,21 @@ import { NextRequest } from "next/server";
 import { ApiError, assertSameOrigin, getRequestId, jsonData, jsonError } from "@/server/api";
 import { assertCsrf, authenticatePilot } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import { renderNotificationContent } from "@/lib/notification-i18n";
 
 function serialize(item: {
   id: string;
   type: string;
-  summary: string;
-  message: string;
+  locale: string;
+  templateKey: string;
+  templateParams: unknown;
   createdAt: Date;
   readAt: Date | null;
 }) {
   return {
-    ...item,
+    id: item.id,
     type: item.type.toLowerCase(),
+    ...renderNotificationContent(item),
     createdAt: item.createdAt.toISOString(),
     readAt: item.readAt?.toISOString() ?? null,
   };
@@ -33,8 +36,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       select: {
         id: true,
         type: true,
-        summary: true,
-        message: true,
+        locale: true,
+        templateKey: true,
+        templateParams: true,
         createdAt: true,
         readAt: true,
       },

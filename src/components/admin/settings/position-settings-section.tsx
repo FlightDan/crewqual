@@ -27,6 +27,8 @@ import {
   type PositionInput,
 } from "@/services/admin-settings-service";
 import type { SettingsPosition } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 type PositionHistory = {
   memberAssignments?: number;
@@ -44,13 +46,14 @@ const emptyDraft: PositionInput = {
   version: 1,
 };
 
-function validatePosition(draft: PositionInput) {
-  if (!draft.name.trim()) return "请输入职位名称";
-  if (!draft.code.trim()) return "请输入职位编码";
+function validatePosition(draft: PositionInput, t: (key: string) => string) {
+  if (!draft.name.trim()) return t("settingsPosition.requiredName");
+  if (!draft.code.trim()) return t("settingsPosition.requiredCode");
   if (!/^[A-Z][A-Z0-9_-]{0,63}$/.test(draft.code.trim().toUpperCase())) {
-    return "职位编码只能包含大写字母、数字、下划线和连字符";
+    return t("settingsPosition.codeFormat");
   }
-  if (!Number.isInteger(draft.sortOrder) || draft.sortOrder < 0) return "导航排序必须是非负整数";
+  if (!Number.isInteger(draft.sortOrder) || draft.sortOrder < 0)
+    return t("settingsPosition.sortFormat");
   return null;
 }
 
@@ -69,6 +72,7 @@ export function PositionSettingsSection({
   onPositionsChange: (positions: SettingsPosition[]) => void;
   notify: SettingsFeedback;
 }) {
+  const { locale, t } = useI18n();
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<PositionInput>(emptyDraft);
   const [error, setError] = React.useState("");
@@ -97,7 +101,7 @@ export function PositionSettingsSection({
 
   const save = async () => {
     const normalized = { ...draft, code: draft.code.trim().toUpperCase() };
-    const validation = validatePosition(normalized);
+    const validation = validatePosition(normalized, t);
     if (validation) {
       setError(validation);
       return;
@@ -114,9 +118,13 @@ export function PositionSettingsSection({
           : [...positions, saved].sort((left, right) => left.sortOrder - right.sortOrder),
       );
       setOpen(false);
-      notify("success", editing ? "职位设置已保存" : "职位已创建", `${saved.name} 已更新。`);
+      notify(
+        "success",
+        editing ? t("settingsPosition.saved") : t("settingsPosition.created"),
+        t("settingsPosition.updated", { name: saved.name }),
+      );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "职位保存失败");
+      setError(localizeError(reason, t, "settingsPosition.saveError"));
     } finally {
       setSaving(false);
     }
@@ -147,14 +155,16 @@ export function PositionSettingsSection({
       setForceConfirm(false);
       notify(
         "success",
-        force ? "职位已强制删除" : "职位已删除",
-        force ? "当前任职已结束，历史记录已保留。" : `${deleteTarget.name} 已从职位列表移除。`,
+        force ? t("settingsPosition.forceDeleted") : t("settingsPosition.deleted"),
+        force
+          ? t("settingsPosition.ended")
+          : t("settingsPosition.removed", { name: deleteTarget.name }),
       );
     } catch (reason) {
       if (reason instanceof AdminSettingsServiceError && reason.code === "POSITION_HAS_HISTORY") {
         setDeleteHistory((reason.details ?? {}) as PositionHistory);
       } else {
-        setDeleteError(reason instanceof Error ? reason.message : "职位删除失败");
+        setDeleteError(localizeError(reason, t, "settingsPosition.deleteError"));
       }
     } finally {
       setDeleting(false);
@@ -162,21 +172,21 @@ export function PositionSettingsSection({
   };
 
   return (
-    <section className="space-y-5" aria-label="职位管理">
+    <section className="space-y-5" aria-label={t("settingsPosition.aria")}>
       <SettingsSectionHeader
-        title="职位管理"
-        description="创建和维护组织内的职位；每个职位自动拥有成员列表、资质管理和升级计划。"
+        title={t("settingsPosition.title")}
+        description={t("settingsPosition.description")}
         action={
           canWrite ? (
             <Button type="button" onClick={openCreate}>
               <Plus aria-hidden="true" className="size-4" />
-              新增职位
+              {t("settingsPosition.add")}
             </Button>
           ) : null
         }
       />
       {!positions.length ? (
-        <Card className="p-8 text-center text-sm text-muted">当前组织还没有职位。</Card>
+        <Card className="p-8 text-center text-sm text-muted">{t("settingsPosition.empty")}</Card>
       ) : (
         <div className="space-y-3">
           {positions
@@ -197,25 +207,29 @@ export function PositionSettingsSection({
                       <span className="text-xs text-muted">{position.code}</span>
                     </div>
                     <p className="mt-1 text-sm text-secondary">
-                      {position.memberCount} 名成员 <span className="mx-2">·</span>{" "}
-                      {position.qualificationCount} 项资质
+                      {t("settingsPosition.counts", {
+                        members: position.memberCount,
+                        qualifications: position.qualificationCount,
+                      })}
                     </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-5">
                   <Badge tone={position.active ? "success" : "neutral"}>
-                    {position.active ? "启用" : "停用"}
+                    {position.active
+                      ? t("settingsPosition.enabled")
+                      : t("settingsPosition.disabled")}
                   </Badge>
                   <div className="flex items-center gap-3 text-sm font-medium text-brand">
                     {canWrite ? (
                       <button type="button" onClick={() => openEdit(position)}>
-                        编辑
+                        {t("settingsPosition.edit")}
                       </button>
                     ) : null}
                     <Link
                       href={`/admin/members/positions/${encodeURIComponent(position.code)}/qualifications`}
                     >
-                      {canWrite ? "分配资质" : "查看资质"}
+                      {canWrite ? t("settingsPosition.assign") : t("settingsPosition.view")}
                     </Link>
                     {canWrite ? (
                       <button
@@ -229,7 +243,7 @@ export function PositionSettingsSection({
                         }}
                       >
                         <Trash2 aria-hidden="true" className="size-3.5" />
-                        删除
+                        {t("settingsPosition.delete")}
                       </button>
                     ) : null}
                   </div>
@@ -242,10 +256,12 @@ export function PositionSettingsSection({
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent side="right" className="w-[min(25rem,calc(100vw-3rem))] overflow-y-auto p-6">
           <DrawerTitle className="text-lg font-bold text-primary">
-            {editing ? "编辑职位" : "新增职位"}
+            {editing ? t("settingsPosition.editTitle") : t("settingsPosition.createTitle")}
           </DrawerTitle>
           <DrawerDescription className="mt-2 text-sm text-secondary">
-            {editing ? "更新职位名称、描述和导航状态" : "定义系统中新的机组岗位"}
+            {editing
+              ? t("settingsPosition.editDescription")
+              : t("settingsPosition.createDescription")}
           </DrawerDescription>
           <div className="mt-8 space-y-4">
             {error ? (
@@ -254,49 +270,51 @@ export function PositionSettingsSection({
               </p>
             ) : null}
             <Input
-              label="职位名称"
+              label={t("settingsPosition.name")}
               required
-              placeholder="例如：签派员"
+              placeholder={t("settingsPosition.nameExample")}
               value={draft.name}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
             />
             <Input
-              label="职位编码"
+              label={t("settingsPosition.code")}
               required
               disabled={editing}
-              placeholder="例如：DISPATCHER"
+              placeholder={t("settingsPosition.codeExample")}
               value={draft.code}
               onChange={(event) => setDraft({ ...draft, code: event.target.value.toUpperCase() })}
-              helperText={editing ? "创建后不可修改" : "创建后作为组织内唯一键值"}
+              helperText={
+                editing ? t("settingsPosition.codeLocked") : t("settingsPosition.codeUnique")
+              }
             />
             <Textarea
-              label="职位描述"
-              placeholder="请输入该职位的主要职责和工作范畴描述..."
+              label={t("settingsPosition.descriptionField")}
+              placeholder={t("settingsPosition.descriptionExample")}
               value={draft.description}
               onChange={(event) => setDraft({ ...draft, description: event.target.value })}
             />
             <Input
-              label="导航排序"
+              label={t("settingsPosition.sort")}
               type="number"
               min={0}
               value={draft.sortOrder}
               onChange={(event) => setDraft({ ...draft, sortOrder: Number(event.target.value) })}
             />
             <Switch
-              label="是否启用"
+              label={t("settingsPosition.active")}
               checked={draft.active}
               onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-              helperText="停用后仍保留历史数据，但不显示在成员管理导航中。"
+              helperText={t("settingsPosition.activeHelp")}
             />
           </div>
           <div className="mt-10 flex justify-end gap-3">
             <DrawerClose asChild>
               <Button type="button" variant="secondary">
-                取消
+                {t("common.cancel")}
               </Button>
             </DrawerClose>
             <Button type="button" loading={saving} onClick={() => void save()}>
-              保存
+              {t("settingsPosition.save")}
             </Button>
           </div>
         </DrawerContent>
@@ -310,10 +328,12 @@ export function PositionSettingsSection({
       >
         <DialogContent>
           <DialogTitle className="text-lg font-bold text-primary">
-            删除职位{deleteTarget ? `：${deleteTarget.name}` : ""}
+            {t("settingsPosition.deleteTitle", {
+              suffix: deleteTarget ? `${locale === "zh-CN" ? "：" : ": "}${deleteTarget.name}` : "",
+            })}
           </DialogTitle>
           <DialogDescription className="mt-2 text-sm text-secondary">
-            普通删除仅适用于没有任何历史关联的职位。
+            {t("settingsPosition.deleteDescription")}
           </DialogDescription>
           <div className="mt-5 space-y-4">
             {deleteError ? (
@@ -322,38 +342,36 @@ export function PositionSettingsSection({
               </p>
             ) : null}
             {forceConfirm && deleteTarget ? (
-              <Alert tone="danger" title="确认强制删除并保留历史？">
-                <p>
-                  当前任职会自动结束，职位将从业务导航中消失；成员资质和升级计划历史会保留为“已删除职位”快照。
-                </p>
+              <Alert tone="danger" title={t("settingsPosition.forceTitle")}>
+                <p>{t("settingsPosition.forceDescription")}</p>
               </Alert>
             ) : deleteHistory ? (
-              <Alert tone="warning" title="该职位存在历史关联，无法安全删除">
+              <Alert tone="warning" title={t("settingsPosition.historyTitle")}>
                 <div className="space-y-2">
                   <p>
-                    任职记录 {deleteHistory.memberAssignments ?? 0} 条，资质要求{" "}
-                    {deleteHistory.qualificationRequirements ?? 0} 条，资质分配{" "}
-                    {deleteHistory.qualificationAssignments ?? 0} 条，升级计划{" "}
-                    {deleteHistory.upgradePlans ?? 0} 条。
+                    {t("settingsPosition.historyCounts", {
+                      members: deleteHistory.memberAssignments ?? 0,
+                      requirements: deleteHistory.qualificationRequirements ?? 0,
+                      assignments: deleteHistory.qualificationAssignments ?? 0,
+                      plans: deleteHistory.upgradePlans ?? 0,
+                    })}
                   </p>
                   {!isSuperAdmin ? (
-                    <p>请先停用职位，或联系超级管理员执行强制删除。</p>
+                    <p>{t("settingsPosition.contactSuper")}</p>
                   ) : (
-                    <p>
-                      强制删除会自动结束当前任职、解除职位关联，并将历史记录保留为“已删除职位”快照。
-                    </p>
+                    <p>{t("settingsPosition.forceHistory")}</p>
                   )}
                 </div>
               </Alert>
             ) : (
               <p className="text-sm leading-6 text-secondary">
-                确定删除该职位吗？删除后职位将从业务导航中移除，且操作不可恢复。
+                {t("settingsPosition.confirmDescription")}
               </p>
             )}
           </div>
           <div className="mt-7 flex flex-wrap justify-end gap-3">
             <Button type="button" variant="secondary" onClick={closeDelete} disabled={deleting}>
-              取消
+              {t("common.cancel")}
             </Button>
             {forceConfirm ? (
               <Button
@@ -362,11 +380,11 @@ export function PositionSettingsSection({
                 loading={deleting}
                 onClick={() => void remove(true)}
               >
-                确认强制删除
+                {t("settingsPosition.confirmForce")}
               </Button>
             ) : deleteHistory && isSuperAdmin ? (
               <Button type="button" variant="danger" onClick={() => setForceConfirm(true)}>
-                强制删除并保留历史
+                {t("settingsPosition.force")}
               </Button>
             ) : !deleteHistory ? (
               <Button
@@ -375,7 +393,7 @@ export function PositionSettingsSection({
                 loading={deleting}
                 onClick={() => void remove()}
               >
-                确认删除
+                {t("settingsPosition.confirmDelete")}
               </Button>
             ) : null}
           </div>

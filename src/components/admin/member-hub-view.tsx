@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/misc";
 import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
+import { useI18n } from "@/components/i18n-provider";
 
 type PositionCard = {
   id: string;
@@ -26,6 +27,7 @@ export function MemberHubView() {
   const state = useAdminState();
   const remoteMode = isRemoteServiceMode();
   const [positions, setPositions] = React.useState<PositionCard[] | null>(null);
+  const { t } = useI18n();
 
   React.useEffect(() => {
     if (!remoteMode) {
@@ -33,8 +35,8 @@ export function MemberHubView() {
         {
           id: "pilot-preview",
           code: "PILOT",
-          name: "飞行员",
-          description: "中国民航飞行员资质与升级计划",
+          name: t("portal.pilot"),
+          description: t("members.pilotDescription"),
           memberCount: state.pilots.length,
           missingCount: 0,
           expiredCount: state.pilots.reduce(
@@ -66,7 +68,7 @@ export function MemberHubView() {
         const body = (await response.json().catch(() => ({}))) as {
           data?: { items?: PositionCard[] };
         };
-        if (!response.ok) throw new Error("无法读取职位");
+        if (!response.ok) throw new Error(t("errors.remote"));
         if (active) setPositions(body.data?.items ?? []);
       })
       .catch(() => {
@@ -75,14 +77,11 @@ export function MemberHubView() {
     return () => {
       active = false;
     };
-  }, [remoteMode, state.pilots]);
+  }, [remoteMode, state.pilots, t]);
 
   return (
     <PageContainer className="space-y-5">
-      <AdminPageHeader
-        title="成员管理"
-        description="按职位进入成员列表；职位配置、资质要求与历史记录保持在同一组织边界内。"
-      />
+      <AdminPageHeader title={t("members.title")} description={t("members.description")} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {!positions ? (
           <>
@@ -107,15 +106,21 @@ export function MemberHubView() {
                   {position.description || position.code}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                  <Badge tone="neutral">{position.memberCount} 名成员</Badge>
+                  <Badge tone="neutral">
+                    {t("members.count", { count: position.memberCount })}
+                  </Badge>
                   {position.missingCount ? (
-                    <Badge tone="danger">缺失 {position.missingCount}</Badge>
+                    <Badge tone="danger">
+                      {t("members.missing", { count: position.missingCount })}
+                    </Badge>
                   ) : null}
                   {position.expiredCount ? (
-                    <Badge tone="danger">过期 {position.expiredCount}</Badge>
+                    <Badge tone="danger">
+                      {t("members.expired", { count: position.expiredCount })}
+                    </Badge>
                   ) : null}
                   {position.dueCount ? (
-                    <Badge tone="warning">90 天内 {position.dueCount}</Badge>
+                    <Badge tone="warning">{t("members.due", { count: position.dueCount })}</Badge>
                   ) : null}
                 </div>
               </Card>
@@ -123,7 +128,7 @@ export function MemberHubView() {
           ))
         ) : (
           <Card className="p-8 text-sm text-muted sm:col-span-2 xl:col-span-3">
-            当前组织还没有已安装的职位模板。
+            {t("members.empty")}
           </Card>
         )}
       </div>
@@ -131,7 +136,7 @@ export function MemberHubView() {
         href="/admin/members/positions/PILOT"
         className="inline-flex text-sm font-semibold text-brand"
       >
-        查看全部成员 →
+        {t("members.viewAll")}
       </Link>
     </PageContainer>
   );

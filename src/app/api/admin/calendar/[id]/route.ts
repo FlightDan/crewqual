@@ -4,6 +4,7 @@ import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import { deriveQualificationDateState } from "@/lib/qualification-date-status";
 import { requireAssignedUnit } from "@/server/admin-permissions";
+import { upgradeStageLabel } from "@/lib/domain-i18n";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
@@ -86,13 +87,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       include: { plan: { include: { pilot: { include: { unit: true } } } } },
     });
     if (!stage) throw new ApiError("NOT_FOUND", "日历事件不存在", 404);
+    const stageName = upgradeStageLabel(stage.code, "zh-CN", stage.order);
     return jsonData(
       {
         id,
         type: "upgrade_stage",
         date: stage.plannedStart.toISOString().slice(0, 10),
         endDate: stage.plannedEnd.toISOString().slice(0, 10),
-        title: stage.name,
+        title: stageName,
         pilotId: stage.plan.pilotId,
         pilotName: stage.plan.pilot.displayName,
         employeeNumber: stage.plan.pilot.employeeNumber,
@@ -104,7 +106,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         planTitle: stage.plan.title,
         planLifecycleStatus: stage.plan.lifecycleStatus.toLowerCase(),
         stageId: stage.id,
-        stageName: stage.name,
+        stageCode: stage.code,
+        stageName,
         stageStatus: stage.status.toLowerCase(),
         owner: stage.owner,
         notes: stage.notes,

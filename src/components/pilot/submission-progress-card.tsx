@@ -1,39 +1,43 @@
+"use client";
+
 import { BellRing, CheckCircle2, Server, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Divider } from "@/components/ui/misc";
 import type { SubmissionReceipt } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
 export function SubmissionProgressCard({ receipt }: { receipt: SubmissionReceipt }) {
+  const { locale, t } = useI18n();
   const statusLabel = {
-    received: "已接收",
-    processing: "审核处理中",
-    approved: "审核通过",
-    returned: "需要补充材料",
+    received: t("submission.received"),
+    processing: t("submission.processingStatus"),
+    approved: t("submission.approvedStatus"),
+    returned: t("submission.returnedStatus"),
   }[receipt.status];
   const rows = [
     {
       icon: Server,
-      title: "已提交至服务器",
-      body: new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "medium" }).format(
+      title: t("submission.serverReceived"),
+      body: new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(
         new Date(receipt.submittedAt),
       ),
       tone: "text-success",
     },
     {
       icon: ShieldCheck,
-      title: "后台审核处理中",
+      title: t("submission.reviewing"),
       body:
         receipt.status === "returned"
-          ? (receipt.returnReason ?? "请根据审核意见补充材料后重新提交")
+          ? (receipt.returnReason ?? t("submission.returnReason"))
           : receipt.status === "approved"
-            ? (receipt.decisionNote ?? "本次资质更新已通过人工审核")
-            : "系统正在后台处理本次资质更新",
+            ? (receipt.decisionNote ?? t("submission.decisionNote"))
+            : t("submission.backgroundProcessing"),
       tone: "text-brand",
     },
     {
       icon: BellRing,
-      title: "审核完成后通知",
-      body: "审核完成后将通过系统消息及已配置的通知渠道发送结果",
+      title: t("submission.notifyWhenDone"),
+      body: t("submission.notifyDescription"),
       tone: "text-brand",
     },
   ];
@@ -55,11 +59,11 @@ export function SubmissionProgressCard({ receipt }: { receipt: SubmissionReceipt
         );
       })}
       <p className="mt-4 text-xs text-secondary" role="status">
-        当前状态：{statusLabel}
+        {t("submission.currentStatus", { status: statusLabel })}
       </p>
       <div className="sr-only">
         <CheckCircle2 />
-        回执编号 {receipt.id}
+        {t("submission.receiptId", { id: receipt.id })}
       </div>
     </Card>
   );

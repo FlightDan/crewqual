@@ -25,6 +25,7 @@ import type {
   UpgradePlanType,
 } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 function statusTone(status: UpgradePlanLifecycleStatus) {
   if (status === "completed") return "success" as const;
@@ -45,6 +46,7 @@ export function UpgradePlanListView() {
   const state = useAdminState();
   const { upgradePlans } = useApplicationServices();
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
   const canWrite = hasPermission("operations.write");
   const [result, setResult] = React.useState<PaginatedResult<UpgradePlanRecord> | null>(null);
   const q = params.get("q") ?? "";
@@ -101,8 +103,8 @@ export function UpgradePlanListView() {
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title="全中队升级路径监控"
-        description="六个核心节点使用固定名称和顺序"
+        title={t("upgradePlans.title")}
+        description={t("upgradePlans.description")}
         action={
           canWrite ? (
             <Link
@@ -110,66 +112,72 @@ export function UpgradePlanListView() {
               className={cn(buttonVariants(), "hidden lg:inline-flex")}
             >
               <Plus className="size-4" />
-              新建升级计划
+              {t("upgradePlans.new")}
             </Link>
           ) : undefined
         }
       />
       <Card className="grid gap-3 p-3 shadow-none md:grid-cols-2 xl:grid-cols-7">
         <Input
-          label="搜索"
-          placeholder="飞行员、员工号或计划编号"
+          label={t("upgradePlans.search")}
+          placeholder={t("upgradePlans.searchPlaceholder")}
           value={q}
           onChange={(event) => update({ q: event.target.value })}
           className="xl:col-span-2"
         />
         <Select
-          label="计划类型"
+          label={t("upgradePlans.type")}
           value={type}
           options={[
-            { label: "全部类型", value: "all" },
-            ...Object.entries(upgradeTypeLabels).map(([value, label]) => ({ value, label })),
+            { label: t("upgradePlans.allTypes"), value: "all" },
+            ...Object.keys(upgradeTypeLabels).map((value) => ({
+              value,
+              label: t(`upgradePlans.type.${value}`),
+            })),
           ]}
           onChange={(event) => update({ type: event.target.value })}
         />
         <Select
-          label="职位"
+          label={t("upgradePlans.position")}
           value={position}
           options={[
-            { label: "全部职位", value: "" },
+            { label: t("upgradePlans.allPositions"), value: "" },
             ...positionOptions.map((value) => ({
               value,
-              label: value === "PILOT" ? "飞行员" : value,
+              label: value === "PILOT" ? t("portal.pilot") : value,
             })),
           ]}
           onChange={(event) => update({ positions: event.target.value })}
         />
         <Select
-          label="生命周期"
+          label={t("upgradePlans.lifecycle")}
           value={status}
           options={[
-            { label: "全部状态", value: "all" },
-            ...Object.entries(lifecycleLabels).map(([value, label]) => ({ value, label })),
+            { label: t("upgradePlans.allStatuses"), value: "all" },
+            ...Object.keys(lifecycleLabels).map((value) => ({
+              value,
+              label: t(`upgradePlans.lifecycle.${value}`),
+            })),
           ]}
           onChange={(event) => update({ status: event.target.value })}
         />
         <Select
-          label="责任教员"
+          label={t("upgradePlans.owner")}
           value={owner}
           options={[
-            { label: "全部责任人", value: "" },
+            { label: t("upgradePlans.allOwners"), value: "" },
             ...owners.map((value) => ({ value, label: value })),
           ]}
           onChange={(event) => update({ owner: event.target.value })}
         />
         <div className="grid grid-cols-2 gap-2">
           <DateField
-            label="开始"
+            label={t("upgradePlans.start")}
             value={from}
             onChange={(event) => update({ from: event.target.value })}
           />
           <DateField
-            label="结束"
+            label={t("upgradePlans.end")}
             value={to}
             onChange={(event) => update({ to: event.target.value })}
           />
@@ -178,7 +186,7 @@ export function UpgradePlanListView() {
       {!result ? (
         <Skeleton className="h-96" />
       ) : !result.items.length ? (
-        <EmptyState title="没有符合条件的升级计划" description="请调整搜索或筛选条件。" />
+        <EmptyState title={t("upgradePlans.empty")} description={t("upgradePlans.adjust")} />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-lg border border-border bg-card lg:block">
@@ -186,16 +194,16 @@ export function UpgradePlanListView() {
               <thead className="bg-slate-50 text-xs text-secondary">
                 <tr>
                   {[
-                    "计划编号",
-                    "飞行员",
-                    "职位",
-                    "计划名称",
-                    "计划类型",
-                    "当前升级节点",
-                    "下一升级节点",
-                    "计划周期",
-                    "状态",
-                    "操作",
+                    t("upgradePlans.number"),
+                    t("upgradePlans.pilot"),
+                    t("upgradePlans.position"),
+                    t("upgradePlans.planName"),
+                    t("upgradePlans.planType"),
+                    t("upgradePlans.currentStage"),
+                    t("upgradePlans.nextStage"),
+                    t("upgradePlans.period"),
+                    t("upgradePlans.status"),
+                    t("upgradePlans.actions"),
                   ].map((heading) => (
                     <th key={heading} scope="col" className="px-3 py-3 font-semibold">
                       {heading}
@@ -230,12 +238,14 @@ export function UpgradePlanListView() {
                         <Badge tone="neutral">
                           {plan.positionName ??
                             (plan.positionCode === "PILOT"
-                              ? "飞行员"
-                              : (plan.positionCode ?? "飞行员"))}
+                              ? t("portal.pilot")
+                              : (plan.positionCode ?? t("portal.pilot")))}
                         </Badge>
                       </td>
                       <td className="px-3 py-3">{plan.title}</td>
-                      <td className="px-3 py-3 text-secondary">{upgradeTypeLabels[plan.type]}</td>
+                      <td className="px-3 py-3 text-secondary">
+                        {t(`upgradePlans.type.${plan.type}`)}
+                      </td>
                       <td className="px-3 py-3">{current?.name ?? "—"}</td>
                       <td className="px-3 py-3 text-secondary">{next?.name ?? "—"}</td>
                       <td className="px-3 py-3 text-xs">
@@ -245,8 +255,10 @@ export function UpgradePlanListView() {
                       </td>
                       <td className="px-3 py-3">
                         <Badge tone={statusTone(plan.lifecycleStatus)}>
-                          {lifecycleLabels[plan.lifecycleStatus]}
-                          {hasDelay && plan.lifecycleStatus === "active" ? "（已延期）" : ""}
+                          {t(`upgradePlans.lifecycle.${plan.lifecycleStatus}`)}
+                          {hasDelay && plan.lifecycleStatus === "active"
+                            ? `（${t("upgradePlans.delayed")}）`
+                            : ""}
                         </Badge>
                       </td>
                       <td className="px-3 py-3">
@@ -254,7 +266,7 @@ export function UpgradePlanListView() {
                           className="font-semibold text-brand"
                           href={`/admin/upgrade-plans/${plan.id}`}
                         >
-                          查看详情
+                          {t("upgradePlans.details")}
                         </Link>
                       </td>
                     </tr>
@@ -283,24 +295,24 @@ export function UpgradePlanListView() {
                       {plan.planNumber} · {pilot?.displayName}
                     </p>
                     <div className="flex gap-1">
-                      {hasDelay ? <Badge tone="danger">已延期</Badge> : null}
+                      {hasDelay ? <Badge tone="danger">{t("upgradePlans.delayed")}</Badge> : null}
                       <Badge tone={statusTone(plan.lifecycleStatus)}>
-                        {lifecycleLabels[plan.lifecycleStatus]}
+                        {t(`upgradePlans.lifecycle.${plan.lifecycleStatus}`)}
                       </Badge>
                     </div>
                   </div>
                   <h3 className="mt-2 text-base font-bold">{plan.title}</h3>
                   <p className="mt-1 text-xs text-secondary">
-                    职位：
+                    {t("upgradePlans.position")}：
                     {plan.positionName ??
                       (plan.positionCode === "PILOT"
-                        ? "飞行员"
-                        : (plan.positionCode ?? "飞行员"))}{" "}
-                    · 类型：{upgradeTypeLabels[plan.type]}
+                        ? t("portal.pilot")
+                        : (plan.positionCode ?? t("portal.pilot")))}{" "}
+                    · {t("upgradePlans.planType")}：{t("upgradePlans.type." + plan.type)}
                   </p>
                   <div className="mt-3 flex justify-between text-xs">
                     <span>
-                      当前：<b>{current?.name ?? "无"}</b>
+                      {t("upgradePlans.current", { value: current?.name ?? t("pilotDetail.none") })}
                     </span>
                     <span className="text-brand">{progress(plan)}%</span>
                   </div>
@@ -328,7 +340,7 @@ export function UpgradePlanListView() {
           className={cn(buttonVariants(), "fixed bottom-20 right-4 z-10 shadow-popover lg:hidden")}
         >
           <Plus className="size-4" />
-          新建升级计划
+          {t("upgradePlans.new")}
         </Link>
       ) : null}
     </PageContainer>

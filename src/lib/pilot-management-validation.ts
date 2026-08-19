@@ -7,15 +7,16 @@ import type {
   PilotManagementMeta,
 } from "@/types/services";
 import { validateQualificationRuleFields } from "@/lib/qualification-rules";
+import { PILOT_ROLE_CODES } from "@/lib/domain-i18n";
 
 export const PILOT_CSV_BASE_HEADERS = [
-  "员工号",
-  "姓名",
-  "手机号",
-  "机型",
-  "职务",
-  "单位代码",
-  "人员级别代码",
+  "employeeNumber",
+  "displayName",
+  "mobile",
+  "aircraftType",
+  "roleCode",
+  "unitCode",
+  "rankCode",
 ] as const;
 
 export const pilotManagementInputSchema = z.object({
@@ -31,7 +32,7 @@ export const pilotManagementInputSchema = z.object({
     .trim()
     .regex(/^\d{11}$/, "手机号必须是 11 位数字"),
   aircraftType: z.string().trim().min(1, "请填写机型").max(32, "机型最多 32 个字符"),
-  role: z.enum(["机长", "副驾驶"], { message: "职务只能填写机长或副驾驶" }),
+  roleCode: z.enum(PILOT_ROLE_CODES, { message: "roleCode 必须是 CAPTAIN 或 FIRST_OFFICER" }),
   unitCode: z.string().trim().min(1, "请填写单位代码").max(64, "单位代码最多 64 个字符"),
   rankCode: z.string().trim().min(1, "请填写人员级别代码").max(64, "人员级别代码最多 64 个字符"),
 });
@@ -52,16 +53,21 @@ export const pilotCsvRequestSchema = z.object({
 
 export const pilotCsvModeSchema = z.enum(["create_only", "merge"]);
 
-export function qualificationCsvHeaders(name: string) {
-  return [`${name}｜开始日期`, `${name}｜培训日期`, `${name}｜截止日期`, `${name}｜级别`] as const;
+export function qualificationCsvHeaders(code: string) {
+  return [
+    `${code}.issueDate`,
+    `${code}.trainingDate`,
+    `${code}.expiryDate`,
+    `${code}.levelOrParameter`,
+  ] as const;
 }
 
 export function pilotCsvHeaders(
-  qualifications: Array<Pick<PilotManagementMeta["qualifications"][number], "name">>,
+  qualifications: Array<Pick<PilotManagementMeta["qualifications"][number], "code">>,
 ) {
   return [
     ...PILOT_CSV_BASE_HEADERS,
-    ...qualifications.flatMap((qualification) => qualificationCsvHeaders(qualification.name)),
+    ...qualifications.flatMap((qualification) => qualificationCsvHeaders(qualification.code)),
   ];
 }
 
@@ -70,7 +76,7 @@ function csvCell(value: string) {
 }
 
 export function createPilotCsvTemplate(
-  qualifications: Array<Pick<PilotManagementMeta["qualifications"][number], "name">>,
+  qualifications: Array<Pick<PilotManagementMeta["qualifications"][number], "code">>,
 ) {
   return `\uFEFF${pilotCsvHeaders(qualifications).map(csvCell).join(",")}\r\n`;
 }
@@ -155,20 +161,20 @@ export function parsePilotCsv(
     (values[column.get(header) ?? -1] ?? "").trim();
   const rows: ParsedPilotImportRow[] = matrix.slice(1, 1001).map((values, index) => {
     const input: PilotManagementInput = {
-      employeeNumber: valueAt(values, "员工号"),
-      displayName: valueAt(values, "姓名"),
-      mobile: valueAt(values, "手机号"),
-      aircraftType: valueAt(values, "机型"),
-      role: valueAt(values, "职务") as PilotManagementInput["role"],
-      unitCode: valueAt(values, "单位代码"),
-      rankCode: valueAt(values, "人员级别代码"),
+      employeeNumber: valueAt(values, "employeeNumber"),
+      displayName: valueAt(values, "displayName"),
+      mobile: valueAt(values, "mobile"),
+      aircraftType: valueAt(values, "aircraftType"),
+      roleCode: valueAt(values, "roleCode") as PilotManagementInput["roleCode"],
+      unitCode: valueAt(values, "unitCode"),
+      rankCode: valueAt(values, "rankCode"),
     };
     const validation = pilotManagementInputSchema.safeParse(input);
     const errors = validation.success ? [] : validation.error.issues.map((issue) => issue.message);
     const importedQualifications: PilotImportQualification[] = [];
     qualifications.forEach((qualification) => {
       const [issueHeader, trainingHeader, expiryHeader, levelHeader] = qualificationCsvHeaders(
-        qualification.name,
+        qualification.code,
       );
       const issueDate = valueAt(values, issueHeader);
       const trainingDate = valueAt(values, trainingHeader);

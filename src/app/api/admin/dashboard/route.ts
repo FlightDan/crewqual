@@ -5,6 +5,7 @@ import { getPrisma } from "@/server/prisma";
 import { mapReview } from "@/server/admin-repository";
 import { deriveQualificationDateState } from "@/lib/qualification-date-status";
 import { relatedPilotUnitWhere } from "@/server/admin-permissions";
+import { pilotRoleLabel, upgradeStageLabel } from "@/lib/domain-i18n";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -95,11 +96,12 @@ export async function GET(request: NextRequest) {
       planId: stage.plan.id,
       pilotId: stage.plan.pilotId,
       pilotName: stage.plan.pilot.displayName,
-      role: stage.plan.pilot.role,
+      role: pilotRoleLabel(stage.plan.pilot.roleCode),
       planTitle: stage.plan.title,
       stage: {
         id: stage.id,
-        name: stage.name,
+        code: stage.code,
+        name: upgradeStageLabel(stage.code, "zh-CN", stage.order),
         status: stage.status.toLowerCase(),
         plannedStart: stage.plannedStart.toISOString().slice(0, 10),
         plannedEnd: stage.plannedEnd.toISOString().slice(0, 10),

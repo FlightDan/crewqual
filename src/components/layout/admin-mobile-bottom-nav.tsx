@@ -2,15 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isAdminNavItemActive, mobileBottomItems } from "@/components/layout/navigation";
+import {
+  getAdminNavItemKey,
+  isAdminNavItemActive,
+  mobileBottomItems,
+} from "@/components/layout/navigation";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AdminMobileBottomNav({ pendingReviewCount = 0 }: { pendingReviewCount?: number }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   return (
     <nav
       data-testid="mobile-bottom-nav"
-      aria-label="管理员底部导航"
+      aria-label={t("navigation.bottom")}
       className="fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] grid grid-cols-4 border-t border-border bg-card px-2 pb-safe-bottom pt-2 shadow-[0_-4px_12px_rgb(15_23_42/0.06)] lg:hidden"
     >
       {mobileBottomItems.map((item) => {
@@ -19,12 +25,12 @@ export function AdminMobileBottomNav({ pendingReviewCount = 0 }: { pendingReview
         const content = (
           <>
             <Icon aria-hidden="true" className="size-5" />
-            {item.label === "待审核" && pendingReviewCount > 0 ? (
+            {getAdminNavItemKey(item.label) === "navigation.reviews" && pendingReviewCount > 0 ? (
               <span className="absolute left-1/2 top-0 rounded-full bg-danger px-1 text-[9px] leading-4 text-white">
                 {pendingReviewCount}
               </span>
             ) : null}
-            <span>{item.label}</span>
+            <span>{t(getAdminNavItemKey(item.label))}</span>
           </>
         );
         const className = cn(
@@ -41,7 +47,12 @@ export function AdminMobileBottomNav({ pendingReviewCount = 0 }: { pendingReview
             {content}
           </Link>
         ) : (
-          <div key={item.label} aria-disabled="true" className={className} title="即将开放">
+          <div
+            key={item.label}
+            aria-disabled="true"
+            className={className}
+            title={t("navigation.comingSoon")}
+          >
             {content}
           </div>
         );

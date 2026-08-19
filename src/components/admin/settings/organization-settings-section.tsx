@@ -16,13 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { adminSettingsService } from "@/services/admin-settings-service";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 import type { SettingsUnit } from "@/types/admin-settings";
 
-const timezoneOptions = [
-  { label: "Asia/Shanghai（中国标准时间）", value: "Asia/Shanghai" },
-  { label: "Asia/Hong_Kong（香港时间）", value: "Asia/Hong_Kong" },
-  { label: "UTC（协调世界时）", value: "UTC" },
-];
+const timezoneValues = ["Asia/Shanghai", "Asia/Hong_Kong", "UTC"] as const;
 
 const emptyUnit = {
   code: "",
@@ -34,13 +32,13 @@ const emptyUnit = {
   active: true,
 };
 
-function validateUnit(values: typeof emptyUnit) {
-  if (!values.name.trim()) return "请输入单位名称";
-  if (!values.code.trim()) return "请输入单位编码";
+function validateUnit(values: typeof emptyUnit, t: (key: string) => string) {
+  if (!values.name.trim()) return t("settingsOrg.requiredName");
+  if (!values.code.trim()) return t("settingsOrg.requiredCode");
   if (!/^[A-Z0-9-]{2,32}$/.test(values.code.trim().toUpperCase()))
-    return "单位编码只能包含大写字母、数字和连字符";
+    return t("settingsOrg.codeFormat");
   if (values.contactEmail && !/^\S+@\S+\.\S+$/.test(values.contactEmail))
-    return "联系邮箱格式不正确";
+    return t("settingsOrg.emailFormat");
   return null;
 }
 
@@ -57,6 +55,17 @@ export function OrganizationSettingsSection({
   onUnitsChange: (units: SettingsUnit[]) => void;
   notify: SettingsFeedback;
 }) {
+  const { t } = useI18n();
+  const timezoneOptions = timezoneValues.map((value) => ({
+    value,
+    label: t(
+      value === "Asia/Shanghai"
+        ? "settingsOrg.tzShanghai"
+        : value === "Asia/Hong_Kong"
+          ? "settingsOrg.tzHongKong"
+          : "settingsOrg.tzUtc",
+    ),
+  }));
   const [query, setQuery] = React.useState("");
   const [selectedId, setSelectedId] = React.useState(units[0]?.id ?? "");
   const selected = units.find((item) => item.id === selectedId) ?? units[0];
@@ -78,10 +87,10 @@ export function OrganizationSettingsSection({
 
   const save = async () => {
     if (!draft) return;
-    const validation = validateUnit(draft);
+    const validation = validateUnit(draft, t);
     if (validation) {
       setError(validation);
-      notify("danger", "无法保存单位设置", validation);
+      notify("danger", t("settingsOrg.saveError"), validation);
       return;
     }
     setSaving(true);
@@ -90,16 +99,16 @@ export function OrganizationSettingsSection({
       const saved = await adminSettingsService.saveUnit(draft);
       onUnitsChange(units.map((item) => (item.id === saved.id ? saved : item)));
       setDraft(saved);
-      notify("success", "单位设置已保存", `${saved.name} 的基础信息已更新。`);
+      notify("success", t("settingsOrg.saved"), t("settingsOrg.updated", { name: saved.name }));
     } catch (reason) {
-      notify("danger", "单位设置保存失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify("danger", t("settingsOrg.saveError"), localizeError(reason, t));
     } finally {
       setSaving(false);
     }
   };
 
   const createUnit = async () => {
-    const validation = validateUnit(createDraft);
+    const validation = validateUnit(createDraft, t);
     if (validation) {
       setError(validation);
       return;
@@ -115,9 +124,9 @@ export function OrganizationSettingsSection({
       setSelectedId(created.id);
       setCreateDraft(emptyUnit);
       setCreateOpen(false);
-      notify("success", "单位已创建", `${created.name} 已加入组织。`);
+      notify("success", t("settingsOrg.created"), t("settingsOrg.joined", { name: created.name }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "单位创建失败");
+      setError(localizeError(reason, t, "settingsOrg.createError"));
     } finally {
       setCreating(false);
     }
@@ -126,17 +135,15 @@ export function OrganizationSettingsSection({
   return (
     <section className="space-y-5" aria-labelledby="organization-settings-title">
       <SettingsSectionHeader
-        title="组织与单位"
+        title={t("settingsOrg.title")}
         description={
-          isSuperAdmin
-            ? "管理多个运行单位，维护单位状态、时区和联系人信息。"
-            : "维护所属单位的基础信息；单位编码和状态由超级管理员管理。"
+          isSuperAdmin ? t("settingsOrg.superDescription") : t("settingsOrg.unitDescription")
         }
         action={
           isSuperAdmin && canWrite ? (
             <Button type="button" onClick={() => setCreateOpen(true)}>
               <Plus aria-hidden="true" className="size-4" />
-              新增单位
+              {t("settingsOrg.addUnit")}
             </Button>
           ) : null
         }
@@ -154,12 +161,15 @@ export function OrganizationSettingsSection({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  aria-label="搜索单位"
-                  placeholder="搜索单位名称或编码"
+                  aria-label={t("settingsOrg.search")}
+                  placeholder={t("settingsOrg.searchPlaceholder")}
                   className="min-h-11 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                 />
               </div>
-              <div className="max-h-[560px] space-y-2 overflow-y-auto" aria-label="单位列表">
+              <div
+                className="max-h-[560px] space-y-2 overflow-y-auto"
+                aria-label={t("settingsOrg.list")}
+              >
                 {filtered.map((unit) => (
                   <button
                     key={unit.id}
@@ -176,17 +186,20 @@ export function OrganizationSettingsSection({
                     <span className="flex items-start justify-between gap-2">
                       <span className="font-semibold text-primary">{unit.name}</span>
                       <Badge tone={unit.active ? "success" : "neutral"}>
-                        {unit.active ? "启用" : "停用"}
+                        {unit.active ? t("settingsOrg.enabled") : t("settingsOrg.disabled")}
                       </Badge>
                     </span>
                     <span className="mt-1 block text-xs text-muted">{unit.code}</span>
                     <span className="mt-2 block text-xs text-secondary">
-                      {unit.pilotCount} 名人员 · {unit.adminCount} 名管理员
+                      {t("settingsOrg.peopleAdmins", {
+                        people: unit.pilotCount,
+                        admins: unit.adminCount,
+                      })}
                     </span>
                   </button>
                 ))}
                 {!filtered.length ? (
-                  <p className="py-8 text-center text-sm text-muted">没有匹配的单位</p>
+                  <p className="py-8 text-center text-sm text-muted">{t("settingsOrg.noMatch")}</p>
                 ) : null}
               </div>
             </CardContent>
@@ -202,10 +215,10 @@ export function OrganizationSettingsSection({
                 </span>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-bold text-primary">{draft.name}</h3>
-                  <p className="mt-1 text-xs text-muted">单位编码创建后不可修改</p>
+                  <p className="mt-1 text-xs text-muted">{t("settingsOrg.codeLocked")}</p>
                 </div>
                 <Badge tone={draft.active ? "success" : "neutral"}>
-                  {draft.active ? "启用" : "停用"}
+                  {draft.active ? t("settingsOrg.enabled") : t("settingsOrg.disabled")}
                 </Badge>
               </div>
               {error ? (
@@ -215,35 +228,35 @@ export function OrganizationSettingsSection({
               ) : null}
               <FieldGrid>
                 <Input
-                  label="单位名称"
+                  label={t("settingsOrg.name")}
                   required
                   value={draft.name}
                   disabled={!canWrite}
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 />
-                <Input label="单位编码" value={draft.code} disabled />
+                <Input label={t("settingsOrg.code")} value={draft.code} disabled />
                 <Select
-                  label="时区"
+                  label={t("settingsOrg.timezone")}
                   options={timezoneOptions}
                   value={draft.timezone}
                   disabled={!canWrite}
                   onChange={(event) => setDraft({ ...draft, timezone: event.target.value })}
                 />
                 <Input
-                  label="管理员联系人"
+                  label={t("settingsOrg.contact")}
                   value={draft.contactName}
                   disabled={!canWrite}
                   onChange={(event) => setDraft({ ...draft, contactName: event.target.value })}
                 />
                 <Input
-                  label="联系邮箱"
+                  label={t("settingsOrg.email")}
                   type="email"
                   value={draft.contactEmail}
                   disabled={!canWrite}
                   onChange={(event) => setDraft({ ...draft, contactEmail: event.target.value })}
                 />
                 <Input
-                  label="联系电话"
+                  label={t("settingsOrg.phone")}
                   value={draft.contactPhone}
                   disabled={!canWrite}
                   onChange={(event) => setDraft({ ...draft, contactPhone: event.target.value })}
@@ -252,18 +265,18 @@ export function OrganizationSettingsSection({
               {isSuperAdmin ? (
                 <div className="rounded-md border border-border p-3">
                   <Switch
-                    label="启用该单位"
+                    label={t("settingsOrg.enableUnit")}
                     checked={draft.active}
                     disabled={!canWrite}
                     onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
-                    helperText="停用后，该单位管理员不能登录，历史数据仍保留。"
+                    helperText={t("settingsOrg.disableHelp")}
                   />
                 </div>
               ) : null}
               {canWrite ? (
                 <div className="flex justify-end">
                   <Button type="button" loading={saving} onClick={() => void save()}>
-                    保存单位设置
+                    {t("settingsOrg.save")}
                   </Button>
                 </div>
               ) : null}
@@ -274,9 +287,9 @@ export function OrganizationSettingsSection({
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent aria-describedby="create-unit-description">
-          <DialogTitle className="text-lg font-bold">新增运行单位</DialogTitle>
+          <DialogTitle className="text-lg font-bold">{t("settingsOrg.createTitle")}</DialogTitle>
           <DialogDescription id="create-unit-description" className="mt-1 text-sm text-secondary">
-            创建后可分配管理员和飞行员。单位编码保存后不可修改。
+            {t("settingsOrg.createDescription")}
           </DialogDescription>
           <div className="mt-5 space-y-4">
             {error ? (
@@ -285,35 +298,35 @@ export function OrganizationSettingsSection({
               </p>
             ) : null}
             <Input
-              label="单位名称"
+              label={t("settingsOrg.name")}
               required
               value={createDraft.name}
               onChange={(event) => setCreateDraft({ ...createDraft, name: event.target.value })}
             />
             <Input
-              label="单位编码"
+              label={t("settingsOrg.code")}
               required
-              placeholder="例如 FLT-01-SQ-03"
+              placeholder="e.g. FLT-01-SQ-03"
               value={createDraft.code}
               onChange={(event) =>
                 setCreateDraft({ ...createDraft, code: event.target.value.toUpperCase() })
               }
             />
             <Select
-              label="时区"
+              label={t("settingsOrg.timezone")}
               options={timezoneOptions}
               value={createDraft.timezone}
               onChange={(event) => setCreateDraft({ ...createDraft, timezone: event.target.value })}
             />
             <Input
-              label="管理员联系人"
+              label={t("settingsOrg.contact")}
               value={createDraft.contactName}
               onChange={(event) =>
                 setCreateDraft({ ...createDraft, contactName: event.target.value })
               }
             />
             <Input
-              label="联系邮箱"
+              label={t("settingsOrg.email")}
               type="email"
               value={createDraft.contactEmail}
               onChange={(event) =>
@@ -323,10 +336,10 @@ export function OrganizationSettingsSection({
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button type="button" loading={creating} onClick={() => void createUnit()}>
-              创建单位
+              {t("settingsOrg.create")}
             </Button>
           </div>
         </DialogContent>

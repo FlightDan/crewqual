@@ -20,21 +20,7 @@ import type {
   ReviewAiStatus,
   ReviewHumanStatus,
 } from "@/types/services";
-
-const statusOptions = [
-  { label: "待审核", value: "pending" },
-  { label: "已通过", value: "approved" },
-  { label: "已退回", value: "returned" },
-  { label: "全部人工状态", value: "all" },
-];
-
-const aiOptions = [
-  { label: "全部 AI 结果", value: "all" },
-  { label: "匹配通过", value: "matched" },
-  { label: "存在疑问", value: "question" },
-  { label: "信息不一致", value: "mismatch" },
-  { label: "不可用", value: "unavailable" },
-];
+import { useI18n } from "@/components/i18n-provider";
 
 export function ReviewListView() {
   const pathname = usePathname();
@@ -42,6 +28,7 @@ export function ReviewListView() {
   const searchParams = useSearchParams();
   const state = useAdminState();
   const { reviews } = useApplicationServices();
+  const { t } = useI18n();
   const q = searchParams.get("q") ?? "";
   const status = (searchParams.get("status") ?? "pending") as "all" | ReviewHumanStatus;
   const ai = (searchParams.get("ai") ?? "all") as "all" | ReviewAiStatus;
@@ -92,10 +79,7 @@ export function ReviewListView() {
 
   return (
     <PageContainer className="space-y-5">
-      <AdminPageHeader
-        title="待审核资质更新"
-        description="默认按提交时间倒序；AI 结果仅作人工复核参考"
-      />
+      <AdminPageHeader title={t("review.title")} description={t("review.description")} />
       <div className="hidden rounded-lg border border-border bg-card p-4 md:block">{filters}</div>
       <div className="flex gap-2 md:hidden">
         <form
@@ -114,13 +98,13 @@ export function ReviewListView() {
             className="pointer-events-none absolute left-3 top-3.5 size-4 text-muted"
           />
           <Input
-            aria-label="移动端审核查询"
+            aria-label={t("review.mobileSearch")}
             name="q"
             disabled={!interactive}
             defaultValue={searchValue}
             key={q}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="姓名、员工号或资质名称..."
+            placeholder={t("review.searchPlaceholder")}
             className="pl-9"
           />
         </form>
@@ -131,7 +115,7 @@ export function ReviewListView() {
           onClick={() => setFiltersOpen(true)}
         >
           <Filter aria-hidden="true" className="size-4" />
-          筛选
+          {t("review.filter")}
         </Button>
       </div>
 
@@ -154,13 +138,13 @@ export function ReviewListView() {
 
       <Drawer open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DrawerContent side="right" className="overflow-y-auto p-5">
-          <DrawerTitle className="text-lg font-bold">筛选审核队列</DrawerTitle>
+          <DrawerTitle className="text-lg font-bold">{t("review.filterTitle")}</DrawerTitle>
           <DrawerDescription className="mt-1 text-sm text-secondary">
-            筛选与页码会写入 URL 查询参数。
+            {t("review.filterDescription")}
           </DrawerDescription>
           <div className="mt-6">{filters}</div>
           <Button type="button" className="mt-6 w-full" onClick={() => setFiltersOpen(false)}>
-            完成
+            {t("review.done")}
           </Button>
         </DrawerContent>
       </Drawer>
@@ -189,6 +173,20 @@ function ReviewFilters({
   onAiChange: (value: string) => void;
   onReset: () => void;
 }) {
+  const { t } = useI18n();
+  const statusOptions = [
+    { label: t("status.review.pending"), value: "pending" },
+    { label: t("status.review.approved"), value: "approved" },
+    { label: t("status.review.returned"), value: "returned" },
+    { label: t("review.allHuman"), value: "all" },
+  ];
+  const aiOptions = [
+    { label: t("review.allAi"), value: "all" },
+    { label: t("status.ai.matched"), value: "matched" },
+    { label: t("status.ai.question"), value: "question" },
+    { label: t("status.ai.mismatch"), value: "mismatch" },
+    { label: t("status.ai.unavailable"), value: "unavailable" },
+  ];
   return (
     <form
       className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_180px_180px_auto]"
@@ -199,16 +197,16 @@ function ReviewFilters({
       }}
     >
       <Input
-        aria-label="搜索审核记录"
+        aria-label={t("review.searchRecords")}
         name="q"
         disabled={disabled}
         defaultValue={searchValue}
         key={searchValue}
         onChange={(event) => onSearchValueChange(event.target.value)}
-        placeholder="姓名、员工号或资质名称..."
+        placeholder={t("review.searchPlaceholder")}
       />
       <Select
-        aria-label="人工状态"
+        aria-label={t("review.human")}
         name="status"
         disabled={disabled}
         value={status}
@@ -216,7 +214,7 @@ function ReviewFilters({
         options={statusOptions}
       />
       <Select
-        aria-label="AI 结果"
+        aria-label={t("review.ai")}
         name="ai"
         disabled={disabled}
         value={ai}
@@ -225,10 +223,10 @@ function ReviewFilters({
       />
       <div className="flex gap-2">
         <Button type="submit" variant="secondary" disabled={disabled}>
-          搜索
+          {t("adminPilot.search")}
         </Button>
         <Button type="button" variant="ghost" disabled={disabled} onClick={onReset}>
-          重置
+          {t("adminPilot.reset")}
         </Button>
       </div>
     </form>

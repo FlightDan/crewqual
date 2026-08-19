@@ -4,6 +4,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ConnectionStatus } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
 
 export type SettingsFeedback = (
   tone: "info" | "success" | "warning" | "danger",
@@ -11,11 +12,11 @@ export type SettingsFeedback = (
   description?: string,
 ) => void;
 
-export function formatSettingsDate(value: string | null) {
+export function formatSettingsDate(value: string | null, locale = "zh-CN") {
   if (!value) return "—";
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return "—";
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale, {
     timeZone: "Asia/Shanghai",
     year: "numeric",
     month: "2-digit",
@@ -27,10 +28,11 @@ export function formatSettingsDate(value: string | null) {
 }
 
 export function ConnectionBadge({ status }: { status: ConnectionStatus }) {
+  const { t } = useI18n();
   const config = {
-    connected: { tone: "success" as const, label: "正常" },
-    error: { tone: "danger" as const, label: "异常" },
-    unconfigured: { tone: "neutral" as const, label: "未配置" },
+    connected: { tone: "success" as const, label: t("settings.status.connected") },
+    error: { tone: "danger" as const, label: t("settings.status.error") },
+    unconfigured: { tone: "neutral" as const, label: t("settings.status.unconfigured") },
   }[status];
   return <Badge tone={config.tone}>{config.label}</Badge>;
 }
@@ -64,8 +66,12 @@ export function SettingsEmptyState({ children }: { children: React.ReactNode }) 
 }
 
 export function SettingsSkeleton() {
+  const { t } = useI18n();
   return (
-    <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]" aria-label="正在加载系统设置">
+    <div
+      className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]"
+      aria-label={t("settings.loading")}
+    >
       <div className="h-72 animate-pulse rounded-lg bg-slate-200" />
       <div className="space-y-4">
         <div className="h-20 animate-pulse rounded-lg bg-slate-200" />

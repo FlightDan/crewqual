@@ -40,6 +40,15 @@ CrewQual 更适合资质管理逐渐成为长期、规范化业务流程的组�
 
 ## Quick Start
 
+在已经安装 Docker Engine 和 Docker Compose v2 的 Linux 主机上：
+
+```sh
+chmod +x install.sh
+./install.sh
+```
+
+首次部署会交互式生成 `.env`，然后构建并启动 Docker Compose 服务。完整的生产部署、备份和升级说明见 [`docs/docker-deployment.md`](docs/docker-deployment.md)。
+
 ## 部署
 
 ## SaaS 与企业服务

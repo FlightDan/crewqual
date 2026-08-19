@@ -22,6 +22,8 @@ import type {
   NotificationRoute,
   SettingsUnit,
 } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 const channelIcons = {
   feishu: Send,
@@ -52,6 +54,7 @@ export function NotificationSettingsSection({
   onRoutesChange: (routes: NotificationRoute[]) => void;
   notify: SettingsFeedback;
 }) {
+  const { t } = useI18n();
   const [routeDraft, setRouteDraft] = React.useState(routes);
   const [selectedUnitId, setSelectedUnitId] = React.useState(
     initialUnitId ?? (isSuperAdmin ? "" : (units[0]?.id ?? "")),
@@ -81,8 +84,8 @@ export function NotificationSettingsSection({
     } catch (reason) {
       notify(
         "danger",
-        "单位通知配置加载失败",
-        reason instanceof Error ? reason.message : "请稍后重试",
+        t("settingsNotify.loadError"),
+        localizeError(reason, t, "settingsNotify.loadRetry"),
       );
     }
   };
@@ -108,11 +111,11 @@ export function NotificationSettingsSection({
 
   const saveRoutes = async () => {
     if (routeDraft.some((route) => route.channels.length === 0)) {
-      notify("danger", "通知规则无法保存", "每类事件至少需要保留一个通知渠道。 ");
+      notify("danger", t("settingsNotify.rulesInvalid"), t("settingsNotify.rulesRequired"));
       return;
     }
     if (!selectedUnitId) {
-      notify("danger", "请选择运行单位", "超级管理员必须明确选择要维护的单位。");
+      notify("danger", t("settingsNotify.unitRequired"), t("settingsNotify.unitRequiredHelp"));
       return;
     }
     setSavingRoutes(true);
@@ -124,9 +127,13 @@ export function NotificationSettingsSection({
       });
       onRoutesChange(result.routes);
       onChannelsChange(result.channels);
-      notify("success", "通知规则已保存", "新的路由只影响后续产生的通知。 ");
+      notify("success", t("settingsNotify.rulesSaved"), t("settingsNotify.rulesSavedHelp"));
     } catch (reason) {
-      notify("danger", "通知规则保存失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify(
+        "danger",
+        t("settingsNotify.rulesSaveError"),
+        localizeError(reason, t, "settingsNotify.loadRetry"),
+      );
     } finally {
       setSavingRoutes(false);
     }
@@ -134,7 +141,7 @@ export function NotificationSettingsSection({
 
   const toggleBuiltIn = async (enabled: boolean) => {
     if (!selectedUnitId) {
-      notify("danger", "请选择运行单位", "超级管理员必须明确选择要维护的单位。");
+      notify("danger", t("settingsNotify.unitRequired"), t("settingsNotify.unitRequiredHelp"));
       return;
     }
     const nextChannels = channels.map((item) =>
@@ -147,16 +154,23 @@ export function NotificationSettingsSection({
         routes,
       });
       onChannelsChange(result.channels);
-      notify("success", enabled ? "站内通知已启用" : "站内通知已停用");
+      notify(
+        "success",
+        enabled ? t("settingsNotify.inAppEnabled") : t("settingsNotify.inAppDisabled"),
+      );
     } catch (reason) {
-      notify("danger", "渠道状态更新失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify(
+        "danger",
+        t("settingsNotify.channelUpdateError"),
+        localizeError(reason, t, "settingsNotify.loadRetry"),
+      );
     }
   };
 
   const saveConfig = async () => {
     if (!configDraft || (configDraft.key !== "feishu" && configDraft.key !== "sms")) return;
     if (configDraft.enabled && !configDraft.endpoint.trim()) {
-      notify("danger", "渠道配置不完整", "启用外部渠道前必须填写 Webhook 地址。 ");
+      notify("danger", t("settingsNotify.incomplete"), t("settingsNotify.endpointRequired"));
       return;
     }
     setSavingConfig(true);
@@ -170,11 +184,15 @@ export function NotificationSettingsSection({
       setConfigKey(null);
       notify(
         "success",
-        `${saved.label}配置已保存`,
-        newSecret ? "新密钥已加密保存，原文不会再次显示。" : "现有密钥保持不变。 ",
+        t("settingsNotify.configSaved", { channel: saved.label }),
+        newSecret ? t("settingsNotify.newSecretSaved") : t("settingsNotify.secretKept"),
       );
     } catch (reason) {
-      notify("danger", "渠道配置保存失败", reason instanceof Error ? reason.message : "请稍后重试");
+      notify(
+        "danger",
+        t("settingsNotify.configSaveError"),
+        localizeError(reason, t, "settingsNotify.loadRetry"),
+      );
     } finally {
       setSavingConfig(false);
     }
@@ -197,14 +215,14 @@ export function NotificationSettingsSection({
       onChannelsChange(next);
       notify(
         result.ok ? "success" : "danger",
-        result.ok ? "连接测试成功" : "连接测试失败",
+        result.ok ? t("settingsNotify.connectionOk") : t("settingsNotify.connectionFailed"),
         result.message,
       );
     } catch (reason) {
       notify(
         "danger",
-        "连接测试失败",
-        reason instanceof Error ? reason.message : "请检查网络和服务地址",
+        t("settingsNotify.connectionFailed"),
+        localizeError(reason, t, "settingsNotify.networkHelp"),
       );
     } finally {
       setTestingKey(null);
@@ -214,17 +232,17 @@ export function NotificationSettingsSection({
   return (
     <section className="space-y-5" aria-labelledby="notification-settings-title">
       <SettingsSectionHeader
-        title="通知设置"
-        description="配置飞书、短信和站内通知渠道，并为审核、资质预警和升级计划选择送达方式。"
+        title={t("settingsNotify.title")}
+        description={t("settingsNotify.description")}
       />
 
       <Select
-        label="通知配置单位"
+        label={t("settingsNotify.unit")}
         required
         value={selectedUnitId}
         onChange={(event) => void selectUnit(event.target.value)}
         options={[
-          ...(isSuperAdmin ? [{ value: "", label: "请选择运行单位" }] : []),
+          ...(isSuperAdmin ? [{ value: "", label: t("settingsNotify.chooseUnit") }] : []),
           ...units
             .filter((unit) => unit.active)
             .map((unit) => ({ value: unit.id, label: unit.name })),
@@ -232,8 +250,8 @@ export function NotificationSettingsSection({
       />
 
       {!canWriteSecrets ? (
-        <Alert tone="info" title="密钥由超级管理员维护">
-          你可以修改所属单位的通知路由，但不能查看或替换外部渠道密钥。
+        <Alert tone="info" title={t("settingsNotify.secretOwner")}>
+          {t("settingsNotify.secretReadonly")}
         </Alert>
       ) : null}
 
@@ -258,25 +276,31 @@ export function NotificationSettingsSection({
                 </div>
                 <dl className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <dt className="text-muted">渠道状态</dt>
-                    <dd className="mt-1 font-medium">{item.enabled ? "已启用" : "已停用"}</dd>
+                    <dt className="text-muted">{t("settingsNotify.channelStatus")}</dt>
+                    <dd className="mt-1 font-medium">
+                      {item.enabled ? t("settingsNotify.enabled") : t("settingsNotify.disabled")}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-muted">最近测试</dt>
+                    <dt className="text-muted">{t("settingsNotify.lastTest")}</dt>
                     <dd className="mt-1 font-medium">{formatSettingsDate(item.lastTestAt)}</dd>
                   </div>
                   {external ? (
                     <div>
-                      <dt className="text-muted">认证密钥</dt>
+                      <dt className="text-muted">{t("settingsNotify.secret")}</dt>
                       <dd className="mt-1 font-medium">
-                        {item.secretConfigured ? "•••••••• 已配置" : "未配置"}
+                        {item.secretConfigured
+                          ? t("settingsNotify.secretConfigured")
+                          : t("settingsNotify.notConfigured")}
                       </dd>
                     </div>
                   ) : null}
                   {external ? (
                     <div>
-                      <dt className="text-muted">失败重试</dt>
-                      <dd className="mt-1 font-medium">最多 {item.retryLimit} 次</dd>
+                      <dt className="text-muted">{t("settingsNotify.retry")}</dt>
+                      <dd className="mt-1 font-medium">
+                        {t("settingsNotify.retryCount", { count: item.retryLimit })}
+                      </dd>
                     </div>
                   ) : null}
                 </dl>
@@ -291,7 +315,7 @@ export function NotificationSettingsSection({
                       onClick={() => setConfigKey(item.key as "feishu" | "sms")}
                     >
                       <Wrench aria-hidden="true" className="size-4" />
-                      配置
+                      {t("settingsNotify.configure")}
                     </Button>
                     <Button
                       type="button"
@@ -302,12 +326,12 @@ export function NotificationSettingsSection({
                       disabled={!canWriteSecrets || !item.enabled}
                       onClick={() => void test(item.key as "feishu" | "sms")}
                     >
-                      测试连接
+                      {t("settingsNotify.test")}
                     </Button>
                   </div>
                 ) : (
                   <Switch
-                    label="启用站内通知"
+                    label={t("settingsNotify.enableInApp")}
                     checked={item.enabled}
                     disabled={!canWriteRoutes}
                     onChange={(event) => void toggleBuiltIn(event.target.checked)}
@@ -322,10 +346,8 @@ export function NotificationSettingsSection({
       <Card>
         <CardHeader>
           <div>
-            <h3 className="font-bold">通知路由规则</h3>
-            <p className="mt-1 text-xs text-muted">
-              每类事件至少选择一个渠道；停用渠道不会收到新任务。
-            </p>
+            <h3 className="font-bold">{t("settingsNotify.routes")}</h3>
+            <p className="mt-1 text-xs text-muted">{t("settingsNotify.routesDescription")}</p>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -356,7 +378,7 @@ export function NotificationSettingsSection({
           {canWriteRoutes ? (
             <div className="flex justify-end pt-2">
               <Button type="button" loading={savingRoutes} onClick={() => void saveRoutes()}>
-                保存通知规则
+                {t("settingsNotify.saveRoutes")}
               </Button>
             </div>
           ) : null}
@@ -366,25 +388,27 @@ export function NotificationSettingsSection({
       <Dialog open={Boolean(configKey)} onOpenChange={(open) => !open && setConfigKey(null)}>
         <DialogContent aria-describedby="channel-config-description">
           <DialogTitle className="text-lg font-bold">
-            配置{configDraft?.label ?? "通知渠道"}
+            {t("settingsNotify.configureTitle", {
+              channel: configDraft?.label ?? t("settingsNotify.configureDefault"),
+            })}
           </DialogTitle>
           <DialogDescription
             id="channel-config-description"
             className="mt-1 text-sm text-secondary"
           >
-            密钥由服务端加密保存，保存后无法查看或复制原文。
+            {t("settingsNotify.configureDescription")}
           </DialogDescription>
           {configDraft ? (
             <div className="mt-5 space-y-4">
               <Switch
-                label={`启用${configDraft.label}`}
+                label={t("settingsNotify.enableChannel", { channel: configDraft.label })}
                 checked={configDraft.enabled}
                 onChange={(event) =>
                   setConfigDraft({ ...configDraft, enabled: event.target.checked })
                 }
               />
               <Input
-                label="Webhook 地址"
+                label={t("settingsNotify.webhook")}
                 required={configDraft.enabled}
                 value={configDraft.endpoint}
                 onChange={(event) =>
@@ -392,18 +416,20 @@ export function NotificationSettingsSection({
                 }
               />
               <Input
-                label="认证 Token"
+                label={t("settingsNotify.token")}
                 type="password"
                 placeholder={
-                  configDraft.secretConfigured ? "•••••••• 已配置；留空表示保留" : "输入认证 Token"
+                  configDraft.secretConfigured
+                    ? t("settingsNotify.tokenConfigured")
+                    : t("settingsNotify.tokenInput")
                 }
-                helperText="输入新值会替换现有密钥；留空不会清除。"
+                helperText={t("settingsNotify.tokenHelp")}
                 value={newSecret}
                 onChange={(event) => setNewSecret(event.target.value)}
               />
               <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="请求超时（秒）"
+                  label={t("settingsNotify.timeout")}
                   type="number"
                   min={1}
                   max={60}
@@ -413,7 +439,7 @@ export function NotificationSettingsSection({
                   }
                 />
                 <Input
-                  label="最大重试次数"
+                  label={t("settingsNotify.maxRetry")}
                   type="number"
                   min={0}
                   max={10}
@@ -423,17 +449,15 @@ export function NotificationSettingsSection({
                   }
                 />
               </div>
-              {newSecret ? (
-                <Alert tone="warning">保存后无法再次查看密钥原文，请确认已安全备份。</Alert>
-              ) : null}
+              {newSecret ? <Alert tone="warning">{t("settingsNotify.secretWarning")}</Alert> : null}
             </div>
           ) : null}
           <div className="mt-6 flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setConfigKey(null)}>
-              取消
+              {t("settingsNotify.cancel")}
             </Button>
             <Button type="button" loading={savingConfig} onClick={() => void saveConfig()}>
-              保存渠道配置
+              {t("settingsNotify.saveConfig")}
             </Button>
           </div>
         </DialogContent>

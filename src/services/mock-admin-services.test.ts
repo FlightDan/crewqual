@@ -295,7 +295,7 @@ describe("admin Mock service state", () => {
         displayName: "新增人员",
         mobile: "13800138999",
         aircraftType: "A320",
-        role: "副驾驶",
+        roleCode: "FIRST_OFFICER",
         unitCode: "DEMO",
         rankCode: "FO-1",
       })
@@ -308,7 +308,7 @@ describe("admin Mock service state", () => {
         displayName: "新增人员甲",
         mobile: created.mobile,
         aircraftType: created.aircraftType,
-        role: "机长",
+        roleCode: "CAPTAIN",
         unitCode: created.unitCode,
         rankCode: "CAPT-A",
         active: false,
@@ -332,16 +332,16 @@ describe("admin Mock service state", () => {
       meta.csvHeaders.map((header) => [header, ""]),
     );
     Object.assign(values, {
-      员工号: "CQ-CSV-01",
-      姓名: "批量人员",
-      手机号: "13800138888",
-      机型: "A320",
-      职务: "副驾驶",
-      单位代码: "DEMO",
-      人员级别代码: "FO-2",
-      [`${qualification.name}｜开始日期`]: "2026-01-01",
-      [`${qualification.name}｜截止日期`]: "2027-01-01",
-      [`${qualification.name}｜级别`]: "合格",
+      employeeNumber: "CQ-CSV-01",
+      displayName: "批量人员",
+      mobile: "13800138888",
+      aircraftType: "A320",
+      roleCode: "FIRST_OFFICER",
+      unitCode: "DEMO",
+      rankCode: "FO-2",
+      [`${qualification.code}.issueDate`]: "2026-01-01",
+      [`${qualification.code}.expiryDate`]: "2027-01-01",
+      [`${qualification.code}.levelOrParameter`]: "合格",
     });
     const validRow = meta.csvHeaders.map((header) => values[header]).join(",");
     const invalidRow = validRow.replace("CQ-CSV-01", "MOCK-1049");

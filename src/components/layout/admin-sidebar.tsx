@@ -2,8 +2,10 @@
 
 import { Plane } from "lucide-react";
 import { AdminNavigationTree } from "@/components/layout/admin-navigation-tree";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AdminDesktopSidebar({ pendingReviewCount = 0 }: { pendingReviewCount?: number }) {
+  const { t } = useI18n();
   return (
     <aside
       data-testid="desktop-sidebar"
@@ -15,10 +17,10 @@ export function AdminDesktopSidebar({ pendingReviewCount = 0 }: { pendingReviewC
         </div>
         <div>
           <p className="text-base font-bold leading-5">CrewQual</p>
-          <p className="text-[10px] font-medium text-slate-400">机组资质合规系统</p>
+          <p className="text-[10px] font-medium text-slate-400">{t("navigation.system")}</p>
         </div>
       </div>
-      <nav aria-label="管理员主导航" className="flex flex-1 flex-col gap-1">
+      <nav aria-label={t("navigation.admin")} className="flex flex-1 flex-col gap-1">
         <AdminNavigationTree pendingReviewCount={pendingReviewCount} />
       </nav>
     </aside>

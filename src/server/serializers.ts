@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { normalizeUpgradeStageCode, upgradeStageLabel } from "@/lib/domain-i18n";
+import { renderNotificationContent } from "@/lib/notification-i18n";
+
 const dateOnly = (value: Date | null | undefined) => value?.toISOString().slice(0, 10) ?? "";
 
 export function serializeUpgradePlan(plan: any) {
@@ -39,7 +42,8 @@ export function serializeUpgradePlan(plan: any) {
       .sort((a, b) => a.order - b.order)
       .map((stage) => ({
         id: stage.id,
-        name: stage.name,
+        code: normalizeUpgradeStageCode(stage.code, stage.order),
+        name: upgradeStageLabel(stage.code, "zh-CN", stage.order),
         status: String(stage.status).toLowerCase(),
         plannedStart: dateOnly(stage.plannedStart),
         plannedEnd: dateOnly(stage.plannedEnd),
@@ -77,6 +81,7 @@ export function serializeQualificationConfig(item: any) {
 }
 
 export function serializeNotification(item: any) {
+  const content = renderNotificationContent(item);
   return {
     id: item.id,
     type: String(item.type).toLowerCase(),
@@ -86,8 +91,8 @@ export function serializeNotification(item: any) {
     pilotName: item.pilot?.displayName ?? "",
     employeeNumber: item.pilot?.employeeNumber,
     target: item.target,
-    summary: item.summary,
-    message: item.message,
+    summary: content.summary,
+    message: content.message,
     createdAt: item.createdAt.toISOString(),
     sentAt: item.sentAt?.toISOString(),
     attempts: (item.attempts ?? []).map((attempt: any) => ({

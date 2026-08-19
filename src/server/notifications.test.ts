@@ -30,6 +30,7 @@ function txWithInsertCounts(counts: number[]) {
             },
           ],
           notificationChannelState: { inApp: true, sms: true, feishu: true },
+          organization: { defaultLocale: "zh-CN" },
         },
       }),
     },
@@ -49,12 +50,22 @@ describe("unified notification outbox", () => {
         eventKey: "qualification-expiry:record-1:second",
         type: "qualification_expiry",
         pilotId: "00000000-0000-0000-0000-000000000001",
-        summary: "即将到期",
-        message: "还有 30 天到期",
+        templateKey: "qualification.expiry.due",
+        templateParams: { qualificationName: "体检合格证", daysRemaining: 30 },
       }),
     ).resolves.toMatchObject({ created: 2, queued: 2 });
     expect(tx.notificationDelivery.createMany).toHaveBeenCalledTimes(3);
     expect(mocks.enqueue).toHaveBeenCalledTimes(2);
+    for (const [argument] of tx.notificationDelivery.createMany.mock.calls) {
+      const data = argument.data[0];
+      expect(data).toMatchObject({
+        locale: "zh-CN",
+        templateKey: "qualification.expiry.due",
+        templateParams: { qualificationName: "体检合格证", daysRemaining: 30 },
+      });
+      expect(data).not.toHaveProperty("summary");
+      expect(data).not.toHaveProperty("message");
+    }
   });
 
   it("is a no-op when a concurrent scan already inserted every channel", async () => {
@@ -64,8 +75,8 @@ describe("unified notification outbox", () => {
         eventKey: "qualification-expiry:record-1:second",
         type: "qualification_expiry",
         pilotId: "00000000-0000-0000-0000-000000000001",
-        summary: "即将到期",
-        message: "还有 30 天到期",
+        templateKey: "qualification.expiry.due",
+        templateParams: { qualificationName: "体检合格证", daysRemaining: 30 },
       }),
     ).resolves.toMatchObject({ created: 0, queued: 0 });
     expect(mocks.enqueue).not.toHaveBeenCalled();
@@ -80,7 +91,9 @@ describe("unified notification outbox", () => {
         deliveryId: "delivery-1",
         pilotId: "00000000-0000-0000-0000-000000000001",
         channel: "SMS",
-        summary: "资质到期提醒",
+        locale: "zh-CN",
+        sourceTemplateKey: "qualification.expiry.expired",
+        sourceTemplateParams: { qualificationName: "体检合格证" },
         errorCategory: "provider_http",
         finalFailureReason: "provider_http",
         failedAt: new Date("2026-08-16T00:00:00Z"),

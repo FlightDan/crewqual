@@ -20,13 +20,15 @@ import type {
   PilotManagementInput,
   PilotManagementMeta,
 } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 const emptyInput: PilotManagementInput = {
   employeeNumber: "",
   displayName: "",
   mobile: "",
   aircraftType: "",
-  role: "副驾驶",
+  roleCode: "FIRST_OFFICER",
   unitCode: "",
   rankCode: "",
 };
@@ -34,6 +36,7 @@ const emptyInput: PilotManagementInput = {
 export function PilotManagementActions({ onCompleted }: { onCompleted: () => void }) {
   const { hasPermission, isSuperAdmin } = useAdminSession();
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
   const [exportUnitId, setExportUnitId] = React.useState("");
@@ -67,7 +70,7 @@ export function PilotManagementActions({ onCompleted }: { onCompleted: () => voi
       <div className="flex flex-wrap gap-2">
         {isSuperAdmin ? (
           <Select
-            aria-label="导出中队"
+            aria-label={t("pilotManagement.exportUnit")}
             options={exportUnits}
             value={exportUnitId}
             onChange={(event) => setExportUnitId(event.target.value)}
@@ -80,17 +83,17 @@ export function PilotManagementActions({ onCompleted }: { onCompleted: () => voi
           disabled={isSuperAdmin && !exportUnitId}
         >
           <Download aria-hidden="true" className="size-4" />
-          下载中队数据
+          {t("pilotManagement.downloadUnit")}
         </Button>
         {hasPermission("pilots.write") ? (
           <>
             <Button type="button" variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload aria-hidden="true" className="size-4" />
-              批量导入
+              {t("pilotManagement.importBatch")}
             </Button>
             <Button type="button" onClick={() => setCreateOpen(true)}>
               <UserPlus aria-hidden="true" className="size-4" />
-              新增飞行员
+              {t("pilotManagement.addPilot")}
             </Button>
           </>
         ) : null}
@@ -120,12 +123,13 @@ export function PilotEditAction({
   onCompleted: (pilot: AdminPilotDetail) => void;
 }) {
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
   const [open, setOpen] = React.useState(false);
   if (!hasPermission("pilots.write")) return null;
   return (
     <>
       <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
-        编辑人员资料
+        {t("pilotManagement.editProfile")}
       </Button>
       <PilotEditorDialog
         pilot={pilot}
@@ -148,12 +152,13 @@ export function PilotQualificationCreateAction({
   onCompleted: () => void;
 }) {
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
   const [open, setOpen] = React.useState(false);
   if (!hasPermission("pilots.write")) return null;
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)}>
-        新增资质
+        {t("pilotManagement.addQualification")}
       </Button>
       <PilotQualificationCreateDialog
         pilot={pilot}
@@ -189,6 +194,7 @@ function PilotQualificationCreateDialog({
   onCompleted: () => void;
 }) {
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const [meta, setMeta] = React.useState<PilotManagementMeta | null>(null);
   const [qualificationId, setQualificationId] = React.useState("");
   const [values, setValues] =
@@ -240,8 +246,10 @@ function PilotQualificationCreateDialog({
           result.data.qualifications.find((item) => !existing.has(item.code))?.code ?? "",
         );
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "无法加载资质配置"));
-  }, [open, pilot, pilotDirectory]);
+      .catch((reason) =>
+        setError(localizeError(reason, t, "pilotManagement.loadQualificationError")),
+      );
+  }, [open, pilot, pilotDirectory, t]);
 
   const update = (field: keyof AdminQualificationRecordCreateInput, value: string) =>
     setValues((current) => ({ ...current, [field]: value }));
@@ -249,12 +257,12 @@ function PilotQualificationCreateDialog({
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!qualificationId) {
-      setError("请选择资质项目");
+      setError(t("pilotManagement.chooseQualification"));
       return;
     }
     const validation = adminQualificationRecordCreateSchema.safeParse(values);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "请检查资质信息");
+      setError(validation.error.issues[0]?.message ?? t("pilotManagement.checkQualification"));
       return;
     }
     setLoading(true);
@@ -263,7 +271,7 @@ function PilotQualificationCreateDialog({
       await pilotDirectory.createQualificationRecord(pilot.id, qualificationId, validation.data);
       onCompleted();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "资质保存失败");
+      setError(localizeError(reason, t, "pilotManagement.qualificationSaveError"));
     } finally {
       setLoading(false);
     }
@@ -272,20 +280,24 @@ function PilotQualificationCreateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <DialogTitle className="text-lg font-bold">新增人员资质</DialogTitle>
+        <DialogTitle className="text-lg font-bold">
+          {t("pilotManagement.addQualificationTitle")}
+        </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-secondary">
-          录入后立即成为生效记录，并写入管理员审计日志。后续更新需通过版本校验。
+          {t("pilotManagement.addQualificationDescription")}
         </DialogDescription>
         <form className="mt-5 space-y-4" onSubmit={submit}>
           {error ? <Alert tone="danger">{error}</Alert> : null}
-          {!meta ? <p className="text-sm text-secondary">正在加载可用资质…</p> : null}
+          {!meta ? (
+            <p className="text-sm text-secondary">{t("pilotManagement.loadingQualifications")}</p>
+          ) : null}
           {meta && !availableQualifications.length ? (
-            <Alert tone="info">该人员已经拥有所有当前启用的资质项目。</Alert>
+            <Alert tone="info">{t("pilotManagement.allQualifications")}</Alert>
           ) : null}
           {meta && availableQualifications.length ? (
             <>
               <Select
-                label="资质项目"
+                label={t("pilotManagement.qualification")}
                 required
                 value={qualificationId}
                 onChange={(event) => {
@@ -299,19 +311,19 @@ function PilotQualificationCreateDialog({
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
-                  label="证件编号"
+                  label={t("pilotManagement.credential")}
                   required
                   value={values.credentialNumber}
                   onChange={(event) => update("credentialNumber", event.target.value)}
                 />
                 <Input
-                  label="签发机构"
+                  label={t("pilotManagement.issuingAuthority")}
                   required
                   value={values.issuingAuthority}
                   onChange={(event) => update("issuingAuthority", event.target.value)}
                 />
                 <Input
-                  label="取得日期"
+                  label={t("pilotManagement.issueDate")}
                   required
                   type="date"
                   value={values.issueDate}
@@ -320,7 +332,7 @@ function PilotQualificationCreateDialog({
                 {selectedQualification?.validityRule.kind === "fixed_months" &&
                 selectedQualification.validityRule.baseDateField === "trainingDate" ? (
                   <Input
-                    label="培训日期"
+                    label={t("pilotManagement.trainingDate")}
                     required
                     type="date"
                     value={values.trainingDate}
@@ -329,7 +341,7 @@ function PilotQualificationCreateDialog({
                 ) : null}
                 {selectedQualification?.validityRule.kind !== "non_expiring" ? (
                   <Input
-                    label="到期日期"
+                    label={t("pilotManagement.expiryDate")}
                     required
                     type="date"
                     readOnly={selectedQualification?.validityRule.kind === "fixed_months"}
@@ -338,7 +350,7 @@ function PilotQualificationCreateDialog({
                   />
                 ) : null}
                 <Input
-                  label="等级/参数"
+                  label={t("pilotManagement.level")}
                   required
                   value={values.levelOrParameter}
                   onChange={(event) => update("levelOrParameter", event.target.value)}
@@ -348,14 +360,14 @@ function PilotQualificationCreateDialog({
           ) : null}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              取消
+              {t("pilotManagement.cancel")}
             </Button>
             <Button
               type="submit"
               loading={loading}
               disabled={!meta || !availableQualifications.length}
             >
-              保存资质
+              {t("pilotManagement.saveQualification")}
             </Button>
           </div>
         </form>
@@ -376,6 +388,7 @@ function PilotEditorDialog({
   onCompleted: (pilot: AdminPilotDetail) => void;
 }) {
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const [meta, setMeta] = React.useState<PilotManagementMeta | null>(null);
   const [values, setValues] = React.useState<PilotManagementInput>(emptyInput);
   const [active, setActive] = React.useState(true);
@@ -393,7 +406,7 @@ function PilotEditorDialog({
             displayName: pilot.displayName,
             mobile: pilot.mobile,
             aircraftType: pilot.aircraftType,
-            role: pilot.role.includes("机长") ? "机长" : "副驾驶",
+            roleCode: pilot.roleCode,
             unitCode: pilot.unitCode,
             rankCode: pilot.rankCode,
           }
@@ -407,8 +420,8 @@ function PilotEditorDialog({
           setValues((current) => ({ ...current, unitCode: result.data.units[0]!.code }));
         }
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "无法加载人员配置"));
-  }, [open, pilot, pilotDirectory]);
+      .catch((reason) => setError(localizeError(reason, t, "pilotManagement.loadPilotError")));
+  }, [open, pilot, pilotDirectory, t]);
 
   const update = (field: keyof PilotManagementInput, value: string) =>
     setValues((current) => ({ ...current, [field]: value }));
@@ -417,7 +430,7 @@ function PilotEditorDialog({
     event.preventDefault();
     const validation = pilotManagementInputSchema.safeParse(values);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "请检查人员信息");
+      setError(validation.error.issues[0]?.message ?? t("pilotManagement.checkPilot"));
       return;
     }
     setLoading(true);
@@ -432,7 +445,7 @@ function PilotEditorDialog({
         : await pilotDirectory.create(validation.data);
       onCompleted(result.data);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "保存失败");
+      setError(localizeError(reason, t, "pilotManagement.saveError"));
     } finally {
       setLoading(false);
     }
@@ -442,66 +455,66 @@ function PilotEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogTitle className="text-lg font-bold">
-          {pilot ? "编辑人员资料" : "新增飞行员"}
+          {pilot ? t("pilotManagement.editTitle") : t("pilotManagement.newTitle")}
         </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-secondary">
-          新增人员默认处于启用状态；尚未录入资质时会显示“未建档”。
+          {t("pilotManagement.editDescription")}
         </DialogDescription>
         <form className="mt-5 space-y-4" onSubmit={submit}>
           {error ? <Alert tone="danger">{error}</Alert> : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="员工号"
+              label={t("pilotManagement.employeeNumber")}
               required
               value={values.employeeNumber}
               onChange={(event) => update("employeeNumber", event.target.value)}
-              placeholder="例如 CQ-1049"
+              placeholder="e.g. CQ-1049"
             />
             <Input
-              label="姓名"
+              label={t("pilotManagement.name")}
               required
               value={values.displayName}
               onChange={(event) => update("displayName", event.target.value)}
             />
             <Input
-              label="手机号"
+              label={t("pilotManagement.mobile")}
               required
               inputMode="numeric"
               value={values.mobile}
               onChange={(event) => update("mobile", event.target.value)}
-              placeholder="11 位手机号"
+              placeholder={t("pilotManagement.mobileExample")}
             />
             <Input
-              label="机型"
+              label={t("pilotManagement.aircraft")}
               required
               value={values.aircraftType}
               onChange={(event) => update("aircraftType", event.target.value)}
-              placeholder="例如 A320"
+              placeholder="e.g. A320"
             />
             <Select
-              label="职务"
+              label={t("pilotManagement.role")}
               required
-              value={values.role}
-              onChange={(event) => update("role", event.target.value)}
+              value={values.roleCode}
+              onChange={(event) => update("roleCode", event.target.value)}
               options={[
-                { label: "机长", value: "机长" },
-                { label: "副驾驶", value: "副驾驶" },
+                { label: t("pilotManagement.captain"), value: "CAPTAIN" },
+                { label: t("pilotManagement.firstOfficer"), value: "FIRST_OFFICER" },
               ]}
             />
             <Input
-              label="人员级别代码"
+              label={t("pilotManagement.rank")}
               required
               value={values.rankCode}
               onChange={(event) => update("rankCode", event.target.value)}
-              placeholder="例如 CAPT-A / FO-2"
+              placeholder="e.g. CAPT-A / FO-2"
             />
             <Select
-              label="所属单位"
+              label={t("pilotManagement.unit")}
               required
               value={values.unitCode}
               onChange={(event) => update("unitCode", event.target.value)}
               options={[
-                { label: "请选择单位", value: "" },
+                { label: t("pilotManagement.chooseUnit"), value: "" },
                 ...(meta?.units.map((unit) => ({
                   label: `${unit.name}（${unit.code}）`,
                   value: unit.code,
@@ -510,23 +523,23 @@ function PilotEditorDialog({
             />
             {pilot ? (
               <Select
-                label="人员状态"
+                label={t("pilotManagement.status")}
                 value={active ? "active" : "inactive"}
                 onChange={(event) => setActive(event.target.value === "active")}
-                helperText={!active ? "停用后将注销该人员的访问令牌和登录会话" : undefined}
+                helperText={!active ? t("pilotManagement.disableHelp") : undefined}
                 options={[
-                  { label: "启用", value: "active" },
-                  { label: "停用", value: "inactive" },
+                  { label: t("pilotManagement.enabled"), value: "active" },
+                  { label: t("pilotManagement.disabled"), value: "inactive" },
                 ]}
               />
             ) : null}
           </div>
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              取消
+              {t("pilotManagement.cancel")}
             </Button>
             <Button type="submit" loading={loading} disabled={!meta}>
-              {pilot ? "保存修改" : "确认新增"}
+              {pilot ? t("pilotManagement.saveEdit") : t("pilotManagement.confirmAdd")}
             </Button>
           </div>
         </form>
@@ -545,6 +558,7 @@ function PilotCsvImportDialog({
   onCompleted: () => void;
 }) {
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const [meta, setMeta] = React.useState<PilotManagementMeta | null>(null);
   const [fileName, setFileName] = React.useState("");
   const [csvText, setCsvText] = React.useState("");
@@ -564,8 +578,8 @@ function PilotCsvImportDialog({
     void pilotDirectory
       .getManagementMeta()
       .then((response) => setMeta(response.data))
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "无法加载导入配置"));
-  }, [open, pilotDirectory]);
+      .catch((reason) => setError(localizeError(reason, t, "pilotManagement.loadImportError")));
+  }, [open, pilotDirectory, t]);
 
   const downloadTemplate = async () => {
     setError("");
@@ -580,7 +594,7 @@ function PilotCsvImportDialog({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "模板下载失败");
+      setError(localizeError(reason, t, "pilotManagement.templateError"));
     }
   };
 
@@ -591,11 +605,11 @@ function PilotCsvImportDialog({
     setError("");
     if (!file) return;
     if (!file.name.toLocaleLowerCase().endsWith(".csv")) {
-      setError("请选择 .csv 文件");
+      setError(t("pilotManagement.chooseCsv"));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError("CSV 文件不能超过 2 MB");
+      setError(t("pilotManagement.csvSize"));
       return;
     }
     const text = await file.text();
@@ -606,7 +620,7 @@ function PilotCsvImportDialog({
       const response = await pilotDirectory.previewImport(text, mode);
       setPreview(response.data);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "CSV 校验失败");
+      setError(localizeError(reason, t, "pilotManagement.csvValidation"));
     } finally {
       setLoading(false);
     }
@@ -620,7 +634,7 @@ function PilotCsvImportDialog({
       setResult(response.data);
       onCompleted();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "导入失败，请重新校验");
+      setError(localizeError(reason, t, "pilotManagement.importError"));
     } finally {
       setLoading(false);
     }
@@ -631,50 +645,55 @@ function PilotCsvImportDialog({
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl">
         <DialogTitle className="flex items-center gap-2 text-lg font-bold">
           <FileSpreadsheet aria-hidden="true" className="size-5 text-brand" />
-          CSV 批量导入飞行员
+          {t("pilotManagement.importTitle")}
         </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-secondary">
-          先下载动态模板。模板会包含当前所有启用资质的开始日期、截止日期和级别列。
+          {t("pilotManagement.importDescription")}
         </DialogDescription>
 
         <div className="mt-5 space-y-4">
           {error ? <Alert tone="danger">{error}</Alert> : null}
           {result ? (
-            <Alert tone="success" title="导入完成">
-              新增 {result.createdCount} 人
-              {result.updatedCount ? `、更新 ${result.updatedCount} 人` : ""}、写入{" "}
-              {result.qualificationCount} 条资质
-              {result.skippedCount ? `，跳过 ${result.skippedCount} 条错误记录` : ""}。
+            <Alert tone="success" title={t("pilotManagement.importDone")}>
+              {t("pilotManagement.created", { count: result.createdCount })}
+              {result.updatedCount
+                ? t("pilotManagement.updated", { count: result.updatedCount })
+                : ""}
+              {t("pilotManagement.qualificationRows", { count: result.qualificationCount })}
+              {result.skippedCount
+                ? t("pilotManagement.skipped", { count: result.skippedCount })
+                : ""}
             </Alert>
           ) : null}
           <section className="rounded-lg border border-border p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold">1. 下载并填写模板</h3>
-                <p className="mt-1 text-xs text-muted">
-                  基础列固定为员工号、姓名、手机号、机型、职务、单位代码、人员级别代码。
-                </p>
+                <h3 className="text-sm font-bold">{t("pilotManagement.step1")}</h3>
+                <p className="mt-1 text-xs text-muted">{t("pilotManagement.fixedColumns")}</p>
               </div>
               <Button type="button" variant="secondary" onClick={downloadTemplate}>
                 <Download aria-hidden="true" className="size-4" />
-                下载 CSV 模板
+                {t("pilotManagement.downloadTemplate")}
               </Button>
             </div>
             {meta ? (
               <p className="mt-3 text-xs leading-5 text-secondary">
-                当前模板包含 {meta.qualifications.length} 项资质，共 {meta.csvHeaders.length} 列。
+                {t("pilotManagement.templateSummary", {
+                  qualifications: meta.qualifications.length,
+                  columns: meta.csvHeaders.length,
+                })}
               </p>
             ) : null}
           </section>
 
           <section className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-bold">2. 上传并校验</h3>
+            <h3 className="text-sm font-bold">{t("pilotManagement.step2")}</h3>
             <Select
               className="mt-3"
-              label="导入方式"
+              label={t("pilotManagement.importMode")}
               options={[
-                { label: "仅新增员工（重复员工号跳过）", value: "create_only" },
-                { label: "合并并更新（需二次确认）", value: "merge" },
+                { label: t("pilotManagement.createOnly"), value: "create_only" },
+                { label: t("pilotManagement.merge"), value: "merge" },
               ]}
               value={mode}
               onChange={(event) => {
@@ -686,31 +705,39 @@ function PilotCsvImportDialog({
               className="mt-3 file:mr-3 file:rounded file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-brand"
               type="file"
               accept=".csv,text/csv"
-              aria-label="选择飞行员 CSV 文件"
+              aria-label={t("pilotManagement.csvAria")}
               onChange={selectFile}
               disabled={loading}
             />
-            <p className="mt-2 text-xs text-muted">
-              UTF-8/UTF-8 BOM，最大 2 MB、1000 人。合并模式下空白资质列保持原值。
-            </p>
-            {fileName ? <p className="mt-2 text-xs font-semibold">已选择：{fileName}</p> : null}
+            <p className="mt-2 text-xs text-muted">{t("pilotManagement.csvHelp")}</p>
+            {fileName ? (
+              <p className="mt-2 text-xs font-semibold">
+                {t("pilotManagement.selected", { name: fileName })}
+              </p>
+            ) : null}
           </section>
 
           {loading && !preview ? (
             <p role="status" className="text-sm text-secondary">
-              正在校验 CSV…
+              {t("pilotManagement.validating")}
             </p>
           ) : null}
 
           {preview ? (
             <section className="space-y-3 rounded-lg border border-border p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-bold">3. 校验预览</h3>
+                <h3 className="text-sm font-bold">{t("pilotManagement.step3")}</h3>
                 <p className="text-xs text-secondary">
-                  共 {preview.total} 行 · 可导入 {preview.validCount} 行 · 错误 {preview.errorCount}{" "}
-                  行
+                  {t("pilotManagement.previewSummary", {
+                    total: preview.total,
+                    valid: preview.validCount,
+                    errors: preview.errorCount,
+                  })}
                   {mode === "merge"
-                    ? ` · 新增 ${preview.createCount} · 更新 ${preview.updateCount}`
+                    ? t("pilotManagement.previewMerge", {
+                        create: preview.createCount,
+                        update: preview.updateCount,
+                      })
                     : ""}
                 </p>
               </div>
@@ -723,11 +750,11 @@ function PilotCsvImportDialog({
                 <table className="w-full min-w-[680px] border-collapse text-left text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-secondary">
                     <tr>
-                      <th className="px-3 py-2">行号</th>
-                      <th className="px-3 py-2">员工号</th>
-                      <th className="px-3 py-2">姓名</th>
-                      <th className="px-3 py-2">资质数</th>
-                      <th className="px-3 py-2">校验结果</th>
+                      <th className="px-3 py-2">{t("pilotManagement.row")}</th>
+                      <th className="px-3 py-2">{t("pilotManagement.employee")}</th>
+                      <th className="px-3 py-2">{t("pilotManagement.name")}</th>
+                      <th className="px-3 py-2">{t("pilotManagement.qualificationCount")}</th>
+                      <th className="px-3 py-2">{t("pilotManagement.validation")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -742,7 +769,9 @@ function PilotCsvImportDialog({
                             row.errors.length ? "px-3 py-2 text-danger" : "px-3 py-2 text-success"
                           }
                         >
-                          {row.errors.length ? row.errors.join("；") : "可导入"}
+                          {row.errors.length
+                            ? row.errors.join("; ")
+                            : t("pilotManagement.importable")}
                         </td>
                       </tr>
                     ))}
@@ -750,14 +779,14 @@ function PilotCsvImportDialog({
                 </table>
               </div>
               {preview.rows.length > 100 ? (
-                <p className="text-xs text-muted">页面仅展示前 100 行，导入仍会处理全部记录。</p>
+                <p className="text-xs text-muted">{t("pilotManagement.previewLimit")}</p>
               ) : null}
             </section>
           ) : null}
 
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              {result ? "完成" : "取消"}
+              {result ? t("pilotManagement.done") : t("pilotManagement.cancel")}
             </Button>
             {!result ? (
               <Button
@@ -767,7 +796,7 @@ function PilotCsvImportDialog({
                 onClick={commitImport}
               >
                 <Upload aria-hidden="true" className="size-4" />
-                导入 {preview?.validCount ?? 0} 条有效记录
+                {t("pilotManagement.import", { count: preview?.validCount ?? 0 })}
               </Button>
             ) : null}
           </div>

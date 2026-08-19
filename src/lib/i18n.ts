@@ -1,4 +1,6 @@
-export type SupportedLocale = "zh-CN" | (string & {});
+import type { SupportedLocale } from "@/lib/locale";
+
+export type { SupportedLocale } from "@/lib/locale";
 
 export type MessageTranslations = Record<string, string>;
 

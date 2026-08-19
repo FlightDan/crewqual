@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
+import { pilotRoleLabel } from "@/lib/domain-i18n";
+import { useI18n } from "@/components/i18n-provider";
 
 type Member = {
   id: string;
@@ -36,7 +38,11 @@ type Member = {
   }>;
 };
 
-function mockMember(id: string, state: ReturnType<typeof useAdminState>): Member | null {
+function mockMember(
+  id: string,
+  state: ReturnType<typeof useAdminState>,
+  pilotLabel: string,
+): Member | null {
   const pilot = state.pilots.find((item) => item.id === id);
   if (!pilot) return null;
   return {
@@ -46,11 +52,11 @@ function mockMember(id: string, state: ReturnType<typeof useAdminState>): Member
     initials: pilot.initials,
     mobile: pilot.mobile,
     active: pilot.active,
-    primaryPosition: { code: "PILOT", name: "飞行员" },
-    positions: [{ code: "PILOT", name: "飞行员", isPrimary: true, effectiveFrom: null }],
+    primaryPosition: { code: "PILOT", name: pilotLabel },
+    positions: [{ code: "PILOT", name: pilotLabel, isPrimary: true, effectiveFrom: null }],
     pilotProfile: {
       aircraftType: pilot.aircraftType,
-      dutyLabel: pilot.role,
+      dutyLabel: pilotRoleLabel(pilot.roleCode),
       rankLabel: pilot.rankLabel,
     },
     qualifications: pilot.qualifications.map((item) => {
@@ -74,12 +80,6 @@ function mockMember(id: string, state: ReturnType<typeof useAdminState>): Member
   };
 }
 
-const statusLabels = {
-  missing: "缺失",
-  expired: "已过期",
-  due: "90天内到期",
-  valid: "有效",
-} as const;
 const statusTones = {
   missing: "danger",
   expired: "danger",
@@ -89,11 +89,12 @@ const statusTones = {
 
 export function MemberDetailView({ memberId }: { memberId: string }) {
   const state = useAdminState();
+  const { t } = useI18n();
   const remoteMode = isRemoteServiceMode();
   const [member, setMember] = React.useState<Member | null | undefined>(undefined);
   React.useEffect(() => {
     if (!remoteMode) {
-      setMember(mockMember(memberId, state));
+      setMember(mockMember(memberId, state, t("portal.pilot")));
       return;
     }
     let active = true;
@@ -108,7 +109,7 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
     return () => {
       active = false;
     };
-  }, [memberId, remoteMode, state]);
+  }, [memberId, remoteMode, state, t]);
 
   if (member === undefined)
     return (
@@ -119,22 +120,25 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
   if (!member) {
     return (
       <PageContainer>
-        <EmptyState title="未找到成员档案" description="该 ID 不存在或不属于当前组织。" />
+        <EmptyState
+          title={t("memberDetail.notFound")}
+          description={t("memberDetail.notFoundDescription")}
+        />
       </PageContainer>
     );
   }
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title="成员详情档案"
-        description="通用人员资料、职位任职、资质要求与记录状态"
+        title={t("memberDetail.title")}
+        description={t("memberDetail.description")}
         action={
           <Link
             href="/admin/members"
             className="inline-flex items-center gap-1 text-sm font-semibold text-brand"
           >
             <ArrowLeft className="size-4" />
-            返回成员管理
+            {t("memberDetail.back")}
           </Link>
         }
       />
@@ -147,7 +151,7 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-bold">{member.displayName}</h2>
               <Badge tone={member.active ? "success" : "neutral"}>
-                {member.active ? "启用" : "停用"}
+                {member.active ? t("members.active") : t("members.inactive")}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-secondary">
@@ -155,30 +159,33 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
             </p>
           </div>
           {member.primaryPosition ? (
-            <Badge tone="info">主职：{member.primaryPosition.name}</Badge>
+            <Badge tone="info">
+              {t("memberDetail.primary", { name: member.primaryPosition.name })}
+            </Badge>
           ) : null}
         </div>
         <div className="mt-5 flex flex-wrap gap-2 text-xs">
           {member.positions.map((position) => (
             <Badge key={`${position.code}-${position.effectiveFrom}`} tone="neutral">
-              {position.isPrimary ? "主职 · " : "兼任 · "}
+              {position.isPrimary
+                ? t("memberDetail.primaryShort")
+                : t("memberDetail.secondaryShort")}
               {position.name}
             </Badge>
           ))}
         </div>
         {member.pilotProfile ? (
           <p className="mt-4 text-sm text-secondary">
-            机型：{member.pilotProfile.aircraftType} · 职务：{member.pilotProfile.dutyLabel} ·
-            级别：{member.pilotProfile.rankLabel}
+            {t("memberDetail.aircraft", { value: member.pilotProfile.aircraftType })} ·{" "}
+            {t("memberDetail.duty", { value: member.pilotProfile.dutyLabel })} ·{" "}
+            {t("memberDetail.rank", { value: member.pilotProfile.rankLabel })}
           </p>
         ) : null}
       </Card>
       <Card className="overflow-hidden shadow-none">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="font-bold">职位要求与资质记录</h2>
-          <p className="mt-1 text-xs text-secondary">
-            项目由职位 requirement 生成；没有正式记录的必需项目仍会显示。
-          </p>
+          <h2 className="font-bold">{t("memberDetail.qualifications")}</h2>
+          <p className="mt-1 text-xs text-secondary">{t("memberDetail.requirementDescription")}</p>
         </div>
         <div className="divide-y divide-border">
           {member.qualifications.map((qualification) => (
@@ -186,27 +193,28 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{qualification.name}</p>
                 <p className="mt-1 text-xs text-muted">
-                  {qualification.positionCode ?? "组织级"} · 来源 {qualification.source}
+                  {qualification.positionCode ?? t("memberDetail.orgLevel")} ·{" "}
+                  {t("memberDetail.source", { value: qualification.source })}
                 </p>
               </div>
               <Badge tone={statusTones[qualification.status]}>
-                {statusLabels[qualification.status]}
+                {t(`members.health.${qualification.status}`)}
               </Badge>
               <span className="text-xs text-secondary">
                 {qualification.record?.expiryDate
-                  ? `到期 ${qualification.record.expiryDate}`
-                  : "尚无有效记录"}
+                  ? t("memberDetail.expiry", { date: qualification.record.expiryDate })
+                  : t("memberDetail.noRecord")}
               </span>
             </div>
           ))}
           {!member.qualifications.length ? (
-            <p className="p-5 text-sm text-muted">当前没有已分配的资质要求。</p>
+            <p className="p-5 text-sm text-muted">{t("memberDetail.noQualifications")}</p>
           ) : null}
         </div>
       </Card>
       {member.primaryPosition?.code === "PILOT" ? (
         <Link href={`/admin/pilots/${member.id}`} className="text-sm font-semibold text-brand">
-          打开飞行员兼容工作台 →
+          {t("memberDetail.openPilot")}
         </Link>
       ) : null}
     </PageContainer>

@@ -13,6 +13,29 @@ Docker Compose 适合单台 Linux 服务器上的试点、内网或中小规模�
 
 如果要求多机高可用、滚动发布、数据库主从或动态扩缩容，应改用托管数据库/对象存储加 Kubernetes，而不是继续放大单机 Compose。
 
+## 一键部署
+
+项目根目录提供 `install.sh`，用于在已经安装 Docker Engine 和 Docker Compose v2 的 Linux 主机上完成首次部署或升级：
+
+```sh
+chmod +x install.sh
+./install.sh
+```
+
+首次执行且项目目录没有 `.env` 时，脚本会调用 `scripts/init-docker-env.sh` 交互式生成生产配置；后续执行不会覆盖已有 `.env`。脚本会校验 Compose 配置、构建镜像、启动 PostgreSQL、执行迁移和 bootstrap，然后等待 Web、Worker 健康。
+
+脚本不会安装 Docker、修改防火墙、删除数据卷或覆盖已有 `.env`。正式部署前仍需按下文准备服务器、域名、外部 S3 和 SMS webhook。无人值守部署请预先准备 `.env`，再执行：
+
+```sh
+./install.sh --non-interactive
+```
+
+如需禁止构建阶段拉取更新的基础镜像：
+
+```sh
+./install.sh --no-pull
+```
+
 ## 1. 服务器与域名
 
 准备一台 x86_64 或 arm64 Linux 服务器，建议至少 4 vCPU、8 GiB 内存、50 GiB 系统盘，并安装 Docker Engine 24+ 与 Docker Compose v2.24+。将业务域名的 A/AAAA 记录指向服务器，防火墙只开放 22、80、443；不要开放 3000、5432、9000、9001。

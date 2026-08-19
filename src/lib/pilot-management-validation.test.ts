@@ -28,11 +28,13 @@ const qualifications = [
 describe("pilot CSV validation", () => {
   it("builds a BOM template with base columns and four dynamic columns per qualification", () => {
     const template = createPilotCsvTemplate(qualifications);
-    expect(template.startsWith("\uFEFF员工号,姓名,手机号,机型,职务,单位代码,人员级别代码")).toBe(
-      true,
-    );
+    expect(
+      template.startsWith(
+        "\uFEFFemployeeNumber,displayName,mobile,aircraftType,roleCode,unitCode,rankCode",
+      ),
+    ).toBe(true);
     expect(parseCsvMatrix(template)[0]).toEqual(pilotCsvHeaders(qualifications));
-    expect(parseCsvMatrix(template)[0]).toContain("ICAO 英语｜截止日期");
+    expect(parseCsvMatrix(template)[0]).toContain("icao-english.expiryDate");
   });
 
   it("parses quoted commas and complete qualification triplets", () => {
@@ -42,7 +44,7 @@ describe("pilot CSV validation", () => {
       "张三,示例",
       "13800138001",
       "A320",
-      "副驾驶",
+      "FIRST_OFFICER",
       "DEMO",
       "FO-2",
       "2026-01-01",
@@ -60,18 +62,22 @@ describe("pilot CSV validation", () => {
     const parsed = parsePilotCsv(csv, qualifications);
     expect(parsed.fileErrors).toEqual([]);
     expect(parsed.rows[0]).toMatchObject({
-      input: { employeeNumber: "CQ-2001", displayName: "张三,示例", role: "副驾驶" },
+      input: {
+        employeeNumber: "CQ-2001",
+        displayName: "张三,示例",
+        roleCode: "FIRST_OFFICER",
+      },
       qualifications: [{ qualificationCode: "medical-certificate", levelOrParameter: "IA级" }],
       errors: [],
     });
   });
 
   it("rejects missing columns, duplicate employees, partial triplets and reversed dates", () => {
-    const missing = parsePilotCsv("员工号,姓名\nCQ-1,张三", qualifications);
+    const missing = parsePilotCsv("employeeNumber,displayName\nCQ-1,张三", qualifications);
     expect(missing.fileErrors[0]).toContain("CSV 缺少必需列");
 
     const headers = pilotCsvHeaders(qualifications);
-    const base = ["CQ-2002", "李四", "13800138002", "A320", "机长", "DEMO", "CAPT-A"];
+    const base = ["CQ-2002", "李四", "13800138002", "A320", "CAPTAIN", "DEMO", "CAPT-A"];
     const first = [...base, "2027-01-01", "", "2026-01-01", "IA级", "", "", "", ""];
     const second = [...base, "2026-01-01", "", "", "IA级", "", "", "", ""];
     const parsed = parsePilotCsv(

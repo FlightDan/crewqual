@@ -44,7 +44,9 @@ describe("worker handlers", () => {
       id: "delivery-1",
       channel: "IN_APP",
       target: "pilot-1",
-      message: "节点已更新",
+      locale: "zh-CN",
+      templateKey: "legacy.raw",
+      templateParams: { summary: "节点更新", message: "节点已更新" },
     });
     const adapters = {
       sms: { send: vi.fn() },
@@ -83,7 +85,9 @@ describe("worker handlers", () => {
       id: "delivery-2",
       channel: "SMS",
       target: "13800138000",
-      message: "测试通知",
+      locale: "zh-CN",
+      templateKey: "legacy.raw",
+      templateParams: { summary: "测试", message: "测试通知" },
     });
     const adapters = {
       sms: { send: vi.fn().mockResolvedValue({ accepted: false }) },

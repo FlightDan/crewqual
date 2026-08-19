@@ -12,6 +12,8 @@ import {
 } from "@/components/admin/settings/settings-shared";
 import { adminSettingsService } from "@/services/admin-settings-service";
 import type { MediaOptimizationSetting } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 export function MediaOptimizationSection({
   canWrite,
@@ -20,6 +22,7 @@ export function MediaOptimizationSection({
   canWrite: boolean;
   notify: SettingsFeedback;
 }) {
+  const { t } = useI18n();
   const [setting, setSetting] = React.useState<MediaOptimizationSetting | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -28,11 +31,9 @@ export function MediaOptimizationSection({
     void adminSettingsService
       .loadMediaOptimization()
       .then(setSetting)
-      .catch((reason) =>
-        setError(reason instanceof Error ? reason.message : "图库优化设置加载失败"),
-      )
+      .catch((reason) => setError(localizeError(reason, t, "settingsMedia.loadError")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
   const save = async () => {
     if (!setting) return;
     setSaving(true);
@@ -41,15 +42,11 @@ export function MediaOptimizationSection({
       setSetting(next);
       notify(
         "success",
-        "图库优化设置已保存",
-        next.enabled ? "后台会在识别队列空闲时转换 JPEG。" : "后台不会自动转换图片。",
+        t("settingsMedia.saved"),
+        next.enabled ? t("settingsMedia.enabledNotice") : t("settingsMedia.disabledNotice"),
       );
     } catch (reason) {
-      notify(
-        "danger",
-        "图库优化设置保存失败",
-        reason instanceof Error ? reason.message : "请稍后重试",
-      );
+      notify("danger", t("settingsMedia.saveError"), localizeError(reason, t));
     } finally {
       setSaving(false);
     }
@@ -57,26 +54,26 @@ export function MediaOptimizationSection({
   return (
     <div className="space-y-5">
       <SettingsSectionHeader
-        title="图库优化"
-        description="上传继续使用 JPEG；开启后，后台会在识别队列空闲时以像素无损方式转换为 AVIF。"
+        title={t("settingsMedia.title")}
+        description={t("settingsMedia.description")}
       />
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <Card>
         <CardContent className="space-y-5 p-5">
           {loading || !setting ? (
-            <p className="text-sm text-secondary">正在加载…</p>
+            <p className="text-sm text-secondary">{t("settingsMedia.loading")}</p>
           ) : (
             <>
               <Switch
                 checked={setting.enabled}
                 disabled={!canWrite}
                 onChange={(event) => setSetting({ ...setting, enabled: event.target.checked })}
-                label="启用空闲时 AVIF 优化"
-                helperText="已完成识别且已关联的 JPEG 会逐步转换；失败任务会保留并可重试。"
+                label={t("settingsMedia.toggle")}
+                helperText={t("settingsMedia.toggleHelp")}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
-                  label="空闲等待分钟"
+                  label={t("settingsMedia.idleMinutes")}
                   type="number"
                   min={1}
                   max={1440}
@@ -87,7 +84,7 @@ export function MediaOptimizationSection({
                   }
                 />
                 <Input
-                  label="每批处理数量"
+                  label={t("settingsMedia.batchSize")}
                   type="number"
                   min={1}
                   max={20}
@@ -105,7 +102,7 @@ export function MediaOptimizationSection({
                   disabled={!canWrite}
                   onClick={() => void save()}
                 >
-                  保存优化设置
+                  {t("settingsMedia.save")}
                 </Button>
               </div>
             </>

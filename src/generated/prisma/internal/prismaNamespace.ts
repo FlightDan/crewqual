@@ -3888,7 +3888,7 @@ export const PilotScalarFieldEnum = {
   mobile: 'mobile',
   displayName: 'displayName',
   initials: 'initials',
-  role: 'role',
+  roleCode: 'roleCode',
   aircraftType: 'aircraftType',
   rankLabel: 'rankLabel',
   unitId: 'unitId',
@@ -3907,7 +3907,7 @@ export const PilotProfileScalarFieldEnum = {
   personId: 'personId',
   legacyPilotId: 'legacyPilotId',
   aircraftType: 'aircraftType',
-  dutyLabel: 'dutyLabel',
+  dutyCode: 'dutyCode',
   rankLabel: 'rankLabel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -4413,7 +4413,7 @@ export const UpgradeStageScalarFieldEnum = {
   id: 'id',
   planId: 'planId',
   order: 'order',
-  name: 'name',
+  code: 'code',
   status: 'status',
   plannedStart: 'plannedStart',
   plannedEnd: 'plannedEnd',
@@ -4469,8 +4469,9 @@ export const NotificationDeliveryScalarFieldEnum = {
   personId: 'personId',
   adminUserId: 'adminUserId',
   target: 'target',
-  summary: 'summary',
-  message: 'message',
+  locale: 'locale',
+  templateKey: 'templateKey',
+  templateParams: 'templateParams',
   createdAt: 'createdAt',
   startedAt: 'startedAt',
   sentAt: 'sentAt',
@@ -4738,14 +4739,14 @@ export type ListEnumAdminRoleCodeFieldRefInput<$PrismaModel> = FieldRefInputType
  * Reference to a field of type 'BigInt'
  */
 export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
-
+    
 
 
 /**
  * Reference to a field of type 'BigInt[]'
  */
 export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
-
+    
 
 
 /**
@@ -5046,14 +5047,14 @@ export type ListEnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRe
  * Reference to a field of type 'AdminLoginMode'
  */
 export type EnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode'>
-
+    
 
 
 /**
  * Reference to a field of type 'AdminLoginMode[]'
  */
 export type ListEnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode[]'>
-
+    
 
 
 /**
@@ -5327,3 +5328,4 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
+

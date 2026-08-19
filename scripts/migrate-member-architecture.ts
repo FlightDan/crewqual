@@ -329,7 +329,7 @@ async function migrate() {
           update: {
             legacyPilotId: pilot.id,
             aircraftType: pilot.aircraftType,
-            dutyLabel: pilot.role,
+            dutyCode: pilot.roleCode,
             rankLabel: pilot.rankLabel,
           },
           create: {
@@ -337,7 +337,7 @@ async function migrate() {
             personId: person.id,
             legacyPilotId: pilot.id,
             aircraftType: pilot.aircraftType,
-            dutyLabel: pilot.role,
+            dutyCode: pilot.roleCode,
             rankLabel: pilot.rankLabel,
           },
         });

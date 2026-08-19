@@ -6,19 +6,21 @@ import { ApprovalDialog, CorrectionDialog, ReturnDialog } from "@/components/adm
 import { ReviewStatusBadge } from "@/components/admin/status-badges";
 import { Button } from "@/components/ui/button";
 import type { QualificationReview } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
 export function ReviewDecisionBar({ review }: { review: QualificationReview }) {
   const [correctionOpen, setCorrectionOpen] = React.useState(false);
   const [returnOpen, setReturnOpen] = React.useState(false);
   const [approvalOpen, setApprovalOpen] = React.useState(false);
+  const { t } = useI18n();
 
   if (review.humanStatus !== "pending") {
     return (
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-bold">此申请已处理</p>
-            <p className="mt-1 text-xs text-secondary">审核决策已锁定，当前仅可查看审计记录。</p>
+            <p className="text-sm font-bold">{t("review.processed")}</p>
+            <p className="mt-1 text-xs text-secondary">{t("review.locked")}</p>
           </div>
           <ReviewStatusBadge status={review.humanStatus} />
         </div>
@@ -34,16 +36,16 @@ export function ReviewDecisionBar({ review }: { review: QualificationReview }) {
       >
         <Button type="button" variant="secondary" onClick={() => setCorrectionOpen(true)}>
           <Edit3 aria-hidden="true" className="size-4" />
-          <span className="hidden sm:inline">手动纠正</span>
-          <span className="sm:hidden">纠正</span>
+          <span className="hidden sm:inline">{t("review.correct")}</span>
+          <span className="sm:hidden">{t("review.correctShort")}</span>
         </Button>
         <Button type="button" variant="danger" onClick={() => setReturnOpen(true)}>
           <Undo2 aria-hidden="true" className="size-4" />
-          退回修改
+          {t("review.return")}
         </Button>
         <Button type="button" onClick={() => setApprovalOpen(true)}>
           <CheckCircle2 aria-hidden="true" className="size-4" />
-          审核通过
+          {t("review.approve")}
         </Button>
       </div>
       <CorrectionDialog

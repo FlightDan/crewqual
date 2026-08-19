@@ -16,6 +16,8 @@ import {
 import { calculateExpectedExpiry } from "@/lib/qualification-rules";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { QualificationReview } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 
 export function CorrectionDialog({
   review,
@@ -29,6 +31,9 @@ export function CorrectionDialog({
   onCompleted?: () => void;
 }) {
   const { reviews } = useApplicationServices();
+  const { locale, t } = useI18n();
+  const displayError = (message?: string) =>
+    message && locale === "en-US" && /[一-龥]/.test(message) ? t("errors.validation") : message;
   const [serviceError, setServiceError] = React.useState("");
   const effectiveValues = React.useMemo(
     () => ({ ...review.submittedFields, ...review.corrections }),
@@ -77,69 +82,69 @@ export function CorrectionDialog({
       onOpenChange(false);
       onCompleted?.();
     } catch (error) {
-      setServiceError(error instanceof Error ? error.message : "保存失败，请稍后重试");
+      setServiceError(localizeError(error, t, "errors.remote"));
     }
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="text-lg font-bold">手动纠正信息</DialogTitle>
+        <DialogTitle className="text-lg font-bold">{t("reviewDialog.correctTitle")}</DialogTitle>
         <DialogDescription className="mt-1 text-sm text-secondary">
-          原提交值会保留在审核记录中；保存后字段标记为“已人工修正”。
+          {t("reviewDialog.correctDescription")}
         </DialogDescription>
         <form onSubmit={submit} className="mt-5 space-y-4" noValidate>
           {serviceError ? <Alert tone="danger">{serviceError}</Alert> : null}
           <Input
-            label="证件编号"
+            label={t("update.credentialNumber")}
             required
-            error={errors.credentialNumber?.message}
+            error={displayError(errors.credentialNumber?.message)}
             {...register("credentialNumber")}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <DateField
-              label="签发日期"
+              label={t("update.issueDate")}
               required
-              error={errors.issueDate?.message}
+              error={displayError(errors.issueDate?.message)}
               {...register("issueDate")}
             />
             {validityRule.kind === "fixed_months" &&
             validityRule.baseDateField === "trainingDate" ? (
               <DateField
-                label="培训日期"
+                label={t("update.trainingDate")}
                 required
-                error={errors.trainingDate?.message}
+                error={displayError(errors.trainingDate?.message)}
                 {...register("trainingDate")}
               />
             ) : null}
             {validityRule.kind !== "non_expiring" ? (
               <DateField
-                label="到期日期"
+                label={t("update.expiryDate")}
                 required
                 readOnly={validityRule.kind === "fixed_months"}
-                error={errors.expiryDate?.message}
+                error={displayError(errors.expiryDate?.message)}
                 {...register("expiryDate")}
               />
             ) : null}
           </div>
           <Input
-            label="签发机构"
+            label={t("update.issuingAuthority")}
             required
-            error={errors.issuingAuthority?.message}
+            error={displayError(errors.issuingAuthority?.message)}
             {...register("issuingAuthority")}
           />
           <Input
-            label="等级/参数"
+            label={t("update.levelParameter")}
             required
-            error={errors.levelOrParameter?.message}
+            error={displayError(errors.levelOrParameter?.message)}
             {...register("levelOrParameter")}
           />
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("reviewDialog.cancel")}
             </Button>
             <Button type="submit" disabled={!isDirty} loading={isSubmitting}>
-              保存人工纠正
+              {t("reviewDialog.saveCorrection")}
             </Button>
           </div>
         </form>
@@ -160,6 +165,7 @@ export function ApprovalDialog({
   onCompleted?: () => void;
 }) {
   const { reviews } = useApplicationServices();
+  const { t } = useI18n();
   const [confirmed, setConfirmed] = React.useState(false);
   const [note, setNote] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -182,7 +188,7 @@ export function ApprovalDialog({
       onOpenChange(false);
       onCompleted?.();
     } catch (error) {
-      setServiceError(error instanceof Error ? error.message : "审批失败，请稍后重试");
+      setServiceError(localizeError(error, t, "errors.remote"));
     } finally {
       setLoading(false);
     }
@@ -191,25 +197,25 @@ export function ApprovalDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle className="text-lg font-bold">确认审核通过</DialogTitle>
+        <DialogTitle className="text-lg font-bold">{t("reviewDialog.approveTitle")}</DialogTitle>
         <DialogDescription className="mt-1 text-sm leading-6 text-secondary">
-          通过后将以用户最终提交值与人工纠正值生成新的生效记录。AI 结果仅供参考。
+          {t("reviewDialog.approveDescription")}
         </DialogDescription>
         <div className="mt-5 space-y-4">
           {serviceError ? <Alert tone="danger">{serviceError}</Alert> : null}
           <Checkbox
-            label="已核对凭证与提交信息"
+            label={t("reviewDialog.confirmed")}
             checked={confirmed}
             onChange={(event) => setConfirmed(event.target.checked)}
           />
           <Textarea
-            label="审核备注（选填）"
+            label={t("reviewDialog.note")}
             value={note}
             onChange={(event) => setNote(event.target.value)}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("reviewDialog.cancel")}
             </Button>
             <Button
               type="button"
@@ -217,7 +223,7 @@ export function ApprovalDialog({
               loading={loading}
               onClick={() => void approve()}
             >
-              确认通过
+              {t("reviewDialog.confirmApprove")}
             </Button>
           </div>
         </div>
@@ -238,6 +244,7 @@ export function ReturnDialog({
   onCompleted?: () => void;
 }) {
   const { reviews } = useApplicationServices();
+  const { locale, t } = useI18n();
   const [reason, setReason] = React.useState("");
   const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -252,7 +259,8 @@ export function ReturnDialog({
   const submit = async () => {
     const validation = returnReasonSchema.safeParse(reason);
     if (!validation.success) {
-      setError(validation.error.issues[0]?.message ?? "请输入退回原因");
+      const message = validation.error.issues[0]?.message ?? t("reviewDialog.returnReason");
+      setError(locale === "en-US" && /[一-龥]/.test(message) ? t("errors.validation") : message);
       return;
     }
     setLoading(true);
@@ -265,7 +273,7 @@ export function ReturnDialog({
       onOpenChange(false);
       onCompleted?.();
     } catch (serviceError) {
-      setError(serviceError instanceof Error ? serviceError.message : "退回失败，请稍后重试");
+      setError(localizeError(serviceError, t, "errors.remote"));
     } finally {
       setLoading(false);
     }
@@ -274,25 +282,25 @@ export function ReturnDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle className="text-lg font-bold">退回修改</DialogTitle>
+        <DialogTitle className="text-lg font-bold">{t("reviewDialog.returnTitle")}</DialogTitle>
         <DialogDescription className="mt-1 text-sm text-secondary">
-          请输入清晰、可执行的退回原因，系统将按配置发送通知。
+          {t("reviewDialog.returnDescription")}
         </DialogDescription>
         <div className="mt-5 space-y-4">
           <Textarea
-            label="退回原因"
+            label={t("reviewDialog.returnReason")}
             required
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             error={error}
-            placeholder="至少 5 个字符"
+            placeholder={t("reviewDialog.returnPlaceholder")}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-              取消
+              {t("reviewDialog.cancel")}
             </Button>
             <Button type="button" variant="danger" loading={loading} onClick={() => void submit()}>
-              确认退回
+              {t("reviewDialog.confirmReturn")}
             </Button>
           </div>
         </div>

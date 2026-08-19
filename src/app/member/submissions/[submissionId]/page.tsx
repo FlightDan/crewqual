@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { SubmissionResult } from "@/components/pilot/submission-result";
+import { localizedTitle } from "@/lib/server-locale";
 
-export const metadata: Metadata = { title: "提交结果 · CrewQual" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${await localizedTitle("提交结果", "Submission result")} · CrewQual` };
+}
 
 export default async function MemberSubmissionResultPage({
   params,

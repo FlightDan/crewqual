@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { EmptyState, Skeleton } from "@/components/ui/misc";
 import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
+import { useI18n } from "@/components/i18n-provider";
 
 type MemberListItem = {
   id: string;
@@ -24,12 +25,6 @@ type MemberListItem = {
   health: "missing" | "expired" | "due" | "valid";
 };
 
-const healthLabels = {
-  missing: "有缺失",
-  expired: "有过期",
-  due: "90天内到期",
-  valid: "正常",
-} as const;
 const healthTones = {
   missing: "danger",
   expired: "danger",
@@ -39,6 +34,7 @@ const healthTones = {
 
 export function MemberDirectoryView({ positionCode }: { positionCode: string }) {
   const state = useAdminState();
+  const { t } = useI18n();
   const remoteMode = isRemoteServiceMode();
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState("all");
@@ -80,7 +76,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
               displayName: pilot.displayName,
               initials: pilot.initials,
               active: pilot.active,
-              primaryPosition: { code: "PILOT", name: "飞行员" },
+              primaryPosition: { code: "PILOT", name: t("portal.pilot") },
               qualificationCounts: {
                 missing: 0,
                 expired,
@@ -110,37 +106,39 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
     return () => {
       active = false;
     };
-  }, [positionCode, query, remoteMode, revision, state, status]);
+  }, [positionCode, query, remoteMode, revision, state, status, t]);
 
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title={`${positionCode === "PILOT" ? "飞行员" : positionCode}成员`}
-        description="新增、批量导入和筛选成员；资质状态由职位要求与正式记录计算。"
+        title={t("members.positionMembersTitle", {
+          position: positionCode === "PILOT" ? t("portal.pilot") : positionCode,
+        })}
+        description={t("members.positionDescription")}
         action={<PilotManagementActions onCompleted={() => setRevision((value) => value + 1)} />}
       />
       <Card className="grid gap-3 p-3 shadow-none md:grid-cols-[minmax(0,1fr)_180px]">
         <Input
-          aria-label="搜索成员"
-          placeholder="搜索姓名、员工号..."
+          aria-label={t("members.search")}
+          placeholder={t("members.searchPlaceholder")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
         <Select
-          aria-label="成员状态"
+          aria-label={t("members.status")}
           value={status}
           onChange={(event) => setStatus(event.target.value)}
           options={[
-            { label: "全部状态", value: "all" },
-            { label: "启用", value: "active" },
-            { label: "停用", value: "inactive" },
+            { label: t("members.allStatus"), value: "all" },
+            { label: t("members.active"), value: "active" },
+            { label: t("members.inactive"), value: "inactive" },
           ]}
         />
       </Card>
       {!items ? (
         <Skeleton className="h-72" />
       ) : !items.length ? (
-        <EmptyState title="当前职位没有成员" description="可以新增成员或导入 CSV。" />
+        <EmptyState title={t("members.noMembers")} description={t("members.addOrImport")} />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-lg border border-border bg-card lg:block">
@@ -148,15 +146,15 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
               <thead className="bg-slate-50 text-xs text-secondary">
                 <tr>
                   {[
-                    "员工号",
-                    "姓名",
-                    "主职",
-                    "状态",
-                    "资质合规",
-                    "缺失",
-                    "过期",
-                    "90天内",
-                    "操作",
+                    t("members.employeeNumber"),
+                    t("members.name"),
+                    t("members.primaryPosition"),
+                    t("members.status"),
+                    t("members.health"),
+                    t("members.missingShort"),
+                    t("members.expiredShort"),
+                    t("members.dueShort"),
+                    t("members.actions"),
                   ].map((heading) => (
                     <th key={heading} className="px-4 py-3 font-semibold">
                       {heading}
@@ -174,11 +172,13 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
                     </td>
                     <td className="px-4 py-3">
                       <Badge tone={member.active ? "success" : "neutral"}>
-                        {member.active ? "启用" : "停用"}
+                        {member.active ? t("members.active") : t("members.inactive")}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge tone={healthTones[member.health]}>{healthLabels[member.health]}</Badge>
+                      <Badge tone={healthTones[member.health]}>
+                        {t(`members.health.${member.health}`)}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">{member.qualificationCounts.missing}</td>
                     <td className="px-4 py-3">{member.qualificationCounts.expired}</td>
@@ -188,7 +188,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
                         href={`/admin/members/${member.id}`}
                         className="font-semibold text-brand"
                       >
-                        查看详情
+                        {t("members.viewDetails")}
                       </Link>
                     </td>
                   </tr>
@@ -210,7 +210,9 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
                         {member.employeeNumber} · {member.primaryPosition?.name ?? positionCode}
                       </p>
                     </div>
-                    <Badge tone={healthTones[member.health]}>{healthLabels[member.health]}</Badge>
+                    <Badge tone={healthTones[member.health]}>
+                      {t(`members.health.${member.health}`)}
+                    </Badge>
                   </div>
                 </Card>
               </Link>

@@ -136,11 +136,8 @@ export async function POST(
           eventKey: `upgrade-${action}:${id}:${visiblePlan.version}`,
           pilotId: visiblePlan.pilotId,
           type: action === "start" ? "upgrade_created" : "upgrade_resumed",
-          summary:
-            action === "start"
-              ? `升级计划已启动：${visiblePlan.title}`
-              : `升级计划已恢复：${visiblePlan.title}`,
-          message: "升级计划状态已变更，请查看最新计划安排。",
+          templateKey: action === "start" ? "upgrade.plan.started" : "upgrade.plan.resumed",
+          templateParams: { planTitle: visiblePlan.title },
         });
       }
       return tx.upgradePlan.findUnique({

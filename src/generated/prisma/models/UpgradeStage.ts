@@ -40,7 +40,7 @@ export type UpgradeStageMinAggregateOutputType = {
   id: string | null
   planId: string | null
   order: number | null
-  name: string | null
+  code: string | null
   status: $Enums.UpgradeStageStatus | null
   plannedStart: Date | null
   plannedEnd: Date | null
@@ -55,7 +55,7 @@ export type UpgradeStageMaxAggregateOutputType = {
   id: string | null
   planId: string | null
   order: number | null
-  name: string | null
+  code: string | null
   status: $Enums.UpgradeStageStatus | null
   plannedStart: Date | null
   plannedEnd: Date | null
@@ -70,7 +70,7 @@ export type UpgradeStageCountAggregateOutputType = {
   id: number
   planId: number
   order: number
-  name: number
+  code: number
   status: number
   plannedStart: number
   plannedEnd: number
@@ -97,7 +97,7 @@ export type UpgradeStageMinAggregateInputType = {
   id?: true
   planId?: true
   order?: true
-  name?: true
+  code?: true
   status?: true
   plannedStart?: true
   plannedEnd?: true
@@ -112,7 +112,7 @@ export type UpgradeStageMaxAggregateInputType = {
   id?: true
   planId?: true
   order?: true
-  name?: true
+  code?: true
   status?: true
   plannedStart?: true
   plannedEnd?: true
@@ -127,7 +127,7 @@ export type UpgradeStageCountAggregateInputType = {
   id?: true
   planId?: true
   order?: true
-  name?: true
+  code?: true
   status?: true
   plannedStart?: true
   plannedEnd?: true
@@ -229,7 +229,7 @@ export type UpgradeStageGroupByOutputType = {
   id: string
   planId: string
   order: number
-  name: string
+  code: string
   status: $Enums.UpgradeStageStatus
   plannedStart: Date
   plannedEnd: Date
@@ -267,7 +267,7 @@ export type UpgradeStageWhereInput = {
   id?: Prisma.UuidFilter<"UpgradeStage"> | string
   planId?: Prisma.UuidFilter<"UpgradeStage"> | string
   order?: Prisma.IntFilter<"UpgradeStage"> | number
-  name?: Prisma.StringFilter<"UpgradeStage"> | string
+  code?: Prisma.StringFilter<"UpgradeStage"> | string
   status?: Prisma.EnumUpgradeStageStatusFilter<"UpgradeStage"> | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
   plannedEnd?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
@@ -284,7 +284,7 @@ export type UpgradeStageOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
   order?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  code?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plannedStart?: Prisma.SortOrder
   plannedEnd?: Prisma.SortOrder
@@ -300,12 +300,13 @@ export type UpgradeStageOrderByWithRelationInput = {
 export type UpgradeStageWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   planId_order?: Prisma.UpgradeStagePlanIdOrderCompoundUniqueInput
+  planId_code?: Prisma.UpgradeStagePlanIdCodeCompoundUniqueInput
   AND?: Prisma.UpgradeStageWhereInput | Prisma.UpgradeStageWhereInput[]
   OR?: Prisma.UpgradeStageWhereInput[]
   NOT?: Prisma.UpgradeStageWhereInput | Prisma.UpgradeStageWhereInput[]
   planId?: Prisma.UuidFilter<"UpgradeStage"> | string
   order?: Prisma.IntFilter<"UpgradeStage"> | number
-  name?: Prisma.StringFilter<"UpgradeStage"> | string
+  code?: Prisma.StringFilter<"UpgradeStage"> | string
   status?: Prisma.EnumUpgradeStageStatusFilter<"UpgradeStage"> | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
   plannedEnd?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
@@ -316,13 +317,13 @@ export type UpgradeStageWhereUniqueInput = Prisma.AtLeast<{
   delayDays?: Prisma.IntNullableFilter<"UpgradeStage"> | number | null
   plan?: Prisma.XOR<Prisma.UpgradePlanScalarRelationFilter, Prisma.UpgradePlanWhereInput>
   inspectionItems?: Prisma.UpgradePlanInspectionItemListRelationFilter
-}, "id" | "planId_order">
+}, "id" | "planId_order" | "planId_code">
 
 export type UpgradeStageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
   order?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  code?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plannedStart?: Prisma.SortOrder
   plannedEnd?: Prisma.SortOrder
@@ -345,7 +346,7 @@ export type UpgradeStageScalarWhereWithAggregatesInput = {
   id?: Prisma.UuidWithAggregatesFilter<"UpgradeStage"> | string
   planId?: Prisma.UuidWithAggregatesFilter<"UpgradeStage"> | string
   order?: Prisma.IntWithAggregatesFilter<"UpgradeStage"> | number
-  name?: Prisma.StringWithAggregatesFilter<"UpgradeStage"> | string
+  code?: Prisma.StringWithAggregatesFilter<"UpgradeStage"> | string
   status?: Prisma.EnumUpgradeStageStatusWithAggregatesFilter<"UpgradeStage"> | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeWithAggregatesFilter<"UpgradeStage"> | Date | string
   plannedEnd?: Prisma.DateTimeWithAggregatesFilter<"UpgradeStage"> | Date | string
@@ -359,7 +360,7 @@ export type UpgradeStageScalarWhereWithAggregatesInput = {
 export type UpgradeStageCreateInput = {
   id?: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -376,7 +377,7 @@ export type UpgradeStageUncheckedCreateInput = {
   id?: string
   planId: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -391,7 +392,7 @@ export type UpgradeStageUncheckedCreateInput = {
 export type UpgradeStageUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -408,7 +409,7 @@ export type UpgradeStageUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   planId?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -424,7 +425,7 @@ export type UpgradeStageCreateManyInput = {
   id?: string
   planId: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -438,7 +439,7 @@ export type UpgradeStageCreateManyInput = {
 export type UpgradeStageUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -453,7 +454,7 @@ export type UpgradeStageUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   planId?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -479,11 +480,16 @@ export type UpgradeStagePlanIdOrderCompoundUniqueInput = {
   order: number
 }
 
+export type UpgradeStagePlanIdCodeCompoundUniqueInput = {
+  planId: string
+  code: string
+}
+
 export type UpgradeStageCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
   order?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  code?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plannedStart?: Prisma.SortOrder
   plannedEnd?: Prisma.SortOrder
@@ -503,7 +509,7 @@ export type UpgradeStageMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
   order?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  code?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plannedStart?: Prisma.SortOrder
   plannedEnd?: Prisma.SortOrder
@@ -518,7 +524,7 @@ export type UpgradeStageMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   planId?: Prisma.SortOrder
   order?: Prisma.SortOrder
-  name?: Prisma.SortOrder
+  code?: Prisma.SortOrder
   status?: Prisma.SortOrder
   plannedStart?: Prisma.SortOrder
   plannedEnd?: Prisma.SortOrder
@@ -602,7 +608,7 @@ export type UpgradeStageUpdateOneRequiredWithoutInspectionItemsNestedInput = {
 export type UpgradeStageCreateWithoutPlanInput = {
   id?: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -617,7 +623,7 @@ export type UpgradeStageCreateWithoutPlanInput = {
 export type UpgradeStageUncheckedCreateWithoutPlanInput = {
   id?: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -662,7 +668,7 @@ export type UpgradeStageScalarWhereInput = {
   id?: Prisma.UuidFilter<"UpgradeStage"> | string
   planId?: Prisma.UuidFilter<"UpgradeStage"> | string
   order?: Prisma.IntFilter<"UpgradeStage"> | number
-  name?: Prisma.StringFilter<"UpgradeStage"> | string
+  code?: Prisma.StringFilter<"UpgradeStage"> | string
   status?: Prisma.EnumUpgradeStageStatusFilter<"UpgradeStage"> | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
   plannedEnd?: Prisma.DateTimeFilter<"UpgradeStage"> | Date | string
@@ -676,7 +682,7 @@ export type UpgradeStageScalarWhereInput = {
 export type UpgradeStageCreateWithoutInspectionItemsInput = {
   id?: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -692,7 +698,7 @@ export type UpgradeStageUncheckedCreateWithoutInspectionItemsInput = {
   id?: string
   planId: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -722,7 +728,7 @@ export type UpgradeStageUpdateToOneWithWhereWithoutInspectionItemsInput = {
 export type UpgradeStageUpdateWithoutInspectionItemsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -738,7 +744,7 @@ export type UpgradeStageUncheckedUpdateWithoutInspectionItemsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   planId?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -752,7 +758,7 @@ export type UpgradeStageUncheckedUpdateWithoutInspectionItemsInput = {
 export type UpgradeStageCreateManyPlanInput = {
   id?: string
   order: number
-  name: string
+  code: string
   status?: $Enums.UpgradeStageStatus
   plannedStart: Date | string
   plannedEnd: Date | string
@@ -766,7 +772,7 @@ export type UpgradeStageCreateManyPlanInput = {
 export type UpgradeStageUpdateWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -781,7 +787,7 @@ export type UpgradeStageUpdateWithoutPlanInput = {
 export type UpgradeStageUncheckedUpdateWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -796,7 +802,7 @@ export type UpgradeStageUncheckedUpdateWithoutPlanInput = {
 export type UpgradeStageUncheckedUpdateManyWithoutPlanInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   order?: Prisma.IntFieldUpdateOperationsInput | number
-  name?: Prisma.StringFieldUpdateOperationsInput | string
+  code?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumUpgradeStageStatusFieldUpdateOperationsInput | $Enums.UpgradeStageStatus
   plannedStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plannedEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -842,7 +848,7 @@ export type UpgradeStageSelect<ExtArgs extends runtime.Types.Extensions.Internal
   id?: boolean
   planId?: boolean
   order?: boolean
-  name?: boolean
+  code?: boolean
   status?: boolean
   plannedStart?: boolean
   plannedEnd?: boolean
@@ -860,7 +866,7 @@ export type UpgradeStageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   id?: boolean
   planId?: boolean
   order?: boolean
-  name?: boolean
+  code?: boolean
   status?: boolean
   plannedStart?: boolean
   plannedEnd?: boolean
@@ -876,7 +882,7 @@ export type UpgradeStageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   id?: boolean
   planId?: boolean
   order?: boolean
-  name?: boolean
+  code?: boolean
   status?: boolean
   plannedStart?: boolean
   plannedEnd?: boolean
@@ -892,7 +898,7 @@ export type UpgradeStageSelectScalar = {
   id?: boolean
   planId?: boolean
   order?: boolean
-  name?: boolean
+  code?: boolean
   status?: boolean
   plannedStart?: boolean
   plannedEnd?: boolean
@@ -903,7 +909,7 @@ export type UpgradeStageSelectScalar = {
   delayDays?: boolean
 }
 
-export type UpgradeStageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "planId" | "order" | "name" | "status" | "plannedStart" | "plannedEnd" | "owner" | "notes" | "completedOn" | "resultSummary" | "delayDays", ExtArgs["result"]["upgradeStage"]>
+export type UpgradeStageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "planId" | "order" | "code" | "status" | "plannedStart" | "plannedEnd" | "owner" | "notes" | "completedOn" | "resultSummary" | "delayDays", ExtArgs["result"]["upgradeStage"]>
 export type UpgradeStageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   plan?: boolean | Prisma.UpgradePlanDefaultArgs<ExtArgs>
   inspectionItems?: boolean | Prisma.UpgradeStage$inspectionItemsArgs<ExtArgs>
@@ -926,7 +932,7 @@ export type $UpgradeStagePayload<ExtArgs extends runtime.Types.Extensions.Intern
     id: string
     planId: string
     order: number
-    name: string
+    code: string
     status: $Enums.UpgradeStageStatus
     plannedStart: Date
     plannedEnd: Date
@@ -1363,7 +1369,7 @@ export interface UpgradeStageFieldRefs {
   readonly id: Prisma.FieldRef<"UpgradeStage", 'String'>
   readonly planId: Prisma.FieldRef<"UpgradeStage", 'String'>
   readonly order: Prisma.FieldRef<"UpgradeStage", 'Int'>
-  readonly name: Prisma.FieldRef<"UpgradeStage", 'String'>
+  readonly code: Prisma.FieldRef<"UpgradeStage", 'String'>
   readonly status: Prisma.FieldRef<"UpgradeStage", 'UpgradeStageStatus'>
   readonly plannedStart: Prisma.FieldRef<"UpgradeStage", 'DateTime'>
   readonly plannedEnd: Prisma.FieldRef<"UpgradeStage", 'DateTime'>

@@ -30,6 +30,7 @@ import type {
   PaginatedResult,
 } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 function tone(status: NotificationDeliveryStatus) {
   return status === "sent"
@@ -59,6 +60,10 @@ export function NotificationLogView() {
   const mobile = useMobile();
   const { notifications } = useApplicationServices();
   const { hasPermission } = useAdminSession();
+  const { t } = useI18n();
+  const typeLabel = (value: string) => t(`notification.type.${value}`);
+  const channelLabel = (value: string) => t(`notification.channel.${value}`);
+  const deliveryLabel = (value: string) => t(`notification.delivery.${value}`);
   const canRetry = hasPermission("notifications.retry");
   const mockMode =
     process.env.NEXT_PUBLIC_SERVICE_MODE !== "remote" && process.env.NODE_ENV !== "production";
@@ -115,12 +120,12 @@ export function NotificationLogView() {
         }
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "通知日志加载失败");
+        if (active) setError(reason instanceof Error ? reason.message : t("common.systemError"));
       });
     return () => {
       active = false;
     };
-  }, [channel, from, notifications, page, q, state, status, to, type]);
+  }, [channel, from, notifications, page, q, state, status, t, to, type]);
   React.useEffect(() => {
     let active = true;
     if (!selectedId) {
@@ -135,12 +140,12 @@ export function NotificationLogView() {
         if (!response.data) update({ notification: null });
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "通知详情加载失败");
+        if (active) setError(reason instanceof Error ? reason.message : t("common.systemError"));
       });
     return () => {
       active = false;
     };
-  }, [notifications, selectedId, state, update]);
+  }, [notifications, selectedId, state, t, update]);
   const retry = async () => {
     if (!selected || loading) return;
     setLoading(true);
@@ -148,7 +153,7 @@ export function NotificationLogView() {
     try {
       await notifications.retry(selected.id, selected.version);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "通知重发失败");
+      setError(reason instanceof Error ? reason.message : t("common.systemError"));
     } finally {
       setLoading(false);
     }
@@ -156,77 +161,78 @@ export function NotificationLogView() {
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title="通知与预警记录日志"
-        description="记录来自数据库；外部渠道按当前适配器配置发送"
+        title={t("notification.title")}
+        description={t("notification.description")}
       />
-      <Alert tone="info">
-        “已发送”表示对应渠道适配器已确认发送；失败和重试过程会保留在审计记录中。
-      </Alert>
+      <Alert tone="info">{t("notification.sentInfo")}</Alert>
       {!summary ? (
         <Skeleton className="h-28" />
       ) : (
         <section className="grid grid-cols-3 gap-3">
           <DashboardStatCard
-            label="今日已发送"
+            label={t("notification.sentToday")}
             value={summary.sentToday}
-            note={mockMode ? "Mock 演示" : "数据库实时记录"}
+            note={mockMode ? t("notification.mockDemo") : t("notification.databaseLive")}
             tone="success"
           />
           <DashboardStatCard
-            label="今日失败"
+            label={t("notification.failedToday")}
             value={summary.failedToday}
-            note={mockMode ? "可 Mock 重发" : "支持按版本重试"}
+            note={mockMode ? t("notification.mockRetry") : t("notification.versionRetry")}
             tone="danger"
           />
           <DashboardStatCard
-            label="待发送队列"
+            label={t("notification.queued")}
             value={summary.queued}
-            note="含规则派生提醒"
+            note={t("notification.derivedReminder")}
             tone="warning"
           />
         </section>
       )}
       <Card className="grid gap-3 p-3 shadow-none md:grid-cols-2 xl:grid-cols-6">
         <Input
-          label="搜索"
-          placeholder="消息摘要、飞行员或员工号"
+          label={t("notification.search")}
+          placeholder={t("notification.searchPlaceholder")}
           value={q}
           onChange={(event) => update({ q: event.target.value })}
         />
         <Select
-          label="通知类型"
+          label={t("notification.type")}
           value={type}
           options={[
-            { label: "全部类型", value: "all" },
-            ...Object.entries(notificationTypeLabels).map(([value, label]) => ({ value, label })),
+            { label: t("notification.allTypes"), value: "all" },
+            ...Object.keys(notificationTypeLabels).map((value) => ({
+              value,
+              label: typeLabel(value),
+            })),
           ]}
           onChange={(event) => update({ type: event.target.value })}
         />
         <Select
-          label="渠道"
+          label={t("notification.channel")}
           value={channel}
           options={[
-            { label: "全部渠道", value: "all" },
-            ...Object.entries(channelLabels).map(([value, label]) => ({ value, label })),
+            { label: t("notification.allChannels"), value: "all" },
+            ...Object.keys(channelLabels).map((value) => ({ value, label: channelLabel(value) })),
           ]}
           onChange={(event) => update({ channel: event.target.value })}
         />
         <Select
-          label="状态"
+          label={t("notification.status")}
           value={status}
           options={[
-            { label: "全部状态", value: "all" },
-            ...Object.entries(deliveryLabels).map(([value, label]) => ({ value, label })),
+            { label: t("notification.allStatuses"), value: "all" },
+            ...Object.keys(deliveryLabels).map((value) => ({ value, label: deliveryLabel(value) })),
           ]}
           onChange={(event) => update({ status: event.target.value })}
         />
         <DateField
-          label="发送起始"
+          label={t("notification.from")}
           value={from}
           onChange={(event) => update({ from: event.target.value })}
         />
         <DateField
-          label="发送结束"
+          label={t("notification.to")}
           value={to}
           onChange={(event) => update({ to: event.target.value })}
         />
@@ -235,7 +241,10 @@ export function NotificationLogView() {
       {!result ? (
         <Skeleton className="h-96" />
       ) : !result.items.length ? (
-        <EmptyState title="没有符合条件的通知日志" description="请调整筛选条件。" />
+        <EmptyState
+          title={t("notification.noLogs")}
+          description={t("notification.adjustFilters")}
+        />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-lg border border-border bg-card lg:block">
@@ -243,13 +252,13 @@ export function NotificationLogView() {
               <thead className="bg-slate-50 text-xs text-secondary">
                 <tr>
                   {[
-                    "创建/发送时间",
-                    "通知类型",
-                    "渠道",
-                    "目标人员",
-                    "消息摘要",
-                    "状态",
-                    "操作",
+                    t("notification.createdSentAt"),
+                    t("notification.type"),
+                    t("notification.channel"),
+                    t("notification.targetPerson"),
+                    t("notification.summary"),
+                    t("notification.status"),
+                    t("notification.actions"),
                   ].map((heading) => (
                     <th key={heading} scope="col" className="px-3 py-3 font-semibold">
                       {heading}
@@ -261,9 +270,9 @@ export function NotificationLogView() {
                 {result.items.map((log) => (
                   <tr key={log.id} className="border-t border-border">
                     <td className="px-3 py-3 text-xs">{log.sentAt ?? log.createdAt}</td>
-                    <td className="px-3 py-3 font-semibold">{notificationTypeLabels[log.type]}</td>
+                    <td className="px-3 py-3 font-semibold">{typeLabel(log.type)}</td>
                     <td className="px-3 py-3">
-                      <Badge tone="info">{channelLabels[log.channel]}</Badge>
+                      <Badge tone="info">{channelLabel(log.channel)}</Badge>
                     </td>
                     <td className="px-3 py-3">
                       {log.pilotName}
@@ -271,7 +280,7 @@ export function NotificationLogView() {
                     </td>
                     <td className="max-w-md truncate px-3 py-3 text-secondary">{log.summary}</td>
                     <td className="px-3 py-3">
-                      <Badge tone={tone(log.status)}>{deliveryLabels[log.status]}</Badge>
+                      <Badge tone={tone(log.status)}>{deliveryLabel(log.status)}</Badge>
                     </td>
                     <td className="px-3 py-3">
                       <button
@@ -279,7 +288,7 @@ export function NotificationLogView() {
                         onClick={() => update({ notification: log.id })}
                         className="font-semibold text-brand"
                       >
-                        详情
+                        {t("notification.details")}
                       </button>
                     </td>
                   </tr>
@@ -297,14 +306,14 @@ export function NotificationLogView() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-xs text-muted">{log.sentAt ?? log.createdAt}</span>
-                  <Badge tone={tone(log.status)}>{deliveryLabels[log.status]}</Badge>
+                  <Badge tone={tone(log.status)}>{deliveryLabel(log.status)}</Badge>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <p className="font-bold">{log.pilotName}</p>
-                  <Badge tone="info">{notificationTypeLabels[log.type]}</Badge>
+                  <Badge tone="info">{typeLabel(log.type)}</Badge>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-secondary">{log.summary}</p>
-                <p className="mt-2 text-[11px] text-muted">{channelLabels[log.channel]}</p>
+                <p className="mt-2 text-[11px] text-muted">{channelLabel(log.channel)}</p>
               </button>
             ))}
           </div>
@@ -322,9 +331,11 @@ export function NotificationLogView() {
           onOpenChange={(open) => !open && update({ notification: null })}
         >
           <DialogContent className="max-w-2xl">
-            <DialogTitle className="text-lg font-bold">通知日志详情</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {t("notification.detailsTitle")}
+            </DialogTitle>
             <DialogDescription className="mt-1 text-sm text-muted">
-              完整脱敏消息与不可覆盖的尝试历史
+              {t("notification.detailsDescription")}
             </DialogDescription>
             {selected ? (
               <NotificationDetail
@@ -346,9 +357,11 @@ export function NotificationLogView() {
             side="right"
             className="w-[min(24rem,calc(100vw-1rem))] overflow-y-auto p-4"
           >
-            <DrawerTitle className="text-base font-bold">通知日志详情</DrawerTitle>
+            <DrawerTitle className="text-base font-bold">
+              {t("notification.detailsTitle")}
+            </DrawerTitle>
             <DrawerDescription className="mt-1 text-xs text-muted">
-              完整详情与尝试历史
+              {t("notification.detailsShort")}
             </DrawerDescription>
             {selected ? (
               <NotificationDetail
@@ -379,32 +392,38 @@ function NotificationDetail({
   onRetry: () => void;
   canRetry: boolean;
 }) {
+  const { t } = useI18n();
+  const typeLabel = (value: string) => t(`notification.type.${value}`);
+  const channelLabel = (value: string) => t(`notification.channel.${value}`);
+  const deliveryLabel = (value: string) => t(`notification.delivery.${value}`);
   return (
     <div className="mt-5 space-y-4">
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <div className="flex flex-wrap gap-2">
-        <Badge tone="info">{notificationTypeLabels[log.type]}</Badge>
-        <Badge tone={tone(log.status)}>{deliveryLabels[log.status]}</Badge>
-        <Badge tone="neutral">{channelLabels[log.channel]}</Badge>
+        <Badge tone="info">{typeLabel(log.type)}</Badge>
+        <Badge tone={tone(log.status)}>{deliveryLabel(log.status)}</Badge>
+        <Badge tone="neutral">{channelLabel(log.channel)}</Badge>
       </div>
       <dl className="grid grid-cols-[88px_1fr] gap-3 text-sm">
-        <dt className="text-muted">目标</dt>
+        <dt className="text-muted">{t("notification.target")}</dt>
         <dd>{log.target}</dd>
-        <dt className="text-muted">创建时间</dt>
+        <dt className="text-muted">{t("notification.createdAt")}</dt>
         <dd>{log.createdAt}</dd>
-        <dt className="text-muted">发送时间</dt>
-        <dd>{log.sentAt ?? "尚未发送"}</dd>
-        <dt className="text-muted">消息摘要</dt>
+        <dt className="text-muted">{t("notification.sentAt")}</dt>
+        <dd>{log.sentAt ?? t("notification.notSent")}</dd>
+        <dt className="text-muted">{t("notification.summary")}</dt>
         <dd className="font-semibold">{log.summary}</dd>
       </dl>
       <div className="rounded-md bg-slate-50 p-3 text-sm leading-6">{log.message}</div>
       <div>
-        <h4 className="text-sm font-bold">尝试历史（{log.attempts.length}）</h4>
+        <h4 className="text-sm font-bold">
+          {t("notification.attemptHistory", { count: log.attempts.length })}
+        </h4>
         {log.attempts.length ? (
           <ol className="mt-2 space-y-2">
             {log.attempts.map((attempt) => (
               <li key={attempt.id} className="border-l-2 border-blue-100 pl-3 text-xs">
-                <p className="font-semibold">{deliveryLabels[attempt.status]}</p>
+                <p className="font-semibold">{deliveryLabel(attempt.status)}</p>
                 <p className="mt-1 text-muted">
                   {attempt.attemptedAt} · {attempt.detail}
                 </p>
@@ -412,13 +431,13 @@ function NotificationDetail({
             ))}
           </ol>
         ) : (
-          <p className="mt-2 text-xs text-muted">尚无发送尝试</p>
+          <p className="mt-2 text-xs text-muted">{t("notification.noAttempts")}</p>
         )}
       </div>
       {log.status === "failed" && canRetry ? (
         <Button loading={loading} onClick={onRetry}>
           <RotateCcw className="size-4" />
-          {isRemoteServiceMode() ? "重新发送" : "Mock 重新发送"}
+          {isRemoteServiceMode() ? t("notification.resend") : t("notification.mockResend")}
         </Button>
       ) : null}
     </div>

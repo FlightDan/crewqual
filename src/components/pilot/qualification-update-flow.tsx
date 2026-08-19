@@ -29,6 +29,8 @@ import { qualificationDraftRepository } from "@/services/session-repository";
 import { cn } from "@/lib/utils";
 import { validateSourceImage } from "@/lib/image-processing";
 import { calculateExpectedExpiry } from "@/lib/qualification-rules";
+import { useI18n } from "@/components/i18n-provider";
+import { localizeError } from "@/lib/error-i18n";
 import type {
   DateCandidate,
   DateFieldName,
@@ -47,7 +49,10 @@ const demoFields: QualificationFormValues = {
   levelOrParameter: "合格（A级无限制）",
 };
 
-function initialScenarioState(scenario: PilotFlowScenario): DocumentAssistState {
+function initialScenarioState(
+  scenario: PilotFlowScenario,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): DocumentAssistState {
   const recognized = {
     kind: "recognized" as const,
     dates: { issueDate: "2026-01-09", expiryDate: "2026-10-09" },
@@ -67,21 +72,21 @@ function initialScenarioState(scenario: PilotFlowScenario): DocumentAssistState 
             field: "expiryDate",
             value: "2026-10-09",
             confidence: 0.94,
-            description: "可能为到期日期（第2段文字）",
+            description: t("update.candidate.expiry"),
           },
           {
             id: "c2",
             field: "expiryDate",
             value: "2026-09-09",
             confidence: 0.82,
-            description: "可能为签发补充日期（第1段文字）",
+            description: t("update.candidate.issueSupplement"),
           },
           {
             id: "c3",
             field: "expiryDate",
             value: "2027-01-09",
             confidence: 0.78,
-            description: "可能为续期日期（第3段文字）",
+            description: t("update.candidate.renewal"),
           },
         ],
       };
@@ -95,13 +100,13 @@ function initialScenarioState(scenario: PilotFlowScenario): DocumentAssistState 
           field: "expiryDate",
           value: "2026-09-09",
           confidence: 0.92,
-          description: "AI识别的到期日期",
+          description: t("update.candidate.aiExpiry"),
         },
       };
     case "mismatch":
       return {
         kind: "mismatch",
-        message: "到期日期与凭证信息可能存在差异",
+        message: t("update.mismatchMessage"),
         documentValue: "2026-09-09",
         formValue: "2026-10-09",
       };
@@ -130,6 +135,7 @@ export function QualificationUpdateFlow({
 }) {
   const portalPath = portal === "member" ? "/member" : "/pilot";
   const router = useRouter();
+  const { locale, t } = useI18n();
   const { documentIntelligence, evidenceImages, submissions } = useApplicationServices();
   const draftKey = qualification.id;
   const [document, setDocument] = React.useState(() => ({
@@ -214,7 +220,7 @@ export function QualificationUpdateFlow({
         size: 1_400_000,
         previewUrl: "",
       });
-      setAssist(initialScenarioState(scenario));
+      setAssist(initialScenarioState(scenario, t));
       setDateSources(
         scenario === "modified"
           ? { issueDate: "ai", expiryDate: "manual_modified" }
@@ -251,7 +257,7 @@ export function QualificationUpdateFlow({
         .then((result) => setDocument((current) => ({ ...current, previewUrl: result.data.url })))
         .catch(() => undefined);
     setDateSources(saved.dateSources);
-  }, [draftKey, evidenceImages, reset, scenario]);
+  }, [draftKey, evidenceImages, reset, scenario, t]);
 
   React.useEffect(() => {
     if (validityRule.kind === "non_expiring") {
@@ -305,7 +311,8 @@ export function QualificationUpdateFlow({
                 field,
                 value: state.dates[field]!,
                 confidence: state.confidence[field] ?? 0,
-                description: `AI识别的${field === "issueDate" ? "签发" : "到期"}日期`,
+                description:
+                  field === "issueDate" ? t("update.issueDate") : t("update.candidate.aiExpiry"),
               },
             };
           }
@@ -316,7 +323,7 @@ export function QualificationUpdateFlow({
       }
       setAssist(state);
     },
-    [dateSources, getValues, setValue],
+    [dateSources, getValues, setValue, t],
   );
 
   const runRecognition = React.useCallback(
@@ -372,7 +379,7 @@ export function QualificationUpdateFlow({
         scenario,
       );
     } catch {
-      setFileError("图片处理或上传失败，请重试");
+      setFileError(t("update.uploadError"));
     } finally {
       setUploading(false);
     }
@@ -414,7 +421,7 @@ export function QualificationUpdateFlow({
         }, 500);
       }
     } catch (reason) {
-      setFileError(reason instanceof Error ? reason.message : "提交失败，请稍后重试");
+      setFileError(localizeError(reason, t, "update.submitError"));
     } finally {
       setSubmitting(false);
     }
@@ -422,7 +429,7 @@ export function QualificationUpdateFlow({
 
   const submit = handleSubmit(async (formValues) => {
     if (!document.name) {
-      setFileError("请先上传凭证图片");
+      setFileError(t("update.uploadFirst"));
       return;
     }
     if (isAssistPending(assist)) {
@@ -459,10 +466,12 @@ export function QualificationUpdateFlow({
     ...(validityRule.kind === "non_expiring" ? [] : (["expiryDate"] as const)),
   ];
   const dateLabels: Record<DateFieldName, string> = {
-    issueDate: "签发日期",
-    trainingDate: "培训日期",
-    expiryDate: "到期日期",
+    issueDate: t("update.issueDate"),
+    trainingDate: t("update.trainingDate"),
+    expiryDate: t("update.expiryDate"),
   };
+  const displayError = (message?: string) =>
+    message && locale === "en-US" && /[一-龥]/.test(message) ? t("update.formInvalid") : message;
 
   return (
     <form onSubmit={submit} className="space-y-5 pb-24" noValidate>
@@ -505,13 +514,13 @@ export function QualificationUpdateFlow({
 
       <section className="space-y-4" aria-labelledby="manual-fields-title">
         <h2 id="manual-fields-title" className="text-[13px] font-bold text-secondary">
-          证照信息手动填写
+          {t("update.manualTitle")}
         </h2>
         <Input
-          label="证件编号"
+          label={t("update.credentialNumber")}
           required
-          placeholder="请输入证件编号"
-          error={errors.credentialNumber?.message}
+          placeholder={t("update.credentialPlaceholder")}
+          error={displayError(errors.credentialNumber?.message)}
           {...register("credentialNumber")}
         />
         {displayedDateFields.map((field) => (
@@ -543,7 +552,7 @@ export function QualificationUpdateFlow({
             </div>
             {errors[field] ? (
               <FieldHint id={`${field}-error`} error>
-                {errors[field]?.message}
+                {displayError(errors[field]?.message)}
               </FieldHint>
             ) : null}
             {assist.kind === "ambiguous" && assist.field === field ? (
@@ -557,17 +566,17 @@ export function QualificationUpdateFlow({
           </FormField>
         ))}
         <Input
-          label="签发机构"
+          label={t("update.issuingAuthority")}
           required
-          placeholder="请输入签发机构"
-          error={errors.issuingAuthority?.message}
+          placeholder={t("update.issuingPlaceholder")}
+          error={displayError(errors.issuingAuthority?.message)}
           {...register("issuingAuthority")}
         />
         <Input
-          label="等级/参数"
+          label={t("update.levelParameter")}
           required
-          placeholder="请输入等级/参数"
-          error={errors.levelOrParameter?.message}
+          placeholder={t("update.levelPlaceholder")}
+          error={displayError(errors.levelOrParameter?.message)}
           {...register("levelOrParameter")}
         />
       </section>
@@ -588,7 +597,7 @@ export function QualificationUpdateFlow({
           disabled={!canSubmit}
           loading={submitting}
         >
-          提交更新
+          {t("update.submitUpdate")}
         </Button>
       </div>
 

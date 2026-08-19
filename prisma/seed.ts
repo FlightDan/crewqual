@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { loadEnvConfig } from "@next/env";
 import argon2 from "argon2";
-import { CORE_QUALIFICATION_CATALOG, UPGRADE_STAGE_NAMES } from "../src/types/services";
+import { CORE_QUALIFICATION_CATALOG, UPGRADE_STAGE_CODES } from "../src/types/services";
 import {
   ADMIN_PERMISSION_CODES,
   ROLE_PERMISSION_CODES,
@@ -144,7 +144,7 @@ async function main() {
       mobile: "13800138000",
       displayName: "陈昊",
       initials: "CH",
-      role: "机长",
+      roleCode: "CAPTAIN",
       aircraftType: "A320",
       rankLabel: "机长",
       unitId: unit.id,
@@ -155,7 +155,7 @@ async function main() {
       mobile: "13800138000",
       displayName: "陈昊",
       initials: "CH",
-      role: "机长",
+      roleCode: "CAPTAIN",
       aircraftType: "A320",
       rankLabel: "机长",
       unitId: unit.id,
@@ -216,11 +216,11 @@ async function main() {
       supplementalRequirements: ["完成六项核心节点"],
     },
   });
-  for (const [order, name] of UPGRADE_STAGE_NAMES.entries()) {
+  for (const [order, code] of UPGRADE_STAGE_CODES.entries()) {
     await prisma.upgradeStage.upsert({
       where: { planId_order: { planId: plan.id, order } },
       update: {
-        name,
+        code,
         status: order === 0 ? "IN_PROGRESS" : order === 1 ? "SCHEDULED" : "NOT_STARTED",
         plannedStart: new Date(
           `2026-${String(8 + Math.floor(order / 2)).padStart(2, "0")}-01T00:00:00.000Z`,
@@ -234,7 +234,7 @@ async function main() {
       create: {
         planId: plan.id,
         order,
-        name,
+        code,
         status: order === 0 ? "IN_PROGRESS" : order === 1 ? "SCHEDULED" : "NOT_STARTED",
         plannedStart: new Date(
           `2026-${String(8 + Math.floor(order / 2)).padStart(2, "0")}-01T00:00:00.000Z`,

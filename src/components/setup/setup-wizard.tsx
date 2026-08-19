@@ -34,6 +34,7 @@ import { Switch } from "@/components/ui/choice";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { setupCopy } from "@/lib/setup-i18n";
+import { LOCALE_COOKIE } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 import type {
   SetupCompleteInput,
@@ -333,8 +334,8 @@ function WelcomeStep({
             label={copy.welcome.locale}
             value={locale}
             options={[
-              { label: "简体中文", value: "zh-CN" },
-              { label: "English", value: "en-US" },
+              { label: setupCopy["zh-CN"].languageName, value: "zh-CN" },
+              { label: setupCopy["en-US"].languageName, value: "en-US" },
             ]}
             onChange={(event) => onLocale(event.target.value as SetupLocale)}
           />
@@ -732,7 +733,7 @@ function BackupStep({
   const copy = setupCopy[locale];
   const [advanced, setAdvanced] = React.useState(false);
   const typeOptions = [
-    { label: locale === "zh-CN" ? "本地存储" : "Local storage", value: "LOCAL" },
+    { label: copy.backup.localType, value: "LOCAL" },
     { label: "SMB", value: "SMB" },
     { label: "FTP / FTPS", value: "FTP" },
     { label: "WebDAV", value: "WEBDAV" },
@@ -1207,9 +1208,7 @@ function ReviewStep({
           </SummaryRow>
         </SummarySection>
         <SummarySection title={copy.review.system} step={1} onEdit={onEdit} locale={locale}>
-          <SummaryRow label={copy.review.locale}>
-            {locale === "zh-CN" ? "简体中文" : "English"}
-          </SummaryRow>
+          <SummaryRow label={copy.review.locale}>{setupCopy[locale].languageName}</SummaryRow>
           <SummaryRow label={copy.review.timezone}>{timezone}</SummaryRow>
           <SummaryRow label={copy.review.organization}>
             {organizationName || "CrewQual Organization"}
@@ -1329,7 +1328,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
   const [selectedTemplates, setSelectedTemplates] = React.useState<Set<string>>(new Set());
   const [backup, setBackup] = React.useState<SetupCompleteInput["backup"]>({
     enabled: true,
-    targetName: locale === "zh-CN" ? "本地默认备份目录" : "Default local backup",
+    targetName: setupCopy[initialOverview.defaults.locale].backup.defaultTargetName,
     targetType: "LOCAL",
     endpoint: "/backups",
     basePath: "crewqual",
@@ -1355,6 +1354,8 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
 
   React.useEffect(() => {
     document.documentElement.lang = locale;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${LOCALE_COOKIE}=${encodeURIComponent(locale)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
   }, [locale]);
 
   const updateAdmin = (patch: Partial<typeof admin>) => {
@@ -1467,11 +1468,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         const ok = backup.targetType !== "LOCAL" || backup.endpoint.startsWith("/backups");
         setBackupResult({
           ok,
-          message: ok
-            ? copy.backup.valid
-            : locale === "zh-CN"
-              ? "本地备份必须使用 /backups 目录"
-              : "Local backups must use the /backups directory",
+          message: ok ? copy.backup.valid : copy.backup.localPathError,
         });
       } else {
         setBackupResult(

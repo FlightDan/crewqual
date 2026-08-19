@@ -29,7 +29,7 @@ export type PilotProfileMinAggregateOutputType = {
   personId: string | null
   legacyPilotId: string | null
   aircraftType: string | null
-  dutyLabel: string | null
+  dutyCode: string | null
   rankLabel: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -40,7 +40,7 @@ export type PilotProfileMaxAggregateOutputType = {
   personId: string | null
   legacyPilotId: string | null
   aircraftType: string | null
-  dutyLabel: string | null
+  dutyCode: string | null
   rankLabel: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -51,7 +51,7 @@ export type PilotProfileCountAggregateOutputType = {
   personId: number
   legacyPilotId: number
   aircraftType: number
-  dutyLabel: number
+  dutyCode: number
   rankLabel: number
   createdAt: number
   updatedAt: number
@@ -64,7 +64,7 @@ export type PilotProfileMinAggregateInputType = {
   personId?: true
   legacyPilotId?: true
   aircraftType?: true
-  dutyLabel?: true
+  dutyCode?: true
   rankLabel?: true
   createdAt?: true
   updatedAt?: true
@@ -75,7 +75,7 @@ export type PilotProfileMaxAggregateInputType = {
   personId?: true
   legacyPilotId?: true
   aircraftType?: true
-  dutyLabel?: true
+  dutyCode?: true
   rankLabel?: true
   createdAt?: true
   updatedAt?: true
@@ -86,7 +86,7 @@ export type PilotProfileCountAggregateInputType = {
   personId?: true
   legacyPilotId?: true
   aircraftType?: true
-  dutyLabel?: true
+  dutyCode?: true
   rankLabel?: true
   createdAt?: true
   updatedAt?: true
@@ -170,7 +170,7 @@ export type PilotProfileGroupByOutputType = {
   personId: string
   legacyPilotId: string | null
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt: Date
   updatedAt: Date
@@ -202,7 +202,7 @@ export type PilotProfileWhereInput = {
   personId?: Prisma.UuidFilter<"PilotProfile"> | string
   legacyPilotId?: Prisma.UuidNullableFilter<"PilotProfile"> | string | null
   aircraftType?: Prisma.StringFilter<"PilotProfile"> | string
-  dutyLabel?: Prisma.StringFilter<"PilotProfile"> | string
+  dutyCode?: Prisma.StringFilter<"PilotProfile"> | string
   rankLabel?: Prisma.StringFilter<"PilotProfile"> | string
   createdAt?: Prisma.DateTimeFilter<"PilotProfile"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PilotProfile"> | Date | string
@@ -215,7 +215,7 @@ export type PilotProfileOrderByWithRelationInput = {
   personId?: Prisma.SortOrder
   legacyPilotId?: Prisma.SortOrderInput | Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
-  dutyLabel?: Prisma.SortOrder
+  dutyCode?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -231,7 +231,7 @@ export type PilotProfileWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.PilotProfileWhereInput[]
   NOT?: Prisma.PilotProfileWhereInput | Prisma.PilotProfileWhereInput[]
   aircraftType?: Prisma.StringFilter<"PilotProfile"> | string
-  dutyLabel?: Prisma.StringFilter<"PilotProfile"> | string
+  dutyCode?: Prisma.StringFilter<"PilotProfile"> | string
   rankLabel?: Prisma.StringFilter<"PilotProfile"> | string
   createdAt?: Prisma.DateTimeFilter<"PilotProfile"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"PilotProfile"> | Date | string
@@ -244,7 +244,7 @@ export type PilotProfileOrderByWithAggregationInput = {
   personId?: Prisma.SortOrder
   legacyPilotId?: Prisma.SortOrderInput | Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
-  dutyLabel?: Prisma.SortOrder
+  dutyCode?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -261,7 +261,7 @@ export type PilotProfileScalarWhereWithAggregatesInput = {
   personId?: Prisma.UuidWithAggregatesFilter<"PilotProfile"> | string
   legacyPilotId?: Prisma.UuidNullableWithAggregatesFilter<"PilotProfile"> | string | null
   aircraftType?: Prisma.StringWithAggregatesFilter<"PilotProfile"> | string
-  dutyLabel?: Prisma.StringWithAggregatesFilter<"PilotProfile"> | string
+  dutyCode?: Prisma.StringWithAggregatesFilter<"PilotProfile"> | string
   rankLabel?: Prisma.StringWithAggregatesFilter<"PilotProfile"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PilotProfile"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"PilotProfile"> | Date | string
@@ -270,7 +270,7 @@ export type PilotProfileScalarWhereWithAggregatesInput = {
 export type PilotProfileCreateInput = {
   id?: string
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -283,7 +283,7 @@ export type PilotProfileUncheckedCreateInput = {
   personId: string
   legacyPilotId?: string | null
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -292,7 +292,7 @@ export type PilotProfileUncheckedCreateInput = {
 export type PilotProfileUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -305,7 +305,7 @@ export type PilotProfileUncheckedUpdateInput = {
   personId?: Prisma.StringFieldUpdateOperationsInput | string
   legacyPilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -316,7 +316,7 @@ export type PilotProfileCreateManyInput = {
   personId: string
   legacyPilotId?: string | null
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -325,7 +325,7 @@ export type PilotProfileCreateManyInput = {
 export type PilotProfileUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -336,7 +336,7 @@ export type PilotProfileUncheckedUpdateManyInput = {
   personId?: Prisma.StringFieldUpdateOperationsInput | string
   legacyPilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -352,7 +352,7 @@ export type PilotProfileCountOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   legacyPilotId?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
-  dutyLabel?: Prisma.SortOrder
+  dutyCode?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -363,7 +363,7 @@ export type PilotProfileMaxOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   legacyPilotId?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
-  dutyLabel?: Prisma.SortOrder
+  dutyCode?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -374,7 +374,7 @@ export type PilotProfileMinOrderByAggregateInput = {
   personId?: Prisma.SortOrder
   legacyPilotId?: Prisma.SortOrder
   aircraftType?: Prisma.SortOrder
-  dutyLabel?: Prisma.SortOrder
+  dutyCode?: Prisma.SortOrder
   rankLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -447,7 +447,7 @@ export type PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput = {
 export type PilotProfileCreateWithoutPersonInput = {
   id?: string
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -458,7 +458,7 @@ export type PilotProfileUncheckedCreateWithoutPersonInput = {
   id?: string
   legacyPilotId?: string | null
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -483,7 +483,7 @@ export type PilotProfileUpdateToOneWithWhereWithoutPersonInput = {
 export type PilotProfileUpdateWithoutPersonInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -494,7 +494,7 @@ export type PilotProfileUncheckedUpdateWithoutPersonInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   legacyPilotId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -503,7 +503,7 @@ export type PilotProfileUncheckedUpdateWithoutPersonInput = {
 export type PilotProfileCreateWithoutLegacyPilotInput = {
   id?: string
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -514,7 +514,7 @@ export type PilotProfileUncheckedCreateWithoutLegacyPilotInput = {
   id?: string
   personId: string
   aircraftType: string
-  dutyLabel: string
+  dutyCode: string
   rankLabel: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -539,7 +539,7 @@ export type PilotProfileUpdateToOneWithWhereWithoutLegacyPilotInput = {
 export type PilotProfileUpdateWithoutLegacyPilotInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -550,7 +550,7 @@ export type PilotProfileUncheckedUpdateWithoutLegacyPilotInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   personId?: Prisma.StringFieldUpdateOperationsInput | string
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
-  dutyLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  dutyCode?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -563,7 +563,7 @@ export type PilotProfileSelect<ExtArgs extends runtime.Types.Extensions.Internal
   personId?: boolean
   legacyPilotId?: boolean
   aircraftType?: boolean
-  dutyLabel?: boolean
+  dutyCode?: boolean
   rankLabel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -576,7 +576,7 @@ export type PilotProfileSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   personId?: boolean
   legacyPilotId?: boolean
   aircraftType?: boolean
-  dutyLabel?: boolean
+  dutyCode?: boolean
   rankLabel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -589,7 +589,7 @@ export type PilotProfileSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   personId?: boolean
   legacyPilotId?: boolean
   aircraftType?: boolean
-  dutyLabel?: boolean
+  dutyCode?: boolean
   rankLabel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -602,13 +602,13 @@ export type PilotProfileSelectScalar = {
   personId?: boolean
   legacyPilotId?: boolean
   aircraftType?: boolean
-  dutyLabel?: boolean
+  dutyCode?: boolean
   rankLabel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PilotProfileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "personId" | "legacyPilotId" | "aircraftType" | "dutyLabel" | "rankLabel" | "createdAt" | "updatedAt", ExtArgs["result"]["pilotProfile"]>
+export type PilotProfileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "personId" | "legacyPilotId" | "aircraftType" | "dutyCode" | "rankLabel" | "createdAt" | "updatedAt", ExtArgs["result"]["pilotProfile"]>
 export type PilotProfileInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   person?: boolean | Prisma.PersonDefaultArgs<ExtArgs>
   legacyPilot?: boolean | Prisma.PilotProfile$legacyPilotArgs<ExtArgs>
@@ -633,7 +633,7 @@ export type $PilotProfilePayload<ExtArgs extends runtime.Types.Extensions.Intern
     personId: string
     legacyPilotId: string | null
     aircraftType: string
-    dutyLabel: string
+    dutyCode: string
     rankLabel: string
     createdAt: Date
     updatedAt: Date
@@ -1066,7 +1066,7 @@ export interface PilotProfileFieldRefs {
   readonly personId: Prisma.FieldRef<"PilotProfile", 'String'>
   readonly legacyPilotId: Prisma.FieldRef<"PilotProfile", 'String'>
   readonly aircraftType: Prisma.FieldRef<"PilotProfile", 'String'>
-  readonly dutyLabel: Prisma.FieldRef<"PilotProfile", 'String'>
+  readonly dutyCode: Prisma.FieldRef<"PilotProfile", 'String'>
   readonly rankLabel: Prisma.FieldRef<"PilotProfile", 'String'>
   readonly createdAt: Prisma.FieldRef<"PilotProfile", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"PilotProfile", 'DateTime'>

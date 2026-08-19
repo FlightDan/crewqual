@@ -4,6 +4,7 @@ import { AiResultBadge, ReviewStatusBadge } from "@/components/admin/status-badg
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { QualificationReview } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
 export function ResponsiveReviewList({
   reviews,
@@ -14,10 +15,11 @@ export function ResponsiveReviewList({
   showQuickApprove?: boolean;
   onQuickApprove?: (review: QualificationReview) => void;
 }) {
+  const { t } = useI18n();
   if (reviews.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-secondary">
-        当前筛选条件下暂无审核记录
+        {t("review.empty")}
       </div>
     );
   }
@@ -29,22 +31,22 @@ export function ResponsiveReviewList({
           <thead className="bg-slate-50 text-xs font-semibold text-secondary">
             <tr>
               <th scope="col" className="px-4 py-3">
-                飞行员
+                {t("review.pilot")}
               </th>
               <th scope="col" className="px-4 py-3">
-                资质名称
+                {t("review.qualification")}
               </th>
               <th scope="col" className="px-4 py-3">
-                提交时间
+                {t("review.submittedAt")}
               </th>
               <th scope="col" className="px-4 py-3">
-                AI 辅助结果
+                {t("review.aiResult")}
               </th>
               <th scope="col" className="px-4 py-3">
-                人工状态
+                {t("review.humanStatus")}
               </th>
               <th scope="col" className="px-4 py-3 text-right">
-                操作
+                {t("review.actions")}
               </th>
             </tr>
           </thead>
@@ -73,14 +75,16 @@ export function ResponsiveReviewList({
                       href={`/admin/reviews/${review.id}`}
                       className="inline-flex min-h-10 items-center justify-center rounded-md border border-border px-3 text-xs font-semibold text-primary hover:bg-slate-50"
                     >
-                      {review.humanStatus === "pending" ? "快速核对" : "查看详情"}
+                      {review.humanStatus === "pending"
+                        ? t("review.quickCheck")
+                        : t("review.viewDetails")}
                     </Link>
                     {showQuickApprove &&
                     review.humanStatus === "pending" &&
                     review.aiStatus === "matched" ? (
                       <Button size="sm" onClick={() => onQuickApprove?.(review)}>
                         <Zap aria-hidden="true" className="size-3.5" />
-                        快速批准
+                        {t("review.quickApprove")}
                       </Button>
                     ) : null}
                   </div>
@@ -106,26 +110,28 @@ export function ResponsiveReviewList({
             <p className="mt-3 text-sm font-medium text-secondary">{review.qualificationName}</p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <AiResultBadge status={review.aiStatus} />
-              <span className="text-[11px] text-muted">提交：{review.submittedAt}</span>
+              <span className="text-[11px] text-muted">
+                {t("review.submittedAt")}: {review.submittedAt}
+              </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Link
                 href={`/admin/reviews/${review.id}`}
                 className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-border text-sm font-semibold text-primary"
               >
-                {review.humanStatus === "pending" ? "审核" : "查看"}
+                {review.humanStatus === "pending" ? t("review.review") : t("review.view")}
                 <ArrowRight aria-hidden="true" className="size-4" />
               </Link>
               {showQuickApprove &&
               review.humanStatus === "pending" &&
               review.aiStatus === "matched" ? (
-                <Button onClick={() => onQuickApprove?.(review)}>快速批准</Button>
+                <Button onClick={() => onQuickApprove?.(review)}>{t("review.quickApprove")}</Button>
               ) : (
                 <Link
                   href={`/admin/pilots/${review.pilotId}`}
                   className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-secondary"
                 >
-                  飞行员档案
+                  {t("review.profile")}
                 </Link>
               )}
             </div>

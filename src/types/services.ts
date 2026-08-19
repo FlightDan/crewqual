@@ -1,3 +1,5 @@
+import type { PilotRoleCode, UpgradeStageCode } from "@/lib/domain-i18n";
+
 export type ServiceSource = "mock" | "remote" | "local-cache";
 export type ServiceResult<T> = { data: T; source: ServiceSource };
 
@@ -272,6 +274,8 @@ export const UPGRADE_STAGE_NAMES = [
   "实践考试",
 ] as const;
 
+export { UPGRADE_STAGE_CODES } from "@/lib/domain-i18n";
+export type { PilotRoleCode, UpgradeStageCode } from "@/lib/domain-i18n";
 export type UpgradeStageName = (typeof UPGRADE_STAGE_NAMES)[number];
 export type UpgradeStageStatus =
   "completed" | "in_progress" | "delayed" | "scheduled" | "not_started";
@@ -288,7 +292,8 @@ export type UpgradePlanLifecycleStatus =
 
 export type UpgradePlanStageRecord = {
   id: string;
-  name: UpgradeStageName;
+  code: UpgradeStageCode;
+  name: string;
   status: UpgradeStageStatus;
   plannedStart: string;
   plannedEnd: string;
@@ -391,7 +396,8 @@ export type AdminCalendarEvent = {
   planTitle?: string;
   planLifecycleStatus?: UpgradePlanLifecycleStatus;
   stageId?: string;
-  stageName?: UpgradeStageName;
+  stageCode?: UpgradeStageCode;
+  stageName?: string;
   stageStatus?: UpgradeStageStatus;
   owner?: string;
   notes?: string;
@@ -589,7 +595,7 @@ export type PilotManagementInput = {
   displayName: string;
   mobile: string;
   aircraftType: string;
-  role: PilotRole;
+  roleCode: PilotRoleCode;
   unitCode: string;
   rankCode: string;
 };
@@ -664,6 +670,7 @@ export type AdminPilotListItem = {
   displayName: string;
   initials: string;
   mobile: string;
+  roleCode: PilotRoleCode;
   role: string;
   aircraftType: string;
   unit: string;
@@ -683,7 +690,7 @@ export type AdminPilotEntity = {
   displayName: string;
   initials: string;
   mobile: string;
-  role: string;
+  roleCode: PilotRoleCode;
   aircraftType: string;
   unit: string;
   unitCode: string;

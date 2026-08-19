@@ -1,18 +1,24 @@
+"use client";
+
 import { UpgradeStageBadge } from "@/components/admin/status-badges";
 import { Card } from "@/components/ui/card";
 import type { UpgradePlan } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
 export function UpgradeStageTimeline({ plan }: { plan: UpgradePlan | null }) {
+  const { t } = useI18n();
   if (!plan) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-sm text-secondary">
-        当前无活动升级计划
+        {t("upgradeTimeline.none")}
       </div>
     );
   }
   return (
-    <section aria-label={`当前升级计划：${plan.title}`}>
-      <h3 className="mb-3 text-sm font-bold text-primary">当前升级计划摘要（{plan.title}）</h3>
+    <section aria-label={t("upgradeTimeline.aria", { title: plan.title })}>
+      <h3 className="mb-3 text-sm font-bold text-primary">
+        {t("upgradeTimeline.title", { title: plan.title })}
+      </h3>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {plan.stages.map((stage, index) => (
           <Card key={stage.name} className="relative p-4 shadow-none">
@@ -24,7 +30,7 @@ export function UpgradeStageTimeline({ plan }: { plan: UpgradePlan | null }) {
             </div>
             <p className="mt-2 text-xs leading-5 text-secondary">{stage.notes}</p>
             <p className="mt-1 text-[11px] text-muted">
-              计划周期：{stage.plannedStart} 至 {stage.plannedEnd}
+              {t("upgradeTimeline.period", { start: stage.plannedStart, end: stage.plannedEnd })}
             </p>
           </Card>
         ))}

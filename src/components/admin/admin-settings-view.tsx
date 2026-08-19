@@ -27,11 +27,12 @@ import { cn } from "@/lib/utils";
 import { adminSettingsService } from "@/services/admin-settings-service";
 import { useAdminSession } from "@/services/admin-session-provider";
 import type { AdminSettingsSnapshot, SettingsSectionId } from "@/types/admin-settings";
+import { useI18n } from "@/components/i18n-provider";
 
 type SectionDefinition = {
   id: SettingsSectionId;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
   icon: LucideIcon;
   superAdminOnly?: boolean;
 };
@@ -39,53 +40,53 @@ type SectionDefinition = {
 const sections: SectionDefinition[] = [
   {
     id: "organization",
-    label: "组织与单位",
-    description: "多单位、时区与联系人",
+    labelKey: "settings.section.organization",
+    descriptionKey: "settings.section.organizationDescription",
     icon: Building2,
   },
   {
     id: "positions",
-    label: "职位管理",
-    description: "职位、成员与资质入口",
+    labelKey: "settings.section.positions",
+    descriptionKey: "settings.section.positionsDescription",
     icon: Users,
   },
   {
     id: "admins",
-    label: "管理员与权限",
-    description: "账号、角色与会话",
+    labelKey: "settings.section.admins",
+    descriptionKey: "settings.section.adminsDescription",
     icon: Users,
     superAdminOnly: true,
   },
   {
     id: "notifications",
-    label: "通知设置",
-    description: "渠道、密钥与路由规则",
+    labelKey: "settings.section.notifications",
+    descriptionKey: "settings.section.notificationsDescription",
     icon: Bell,
   },
   {
     id: "ai",
-    label: "AI 与系统集成",
-    description: "AI/OCR 与运行状态",
+    labelKey: "settings.section.ai",
+    descriptionKey: "settings.section.aiDescription",
     icon: Bot,
     superAdminOnly: true,
   },
   {
     id: "security",
-    label: "安全与审计",
-    description: "策略、会话与变更记录",
+    labelKey: "settings.section.security",
+    descriptionKey: "settings.section.securityDescription",
     icon: ShieldCheck,
   },
   {
     id: "media",
-    label: "图库优化",
-    description: "AVIF 无损压缩与后台任务",
+    labelKey: "settings.section.media",
+    descriptionKey: "settings.section.mediaDescription",
     icon: ImageDown,
     superAdminOnly: true,
   },
   {
     id: "backups",
-    label: "备份与恢复",
-    description: "目标、计划与运行记录",
+    labelKey: "settings.section.backups",
+    descriptionKey: "settings.section.backupsDescription",
     icon: ShieldCheck,
     superAdminOnly: true,
   },
@@ -103,6 +104,7 @@ function sectionFromLocation(available: SectionDefinition[]) {
 
 export function AdminSettingsView() {
   const { session, hasPermission, isSuperAdmin } = useAdminSession();
+  const { t } = useI18n();
   const availableSections = React.useMemo(
     () => sections.filter((item) => !item.superAdminOnly || isSuperAdmin),
     [isSuperAdmin],
@@ -128,11 +130,11 @@ export function AdminSettingsView() {
       const data = await adminSettingsService.load();
       setSnapshot({ ...data, positions: data.positions ?? [] });
     } catch (reason) {
-      setLoadError(reason instanceof Error ? reason.message : "系统设置加载失败");
+      setLoadError(reason instanceof Error ? reason.message : t("settings.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   React.useEffect(() => {
     setActiveSection(sectionFromLocation(availableSections));
@@ -159,37 +161,38 @@ export function AdminSettingsView() {
   return (
     <PageContainer className="space-y-6">
       <AdminPageHeader
-        title="系统设置"
-        description="组织、管理员、通知、AI 集成和安全策略的统一管理中心"
+        title={t("settings.title")}
+        description={t("settings.description")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="info">
-              {isSuperAdmin ? "全局范围" : (session?.unit?.name ?? "所属单位")}
+              {isSuperAdmin
+                ? t("settings.globalScope")
+                : (session?.unit?.name ?? t("settings.unitScope"))}
             </Badge>
             {process.env.NEXT_PUBLIC_SERVICE_MODE !== "remote" ? (
-              <Badge tone="warning">本地演示模式</Badge>
+              <Badge tone="warning">{t("settings.localDemo")}</Badge>
             ) : null}
           </div>
         }
       />
 
       {!isSuperAdmin ? (
-        <Alert tone="info" title="单位级设置权限">
-          你可以维护所属单位和通知路由；管理员账号、外部密钥、AI
-          服务和全局安全策略由超级管理员管理。
+        <Alert tone="info" title={t("settings.unitPermissionTitle")}>
+          {t("settings.unitPermissionDescription")}
         </Alert>
       ) : null}
 
       {loading ? <SettingsSkeleton /> : null}
       {!loading && loadError ? (
-        <Alert tone="danger" title="系统设置加载失败">
-          {loadError}。请刷新页面后重试。
+        <Alert tone="danger" title={t("settings.loadFailed")}>
+          {loadError} {t("settings.refreshRetry")}
         </Alert>
       ) : null}
 
       {!loading && snapshot ? (
         <div className="grid min-w-0 gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-          <aside className="hidden lg:block" aria-label="系统设置二级导航">
+          <aside className="hidden lg:block" aria-label={t("settings.secondaryNav")}>
             <Card className="sticky top-6">
               <CardContent className="space-y-1 p-2">
                 {availableSections.map((item) => {
@@ -210,14 +213,14 @@ export function AdminSettingsView() {
                     >
                       <Icon aria-hidden="true" className="size-5 shrink-0" />
                       <span className="min-w-0">
-                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="block text-sm font-semibold">{t(item.labelKey)}</span>
                         <span
                           className={cn(
                             "mt-0.5 block text-[11px]",
                             active ? "text-blue-600" : "text-muted",
                           )}
                         >
-                          {item.description}
+                          {t(item.descriptionKey)}
                         </span>
                       </span>
                     </button>
@@ -230,8 +233,11 @@ export function AdminSettingsView() {
           <div className="min-w-0 space-y-5">
             <div className="lg:hidden">
               <Select
-                label="设置分类"
-                options={availableSections.map((item) => ({ label: item.label, value: item.id }))}
+                label={t("settings.category")}
+                options={availableSections.map((item) => ({
+                  label: t(item.labelKey),
+                  value: item.id,
+                }))}
                 value={activeSection}
                 onChange={(event) => selectSection(event.target.value as SettingsSectionId)}
               />

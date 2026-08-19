@@ -4,6 +4,7 @@ import { z } from "zod";
 import { assertSameOrigin, getRequestId, jsonData, jsonError, parseJson } from "@/server/api";
 import { authenticatePilot, consumePilotAccessToken, setSessionCookies } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import { pilotRoleLabel } from "@/lib/domain-i18n";
 
 const schema = z.object({ token: z.string().min(32).max(64) });
 
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest) {
             employeeNumber: record.employeeNumber,
             displayName: record.displayName,
             initials: record.initials,
-            role: record.role,
+            roleCode: record.roleCode,
+            role: pilotRoleLabel(record.roleCode),
             unit: record.unit.name,
           }
         : null,

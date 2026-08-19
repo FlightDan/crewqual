@@ -1,6 +1,7 @@
 import * as React from "react";
 import { FileUp, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/components/i18n-provider";
 
 export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden="true" className={cn("animate-pulse rounded bg-slate-200", className)} />;
@@ -51,18 +52,15 @@ export function EmptyState({
   );
 }
 
-export function FileUpload({
-  label = "上传文件",
-  helperText = "支持 JPG、PNG 或 PDF，单个文件不超过 10MB",
-}: {
-  label?: string;
-  helperText?: string;
-}) {
+export function FileUpload({ label, helperText }: { label?: string; helperText?: string }) {
+  const { t } = useI18n();
+  const resolvedLabel = label ?? t("common.uploadFile");
+  const resolvedHelperText = helperText ?? t("common.uploadHelper");
   return (
     <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-brand bg-blue-50/40 px-4 text-center transition hover:bg-blue-50">
       <FileUp aria-hidden="true" className="size-7 text-brand" />
-      <span className="mt-2 text-sm font-semibold text-brand">{label}</span>
-      <span className="mt-1 text-xs text-muted">{helperText}</span>
+      <span className="mt-2 text-sm font-semibold text-brand">{resolvedLabel}</span>
+      <span className="mt-1 text-xs text-muted">{resolvedHelperText}</span>
       <input type="file" className="sr-only" />
     </label>
   );

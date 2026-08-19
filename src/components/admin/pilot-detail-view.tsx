@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { AdminPilotDetail } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationText } from "@/lib/messages";
 
 export function PilotDetailView({
   pilotId,
@@ -29,6 +31,7 @@ export function PilotDetailView({
 }) {
   const state = useAdminState();
   const { pilotDirectory } = useApplicationServices();
+  const { t } = useI18n();
   const [pilot, setPilot] = React.useState<AdminPilotDetail | null | undefined>(undefined);
   const [refreshVersion, setRefreshVersion] = React.useState(0);
 
@@ -53,16 +56,18 @@ export function PilotDetailView({
     return (
       <PageContainer>
         <EmptyState
-          title={memberMode ? "未找到成员档案" : "未找到飞行员档案"}
+          title={memberMode ? t("pilotDetail.memberNotFound") : t("pilotDetail.pilotNotFound")}
           description={
-            memberMode ? "该 ID 不存在或不属于当前组织。" : "该 ID 不存在或不属于当前中队。"
+            memberMode ? t("pilotDetail.orgDescription") : t("pilotDetail.squadronDescription")
           }
           action={
             <Link
               href={memberMode ? "/admin/members" : "/admin/pilots"}
               className="font-semibold text-brand"
             >
-              返回{memberMode ? "成员" : "飞行员"}列表
+              {t("pilotDetail.backList", {
+                type: memberMode ? t("members.name") : t("portal.pilot"),
+              })}
             </Link>
           }
         />
@@ -73,11 +78,9 @@ export function PilotDetailView({
   return (
     <PageContainer className="space-y-5">
       <AdminPageHeader
-        title={memberMode ? "成员个人资质与升级档案" : "飞行员个人资质与升级档案"}
+        title={memberMode ? t("pilotDetail.memberTitle") : t("pilotDetail.pilotTitle")}
         description={
-          memberMode
-            ? "通用人员资料、职位任职、资质记录、升级节点与更新申请"
-            : "六项核心资质、升级节点与更新申请共用同一领域记录"
+          memberMode ? t("pilotDetail.memberDescription") : t("pilotDetail.pilotDescription")
         }
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +94,9 @@ export function PilotDetailView({
               className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand"
             >
               <ArrowLeft className="size-4" />
-              返回{memberMode ? "成员" : "飞行员"}列表
+              {t("pilotDetail.backList", {
+                type: memberMode ? t("members.name") : t("portal.pilot"),
+              })}
             </Link>
           </div>
         }
@@ -105,33 +110,40 @@ export function PilotDetailView({
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-lg font-bold">{pilot.displayName}</h3>
               <Badge tone={pilot.active ? "success" : "neutral"}>
-                {pilot.active ? "启用" : "已停用"}
+                {pilot.active ? t("members.active") : t("members.inactive")}
               </Badge>
               <PilotHealthBadge health={pilot.health} />
             </div>
             <p className="mt-1 text-xs text-secondary">
-              员工号：{pilot.employeeNumber} · {pilot.unit}
+              {t("pilotDetail.employee", { value: pilot.employeeNumber, unit: pilot.unit })}
             </p>
             <p className="mt-1 text-xs text-secondary">
-              当前职务：{pilot.role}（{pilot.aircraftType}） · 级别代码：{pilot.rankCode}
+              {t("pilotDetail.currentRole", {
+                role: pilot.role,
+                aircraft: pilot.aircraftType,
+                rank: pilot.rankCode,
+              })}
             </p>
             <p className="mt-1 text-xs text-secondary">
-              手机号：{pilot.mobile} · 单位代码：{pilot.unitCode}
+              {t("pilotDetail.mobile", { mobile: pilot.mobile, unit: pilot.unitCode })}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
             <div className="rounded-md border border-border px-3 py-2">
-              <p className="text-muted">资质健康度</p>
+              <p className="text-muted">{t("pilotDetail.health")}</p>
               <p className="mt-1 font-bold">
                 {pilot.health === "normal"
-                  ? "100% 正常"
-                  : `${pilot.expiredCount} 过期 / ${pilot.expiringCount} 临期`}
+                  ? t("pilotDetail.normalHealth")
+                  : t("pilotDetail.healthSummary", {
+                      expired: pilot.expiredCount,
+                      expiring: pilot.expiringCount,
+                    })}
               </p>
             </div>
             <div className="rounded-md border border-border px-3 py-2">
-              <p className="text-muted">进行中计划</p>
+              <p className="text-muted">{t("pilotDetail.activePlan")}</p>
               <p className="mt-1 max-w-36 truncate font-bold text-brand">
-                {pilot.activeUpgradeTitle ?? "无"}
+                {pilot.activeUpgradeTitle ?? t("pilotDetail.none")}
               </p>
             </div>
           </div>
@@ -142,16 +154,16 @@ export function PilotDetailView({
         <Tabs defaultValue="qualifications">
           <TabsList className="grid w-full grid-cols-4 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
             <TabsTrigger value="qualifications" className="px-1 text-xs">
-              核心资质
+              {t("pilotDetail.coreTab")}
             </TabsTrigger>
             <TabsTrigger value="upgrade" className="px-1 text-xs">
-              升级计划
+              {t("pilotDetail.upgradeTab")}
             </TabsTrigger>
             <TabsTrigger value="reviews" className="px-1 text-xs">
-              更新记录
+              {t("pilotDetail.reviewTab")}
             </TabsTrigger>
             <TabsTrigger value="files" className="px-1 text-xs">
-              电子档案
+              {t("pilotDetail.filesTab")}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="qualifications">
@@ -171,18 +183,18 @@ export function PilotDetailView({
 
       <div data-testid="pilot-detail-desktop" className="hidden space-y-5 md:block">
         <section className="rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-bold">核心资质清单监视（6 项核心资质）</h3>
+          <h3 className="mb-3 text-sm font-bold">{t("pilotDetail.coreTitle")}</h3>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] border-collapse text-left text-sm">
               <thead className="bg-slate-50 text-xs text-secondary">
                 <tr>
                   {[
-                    "资质项目名称",
-                    "持有等级/参数",
-                    "到期日期",
-                    "剩余有效期",
-                    "状态",
-                    "最近校验日期",
+                    t("pilotDetail.qualificationName"),
+                    t("pilotDetail.level"),
+                    t("pilotDetail.expiry"),
+                    t("pilotDetail.remaining"),
+                    t("pilotDetail.status"),
+                    t("pilotDetail.verified"),
                   ].map((heading) => (
                     <th key={heading} scope="col" className="px-3 py-2 font-semibold">
                       {heading}
@@ -197,12 +209,16 @@ export function PilotDetailView({
                       {index + 1}. {qualification.name}
                     </td>
                     <td className="px-3 py-3 text-secondary">
-                      {qualification.parameter ?? "合格"}
+                      {qualification.parameter ?? t("pilotDetail.qualified")}
                     </td>
                     <td className="px-3 py-3">{qualification.expiresOn}</td>
-                    <td className="px-3 py-3 text-secondary">{qualification.remainingLabel}</td>
+                    <td className="px-3 py-3 text-secondary">
+                      {localizedQualificationText(qualification.remainingLabel, t)}
+                    </td>
                     <td className="px-3 py-3">
-                      <span className="font-semibold">{qualification.statusLabel}</span>
+                      <span className="font-semibold">
+                        {localizedQualificationText(qualification.statusLabel, t)}
+                      </span>
                     </td>
                     <td className="px-3 py-3 text-muted">
                       {
@@ -221,16 +237,16 @@ export function PilotDetailView({
         </section>
         <div className="grid gap-5 xl:grid-cols-2">
           <section className="rounded-lg border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-bold">更新申请记录</h3>
+            <h3 className="mb-3 text-sm font-bold">{t("pilotDetail.reviewRecords")}</h3>
             <PilotReviewRecords pilot={pilot} />
           </section>
           <section className="rounded-lg border border-border bg-card p-4">
-            <h3 className="mb-3 text-sm font-bold">电子档案</h3>
+            <h3 className="mb-3 text-sm font-bold">{t("pilotDetail.files")}</h3>
             <ElectronicFiles pilot={pilot} />
           </section>
         </div>
         <section className="rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-bold">系统操作审计</h3>
+          <h3 className="mb-3 text-sm font-bold">{t("pilotDetail.audit")}</h3>
           {pilot.systemAudit.length ? (
             <ol className="space-y-3">
               {pilot.systemAudit.map((event) => (
@@ -243,7 +259,7 @@ export function PilotDetailView({
               ))}
             </ol>
           ) : (
-            <p className="text-sm text-muted">暂无系统审计记录</p>
+            <p className="text-sm text-muted">{t("pilotDetail.noAudit")}</p>
           )}
         </section>
       </div>
@@ -252,8 +268,14 @@ export function PilotDetailView({
 }
 
 function PilotReviewRecords({ pilot }: { pilot: AdminPilotDetail }) {
+  const { t } = useI18n();
   if (!pilot.reviews.length)
-    return <EmptyState title="暂无更新申请" description="当前飞行员还没有提交资质更新。" />;
+    return (
+      <EmptyState
+        title={t("pilotDetail.noReviews")}
+        description={t("pilotDetail.noReviewsDescription")}
+      />
+    );
   return (
     <div className="space-y-2">
       {pilot.reviews.map((review) => (
@@ -276,8 +298,14 @@ function PilotReviewRecords({ pilot }: { pilot: AdminPilotDetail }) {
 }
 
 function ElectronicFiles({ pilot }: { pilot: AdminPilotDetail }) {
+  const { t } = useI18n();
   if (!pilot.electronicFiles.length)
-    return <EmptyState title="暂无电子档案" description="当前飞行员没有归档文件。" />;
+    return (
+      <EmptyState
+        title={t("pilotDetail.noFiles")}
+        description={t("pilotDetail.noFilesDescription")}
+      />
+    );
   return (
     <div className="space-y-2">
       {pilot.electronicFiles.map((file) => (
@@ -285,7 +313,9 @@ function ElectronicFiles({ pilot }: { pilot: AdminPilotDetail }) {
           <FileText aria-hidden="true" className="size-5 text-brand" />
           <div>
             <p className="text-sm font-semibold">{file.name}</p>
-            <p className="mt-1 text-[11px] text-muted">归档日期：{file.addedAt}</p>
+            <p className="mt-1 text-[11px] text-muted">
+              {t("pilotDetail.archivedAt", { date: file.addedAt })}
+            </p>
           </div>
         </div>
       ))}

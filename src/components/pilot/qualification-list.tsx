@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Qualification, QualificationSection, QualificationStatus } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationText } from "@/lib/messages";
 
 const statusStyles: Record<
   QualificationStatus,
@@ -43,6 +45,9 @@ export function QualificationCard({
   portalPath?: "/pilot" | "/member";
 }) {
   const styles = statusStyles[qualification.status];
+  const { t } = useI18n();
+  const statusLabel = localizedQualificationText(qualification.statusLabel, t);
+  const remainingLabel = localizedQualificationText(qualification.remainingLabel, t);
   const urgent = qualification.status === "expired";
   const showAction = urgent || qualification.status === "due_30";
   return (
@@ -55,24 +60,28 @@ export function QualificationCard({
           {qualification.name}
         </h3>
         <Badge tone={styles.badge} className="shrink-0 px-2 py-0.5 text-[11px]">
-          {qualification.statusLabel}
+          {statusLabel}
         </Badge>
       </div>
       {qualification.parameter ? (
         <div className="flex items-center gap-2 text-xs text-secondary">
           <Plane aria-hidden="true" className="size-3.5" />
-          <span>等级/参数：{qualification.parameter}</span>
-          {qualification.cycleMonths ? <span>· {qualification.cycleMonths}个月周期</span> : null}
+          <span>{t("qualifications.parameter", { value: qualification.parameter })}</span>
+          {qualification.cycleMonths ? (
+            <span>· {t("qualifications.cycle", { months: qualification.cycleMonths })}</span>
+          ) : null}
         </div>
       ) : null}
       <div className="flex items-end justify-between gap-3 text-xs">
         <div>
-          <p className="text-[11px] text-secondary">到期日期</p>
+          <p className="text-[11px] text-secondary">{t("qualifications.expiry")}</p>
           <p className="mt-0.5 font-semibold text-primary">{qualification.expiresOn}</p>
         </div>
         <div className="text-right">
           <p className="text-[11px] text-secondary">
-            {qualification.cycleMonths ? "复训周期" : "剩余时间"}
+            {qualification.cycleMonths
+              ? t("qualifications.retraining")
+              : t("qualifications.remaining")}
           </p>
           <p
             className={cn(
@@ -84,7 +93,7 @@ export function QualificationCard({
                   : "text-primary",
             )}
           >
-            {qualification.remainingLabel}
+            {remainingLabel}
           </p>
         </div>
       </div>
@@ -96,7 +105,7 @@ export function QualificationCard({
             urgent ? "bg-danger" : "bg-nav",
           )}
         >
-          {urgent ? "立即更新资质" : "更新资质"}
+          {urgent ? t("qualifications.updateNow") : t("qualifications.update")}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
       ) : (
@@ -106,7 +115,7 @@ export function QualificationCard({
         >
           <span className="flex items-center gap-2">
             <CalendarDays aria-hidden="true" className="size-4" />
-            查看或更新
+            {t("qualifications.viewOrUpdate")}
           </span>
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
@@ -123,12 +132,13 @@ export function QualificationGroup({
   portalPath?: "/pilot" | "/member";
 }) {
   const styles = statusStyles[section.status];
+  const { t } = useI18n();
   return (
     <section aria-labelledby={`section-${section.status}`} className="space-y-2">
       <div className="flex items-center gap-2">
         <span aria-hidden="true" className={cn("h-3 w-[3px] rounded-sm", styles.marker)} />
         <h2 id={`section-${section.status}`} className={cn("text-[13px] font-bold", styles.title)}>
-          {section.title}
+          {t(`qualifications.section.${section.status}`)}
         </h2>
       </div>
       <div className="space-y-2">

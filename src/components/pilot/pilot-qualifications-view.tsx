@@ -6,11 +6,13 @@ import { QualificationGroup } from "@/components/pilot/qualification-list";
 import { Skeleton } from "@/components/ui/misc";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { PilotProfile, QualificationSection } from "@/types/services";
+import { useI18n } from "@/components/i18n-provider";
 
 export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot" | "member" }) {
   const { pilotIdentity, qualifications } = useApplicationServices();
   const [profile, setProfile] = React.useState<PilotProfile>(anonymousMockPilotProfile);
   const [sections, setSections] = React.useState<QualificationSection[] | null>(null);
+  const { t } = useI18n();
 
   React.useEffect(() => {
     let active = true;
@@ -43,11 +45,11 @@ export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot"
   return (
     <PilotShell profile={profile} portal={portal} className="space-y-5">
       <div>
-        <h1 className="text-lg font-bold text-primary">我的资质</h1>
-        <p className="mt-1 text-xs text-secondary">请及时跟进临期与已过期资质的更新复训</p>
+        <h1 className="text-lg font-bold text-primary">{t("qualifications.title")}</h1>
+        <p className="mt-1 text-xs text-secondary">{t("qualifications.hint")}</p>
         {profile.id === anonymousMockPilotProfile.id ? (
           <p className="mt-2 rounded bg-orange-50 px-2 py-1 text-[11px] text-warning">
-            当前为匿名 Mock 开发预览，不代表安全鉴权状态
+            {t("qualifications.mockNotice")}
           </p>
         ) : null}
       </div>
@@ -60,7 +62,7 @@ export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot"
           />
         ))
       ) : (
-        <div aria-label="正在加载资质" className="space-y-3">
+        <div aria-label={t("qualifications.loading")} className="space-y-3">
           <Skeleton className="h-28 w-full" />
           <Skeleton className="h-28 w-full" />
         </div>
