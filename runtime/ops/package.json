@@ -1,6 +1,6 @@
 {
   "name": "@crewqual/ops-runtime",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "pnpm": {
     "onlyBuiltDependencies": [

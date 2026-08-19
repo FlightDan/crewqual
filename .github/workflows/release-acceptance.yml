@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed v0.3.2-rc.N or v0.3.2 tag
+        description: Signed v0.3.3-rc.N or v0.3.3 tag
         required: true
         type: string
       profile:
@@ -14,7 +14,7 @@ on:
         type: choice
         options: [rc, final]
   push:
-    tags: ["v0.3.2-rc.*", "v0.3.2"]
+    tags: ["v0.3.3-rc.*", "v0.3.3"]
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
     environment: release-sandbox
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-      RELEASE_PROFILE: ${{ inputs.profile || (startsWith(github.ref_name, 'v0.3.2-rc.') && 'rc' || 'final') }}
+      RELEASE_PROFILE: ${{ inputs.profile || (startsWith(github.ref_name, 'v0.3.3-rc.') && 'rc' || 'final') }}
       RELEASE_RUN_ID: ${{ github.run_id }}
       RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -62,11 +62,13 @@ jobs:
       VLM_ADAPTER: disabled
     steps:
       - name: Checkout signed release
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22.12.0
           cache: pnpm
