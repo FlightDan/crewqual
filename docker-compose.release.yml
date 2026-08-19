@@ -18,7 +18,7 @@ services:
 
   migrate:
     image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
-    command: ["pnpm", "db:migrate"]
+    command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
     environment: &app-env
       NODE_ENV: production
       SERVICE_MODE: remote
@@ -46,7 +46,7 @@ services:
   ops:
     image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
     profiles: [ops]
-    command: ["node", "--import", "tsx", "scripts/release/verify.ts", "db-check"]
+    command: ["node", "scripts/container-entrypoint.mjs", "db-check"]
     environment: *app-env
     depends_on:
       postgres: { condition: service_healthy }
@@ -54,7 +54,7 @@ services:
 
   bootstrap:
     image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
-    command: ["pnpm", "db:bootstrap"]
+    command: ["node", "scripts/container-entrypoint.mjs", "bootstrap"]
     environment:
       <<: *app-env
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?INITIAL_ADMIN_EMAIL is required}

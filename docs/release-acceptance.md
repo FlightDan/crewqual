@@ -6,7 +6,7 @@ prefixes supplied by the operator.
 
 ```bash
 corepack pnpm release:manifest .artifacts/migration-checksums.json
-corepack pnpm release:verify -- --tag v0.3.1-rc.1 --profile rc
+corepack pnpm release:verify -- --tag v0.3.2-rc.1 --profile rc
 ```
 
 Build each immutable runtime image with the same source revision before
@@ -14,6 +14,9 @@ running the verifier, for example by passing
 `--build-arg VCS_REF=$(git rev-parse HEAD)` and
 `--build-arg VERSION=$(git describe --tags --exact-match)` to the Web, Worker
 and Ops targets. The verifier checks those OCI labels against the signed tag.
+It also selects the `linux/amd64` OCI manifest and fails closed when the
+compressed layers exceed 110 MiB (Web), 270 MiB (Worker), 280 MiB (Ops), or
+641 MiB in total; the report records the local uncompressed sizes as well.
 
 The workflow installs the pinned Linux/amd64 supply-chain tools from their
 official release assets. On an acceptance machine, install the same versions

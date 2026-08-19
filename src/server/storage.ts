@@ -8,7 +8,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { getServerConfig } from "@/server/config";
-import { ApiError } from "@/server/api";
+import { ApiError } from "@/server/api-error";
 
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 export const MAX_EVIDENCE_DIMENSION = 2560;

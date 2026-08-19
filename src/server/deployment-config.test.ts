@@ -24,7 +24,11 @@ describe("deployment configuration", () => {
     expect(compose).toContain("target: web-runner");
     expect(compose).toContain("target: worker-runner");
     expect(compose).toContain("target: bootstrap");
-    expect(dockerfile).toContain('CMD ["pnpm", "db:bootstrap"]');
+    expect(dockerfile).toContain('CMD ["node", "scripts/container-entrypoint.mjs", "bootstrap"]');
+    expect(dockerfile).toContain('CMD ["node", "--import", "tsx", "src/worker/index.ts"]');
+    expect(dockerfile).toContain("FROM node:22.12-bookworm-slim AS web-runtime");
+    expect(dockerfile).toContain("FROM node:22.12-bookworm-slim AS data-runtime");
+    expect(dockerfile).not.toContain("FROM base AS web-runner");
     expect(dockerfile).toContain("grep -E ' 16\\.'");
     expect(compose).toContain("scripts/worker-health.mjs");
     expect(compose).toContain(

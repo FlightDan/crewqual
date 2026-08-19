@@ -1,4 +1,4 @@
-import { ApiError } from "@/server/api";
+import { ApiError } from "@/server/api-error";
 
 export const ADMIN_ROLE_CODES = ["SUPER_ADMIN", "ADMIN", "REVIEWER", "VIEWER"] as const;
 

@@ -1,0 +1,26 @@
+{
+  "name": "@crewqual/ops-runtime",
+  "version": "0.3.2",
+  "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma",
+      "unrs-resolver"
+    ]
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@aws-sdk/s3-request-presigner": "^3.864.0",
+    "@next/env": "^15.5.2",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "argon2": "^0.44.0",
+    "dotenv": "^16.6.1",
+    "prisma": "^7.9.0",
+    "tsx": "^4.20.3",
+    "zod": "^4.0.17"
+  }
+}

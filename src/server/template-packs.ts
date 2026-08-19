@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { getPrisma } from "@/server/prisma";
-import { ApiError } from "@/server/api";
+import { ApiError } from "@/server/api-error";
 import {
   ocrChecksSchema,
   parameterRestrictionSchema,

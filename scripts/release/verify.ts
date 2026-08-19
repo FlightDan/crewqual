@@ -37,6 +37,13 @@ function envOr(name: string, fallback: string) {
   return process.env[name]?.trim() || fallback;
 }
 
+const IMAGE_SIZE_LIMITS = {
+  RELEASE_WEB_IMAGE: 110 * 1024 * 1024,
+  RELEASE_WORKER_IMAGE: 270 * 1024 * 1024,
+  RELEASE_OPS_IMAGE: 280 * 1024 * 1024,
+} as const;
+const IMAGE_TOTAL_LIMIT = 641 * 1024 * 1024;
+
 function composeArgs(project: string, envFile: string, args: string[]) {
   return [
     "compose",
@@ -712,6 +719,76 @@ async function migrationChecksums() {
 async function supplyChain(evidence: ReleaseEvidence) {
   const dir = join(artifactDir(evidence.runId), "supply-chain");
   await ensureDir(dir);
+  const imageSizes = Object.fromEntries(
+    await Promise.all(
+      Object.entries(IMAGE_SIZE_LIMITS).map(async ([name, limit]) => {
+        const image = required(name);
+        const index = command("docker", ["buildx", "imagetools", "inspect", "--raw", image]);
+        const parsedIndex = JSON.parse(index.output) as {
+          manifests?: Array<{
+            digest: string;
+            platform?: { architecture?: string; os?: string };
+          }>;
+          layers?: Array<{ size?: number }>;
+        };
+        const selected = parsedIndex.manifests?.find(
+          (manifest) =>
+            manifest.platform?.os === "linux" && manifest.platform?.architecture === "amd64",
+        );
+        const manifestRef = selected
+          ? `${image.replace(/@sha256:[0-9a-f]+$/i, "")}@${selected.digest}`
+          : image;
+        const manifest = JSON.parse(
+          command("docker", ["buildx", "imagetools", "inspect", "--raw", manifestRef]).output,
+        ) as { layers?: Array<{ size?: number }> };
+        const compressedBytes = (manifest.layers ?? []).reduce(
+          (total, layer) => total + (layer.size ?? 0),
+          0,
+        );
+        if (!compressedBytes) throw new Error(`${name} OCI manifest 没有可测量的压缩层`);
+        const local = command("docker", ["image", "inspect", "--format", "{{.Size}}", image]);
+        const uncompressedBytes = Number(local.output.trim());
+        if (!Number.isFinite(uncompressedBytes) || uncompressedBytes <= 0) {
+          throw new Error(`${name} 无法读取本地解压镜像大小`);
+        }
+        const result = {
+          image,
+          platform: "linux/amd64",
+          compressedBytes,
+          compressedMiB: Number((compressedBytes / 1024 / 1024).toFixed(2)),
+          compressedLimitBytes: limit,
+          compressedLimitMiB: Number((limit / 1024 / 1024).toFixed(2)),
+          uncompressedBytes,
+          uncompressedMiB: Number((uncompressedBytes / 1024 / 1024).toFixed(2)),
+        };
+        if (compressedBytes > limit) {
+          throw new Error(
+            `${name} 压缩 OCI 层 ${result.compressedMiB} MiB 超过 ${result.compressedLimitMiB} MiB 门槛`,
+          );
+        }
+        return [name, result] as const;
+      }),
+    ),
+  );
+  const totalCompressedBytes = Object.values(imageSizes).reduce(
+    (total, image) => total + image.compressedBytes,
+    0,
+  );
+  const imageSizeReport = {
+    images: imageSizes,
+    total: {
+      compressedBytes: totalCompressedBytes,
+      compressedMiB: Number((totalCompressedBytes / 1024 / 1024).toFixed(2)),
+      compressedLimitBytes: IMAGE_TOTAL_LIMIT,
+      compressedLimitMiB: Number((IMAGE_TOTAL_LIMIT / 1024 / 1024).toFixed(2)),
+    },
+  };
+  if (totalCompressedBytes > IMAGE_TOTAL_LIMIT) {
+    throw new Error(
+      `三张镜像压缩 OCI 层合计 ${imageSizeReport.total.compressedMiB} MiB 超过 ${imageSizeReport.total.compressedLimitMiB} MiB 门槛`,
+    );
+  }
+  const imageSizePath = await writeGateEvidence(dir, "image-sizes", imageSizeReport);
   const versions = {
     syft: await toolVersion("syft"),
     trivy: await toolVersion("trivy"),
@@ -859,6 +936,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
   await writeFile(migrationPath, `${JSON.stringify({ files: migrations }, null, 2)}\n`);
   const report = await writeGateEvidence(artifactDir(evidence.runId), "supply-chain", {
     versions,
+    imageSizes: imageSizeReport,
     migrations,
     reviewLicenses,
     files: [
@@ -868,6 +946,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
       join(dir, "gitleaks.json"),
       join(dir, "licenses.json"),
       migrationPath,
+      imageSizePath,
     ],
   });
   return {
@@ -925,7 +1004,7 @@ async function main() {
   }
   const tag = args.tag ?? process.env.RELEASE_TAG ?? "";
   const profile = (args.profile ?? process.env.RELEASE_PROFILE ?? "rc") as "rc" | "final";
-  if (!/^v0\.2\.0(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
+  if (!/^v0\.3\.2(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
   const id = runId();
   const evidence: ReleaseEvidence = {

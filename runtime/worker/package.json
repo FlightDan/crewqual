@@ -1,0 +1,27 @@
+{
+  "name": "@crewqual/worker-runtime",
+  "version": "0.3.2",
+  "private": true,
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@aws-sdk/s3-request-presigner": "^3.864.0",
+    "@prisma/adapter-pg": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "argon2": "^0.44.0",
+    "date-fns": "^4.1.0",
+    "pg": "^8.22.0",
+    "pg-boss": "^12.26.3",
+    "sharp": "^0.34.3",
+    "tsx": "^4.20.3",
+    "zod": "^4.0.17"
+  }
+}
