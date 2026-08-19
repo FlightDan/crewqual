@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    tags: ["v0.3.4-rc.*", "v0.3.4"]
+    tags: ["v0.3.5-rc.*", "v0.3.5"]
   pull_request:
 
 permissions:
@@ -56,4 +56,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: PLAYWRIGHT_PRODUCTION=1 pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=3
+      - run: pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=3

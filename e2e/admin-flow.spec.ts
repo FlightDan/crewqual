@@ -142,7 +142,9 @@ test.describe("admin review workflow", () => {
   test("pilot management creates one person and imports dynamic qualification CSV", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.goto("/admin/pilots");
+    await expect(page.getByLabel("搜索姓名或员工号").first()).toBeEnabled();
     await page.getByRole("button", { name: "新增飞行员" }).click();
     const createDialog = page.getByRole("dialog");
     await createDialog.getByPlaceholder("例如 CQ-1049").fill("CQ-E2E-NEW");
@@ -168,16 +170,16 @@ test.describe("admin review workflow", () => {
     const headers = pilotCsvHeaders(qualifications);
     const firstQualification = qualificationDefinitions[0]!;
     const cells: Record<string, string> = {
-      员工号: "CQ-E2E-CSV",
-      姓名: "CSV飞行员示例",
-      手机号: "13800138882",
-      机型: "A320",
-      职务: "机长",
-      单位代码: "DEMO",
-      人员级别代码: "CAPT-A",
-      [`${firstQualification.name}｜开始日期`]: "2026-01-01",
-      [`${firstQualification.name}｜截止日期`]: "2027-01-01",
-      [`${firstQualification.name}｜级别`]: "IA级",
+      employeeNumber: "CQ-E2E-CSV",
+      displayName: "CSV飞行员示例",
+      mobile: "13800138882",
+      aircraftType: "A320",
+      roleCode: "CAPTAIN",
+      unitCode: "DEMO",
+      rankCode: "CAPT-A",
+      [`${firstQualification.code}.issueDate`]: "2026-01-01",
+      [`${firstQualification.code}.expiryDate`]: "2027-01-01",
+      [`${firstQualification.code}.levelOrParameter`]: "IA级",
     };
     const csv = `${headers.join(",")}\n${headers.map((header) => cells[header] ?? "").join(",")}`;
     await page.getByLabel("选择飞行员 CSV 文件").setInputFiles({

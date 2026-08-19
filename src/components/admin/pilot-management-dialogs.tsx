@@ -468,7 +468,7 @@ function PilotEditorDialog({
               required
               value={values.employeeNumber}
               onChange={(event) => update("employeeNumber", event.target.value)}
-              placeholder="e.g. CQ-1049"
+              placeholder={t("pilotManagement.employeeExample")}
             />
             <Input
               label={t("pilotManagement.name")}
@@ -489,7 +489,7 @@ function PilotEditorDialog({
               required
               value={values.aircraftType}
               onChange={(event) => update("aircraftType", event.target.value)}
-              placeholder="e.g. A320"
+              placeholder={t("pilotManagement.aircraftExample")}
             />
             <Select
               label={t("pilotManagement.role")}
@@ -506,7 +506,7 @@ function PilotEditorDialog({
               required
               value={values.rankCode}
               onChange={(event) => update("rankCode", event.target.value)}
-              placeholder="e.g. CAPT-A / FO-2"
+              placeholder={t("pilotManagement.rankExample")}
             />
             <Select
               label={t("pilotManagement.unit")}

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed v0.3.4-rc.N or v0.3.4 tag
+        description: Signed v0.3.5-rc.N or v0.3.5 tag
         required: true
         type: string
       profile:

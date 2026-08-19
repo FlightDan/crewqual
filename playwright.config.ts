@@ -10,12 +10,13 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL: "http://127.0.0.1:3000",
+    locale: "zh-CN",
     trace: "on-first-retry",
   },
   webServer: {
     command: productionServer
-      ? "NODE_ENV=production SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 corepack pnpm exec next start --hostname 127.0.0.1 --port 3000"
-      : "NODE_ENV=development SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 corepack pnpm exec next dev --hostname 127.0.0.1 --port 3000",
+      ? "NODE_ENV=production SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000"
+      : "NODE_ENV=development SERVICE_MODE=mock NEXT_PUBLIC_SERVICE_MODE=mock CREWQUAL_TEST_NO_EXTERNAL=1 node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3000",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: false,
     env: {

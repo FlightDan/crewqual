@@ -26,7 +26,7 @@ import { useAdminSession } from "@/services/admin-session-provider";
 import { useI18n } from "@/components/i18n-provider";
 
 export function UpgradePlanDetailView({ planId }: { planId: string }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const state = useAdminState();
   const { upgradePlans } = useApplicationServices();
   const { hasPermission } = useAdminSession();
@@ -89,6 +89,10 @@ export function UpgradePlanDetailView({ planId }: { planId: string }) {
     !canWrite || plan.lifecycleStatus === "completed" || plan.lifecycleStatus === "cancelled";
   const runLifecycleAction = async () => {
     if (!confirmAction || loading) return;
+    if (confirmAction === "cancel" && cancelReason.trim().length < 5) {
+      setError(t("upgradeDetail.cancelReasonTooShort"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -194,7 +198,9 @@ export function UpgradePlanDetailView({ planId }: { planId: string }) {
               >
                 {t(`upgradePlans.lifecycle.${plan.lifecycleStatus}`)}
                 {delayDays > 0 && plan.lifecycleStatus === "active"
-                  ? ` (${t("status.upgrade.delayed")})`
+                  ? locale === "zh-CN"
+                    ? `（${t("status.upgrade.delayed")}）`
+                    : ` (${t("status.upgrade.delayed")})`
                   : ""}
               </Badge>
             </div>

@@ -37,6 +37,18 @@ function envOr(name: string, fallback: string) {
   return process.env[name]?.trim() || fallback;
 }
 
+let pnpmRunner: "pnpm" | "corepack" | undefined;
+
+function pnpmCommand(args: string[], options: { allowFailure?: boolean } = {}) {
+  if (!pnpmRunner) {
+    pnpmRunner =
+      command("pnpm", ["--version"], { allowFailure: true }).status === 0 ? "pnpm" : "corepack";
+  }
+  return pnpmRunner === "pnpm"
+    ? command("pnpm", args, options)
+    : command("corepack", ["pnpm", ...args], options);
+}
+
 const IMAGE_SIZE_LIMITS = {
   RELEASE_WEB_IMAGE: 110 * 1024 * 1024,
   RELEASE_WORKER_IMAGE: 270 * 1024 * 1024,
@@ -580,14 +592,12 @@ async function s3Dr(evidence: ReleaseEvidence) {
   if (restoreBucket === evidenceBucket || restoreBucket === backupBucket) {
     throw new Error("RESTORE_S3_BUCKET 必须是新的隔离 bucket");
   }
-  const restoreDatabase = command(
-    "corepack",
-    ["pnpm", "db:restore:offline", databaseRunId, "恢复"],
-    { allowFailure: true },
-  );
+  const restoreDatabase = pnpmCommand(["db:restore:offline", databaseRunId, "恢复"], {
+    allowFailure: true,
+  });
   if (restoreDatabase.status !== 0) throw new Error(`数据库恢复失败：${restoreDatabase.output}`);
   process.env.RESTORE_DATABASE_EMPTY_CHECK = "0";
-  const restoreGallery = command("corepack", ["pnpm", "db:restore:offline", galleryRunId, "恢复"], {
+  const restoreGallery = pnpmCommand(["db:restore:offline", galleryRunId, "恢复"], {
     allowFailure: true,
   });
   if (restoreGallery.status !== 0) throw new Error(`图库恢复失败：${restoreGallery.output}`);
@@ -633,10 +643,8 @@ async function s3Dr(evidence: ReleaseEvidence) {
 
 async function e2e(evidence: ReleaseEvidence) {
   const baseUrl = required("RELEASE_BASE_URL");
-  const result = command(
-    "corepack",
+  const result = pnpmCommand(
     [
-      "pnpm",
       "exec",
       "playwright",
       "test",
@@ -650,10 +658,8 @@ async function e2e(evidence: ReleaseEvidence) {
     { allowFailure: true },
   );
   if (result.status !== 0) throw new Error(`production E2E 失败：${result.output}`);
-  const webkit = command(
-    "corepack",
+  const webkit = pnpmCommand(
     [
-      "pnpm",
       "exec",
       "playwright",
       "test",
@@ -667,10 +673,8 @@ async function e2e(evidence: ReleaseEvidence) {
     { allowFailure: true },
   );
   if (webkit.status !== 0) throw new Error(`WebKit 管理导航专项失败：${webkit.output}`);
-  const remote = command(
-    "corepack",
+  const remote = pnpmCommand(
     [
-      "pnpm",
       "exec",
       "playwright",
       "test",
@@ -868,7 +872,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
     { allowFailure: true },
   );
   if (secrets.status !== 0) throw new Error(`Gitleaks 扫描失败：${secrets.output}`);
-  const licenses = command("corepack", ["pnpm", "licenses", "list", "--prod", "--json"]);
+  const licenses = pnpmCommand(["licenses", "list", "--prod", "--json"]);
   await writeFile(join(dir, "licenses.json"), licenses.output);
   const policy = JSON.parse(
     await readFile(join(process.cwd(), "security", "license-policy.json"), "utf8"),
@@ -1004,7 +1008,7 @@ async function main() {
   }
   const tag = args.tag ?? process.env.RELEASE_TAG ?? "";
   const profile = (args.profile ?? process.env.RELEASE_PROFILE ?? "rc") as "rc" | "final";
-  if (!/^v0\.3\.4(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
+  if (!/^v0\.3\.5(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
   const id = runId();
   const evidence: ReleaseEvidence = {
