@@ -1004,7 +1004,7 @@ async function main() {
   }
   const tag = args.tag ?? process.env.RELEASE_TAG ?? "";
   const profile = (args.profile ?? process.env.RELEASE_PROFILE ?? "rc") as "rc" | "final";
-  if (!/^v0\.3\.3(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
+  if (!/^v0\.3\.4(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
   const id = runId();
   const evidence: ReleaseEvidence = {

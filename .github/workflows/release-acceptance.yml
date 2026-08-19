@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed v0.3.3-rc.N or v0.3.3 tag
+        description: Signed v0.3.4-rc.N or v0.3.4 tag
         required: true
         type: string
       profile:
@@ -13,9 +13,6 @@ on:
         default: rc
         type: choice
         options: [rc, final]
-  push:
-    tags: ["v0.3.3-rc.*", "v0.3.3"]
-
 permissions:
   contents: read
   id-token: write
@@ -26,8 +23,8 @@ jobs:
     timeout-minutes: 240
     environment: release-sandbox
     env:
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-      RELEASE_PROFILE: ${{ inputs.profile || (startsWith(github.ref_name, 'v0.3.3-rc.') && 'rc' || 'final') }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_PROFILE: ${{ inputs.profile }}
       RELEASE_RUN_ID: ${{ github.run_id }}
       RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -73,9 +70,9 @@ jobs:
           node-version: 22.12.0
           cache: pnpm
       - name: Install dependencies
-        run: corepack pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Install browser engines
-        run: corepack pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Install release verification tools
         run: sudo ./scripts/release/install-tools.sh
       - name: Prepare signed evidence inputs
@@ -85,12 +82,12 @@ jobs:
         run: |
           printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
           printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
-          corepack pnpm release:manifest .artifacts/migration-checksums.json
+          pnpm release:manifest .artifacts/migration-checksums.json
           echo "MIGRATION_CHECKSUM_MANIFEST=$GITHUB_WORKSPACE/.artifacts/migration-checksums.json" >> "$GITHUB_ENV"
       - name: Run release acceptance gates
         env:
           RELEASE_DEFER_ARTIFACT: "1"
-        run: corepack pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+        run: pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
       - name: Sign release evidence
         if: env.RELEASE_PROFILE == 'final'
         run: |
@@ -100,4 +97,4 @@ jobs:
             ".artifacts/release/$RELEASE_RUN_ID/evidence.json"
       - name: Verify signed release evidence
         if: env.RELEASE_PROFILE == 'final'
-        run: corepack pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+        run: pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"

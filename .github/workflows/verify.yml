@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    tags: ["v0.3.3-rc.*", "v0.3.3"]
+    tags: ["v0.3.4-rc.*", "v0.3.4"]
   pull_request:
 
 permissions:
@@ -25,19 +25,19 @@ jobs:
           node-version: 22.12.0
           cache: pnpm
       - name: Install dependencies
-        run: corepack pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Format
-        run: corepack pnpm format
+        run: pnpm format
       - name: Lint
-        run: corepack pnpm lint
+        run: pnpm lint
       - name: Application typecheck
-        run: corepack pnpm typecheck
+        run: pnpm typecheck
       - name: Script and Prisma typecheck
-        run: corepack pnpm typecheck:scripts
+        run: pnpm typecheck:scripts
       - name: Unit tests
-        run: corepack pnpm test
+        run: pnpm test
       - name: Production build
-        run: corepack pnpm build
+        run: pnpm build
 
   browser:
     needs: verify
@@ -53,7 +53,7 @@ jobs:
         with:
           node-version: 22.12.0
           cache: pnpm
-      - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm build
-      - run: corepack pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: PLAYWRIGHT_PRODUCTION=1 corepack pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=3
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: PLAYWRIGHT_PRODUCTION=1 pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=3
