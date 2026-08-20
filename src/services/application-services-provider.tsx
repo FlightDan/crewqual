@@ -11,6 +11,7 @@ const ApplicationServicesContext = React.createContext<ApplicationServices>(appl
 export function ApplicationServicesProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = React.useState(false);
   const remoteMode = isRemoteServiceMode();
+  const e2eMode = process.env.NEXT_PUBLIC_CREWQUAL_E2E === "1";
   const [queryClient] = React.useState(
     () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } }),
   );
@@ -49,13 +50,15 @@ export function ApplicationServicesProvider({ children }: { children: React.Reac
     };
 
     const initialCheckTimer = window.setTimeout(() => void checkMockInstance(true), 1_000);
-    const timer = window.setInterval(() => void checkMockInstance(false), 30_000);
+    const timer = e2eMode
+      ? undefined
+      : window.setInterval(() => void checkMockInstance(false), 30_000);
     return () => {
       disposed = true;
       window.clearTimeout(initialCheckTimer);
-      window.clearInterval(timer);
+      if (timer !== undefined) window.clearInterval(timer);
     };
-  }, [remoteMode]);
+  }, [e2eMode, remoteMode]);
   return (
     <QueryClientProvider client={queryClient}>
       <ApplicationServicesContext.Provider value={applicationServices}>

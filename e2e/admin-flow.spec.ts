@@ -228,21 +228,25 @@ test.describe("admin review workflow", () => {
     expect(grid.split(" ").length).toBeGreaterThanOrEqual(2);
   });
 
-  test("all third-batch pages avoid uncaught and hydration errors", async ({ page }) => {
-    const errors = captureRuntimeErrors(page);
-    for (const route of [
-      "/admin/dashboard",
-      "/admin/pilots",
-      "/admin/pilots/pilot-demo-01",
-      "/admin/reviews",
-      "/admin/reviews/REV-1001",
-      "/dev/admin-review",
-      "/admin/pilots/does-not-exist",
-      "/admin/reviews/does-not-exist",
-    ]) {
+  for (const route of [
+    "/admin/dashboard",
+    "/admin/pilots",
+    "/admin/pilots/pilot-demo-01",
+    "/admin/reviews",
+    "/admin/reviews/REV-1001",
+    "/dev/admin-review",
+    "/admin/pilots/does-not-exist",
+    "/admin/reviews/does-not-exist",
+  ]) {
+    const devTag = route.startsWith("/dev/") ? " @dev" : "";
+    test(`third-batch page has no uncaught or hydration errors: ${route}${devTag}`, async ({
+      page,
+    }) => {
+      test.setTimeout(60_000);
+      const errors = captureRuntimeErrors(page);
       await page.goto(route);
       await page.waitForLoadState("domcontentloaded");
-    }
-    expect(errors).toEqual([]);
-  });
+      expect(errors).toEqual([]);
+    });
+  }
 });

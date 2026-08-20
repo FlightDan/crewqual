@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("CrewQual foundation", () => {
+test.describe("CrewQual foundation @dev", () => {
   test("UI Kit has no horizontal overflow at 390px", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/dev/ui-kit");

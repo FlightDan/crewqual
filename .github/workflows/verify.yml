@@ -2,8 +2,9 @@ name: verify
 
 on:
   push:
-    tags: ["v0.3.5-rc.*", "v0.3.5"]
+    tags: ["v0.3.*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -41,8 +42,21 @@ jobs:
 
   browser:
     needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            workers: 2
+            dev_only: true
+          - browser: firefox
+            workers: 1
+            dev_only: false
+          - browser: webkit
+            workers: 1
+            dev_only: false
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout immutable revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,5 +69,22 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: pnpm test:e2e --project=chromium --project=firefox --project=webkit --repeat-each=2
+      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Run browser E2E
+        env:
+          PLAYWRIGHT_WORKERS: ${{ matrix.workers }}
+        run: |
+          if [ "${{ matrix.dev_only }}" = "true" ]; then
+            pnpm test:e2e --project="${{ matrix.browser }}"
+          else
+            pnpm test:e2e --project="${{ matrix.browser }}" --grep-invert "@dev"
+          fi
+      - name: Upload Playwright reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore

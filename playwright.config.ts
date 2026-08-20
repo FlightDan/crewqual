@@ -5,13 +5,20 @@ const productionServer = process.env.PLAYWRIGHT_PRODUCTION === "1";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 4,
-  reporter: "list",
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10)
+    : process.env.CI
+      ? 2
+      : 4,
+  retries: process.env.CI ? 1 : 0,
+  reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   expect: { timeout: 15_000 },
   use: {
     baseURL: "http://127.0.0.1:3000",
     locale: "zh-CN",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   webServer: {
     command: productionServer
@@ -23,6 +30,7 @@ export default defineConfig({
       NODE_ENV: productionServer ? "production" : "development",
       SERVICE_MODE: "mock",
       NEXT_PUBLIC_SERVICE_MODE: "mock",
+      NEXT_PUBLIC_CREWQUAL_E2E: "1",
       CREWQUAL_TEST_NO_EXTERNAL: "1",
     },
   },

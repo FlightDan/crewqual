@@ -72,7 +72,7 @@ test.describe("pilot qualification flow", () => {
     expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - 720)).toBeLessThanOrEqual(1);
   });
 
-  test("development entry links every deterministic state", async ({ page }) => {
+  test("development entry links every deterministic state @dev", async ({ page }) => {
     await page.goto("/dev/pilot-flow");
     await expect(page.getByRole("heading", { name: "飞行员端闭环开发验收" })).toBeVisible();
     for (const scenario of [

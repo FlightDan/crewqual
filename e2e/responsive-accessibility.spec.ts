@@ -102,99 +102,75 @@ test.describe("production page responsive and accessibility smoke", () => {
     await expect(password).toBeFocused();
   });
 
-  test("all production pages remain usable at mobile width with named controls", async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-    const errors = captureRuntimeErrors(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const route of productionPages) {
-      const routePage = await page.context().newPage();
-      const routeErrors = captureRuntimeErrors(routePage);
-      try {
-        await routePage.setViewportSize({ width: 390, height: 844 });
-        await routePage.goto(route);
-        await expect(routePage.locator("main").first()).toBeVisible();
-        await routePage.locator('[data-app-ready="true"]').waitFor();
-        expect(
-          await routePage.evaluate(() => document.documentElement.scrollWidth),
-        ).toBeLessThanOrEqual(390);
-        await assertNamedInteractiveControls(routePage);
-      } finally {
-        errors.push(...routeErrors);
-        await routePage.close();
-      }
-    }
-    expect(errors).toEqual([]);
-  });
+  for (const route of productionPages) {
+    test(`mobile page has named controls and no overflow: ${route}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      const errors = captureRuntimeErrors(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(route);
+      await expect(page.locator("main").first()).toBeVisible();
+      await page.locator('[data-app-ready="true"]').waitFor();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        390,
+      );
+      await assertNamedInteractiveControls(page);
+      expect(errors).toEqual([]);
+    });
+  }
 
-  test("all production pages remain usable at desktop width with keyboard focus", async ({
-    page,
-  }) => {
-    test.setTimeout(120_000);
-    const errors = captureRuntimeErrors(page);
-    await page.setViewportSize({ width: 1440, height: 1024 });
-    for (const route of productionPages) {
-      const routePage = await page.context().newPage();
-      const routeErrors = captureRuntimeErrors(routePage);
-      try {
-        await routePage.setViewportSize({ width: 1440, height: 1024 });
-        await routePage.goto(route);
-        await expect(routePage.locator("main").first()).toBeVisible();
-        await routePage.locator('[data-app-ready="true"]').waitFor();
-        expect(
-          await routePage.evaluate(() => document.documentElement.scrollWidth),
-        ).toBeLessThanOrEqual(1440);
-        await assertNamedInteractiveControls(routePage);
-        await routePage.keyboard.press("Tab");
-        await expect
-          .poll(() => routePage.evaluate(() => document.activeElement?.tagName ?? "BODY"), {
-            message: `keyboard focus did not leave BODY on ${route}`,
-          })
-          .not.toBe("BODY");
-      } finally {
-        errors.push(...routeErrors);
-        await routePage.close();
-      }
-    }
-    expect(errors).toEqual([]);
-  });
+  for (const route of productionPages) {
+    test(`desktop page supports keyboard focus and no overflow: ${route}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      const errors = captureRuntimeErrors(page);
+      await page.setViewportSize({ width: 1440, height: 1024 });
+      await page.goto(route);
+      await expect(page.locator("main").first()).toBeVisible();
+      await page.locator('[data-app-ready="true"]').waitFor();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        1440,
+      );
+      await assertNamedInteractiveControls(page);
+      await page.keyboard.press("Tab");
+      await expect
+        .poll(() => page.evaluate(() => document.activeElement?.tagName ?? "BODY"), {
+          message: `keyboard focus did not leave BODY on ${route}`,
+        })
+        .not.toBe("BODY");
+      expect(errors).toEqual([]);
+    });
+  }
 
-  test("admin layout switches cleanly across the tablet breakpoint", async ({ page }) => {
-    test.setTimeout(120_000);
-    const viewports = [
-      { width: 768, height: 1024 },
-      { width: 1023, height: 900 },
-      { width: 1024, height: 900 },
-      { width: 1280, height: 900 },
-    ];
-    for (const viewport of viewports) {
-      for (const route of [
-        "/admin/calendar?date=2026-08-14",
-        "/admin/upgrade-plans",
-        "/admin/settings",
-      ]) {
-        const routePage = await page.context().newPage();
-        try {
-          await routePage.setViewportSize(viewport);
-          await routePage.goto(route);
-          await expect(routePage.locator("main").first()).toBeVisible();
-          expect(
-            await routePage.evaluate(() => document.documentElement.scrollWidth),
-          ).toBeLessThanOrEqual(viewport.width);
-          if (viewport.width < 1024) {
-            await expect(routePage.getByTestId("mobile-bottom-nav")).toBeVisible();
-            await expect(routePage.getByTestId("desktop-sidebar")).toBeHidden();
-          } else {
-            await expect(routePage.getByTestId("desktop-sidebar")).toBeVisible();
-            await expect(routePage.getByTestId("mobile-bottom-nav")).toBeHidden();
-          }
-        } finally {
-          await routePage.close();
+  const tabletViewports = [
+    { width: 768, height: 1024 },
+    { width: 1023, height: 900 },
+    { width: 1024, height: 900 },
+    { width: 1280, height: 900 },
+  ];
+  const tabletRoutes = [
+    "/admin/calendar?date=2026-08-14",
+    "/admin/upgrade-plans",
+    "/admin/settings",
+  ];
+  for (const viewport of tabletViewports) {
+    for (const route of tabletRoutes) {
+      test(`tablet layout ${viewport.width}px works on ${route}`, async ({ page }) => {
+        test.setTimeout(60_000);
+        await page.setViewportSize(viewport);
+        await page.goto(route);
+        await expect(page.locator("main").first()).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+          viewport.width,
+        );
+        if (viewport.width < 1024) {
+          await expect(page.getByTestId("mobile-bottom-nav")).toBeVisible();
+          await expect(page.getByTestId("desktop-sidebar")).toBeHidden();
+        } else {
+          await expect(page.getByTestId("desktop-sidebar")).toBeVisible();
+          await expect(page.getByTestId("mobile-bottom-nav")).toBeHidden();
         }
-      }
+      });
     }
-  });
+  }
 
   test("critical pilot action remains reachable in a short mobile viewport", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 600 });
@@ -208,19 +184,14 @@ test.describe("production page responsive and accessibility smoke", () => {
     );
   });
 
-  test("production pages have no critical or serious axe violations", async ({ page }) => {
-    test.setTimeout(120_000);
-    for (const route of productionPages) {
-      const routePage = await page.context().newPage();
-      try {
-        await routePage.setViewportSize({ width: 390, height: 844 });
-        await routePage.goto(route);
-        await expect(routePage.locator("main").first()).toBeVisible();
-        await routePage.locator('[data-app-ready="true"]').waitFor();
-        await assertNoSeriousA11yViolations(routePage);
-      } finally {
-        await routePage.close();
-      }
-    }
-  });
+  for (const route of productionPages) {
+    test(`page has no critical or serious axe violations: ${route}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(route);
+      await expect(page.locator("main").first()).toBeVisible();
+      await page.locator('[data-app-ready="true"]').waitFor();
+      await assertNoSeriousA11yViolations(page);
+    });
+  }
 });

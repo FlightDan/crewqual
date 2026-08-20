@@ -9,6 +9,25 @@ function captureRuntimeErrors(page: Page) {
   return errors;
 }
 
+async function gotoAfterClientNavigation(page: Page, url: string) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        (!error.message.includes("interrupted by another navigation") &&
+          !error.message.includes("NS_BINDING_ABORTED")) ||
+        attempt === 2
+      ) {
+        throw error;
+      }
+      await page.waitForTimeout(250);
+    }
+  }
+}
+
 test.describe("admin operations workflow", () => {
   test("calendar reschedule synchronizes plan detail and notification log", async ({ page }) => {
     await page.goto(
@@ -19,9 +38,10 @@ test.describe("admin operations workflow", () => {
     await page.getByLabel("计划开始日期").fill("2026-08-13");
     await page.getByLabel("计划结束日期").fill("2026-08-19");
     await page.getByRole("button", { name: "保存调整" }).click();
-    await page.goto("/admin/upgrade-plans/upgrade-01");
+    await gotoAfterClientNavigation(page, "/admin/upgrade-plans/upgrade-01");
     await expect(page.getByText("2026-08-13 至 2026-08-19")).toBeVisible();
-    await page.goto(
+    await gotoAfterClientNavigation(
+      page,
       "/admin/notifications?q=%E8%8A%82%E7%82%B9%E6%97%A5%E6%9C%9F%E5%8F%98%E6%9B%B4",
     );
     await expect(
@@ -65,24 +85,32 @@ test.describe("admin operations workflow", () => {
   test("mobile three-step creation appears in detail, calendar and notifications", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/admin/upgrade-plans/new");
+    await page.goto("/admin/upgrade-plans/new", { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "下一步，配置节点计划" }).click();
     await expect(page).toHaveURL(/step=stages/);
+    await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "下一步，确认创建" }).click();
     await expect(page).toHaveURL(/step=confirm/);
+    await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "确认创建计划" }).click();
     await page.getByRole("button", { name: "确认创建并启动" }).click();
-    await expect(page).toHaveURL(/\/admin\/upgrade-plans\/PLAN-/);
+    await page.waitForURL(/\/admin\/upgrade-plans\/PLAN-/, { waitUntil: "networkidle" });
     await expect(page.getByRole("main").getByText("赵宁（示例）").first()).toBeVisible();
     await expect(page.getByText("进行中").first()).toBeVisible();
-    await page.goto("/admin/upgrade-plans?q=MOCK-1301");
+    await page.waitForLoadState("networkidle");
+    await gotoAfterClientNavigation(page, "/admin/upgrade-plans?q=MOCK-1301");
     await expect(
       page.locator("a:visible").filter({ hasText: "赵宁（示例）" }).first(),
     ).toBeVisible();
-    await page.goto("/admin/calendar?view=agenda&date=2026-09-01&q=MOCK-1301");
+    await page.waitForLoadState("networkidle");
+    await gotoAfterClientNavigation(
+      page,
+      "/admin/calendar?view=agenda&date=2026-09-01&q=MOCK-1301",
+    );
     await expect(page.getByText("理论口试").first()).toBeVisible();
-    await page.goto("/admin/notifications?q=%E8%B5%B5%E5%AE%81");
+    await gotoAfterClientNavigation(page, "/admin/notifications?q=%E8%B5%B5%E5%AE%81");
     await expect(
       page.locator("button:visible").filter({ hasText: "升级计划已创建" }).first(),
     ).toBeVisible();
@@ -129,7 +157,7 @@ test.describe("admin operations workflow", () => {
       .getByRole("row")
       .filter({ hasText: "民用航空人员体检合格证" });
     await expect(before).toContainText("2027-08-10");
-    await page.goto("/admin/qualification-config");
+    await gotoAfterClientNavigation(page, "/admin/qualification-config");
     await page.getByLabel("首次提醒（到期前天数） *").fill("20");
     await page.getByLabel("再次提醒（到期前天数） *").fill("30");
     await page.getByRole("button", { name: "保存并查看影响摘要" }).click();
@@ -197,15 +225,16 @@ test.describe("admin operations workflow", () => {
     await expect(page.getByText(/AI.*自动退回/)).toHaveCount(0);
   });
 
-  test("390x844 operation pages have no page-level horizontal overflow", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const route of [
-      "/admin/calendar?date=2026-08-14",
-      "/admin/upgrade-plans",
-      "/admin/upgrade-plans/new?step=stages",
-      "/admin/qualification-config",
-      "/admin/notifications",
-    ]) {
+  for (const route of [
+    "/admin/calendar?date=2026-08-14",
+    "/admin/upgrade-plans",
+    "/admin/upgrade-plans/new?step=stages",
+    "/admin/qualification-config",
+    "/admin/notifications",
+  ]) {
+    test(`390x844 operation page has no horizontal overflow: ${route}`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(route);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         390,
@@ -219,8 +248,8 @@ test.describe("admin operations workflow", () => {
         );
         await page.getByRole("button", { name: "完成" }).click();
       }
-    }
-  });
+    });
+  }
 
   test("mobile date click opens the day qualification roster drawer", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -311,7 +340,7 @@ test.describe("admin operations workflow", () => {
     await expect(page.getByTestId("calendar-filter-trigger")).toHaveAccessibleName("筛选");
   });
 
-  test("development entry covers every lifecycle, validity rule and delivery state", async ({
+  test("development entry covers every lifecycle, validity rule and delivery state @dev", async ({
     page,
   }) => {
     await page.goto("/dev/admin-operations");
@@ -335,22 +364,25 @@ test.describe("admin operations workflow", () => {
     }
   });
 
-  test("all fourth-batch pages avoid uncaught and hydration errors", async ({ page }) => {
-    test.setTimeout(60_000);
-    const errors = captureRuntimeErrors(page);
-    for (const route of [
-      "/admin/calendar",
-      "/admin/upgrade-plans",
-      "/admin/upgrade-plans/upgrade-01",
-      "/admin/upgrade-plans/new",
-      "/admin/qualification-config",
-      "/admin/notifications",
-      "/dev/admin-operations",
-      "/admin/upgrade-plans/does-not-exist",
-    ]) {
+  for (const route of [
+    "/admin/calendar",
+    "/admin/upgrade-plans",
+    "/admin/upgrade-plans/upgrade-01",
+    "/admin/upgrade-plans/new",
+    "/admin/qualification-config",
+    "/admin/notifications",
+    "/dev/admin-operations",
+    "/admin/upgrade-plans/does-not-exist",
+  ]) {
+    const devTag = route.startsWith("/dev/") ? " @dev" : "";
+    test(`fourth-batch page has no uncaught or hydration errors: ${route}${devTag}`, async ({
+      page,
+    }) => {
+      test.setTimeout(60_000);
+      const errors = captureRuntimeErrors(page);
       await page.goto(route);
       await page.waitForLoadState("domcontentloaded");
-    }
-    expect(errors).toEqual([]);
-  });
+      expect(errors).toEqual([]);
+    });
+  }
 });
