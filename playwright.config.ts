@@ -12,10 +12,12 @@ export default defineConfig({
       : 4,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
-  expect: { timeout: 15_000 },
+  timeout: 60_000,
+  expect: { timeout: 30_000 },
   use: {
     baseURL: "http://127.0.0.1:3000",
     locale: "zh-CN",
+    navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

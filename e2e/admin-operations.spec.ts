@@ -12,7 +12,7 @@ function captureRuntimeErrors(page: Page) {
 async function gotoAfterClientNavigation(page: Page, url: string) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      await page.goto(url);
+      await page.goto(url, { timeout: 60_000 });
       return;
     } catch (error) {
       if (

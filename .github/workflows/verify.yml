@@ -47,7 +47,7 @@ jobs:
       matrix:
         include:
           - browser: chromium
-            workers: 2
+            workers: 1
             dev_only: true
           - browser: firefox
             workers: 1
