@@ -1,0 +1,199 @@
+name: crewqual
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  SERVICE_MODE: remote
+  CREWQUAL_VERSION: ${CREWQUAL_VERSION:?CREWQUAL_VERSION is required}
+  CREWQUAL_WEB_IMAGE: ${CREWQUAL_WEB_IMAGE:?CREWQUAL_WEB_IMAGE is required}
+  CREWQUAL_RUNTIME_IMAGE: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+  CREWQUAL_UPDATER_SOCKET: ${CREWQUAL_UPDATER_SOCKET:-/run/crewqual-updater/api.sock}
+  CREWQUAL_UPDATER_SHARED_SECRET: ${CREWQUAL_UPDATER_SHARED_SECRET:-}
+  APP_ORIGIN: ${APP_ORIGIN:?APP_ORIGIN is required}
+  APP_DOMAIN: ${APP_DOMAIN:-localhost}
+  TLS_EMAIL: ${TLS_EMAIL:-crewqual-local@lan.invalid}
+  DEPLOYMENT_NETWORK_MODE: ${DEPLOYMENT_NETWORK_MODE:-tls}
+  APP_PORT: ${APP_PORT:-443}
+  CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-localhost}
+  APP_BIND: ${APP_BIND:-0.0.0.0}
+  ACME_BIND: ${ACME_BIND:-127.0.0.1}
+  ACME_PORT: ${ACME_PORT:-18080}
+  NETWORK_ACCESS_SECRET: ${NETWORK_ACCESS_SECRET:?NETWORK_ACCESS_SECRET is required}
+  SETUP_AUTH_CODE_HASH: ${SETUP_AUTH_CODE_HASH:?SETUP_AUTH_CODE_HASH is required}
+  DATABASE_URL: postgresql://crewqual:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/crewqual
+  DIRECT_URL: postgresql://crewqual:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/crewqual
+  SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+  SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
+  PILOT_SESSION_TTL_MINUTES: ${PILOT_SESSION_TTL_MINUTES:-60}
+  ADMIN_SESSION_TTL_HOURS: ${ADMIN_SESSION_TTL_HOURS:-8}
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+  STORAGE_MODE: ${STORAGE_MODE:-builtin}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET:-crewqual-private}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+  S3_SSE_KMS_KEY_ID: ${S3_SSE_KMS_KEY_ID:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  SMS_ADAPTER: ${SMS_ADAPTER:-disabled}
+  SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+  SMS_WEBHOOK_AUTH_TOKEN: ${SMS_WEBHOOK_AUTH_TOKEN:-}
+  SMS_RECEIPT_WEBHOOK_SECRET: ${SMS_RECEIPT_WEBHOOK_SECRET:-}
+  FEISHU_ADAPTER: ${FEISHU_ADAPTER:-disabled}
+  FEISHU_WEBHOOK_URL: ${FEISHU_WEBHOOK_URL:-}
+  FEISHU_WEBHOOK_AUTH_TOKEN: ${FEISHU_WEBHOOK_AUTH_TOKEN:-}
+  VLM_ADAPTER: ${VLM_ADAPTER:-disabled}
+  QWEN_BASE_URL: ${QWEN_BASE_URL:-http://host.docker.internal:8000/v1}
+  QWEN_MODEL: ${QWEN_MODEL:-Qwen3.7-35B}
+
+services:
+  postgres:
+    image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
+    environment:
+      POSTGRES_DB: crewqual
+      POSTGRES_USER: crewqual
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crewqual -d crewqual"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks: [internal]
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+    networks: [internal]
+
+  minio-init:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        do sleep 1; done;
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET: ${S3_BUCKET:-crewqual-private}
+    depends_on:
+      minio: { condition: service_started }
+    restart: "no"
+    networks: [internal]
+
+  migrate:
+    image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+    command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
+    environment: *app-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    restart: "no"
+    networks: [internal]
+
+  bootstrap:
+    image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+    command: ["node", "scripts/container-entrypoint.mjs", "bootstrap"]
+    environment:
+      <<: *app-environment
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_TOTP_SECRET: ${INITIAL_ADMIN_TOTP_SECRET:-}
+      INITIAL_ORGANIZATION_CODE: ${INITIAL_ORGANIZATION_CODE:-CREWQUAL}
+      INITIAL_ORGANIZATION_NAME: ${INITIAL_ORGANIZATION_NAME:-CrewQual}
+      INITIAL_UNIT_CODE: ${INITIAL_UNIT_CODE:-ROOT}
+      INITIAL_UNIT_NAME: ${INITIAL_UNIT_NAME:-运行单位}
+      INITIAL_TEMPLATE_PACK_CODE: ${INITIAL_TEMPLATE_PACK_CODE:-aviation-china-airline-pilot}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: "no"
+    networks: [internal]
+
+  ops:
+    image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+    command: ["node", "scripts/container-entrypoint.mjs", "db-check"]
+    profiles: [ops]
+    environment: *app-environment
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+    networks: [internal]
+
+  web:
+    image: ${CREWQUAL_WEB_IMAGE:?CREWQUAL_WEB_IMAGE is required}
+    environment: *app-environment
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /run/crewqual-updater:/run/crewqual-updater:ro
+    restart: unless-stopped
+    networks: [internal]
+
+  worker:
+    image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+    environment: *app-environment
+    depends_on:
+      bootstrap: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "scripts/worker-health.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backup-data:/backups
+    restart: unless-stopped
+    networks: [internal]
+
+  caddy:
+    image: caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN is required}
+      TLS_EMAIL: ${TLS_EMAIL:?TLS_EMAIL is required}
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:?CADDY_SITE_ADDRESS is required}
+      NETWORK_ACCESS_SECRET: ${NETWORK_ACCESS_SECRET:?NETWORK_ACCESS_SECRET is required}
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-443}:${APP_PORT:-443}"
+      - "${ACME_BIND:-127.0.0.1}:${ACME_PORT:-18080}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [internal]
+
+volumes:
+  postgres-data:
+  minio-data:
+  backup-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
+    driver: bridge

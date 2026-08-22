@@ -39,6 +39,14 @@ describe("QualificationConfigView selection", () => {
   it("keeps selection in the URL and never carries dirty values into another config", async () => {
     const user = userEvent.setup();
     const historyReplace = vi.spyOn(window.history, "replaceState");
+    vi.spyOn(applicationServices.qualificationConfigs, "list").mockResolvedValue({
+      data: adminStateStore
+        .getSnapshot()
+        .qualificationConfigs.map((config) =>
+          config.id === "config-medical-certificate" ? { ...config, locked: false } : config,
+        ),
+      source: "mock",
+    });
     renderView();
 
     const description = await screen.findByLabelText("等级/参数帮助说明");
@@ -123,6 +131,7 @@ describe("QualificationConfigView selection", () => {
     );
     const configs = adminStateStore.getSnapshot().qualificationConfigs.map((config) => ({
       ...config,
+      locked: config.id === "config-medical-certificate" ? false : config.locked,
       version: config.id === "config-medical-certificate" ? 1 : undefined,
     }));
     vi.spyOn(applicationServices.qualificationConfigs, "list").mockResolvedValue({
@@ -204,36 +213,22 @@ describe("QualificationConfigView selection", () => {
     );
   });
 
-  it("adds a custom core-qualification field with content and length rules", async () => {
-    const user = userEvent.setup();
+  it("protects structured rules on locked core qualifications", async () => {
     renderView();
     await screen.findByTestId("qualification-config-editor");
 
-    await user.click(screen.getByRole("button", { name: "添加条目" }));
-    await user.type(screen.getByLabelText("条目名称 *"), "执照编号");
-    await user.selectOptions(screen.getByLabelText("可填写内容 *"), "alphanumeric");
-    await user.clear(screen.getByLabelText("最少位数"));
-    await user.type(screen.getByLabelText("最少位数"), "8");
-    await user.clear(screen.getByLabelText("最多位数"));
-    await user.type(screen.getByLabelText("最多位数"), "8");
-    await user.type(screen.getByLabelText("填写提示"), "请输入 8 位英文和数字");
-
-    await user.click(screen.getByRole("button", { name: "保存并查看影响摘要" }));
-    await user.click(screen.getByRole("button", { name: "确认保存" }));
-    await screen.findByText(/现有生效记录未被回写/);
-
+    expect(screen.getByText(/模板核心资质的结构化规则由模板锁定/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "添加条目" })).toBeDisabled();
+    expect(screen.getByRole("switch", { name: "显示等级/参数帮助说明" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "人工指定到期日" })).toBeDisabled();
+    expect(screen.getByRole("spinbutton", { name: "首次提醒（到期前天数）" })).toBeDisabled();
+    const recipientCheckboxes = screen.getAllByRole("checkbox", { name: "本人" });
+    expect(recipientCheckboxes).toHaveLength(2);
+    recipientCheckboxes.forEach((input) => expect(input).toBeDisabled());
+    expect(screen.getByRole("switch", { name: "启用 AI/OCR 辅助核验配置" })).toBeDisabled();
     const saved = (await applicationServices.qualificationConfigs.list("PILOT")).data.find(
       (item) => item.id === "config-medical-certificate",
     );
-    expect(saved?.customFields).toEqual([
-      expect.objectContaining({
-        label: "执照编号",
-        valueType: "alphanumeric",
-        required: true,
-        minLength: 8,
-        maxLength: 8,
-        placeholder: "请输入 8 位英文和数字",
-      }),
-    ]);
+    expect(saved?.customFields).toEqual([]);
   });
 });

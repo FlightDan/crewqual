@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import type { QualificationReview } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationName } from "@/lib/i18n";
 
 function SanitizedCredential({
   review,
@@ -14,7 +15,12 @@ function SanitizedCredential({
   review: QualificationReview;
   large?: boolean;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const qualificationName = localizedQualificationName(
+    review.qualificationName,
+    review.qualificationTranslations,
+    locale,
+  );
   return (
     <div
       className={`relative flex w-full flex-col overflow-hidden rounded-lg border border-blue-200 bg-[linear-gradient(135deg,#eff6ff_0%,#fff_48%,#f8fafc_100%)] p-5 text-primary ${large ? "min-h-[420px]" : "min-h-64"}`}
@@ -31,7 +37,7 @@ function SanitizedCredential({
         </div>
       </div>
       <div className="my-auto space-y-3 py-6 text-sm">
-        <p className="text-base font-bold">{review.qualificationName}</p>
+        <p className="text-base font-bold">{qualificationName}</p>
         <p>
           {t("reviewDocument.holder")}
           {review.pilotName}
@@ -53,7 +59,12 @@ function SanitizedCredential({
 }
 
 export function ReviewDocumentViewer({ review }: { review: QualificationReview }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const qualificationName = localizedQualificationName(
+    review.qualificationName,
+    review.qualificationTranslations,
+    locale,
+  );
   const [open, setOpen] = React.useState(false);
   if (review.documentUrl) {
     return (
@@ -64,7 +75,7 @@ export function ReviewDocumentViewer({ review }: { review: QualificationReview }
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={review.documentUrl}
-              alt={t("reviewDocument.uploadedAlt", { name: review.qualificationName })}
+              alt={t("reviewDocument.uploadedAlt", { name: qualificationName })}
               className="max-h-96 w-full rounded-lg border border-border object-contain"
             />
           </button>
@@ -81,7 +92,7 @@ export function ReviewDocumentViewer({ review }: { review: QualificationReview }
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={review.documentUrl}
-              alt={t("reviewDocument.large", { name: review.qualificationName })}
+              alt={t("reviewDocument.large", { name: qualificationName })}
               className="mt-4 max-h-[75vh] w-full rounded-lg border border-border object-contain"
             />
           </DialogContent>

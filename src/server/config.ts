@@ -5,11 +5,22 @@ const booleanFromEnv = z
   .default("false")
   .transform((value) => value === "true");
 const optionalUrl = z.union([z.string().url(), z.literal("")]).default("");
+const networkMode = z.enum(["lan", "tls"]).default("tls");
 
 const serverConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   SERVICE_MODE: z.enum(["remote", "mock"]).default("remote"),
   APP_ORIGIN: z.string().url().default("http://localhost:3000"),
+  APP_DOMAIN: z.string().default("localhost"),
+  TLS_EMAIL: z.string().default("crewqual-local@lan.invalid"),
+  DEPLOYMENT_NETWORK_MODE: networkMode,
+  APP_PORT: z.coerce.number().int().min(1).max(65535).default(443),
+  CADDY_SITE_ADDRESS: z.string().default("localhost"),
+  APP_BIND: z.string().default("0.0.0.0"),
+  ACME_BIND: z.string().default("127.0.0.1"),
+  ACME_PORT: z.coerce.number().int().min(1).max(65535).default(18080),
+  NETWORK_ACCESS_SECRET: z.string().default(""),
+  SETUP_AUTH_CODE_HASH: z.string().default(""),
   DATABASE_URL: z.string().default(""),
   DIRECT_URL: z.string().default(""),
   SESSION_SECRET: z.string().min(32).default("development-only-crewqual-session-secret-32"),
@@ -17,6 +28,7 @@ const serverConfigSchema = z.object({
   PILOT_SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
   ADMIN_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(8),
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  STORAGE_MODE: z.enum(["builtin", "external"]).default("external"),
   S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
   S3_BUCKET: z.string().min(1).default("crewqual-private"),
@@ -65,8 +77,21 @@ export function getServerConfig(): ServerConfig {
     const missing = required.filter(([, value]) => !value).map(([name]) => name);
     if (missing.length) throw new Error(`Missing production configuration: ${missing.join(", ")}`);
     const appOrigin = new URL(parsed.data.APP_ORIGIN);
-    if (appOrigin.protocol !== "https:" || parsed.data.APP_ORIGIN !== appOrigin.origin) {
-      throw new Error("Production APP_ORIGIN must be an exact HTTPS origin without a path");
+    const isPrivateHttpOrigin =
+      appOrigin.protocol === "http:" &&
+      parsed.data.DEPLOYMENT_NETWORK_MODE === "lan" &&
+      (appOrigin.hostname === "localhost" ||
+        appOrigin.hostname === "127.0.0.1" ||
+        /^10\./.test(appOrigin.hostname) ||
+        /^192\.168\./.test(appOrigin.hostname) ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(appOrigin.hostname));
+    if (
+      (!isPrivateHttpOrigin && appOrigin.protocol !== "https:") ||
+      parsed.data.APP_ORIGIN !== appOrigin.origin
+    ) {
+      throw new Error(
+        "Production APP_ORIGIN must be an exact HTTPS origin, or a private HTTP origin in LAN mode",
+      );
     }
     if (parsed.data.SESSION_SECRET.length < 48) {
       throw new Error("Production SESSION_SECRET must contain at least 48 characters");
@@ -85,21 +110,17 @@ export function getServerConfig(): ServerConfig {
     ) {
       throw new Error("Production S3_SECRET_ACCESS_KEY must be a non-default secret");
     }
-    if (new URL(parsed.data.S3_ENDPOINT).protocol !== "https:") {
+    const storageEndpoint = new URL(parsed.data.S3_ENDPOINT);
+    const trustedBuiltinEndpoint =
+      parsed.data.STORAGE_MODE === "builtin" &&
+      storageEndpoint.protocol === "http:" &&
+      storageEndpoint.hostname === "minio" &&
+      storageEndpoint.port === "9000";
+    if (storageEndpoint.protocol !== "https:" && !trustedBuiltinEndpoint) {
       throw new Error("Production S3_ENDPOINT must use HTTPS");
     }
     if (parsed.data.SERVICE_MODE === "mock") {
       throw new Error("Mock service mode is not allowed in production");
-    }
-    if (
-      process.env.NEXT_PHASE !== "phase-production-build" &&
-      parsed.data.SMS_ADAPTER !== "webhook" &&
-      !(
-        process.env.CREWQUAL_ACCEPTANCE_EXTERNALS_DISABLED === "1" &&
-        process.env.ACCEPTANCE_ENVIRONMENT_ID === "1"
-      )
-    ) {
-      throw new Error("Production requires a real SMS adapter before Pilot access is enabled");
     }
     if (parsed.data.SMS_ADAPTER === "webhook" && !parsed.data.SMS_WEBHOOK_URL) {
       throw new Error("SMS_WEBHOOK_URL is required for the webhook SMS adapter");

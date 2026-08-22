@@ -120,6 +120,7 @@ export async function listAdminCalendarEvents(
       unit: item.pilot.unit.name,
       qualificationId: item.qualificationType.code,
       qualificationName: item.qualificationType.name,
+      qualificationTranslations: item.qualificationType.translations,
       positionCode: positionByPilot.get(item.pilotId)?.code,
       positionName: positionByPilot.get(item.pilotId)?.name,
       readonly: true,
@@ -222,6 +223,10 @@ export async function getAdminCalendarDayQualificationRoster(
           return {
             qualificationId: type.code,
             qualificationName: type.name,
+            qualificationTranslations:
+              type.translations && typeof type.translations === "object"
+                ? (type.translations as Record<string, string>)
+                : {},
             validityRule: type.validityRule as ValidityRule,
             record: record
               ? {
@@ -229,6 +234,10 @@ export async function getAdminCalendarDayQualificationRoster(
                   recordId: record.id,
                   qualificationId: type.code,
                   qualificationName: type.name,
+                  qualificationTranslations:
+                    type.translations && typeof type.translations === "object"
+                      ? (type.translations as Record<string, string>)
+                      : {},
                   credentialNumber: record.credentialNumber,
                   issueDate: dateOnly(record.issueDate),
                   expiryDate: dateOnly(record.expiryDate),

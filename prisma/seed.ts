@@ -17,7 +17,7 @@ const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DIRECT_URL or DATABASE_URL is required to seed");
 const prisma = new PrismaClient({ adapter: new PrismaPg(connectionString) });
 
-const coreQualifications = CORE_QUALIFICATION_CATALOG.map(({ id, name }) => [id, name] as const);
+const coreQualifications = CORE_QUALIFICATION_CATALOG.map((item) => item);
 
 async function main() {
   if (process.env.NODE_ENV === "production") {
@@ -28,13 +28,14 @@ async function main() {
     update: { name: "示例运行单位" },
     create: { code: "DEMO", name: "示例运行单位" },
   });
-  for (const [code, name] of coreQualifications) {
+  for (const { id: code, name, translations } of coreQualifications) {
     await prisma.qualificationType.upsert({
       where: { code },
-      update: { name, core: true, active: true },
+      update: { name, translations, core: true, active: true },
       create: {
         code,
         name,
+        translations,
         core: true,
         parameterRestriction: { enabled: false, description: "" },
         validityRule: { kind: "manual_expiry" },
@@ -73,6 +74,8 @@ async function main() {
     "settings.security.write": "维护安全策略与会话",
     "settings.backups.write": "维护备份目标与计划",
     "settings.backups.restore": "执行备份恢复",
+    "settings.updates.read": "查看系统更新",
+    "settings.updates.install": "安装系统更新",
     "audit.read": "查看安全审计",
   };
   for (const code of ADMIN_PERMISSION_CODES) {
@@ -170,7 +173,7 @@ async function main() {
     "2028-03-15",
     "2027-02-10",
   ];
-  for (const [index, [code]] of coreQualifications.entries()) {
+  for (const [index, { id: code }] of coreQualifications.entries()) {
     const qualificationType = await prisma.qualificationType.findUniqueOrThrow({ where: { code } });
     const existing = await prisma.qualificationRecord.findFirst({
       where: { pilotId: pilot.id, qualificationTypeId: qualificationType.id, status: "ACTIVE" },

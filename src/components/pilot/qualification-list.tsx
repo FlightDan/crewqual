@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { Qualification, QualificationSection, QualificationStatus } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
 import { localizedQualificationText } from "@/lib/messages";
+import { localizedQualificationName } from "@/lib/i18n";
 
 const statusStyles: Record<
   QualificationStatus,
@@ -45,7 +46,7 @@ export function QualificationCard({
   portalPath?: "/pilot" | "/member";
 }) {
   const styles = statusStyles[qualification.status];
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const statusLabel = localizedQualificationText(qualification.statusLabel, t);
   const remainingLabel = localizedQualificationText(qualification.remainingLabel, t);
   const urgent = qualification.status === "expired";
@@ -57,7 +58,7 @@ export function QualificationCard({
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="min-w-0 text-[15px] font-bold leading-5 text-primary">
-          {qualification.name}
+          {localizedQualificationName(qualification.name, qualification.translations, locale)}
         </h3>
         <Badge tone={styles.badge} className="shrink-0 px-2 py-0.5 text-[11px]">
           {statusLabel}

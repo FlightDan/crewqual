@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
           qualification: {
             id: record.qualificationType.code,
             name: record.qualificationType.name,
+            translations: record.qualificationType.translations,
             expiresOn: expiry,
             status: state.status,
             statusLabel: state.statusLabel,

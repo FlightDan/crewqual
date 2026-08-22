@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { identitySchema } from "@/lib/pilot-validation";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { AccessLinkRequest } from "@/types/services";
-import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "member" }) {
   const portalPath = portal === "member" ? "/member" : "/pilot";
@@ -49,7 +49,6 @@ export function PilotIdentityForm({ portal = "pilot" }: { portal?: "pilot" | "me
               {portal === "member" ? t("portal.member") : t("portal.pilot")}
             </p>
           </div>
-          <LocaleSwitcher />
         </div>
       </div>
 

@@ -431,6 +431,7 @@ model QualificationType {
   id                   String                       @id @default(uuid()) @db.Uuid
   code                 String                       @unique
   name                 String
+  translations         Json                         @default("{}")
   core                 Boolean                      @default(false)
   active               Boolean                      @default(true)
   parameterRestriction Json
@@ -1004,17 +1005,40 @@ model SystemIntegrationSetting {
   updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
 }
 
+enum ObjectStorageProvider {
+  BUILTIN
+  S3
+}
+
+model ObjectStorageSetting {
+  id                    String                @id @default("global")
+  provider              ObjectStorageProvider @default(BUILTIN)
+  endpoint              String                @default("")
+  region                String                @default("us-east-1")
+  bucket                String                @default("")
+  credentialsCiphertext String?               @db.Text
+  forcePathStyle        Boolean               @default(false)
+  sseKmsKeyId           String                @default("")
+  lastTestStatus        String?
+  lastTestMessage       String                @default("")
+  lastTestedAt          DateTime?             @db.Timestamptz(3)
+  version               Int                   @default(1)
+  createdAt             DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime              @updatedAt @db.Timestamptz(3)
+}
+
 model SecurityPolicy {
-  id                        String   @id @default("global")
+  id                        String         @id @default("global")
   adminLoginMode            AdminLoginMode @default(PASSWORD_TOTP)
-  adminSessionTtlHours      Int      @default(8)
-  pilotAccessLinkTtlMinutes Int      @default(15)
-  pilotSessionTtlMinutes    Int      @default(60)
-  maxFailedAttempts         Int      @default(5)
-  lockoutMinutes            Int      @default(15)
-  version                   Int      @default(1)
-  createdAt                 DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt                 DateTime @updatedAt @db.Timestamptz(3)
+  adminSessionTtlHours      Int            @default(8)
+  pilotAccessLinkTtlMinutes Int            @default(15)
+  pilotSessionTtlMinutes    Int            @default(60)
+  maxFailedAttempts         Int            @default(5)
+  lockoutMinutes            Int            @default(15)
+  allowPublicAccess         Boolean        @default(false)
+  version                   Int            @default(1)
+  createdAt                 DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime       @updatedAt @db.Timestamptz(3)
 }
 
 model WorkerHeartbeat {

@@ -19,6 +19,7 @@ import {
 } from "@/server/crypto";
 import { isLocalTestEndpoint } from "@/server/external-endpoint-safety";
 import { getPrisma } from "@/server/prisma";
+import { requestNetworkApply } from "@/server/system-updates";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import type {
   AdminSettingsSnapshot,
@@ -36,6 +37,7 @@ import type {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const actionEnvelope = z.object({ action: z.string().min(1), input: z.unknown() });
+const localeSchema = z.enum(["zh-CN", "en-US"]);
 
 const unitSchema = z.object({
   id: z.string().optional(),
@@ -121,12 +123,16 @@ const integrationSchema = z.object({
 });
 
 const securitySchema = z.object({
+  networkMode: z.enum(["lan", "tls"]).optional(),
+  appOrigin: z.string().url().optional(),
+  appPort: z.number().int().min(1).max(65535).optional(),
   adminLoginMode: z.enum(["PASSWORD_TOTP", "TOTP_ONLY", "PASSWORD_ONLY"]),
   adminSessionTtlHours: z.number().int().min(1).max(72),
   pilotAccessLinkTtlMinutes: z.number().int().min(5).max(60),
   pilotSessionTtlMinutes: z.number().int().min(15).max(480),
   maxFailedAttempts: z.number().int().min(3).max(20),
   lockoutMinutes: z.number().int().min(5).max(1440),
+  allowPublicAccess: z.boolean().optional(),
   version: z.number().int().positive(),
   currentPassword: z.string().max(256).optional(),
   currentTotpCode: z.string().max(32).optional(),
@@ -248,6 +254,11 @@ async function audit(
 function mapUnit(unit: any): SettingsUnit {
   return {
     id: unit.id,
+    organizationId: unit.organizationId ?? unit.organization?.id ?? null,
+    defaultLocale: localeSchema.safeParse(unit.organization?.defaultLocale).success
+      ? unit.organization.defaultLocale
+      : "zh-CN",
+    organizationVersion: unit.organization?.version ?? 1,
     code: unit.code,
     name: unit.name,
     timezone: unit.timezone,
@@ -342,7 +353,10 @@ async function loadSnapshot(
   const [units, positions, admins, integrations, policy, sessions, auditItems] = await Promise.all([
     db.organizationUnit.findMany({
       where: unitWhere,
-      include: { _count: { select: { admins: true, pilots: true } } },
+      include: {
+        organization: { select: { id: true, defaultLocale: true, version: true } },
+        _count: { select: { admins: true, pilots: true } },
+      },
       orderBy: [{ active: "desc" }, { name: "asc" }],
     }),
     db.position.findMany({
@@ -459,12 +473,16 @@ async function loadSnapshot(
     version: vlm?.version ?? 1,
   };
   const fallbackPolicy: SecurityPolicy = {
+    networkMode: config.DEPLOYMENT_NETWORK_MODE,
+    appOrigin: config.APP_ORIGIN,
+    appPort: config.APP_PORT,
     adminLoginMode: "PASSWORD_TOTP",
     adminSessionTtlHours: config.ADMIN_SESSION_TTL_HOURS,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
+    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE === "tls",
     version: 1,
   };
   const actorIds = [
@@ -502,12 +520,16 @@ async function loadSnapshot(
     ai,
     security: policy
       ? {
+          networkMode: config.DEPLOYMENT_NETWORK_MODE,
+          appOrigin: config.APP_ORIGIN,
+          appPort: config.APP_PORT,
           adminLoginMode: policy.adminLoginMode,
           adminSessionTtlHours: policy.adminSessionTtlHours,
           pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
           pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
           maxFailedAttempts: policy.maxFailedAttempts,
           lockoutMinutes: policy.lockoutMinutes,
+          allowPublicAccess: policy.allowPublicAccess,
           version: policy.version,
         }
       : fallbackPolicy,
@@ -561,6 +583,7 @@ function actionLabel(action: string) {
   const labels: Record<string, string> = {
     "settings.unit.created": "创建运行单位",
     "settings.unit.updated": "更新单位设置",
+    "settings.organization.locale.updated": "更新组织系统语言",
     "settings.position.created": "创建职位",
     "settings.position.updated": "更新职位设置",
     "settings.position.deleted": "删除职位",
@@ -571,6 +594,7 @@ function actionLabel(action: string) {
     "settings.notifications.updated": "更新通知路由",
     "settings.integration.updated": "更新系统集成",
     "settings.integration.tested": "测试系统集成",
+    "settings.storage.updated": "更新对象存储",
     "settings.security.updated": "更新安全策略",
     "settings.session.revoked": "结束管理员会话",
   };
@@ -605,6 +629,45 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
     const admin = await getAdmin(request, "settings.read", true);
     const envelope = await parseJson(request, actionEnvelope);
     const db = getPrisma();
+    const config = getServerConfig();
+
+    if (method === "PATCH" && envelope.action === "organization.locale.save") {
+      requireSuperAdmin(admin);
+      requirePermission(admin, "settings.units.write");
+      const input = z
+        .object({
+          organizationId: z.string().uuid(),
+          defaultLocale: localeSchema,
+          expectedVersion: z.number().int().positive(),
+        })
+        .parse(envelope.input);
+      const updated = await db.organization.updateMany({
+        where: { id: input.organizationId, version: input.expectedVersion },
+        data: { defaultLocale: input.defaultLocale, version: { increment: 1 } },
+      });
+      if (updated.count !== 1) {
+        throw new ApiError("VERSION_CONFLICT", "系统语言设置已被其他管理员修改", 409);
+      }
+      const unit = await db.organizationUnit.findFirstOrThrow({
+        where: { organizationId: input.organizationId },
+        include: {
+          organization: { select: { id: true, defaultLocale: true, version: true } },
+          _count: { select: { admins: true, pilots: true } },
+        },
+      });
+      await audit(
+        admin,
+        requestId,
+        "settings.organization.locale.updated",
+        "Organization",
+        unit.organizationId!,
+        {
+          summary: `更新组织系统语言为 ${input.defaultLocale}`,
+          unitName: unit.name,
+        },
+      );
+      return jsonData(mapUnit(unit), requestId);
+    }
 
     if (method === "PATCH" && envelope.action === "unit.save") {
       requirePermission(admin, "settings.units.write");
@@ -628,7 +691,10 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       if (updated.count !== 1) throw new Error("VERSION_CONFLICT");
       const unit = await db.organizationUnit.findUniqueOrThrow({
         where: { id: input.id },
-        include: { _count: { select: { admins: true, pilots: true } } },
+        include: {
+          organization: { select: { id: true, defaultLocale: true, version: true } },
+          _count: { select: { admins: true, pilots: true } },
+        },
       });
       if (unit.organizationId) {
         await db.organization.update({
@@ -658,7 +724,10 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         return tx.organizationUnit.update({
           where: { id: created.id },
           data: { organizationId: created.id, parentId: null },
-          include: { _count: { select: { admins: true, pilots: true } } },
+          include: {
+            organization: { select: { id: true, defaultLocale: true, version: true } },
+            _count: { select: { admins: true, pilots: true } },
+          },
         });
       });
       await audit(admin, requestId, "settings.unit.created", "OrganizationUnit", unit.id, {
@@ -1172,6 +1241,22 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       if (current && current.version !== input.version) throw new Error("VERSION_CONFLICT");
       const previousMode = current?.adminLoginMode ?? "PASSWORD_TOTP";
       const modeChanged = previousMode !== input.adminLoginMode;
+      const requestedPort = input.appPort ?? config.APP_PORT;
+      const requestedPublicAccess =
+        input.allowPublicAccess ??
+        current?.allowPublicAccess ??
+        config.DEPLOYMENT_NETWORK_MODE === "tls";
+      const networkChanged = requestedPort !== config.APP_PORT;
+      const accessChanged =
+        (current?.allowPublicAccess ?? config.DEPLOYMENT_NETWORK_MODE === "tls") !==
+        requestedPublicAccess;
+      if (networkChanged && accessChanged) {
+        throw new ApiError(
+          "NETWORK_CHANGE_SPLIT_REQUIRED",
+          "请先单独保存端口，再单独切换公网访问开关",
+          422,
+        );
+      }
       const needsPassword = input.adminLoginMode !== "TOTP_ONLY";
       const needsTotp = input.adminLoginMode !== "PASSWORD_ONLY";
       const policyData = {
@@ -1181,9 +1266,11 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         pilotSessionTtlMinutes: input.pilotSessionTtlMinutes,
         maxFailedAttempts: input.maxFailedAttempts,
         lockoutMinutes: input.lockoutMinutes,
+        allowPublicAccess: requestedPublicAccess,
       };
 
-      const actor = modeChanged
+      const requiresReauthentication = modeChanged || networkChanged || accessChanged;
+      const actor = requiresReauthentication
         ? await db.adminUser.findUniqueOrThrow({
             where: { id: admin.id },
             select: {
@@ -1195,19 +1282,19 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
           })
         : null;
       const passwordOk =
-        !modeChanged ||
+        !requiresReauthentication ||
         !needsPassword ||
         (actor ? await verifyPassword(actor.passwordHash, input.currentPassword ?? "") : false);
       const totpCounter =
-        modeChanged && needsTotp && actor
+        requiresReauthentication && needsTotp && actor
           ? verifyTotp(resolveTotpSecret(actor.totpSecretCiphertext), input.currentTotpCode ?? "")
           : null;
-      const totpOk = !modeChanged || !needsTotp || totpCounter !== null;
+      const totpOk = !requiresReauthentication || !needsTotp || totpCounter !== null;
       if (!passwordOk || !totpOk) {
         throw new ApiError("INVALID_CREDENTIALS", "当前管理员凭据验证失败", 401);
       }
       if (
-        modeChanged &&
+        requiresReauthentication &&
         needsTotp &&
         actor?.lastTotpCounter !== null &&
         actor?.lastTotpCounter !== undefined &&
@@ -1217,13 +1304,34 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         throw new ApiError("INVALID_CREDENTIALS", "当前动态验证码已使用，请等待下一组验证码", 401);
       }
 
+      if (networkChanged) {
+        const origin = new URL(config.APP_ORIGIN);
+        origin.port = String(requestedPort);
+        const siteAddress =
+          config.DEPLOYMENT_NETWORK_MODE === "lan"
+            ? `http://:${requestedPort}`
+            : `${config.APP_DOMAIN}${requestedPort === 443 ? "" : `:${requestedPort}`}`;
+        await requestNetworkApply({
+          mode: config.DEPLOYMENT_NETWORK_MODE,
+          origin: origin.origin,
+          domain: config.APP_DOMAIN,
+          tlsEmail: config.TLS_EMAIL,
+          port: requestedPort,
+          siteAddress,
+          appBind: config.APP_BIND,
+          acmeBind: config.ACME_BIND,
+          acmePort: config.ACME_PORT,
+          actor: admin.displayName,
+        });
+      }
+
       const policy = await db.$transaction(async (tx) => {
         const saved = await tx.securityPolicy.upsert({
           where: { id: "global" },
           update: { ...policyData, version: { increment: 1 } },
           create: { id: "global", ...policyData },
         });
-        if (modeChanged) {
+        if (requiresReauthentication) {
           await tx.adminSession.deleteMany({});
           if (actor && needsTotp && totpCounter !== null) {
             await tx.adminUser.update({
@@ -1266,7 +1374,7 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         }
         return saved;
       });
-      if (modeChanged) {
+      if (requiresReauthentication) {
         const store = await cookies();
         store.delete(COOKIE_NAMES.admin);
         store.delete(`${COOKIE_NAMES.admin}_csrf`);
@@ -1274,15 +1382,25 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       return jsonData(
         {
           policy: {
+            networkMode: config.DEPLOYMENT_NETWORK_MODE,
+            appOrigin: networkChanged
+              ? (() => {
+                  const target = new URL(config.APP_ORIGIN);
+                  target.port = String(requestedPort);
+                  return target.origin;
+                })()
+              : config.APP_ORIGIN,
+            appPort: requestedPort,
             adminLoginMode: policy.adminLoginMode,
             adminSessionTtlHours: policy.adminSessionTtlHours,
             pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
             pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
             maxFailedAttempts: policy.maxFailedAttempts,
             lockoutMinutes: policy.lockoutMinutes,
+            allowPublicAccess: policy.allowPublicAccess,
             version: policy.version,
           },
-          reauthenticate: modeChanged,
+          reauthenticate: requiresReauthentication,
         },
         requestId,
       );

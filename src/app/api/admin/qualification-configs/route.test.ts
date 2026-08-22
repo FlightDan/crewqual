@@ -268,7 +268,7 @@ describe("position-scoped qualification configs", () => {
     );
   });
 
-  it("protects locked template requirements from renaming or deactivation", async () => {
+  it("allows locked template requirements to rename but still protects deactivation", async () => {
     mocks.requirementFindFirst.mockResolvedValueOnce({
       ...requirement,
       sourcePackCode: "pilot-core-v1",
@@ -282,12 +282,49 @@ describe("position-scoped qualification configs", () => {
       }),
     );
 
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    mocks.positionFindMany.mockResolvedValue([position]);
+    mocks.requirementFindFirst.mockResolvedValueOnce({
+      ...requirement,
+      sourcePackCode: "pilot-core-v1",
+    });
+    const deactivation = await PATCH(
+      patchRequest({ ...configInput, active: false, expectedVersion: 1 }),
+    );
+    expect(deactivation.status).toBe(422);
+
+    vi.clearAllMocks();
+    mocks.positionFindMany.mockResolvedValue([position]);
+    mocks.requirementFindFirst.mockResolvedValueOnce({
+      ...requirement,
+      sourcePackCode: "pilot-core-v1",
+    });
+    const structuredRuleChange = await PATCH(
+      patchRequest({
+        ...configInput,
+        customFields: [
+          {
+            id: "field-license-number",
+            label: "执照编号",
+            valueType: "alphanumeric",
+            required: true,
+            minLength: 8,
+            maxLength: 8,
+            placeholder: "请输入 8 位英文和数字",
+          },
+        ],
+        expectedVersion: 1,
+      }),
+    );
+    expect(structuredRuleChange.status).toBe(422);
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it("rejects stale writes with a version conflict", async () => {
-    mocks.requirementFindFirst.mockResolvedValueOnce(requirement).mockResolvedValueOnce(null);
+    mocks.requirementFindFirst.mockResolvedValueOnce(requirement);
     mocks.txRequirementUpdateMany.mockResolvedValue({ count: 0 });
 
     const response = await PATCH(patchRequest({ ...configInput, expectedVersion: 1 }));
@@ -297,7 +334,7 @@ describe("position-scoped qualification configs", () => {
   });
 
   it("persists custom fill-in fields without removing the standard field schema", async () => {
-    mocks.requirementFindFirst.mockResolvedValueOnce(requirement).mockResolvedValueOnce(null);
+    mocks.requirementFindFirst.mockResolvedValueOnce(requirement);
     const customFields = [
       {
         id: "field-license-number",
@@ -328,7 +365,7 @@ describe("position-scoped qualification configs", () => {
   });
 
   it("ends assignments when a custom requirement is deactivated", async () => {
-    mocks.requirementFindFirst.mockResolvedValueOnce(requirement).mockResolvedValueOnce(null);
+    mocks.requirementFindFirst.mockResolvedValueOnce(requirement);
     mocks.txRequirementFindUnique.mockResolvedValue({
       ...requirement,
       active: false,
@@ -354,9 +391,7 @@ describe("position-scoped qualification configs", () => {
       active: false,
       qualificationDefinition: { ...definition, active: false },
     };
-    mocks.requirementFindFirst
-      .mockResolvedValueOnce(inactiveRequirement)
-      .mockResolvedValueOnce(null);
+    mocks.requirementFindFirst.mockResolvedValueOnce(inactiveRequirement);
     mocks.txRequirementFindUnique.mockResolvedValue({ ...requirement, version: 2 });
 
     const response = await PATCH(

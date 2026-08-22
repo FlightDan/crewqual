@@ -49,10 +49,13 @@ function pnpmCommand(args: string[], options: { allowFailure?: boolean } = {}) {
     : command("corepack", ["pnpm", ...args], options);
 }
 
+const RELEASE_IMAGE_NAMES = ["RELEASE_WEB_IMAGE", "RELEASE_RUNTIME_IMAGE"] as const;
+
 const IMAGE_SIZE_LIMITS = {
   RELEASE_WEB_IMAGE: 110 * 1024 * 1024,
-  RELEASE_WORKER_IMAGE: 270 * 1024 * 1024,
-  RELEASE_OPS_IMAGE: 280 * 1024 * 1024,
+  // 232,079,746 compressed layer bytes from the clean linux/amd64 local build;
+  // the 244 MiB limit is the rounded-up 110% allowance.
+  RELEASE_RUNTIME_IMAGE: 244 * 1024 * 1024,
 } as const;
 const IMAGE_TOTAL_LIMIT = 641 * 1024 * 1024;
 
@@ -149,9 +152,7 @@ async function preflight(evidence: ReleaseEvidence) {
   } else if (evidence.profile === "final") {
     throw new Error("final 发布必须设置 RELEASE_SIGNER_FINGERPRINTS");
   }
-  const images = ["RELEASE_WEB_IMAGE", "RELEASE_WORKER_IMAGE", "RELEASE_OPS_IMAGE"].map(
-    assertDigestImage,
-  );
+  const images = RELEASE_IMAGE_NAMES.map(assertDigestImage);
   for (const image of images) {
     let inspected = command("docker", ["image", "inspect", image], { allowFailure: true });
     if (inspected.status !== 0)
@@ -178,8 +179,7 @@ async function preflight(evidence: ReleaseEvidence) {
     commit,
     images: {
       web: process.env.RELEASE_WEB_IMAGE,
-      worker: process.env.RELEASE_WORKER_IMAGE,
-      ops: process.env.RELEASE_OPS_IMAGE,
+      runtime: process.env.RELEASE_RUNTIME_IMAGE,
     },
     externalIntegrations: "disabled",
   });
@@ -350,8 +350,7 @@ async function bootstrap(evidence: ReleaseEvidence) {
   const initialPassword = randomBytes(18).toString("base64url");
   const lines = [
     `RELEASE_WEB_IMAGE=${required("RELEASE_WEB_IMAGE")}`,
-    `RELEASE_WORKER_IMAGE=${required("RELEASE_WORKER_IMAGE")}`,
-    `RELEASE_OPS_IMAGE=${required("RELEASE_OPS_IMAGE")}`,
+    `RELEASE_RUNTIME_IMAGE=${required("RELEASE_RUNTIME_IMAGE")}`,
     `POSTGRES_PASSWORD=${password}`,
     `APP_ORIGIN=https://acceptance-${id}.invalid`,
     `ACCEPTANCE_WEB_PORT=${port}`,
@@ -789,7 +788,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
   };
   if (totalCompressedBytes > IMAGE_TOTAL_LIMIT) {
     throw new Error(
-      `三张镜像压缩 OCI 层合计 ${imageSizeReport.total.compressedMiB} MiB 超过 ${imageSizeReport.total.compressedLimitMiB} MiB 门槛`,
+      `两张镜像压缩 OCI 层合计 ${imageSizeReport.total.compressedMiB} MiB 超过 ${imageSizeReport.total.compressedLimitMiB} MiB 门槛`,
     );
   }
   const imageSizePath = await writeGateEvidence(dir, "image-sizes", imageSizeReport);
@@ -835,7 +834,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
     { allowFailure: true },
   );
   if (fsScan.status !== 0) throw new Error(`Trivy filesystem 扫描失败：${fsScan.output}`);
-  for (const imageName of ["RELEASE_WEB_IMAGE", "RELEASE_WORKER_IMAGE", "RELEASE_OPS_IMAGE"]) {
+  for (const imageName of RELEASE_IMAGE_NAMES) {
     const scan = command(
       "trivy",
       [
@@ -893,7 +892,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
   if (evidence.profile === "final" && (!identity || !issuer)) {
     throw new Error("final 发布必须设置 Cosign identity 和 OIDC issuer");
   }
-  for (const imageName of ["RELEASE_WEB_IMAGE", "RELEASE_WORKER_IMAGE", "RELEASE_OPS_IMAGE"]) {
+  for (const imageName of RELEASE_IMAGE_NAMES) {
     const image = required(imageName);
     const signature = command(
       "cosign",
@@ -1008,8 +1007,12 @@ async function main() {
   }
   const tag = args.tag ?? process.env.RELEASE_TAG ?? "";
   const profile = (args.profile ?? process.env.RELEASE_PROFILE ?? "rc") as "rc" | "final";
-  if (!/^v0\.3\.5(?:-rc\.\d+)?$/.test(tag)) throw new Error(`无效 release tag：${tag}`);
+  const stableTag = /^v[0-9]+\.[0-9]+\.[0-9]+$/.test(tag);
+  const releaseCandidateTag = /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/.test(tag);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
+  if ((profile === "final" && !stableTag) || (profile === "rc" && !releaseCandidateTag)) {
+    throw new Error(`无效 ${profile} release tag：${tag}`);
+  }
   const id = runId();
   const evidence: ReleaseEvidence = {
     schemaVersion: 1,

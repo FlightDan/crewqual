@@ -413,6 +413,7 @@ export function createMockAdminServices(
           const qualifications = row.qualifications.map((qualification) => ({
             id: qualification.qualificationCode,
             name: qualification.qualificationName,
+            translations: qualification.qualificationTranslations,
             parameter: qualification.levelOrParameter,
             expiresOn: qualification.expiryDate,
             credentialNumber: "",
@@ -538,6 +539,7 @@ export function createMockAdminServices(
           recordId: `qualification:${pilotId}:${qualificationId}`,
           qualificationId,
           qualificationName: updated.name,
+          qualificationTranslations: updated.translations,
           credentialNumber: updated.credentialNumber,
           issueDate: updated.issueDate,
           expiryDate: updated.expiryDate,
@@ -612,6 +614,7 @@ export function createMockAdminServices(
           recordId: `qualification:${pilotId}:${qualificationId}`,
           qualificationId,
           qualificationName: created.name,
+          qualificationTranslations: config.translations,
           credentialNumber: created.credentialNumber,
           issueDate: created.issueDate,
           expiryDate: created.expiryDate,

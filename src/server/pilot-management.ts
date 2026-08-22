@@ -142,6 +142,7 @@ export async function getPilotManagementMeta(
         id: true,
         code: true,
         name: true,
+        translations: true,
         validityRule: true,
         version: true,
         parameterRestriction: true,
@@ -153,6 +154,10 @@ export async function getPilotManagementMeta(
     id: qualification.id,
     code: qualification.code,
     name: qualification.name,
+    translations:
+      qualification.translations && typeof qualification.translations === "object"
+        ? (qualification.translations as Record<string, string>)
+        : {},
     validityRule: parseValidityRule(qualification.validityRule),
     ruleVersion: qualification.version,
     parameterRestriction:
@@ -202,7 +207,9 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
         unit: true,
         qualifications: {
           where: { status: "ACTIVE" },
-          include: { qualificationType: { select: { id: true, name: true } } },
+          include: {
+            qualificationType: { select: { id: true, name: true, translations: true } },
+          },
           orderBy: { updatedAt: "desc" },
         },
       },

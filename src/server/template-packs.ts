@@ -36,6 +36,7 @@ export const templatePackSchema = z.object({
   name: z.string().trim().min(1).max(256),
   description: z.string().trim().max(2000).default(""),
   translations: z.record(z.string(), z.string()).default({}),
+  descriptionTranslations: z.record(z.string(), z.string()).default({}),
   positions: z
     .array(
       z.object({
@@ -119,13 +120,17 @@ export const PILOT_TEMPLATE_PACK: TemplatePack = {
   industryCode: "aviation",
   name: "中国民航飞行员",
   description: "CrewQual 当前航空飞行员资质与升级计划模板。",
-  translations: { "zh-CN": "中国民航飞行员" },
+  translations: { "zh-CN": "中国民航飞行员", "en-US": "Chinese Civil Aviation Flight Crew" },
+  descriptionTranslations: {
+    "zh-CN": "CrewQual 当前航空飞行员资质与升级计划模板。",
+    "en-US": "CrewQual qualification and upgrade plan template for civil aviation flight crews.",
+  },
   positions: [
     {
       code: "PILOT",
       name: "飞行员",
       description: "承担飞行运行与飞行员资质管理职责的成员。",
-      translations: { "zh-CN": "飞行员" },
+      translations: { "zh-CN": "飞行员", "en-US": "Flight crew" },
       sortOrder: 0,
     },
   ],
@@ -133,7 +138,7 @@ export const PILOT_TEMPLATE_PACK: TemplatePack = {
     code: item.id,
     name: item.name,
     description: "",
-    translations: { "zh-CN": item.name },
+    translations: item.translations,
     category: "aviation",
     active: true,
     requiresEvidence: true,

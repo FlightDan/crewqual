@@ -211,6 +211,7 @@ export function parsePilotCsv(
         qualificationId: qualification.id,
         qualificationCode: qualification.code,
         qualificationName: qualification.name,
+        qualificationTranslations: qualification.translations,
         issueDate,
         trainingDate,
         expiryDate: ruleValidation.expiryDate ?? "",

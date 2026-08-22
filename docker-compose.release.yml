@@ -17,16 +17,27 @@ services:
     networks: [internal]
 
   migrate:
-    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    image: ${RELEASE_RUNTIME_IMAGE:?RELEASE_RUNTIME_IMAGE is required}
     command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
     environment: &app-env
       NODE_ENV: production
       SERVICE_MODE: remote
       APP_ORIGIN: ${APP_ORIGIN:?APP_ORIGIN is required}
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+      TLS_EMAIL: ${TLS_EMAIL:-crewqual-local@lan.invalid}
+      DEPLOYMENT_NETWORK_MODE: ${DEPLOYMENT_NETWORK_MODE:-tls}
+      APP_PORT: ${APP_PORT:-443}
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-localhost}
+      APP_BIND: ${APP_BIND:-0.0.0.0}
+      ACME_BIND: ${ACME_BIND:-127.0.0.1}
+      ACME_PORT: ${ACME_PORT:-18080}
+      NETWORK_ACCESS_SECRET: ${NETWORK_ACCESS_SECRET:-local-network-access-secret-change-me}
+      SETUP_AUTH_CODE_HASH: ${SETUP_AUTH_CODE_HASH:-}
       DATABASE_URL: postgresql://crewqual:${POSTGRES_PASSWORD}@postgres:5432/crewqual
       DIRECT_URL: postgresql://crewqual:${POSTGRES_PASSWORD}@postgres:5432/crewqual
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
+      STORAGE_MODE: ${STORAGE_MODE:-external}
       S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT is required}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
@@ -44,7 +55,7 @@ services:
     networks: [internal]
 
   ops:
-    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    image: ${RELEASE_RUNTIME_IMAGE:?RELEASE_RUNTIME_IMAGE is required}
     profiles: [ops]
     command: ["node", "scripts/container-entrypoint.mjs", "db-check"]
     environment: *app-env
@@ -53,7 +64,7 @@ services:
     networks: [internal]
 
   bootstrap:
-    image: ${RELEASE_OPS_IMAGE:?RELEASE_OPS_IMAGE is required}
+    image: ${RELEASE_RUNTIME_IMAGE:?RELEASE_RUNTIME_IMAGE is required}
     command: ["node", "scripts/container-entrypoint.mjs", "bootstrap"]
     environment:
       <<: *app-env
@@ -79,10 +90,15 @@ services:
     networks: [internal]
 
   worker:
-    image: ${RELEASE_WORKER_IMAGE:?RELEASE_WORKER_IMAGE is required}
+    image: ${RELEASE_RUNTIME_IMAGE:?RELEASE_RUNTIME_IMAGE is required}
     environment: *app-env
     depends_on:
       bootstrap: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "scripts/worker-health.mjs"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     volumes:
       - backup-data:/backups
     networks: [internal]

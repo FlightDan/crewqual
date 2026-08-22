@@ -803,6 +803,23 @@ export type EnumUploadReservationStatusWithAggregatesFilter<$PrismaModel = never
   _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
 }
 
+export type EnumObjectStorageProviderFilter<$PrismaModel = never> = {
+  equals?: $Enums.ObjectStorageProvider | Prisma.EnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel> | $Enums.ObjectStorageProvider
+}
+
+export type EnumObjectStorageProviderWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ObjectStorageProvider | Prisma.EnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumObjectStorageProviderWithAggregatesFilter<$PrismaModel> | $Enums.ObjectStorageProvider
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel>
+}
+
 export type EnumAdminLoginModeFilter<$PrismaModel = never> = {
   equals?: $Enums.AdminLoginMode | Prisma.EnumAdminLoginModeFieldRefInput<$PrismaModel>
   in?: $Enums.AdminLoginMode[] | Prisma.ListEnumAdminLoginModeFieldRefInput<$PrismaModel>
@@ -1562,6 +1579,23 @@ export type NestedEnumUploadReservationStatusWithAggregatesFilter<$PrismaModel =
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumUploadReservationStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumObjectStorageProviderFilter<$PrismaModel = never> = {
+  equals?: $Enums.ObjectStorageProvider | Prisma.EnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel> | $Enums.ObjectStorageProvider
+}
+
+export type NestedEnumObjectStorageProviderWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ObjectStorageProvider | Prisma.EnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  in?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ObjectStorageProvider[] | Prisma.ListEnumObjectStorageProviderFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumObjectStorageProviderWithAggregatesFilter<$PrismaModel> | $Enums.ObjectStorageProvider
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumObjectStorageProviderFilter<$PrismaModel>
 }
 
 export type NestedEnumAdminLoginModeFilter<$PrismaModel = never> = {

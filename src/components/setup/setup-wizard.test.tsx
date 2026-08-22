@@ -10,7 +10,8 @@ describe("SetupWizard", () => {
     render(<SetupWizard initialOverview={mockSetupOverview()} />);
 
     await user.click(screen.getByRole("button", { name: "开始配置" }));
-    expect(screen.getByRole("heading", { name: "创建超级管理员" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    expect(await screen.findByRole("heading", { name: "创建超级管理员" })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/^管理员姓名/), "张管理员");
     await user.type(screen.getByLabelText(/^登录邮箱/), "admin@example.com");

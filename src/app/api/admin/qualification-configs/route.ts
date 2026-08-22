@@ -19,6 +19,12 @@ import {
   customFieldsFromFieldSchema,
   fieldSchemaWithCustomFields,
 } from "@/lib/qualification-fields";
+import {
+  ocrChecksSchema,
+  parameterRestrictionSchema,
+  reminderRuleSchema,
+  validityRuleSchema,
+} from "@/lib/qualification-rules";
 import type { AuthenticatedAdmin } from "@/server/auth";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -70,6 +76,7 @@ function serializeRequirement(requirement: any) {
     positionCode: requirement.position.code,
     code: definition.code,
     name: definition.name,
+    translations: definition.translations ?? {},
     core: requirement.required && requirement.upgradePrerequisite,
     locked: Boolean(requirement.sourcePackCode),
     active: requirement.active && definition.active,
@@ -81,6 +88,22 @@ function serializeRequirement(requirement: any) {
     createdAt: requirement.createdAt.toISOString(),
     updatedAt: requirement.updatedAt.toISOString(),
     version: requirement.version,
+  };
+}
+
+function normalizedStructure(value: {
+  fieldSchema: unknown;
+  parameterRestriction: unknown;
+  validityRule: unknown;
+  reminders: unknown;
+  ocrChecks: unknown;
+}) {
+  return {
+    customFields: customFieldsFromFieldSchema(value.fieldSchema),
+    parameterRestriction: parameterRestrictionSchema.parse(value.parameterRestriction),
+    validityRule: validityRuleSchema.parse(value.validityRule),
+    reminders: reminderRuleSchema.parse(value.reminders),
+    ocrChecks: ocrChecksSchema.parse(value.ocrChecks),
   };
 }
 
@@ -126,21 +149,45 @@ export async function PATCH(request: NextRequest) {
     const current = await findRequirement(position.id, id);
     const definition = current.qualificationDefinition;
     const locked = Boolean(current.sourcePackCode);
-    if (locked && input.name !== definition.name) {
-      throw new ApiError("LOCKED_QUALIFICATION", "模板核心资质不可改名", 422);
-    }
     if (locked && !input.active) {
       throw new ApiError("LOCKED_QUALIFICATION", "模板核心资质不可停用", 422);
     }
-    const duplicateName = await getPrisma().qualificationRequirement.findFirst({
-      where: {
-        positionId: position.id,
-        id: { not: current.id },
-        qualificationDefinition: {
-          name: { equals: input.name, mode: "insensitive" },
+    if (
+      locked &&
+      JSON.stringify(normalizedStructure(definition)) !==
+        JSON.stringify({
+          customFields: input.customFields,
+          parameterRestriction: input.parameterRestriction,
+          validityRule: input.validityRule,
+          reminders: input.reminders,
+          ocrChecks: input.ocrChecks,
+        })
+    ) {
+      throw new ApiError("LOCKED_QUALIFICATION", "模板核心资质的结构化规则不可修改", 422);
+    }
+    const duplicateRequirements =
+      (await getPrisma().qualificationRequirement.findMany({
+        where: {
+          positionId: position.id,
+          id: { not: current.id },
         },
-      },
-      select: { id: true },
+        select: { qualificationDefinition: { select: { name: true, translations: true } } },
+      })) ?? [];
+    const localizedName =
+      input.locale === "zh-CN"
+        ? input.name
+        : (input.translations?.[input.locale] ?? definition.name);
+    const duplicateName = duplicateRequirements.some((item: any) => {
+      const translations = item.qualificationDefinition.translations;
+      const candidate =
+        translations && typeof translations === "object" && !Array.isArray(translations)
+          ? (translations as Record<string, unknown>)[input.locale]
+          : undefined;
+      const value =
+        typeof candidate === "string" && candidate.trim()
+          ? candidate
+          : item.qualificationDefinition.name;
+      return value.trim().toLocaleLowerCase() === localizedName.trim().toLocaleLowerCase();
     });
     if (duplicateName) {
       throw new ApiError("DUPLICATE_QUALIFICATION", "当前职位已存在同名资质", 409);
@@ -157,10 +204,18 @@ export async function PATCH(request: NextRequest) {
       if (requirementUpdate.count !== 1) {
         throw new ApiError("VERSION_CONFLICT", "资质配置已被其他管理员修改", 409);
       }
+      const translations = {
+        ...(definition.translations && typeof definition.translations === "object"
+          ? (definition.translations as Record<string, string>)
+          : {}),
+        ...(input.translations ?? {}),
+      };
+      if (input.locale === "zh-CN") translations[input.locale] = input.name;
       await tx.qualificationDefinition.update({
         where: { id: definition.id },
         data: {
-          name: locked ? definition.name : input.name,
+          name: input.locale === "zh-CN" ? input.name : definition.name,
+          translations: translations as any,
           active: input.active,
           fieldSchema: fieldSchemaWithCustomFields(
             definition.fieldSchema,
@@ -232,14 +287,25 @@ export async function POST(request: NextRequest) {
     const admin = await getAdmin(request, "operations.write", true);
     const input = await parseJson(request, createSchema);
     const position = await resolvePosition(admin, input.positionCode);
-    const duplicateName = await getPrisma().qualificationRequirement.findFirst({
-      where: {
-        positionId: position.id,
-        qualificationDefinition: {
-          name: { equals: input.name, mode: "insensitive" },
+    const duplicateRequirements =
+      (await getPrisma().qualificationRequirement.findMany({
+        where: {
+          positionId: position.id,
         },
-      },
-      select: { id: true },
+        select: { qualificationDefinition: { select: { name: true, translations: true } } },
+      })) ?? [];
+    const localizedName = input.translations?.[input.locale] ?? input.name;
+    const duplicateName = duplicateRequirements.some((item: any) => {
+      const translations = item.qualificationDefinition.translations;
+      const candidate =
+        translations && typeof translations === "object" && !Array.isArray(translations)
+          ? (translations as Record<string, unknown>)[input.locale]
+          : undefined;
+      const value =
+        typeof candidate === "string" && candidate.trim()
+          ? candidate
+          : item.qualificationDefinition.name;
+      return value.trim().toLocaleLowerCase() === localizedName.trim().toLocaleLowerCase();
     });
     if (duplicateName) {
       throw new ApiError("DUPLICATE_QUALIFICATION", "当前职位已存在同名资质", 409);
@@ -268,7 +334,7 @@ export async function POST(request: NextRequest) {
           code,
           name: input.name,
           description: "",
-          translations: {},
+          translations: input.translations ?? { [input.locale]: input.name },
           category: "aviation",
           active: input.active,
           requiresEvidence: true,

@@ -148,9 +148,7 @@ test.describe("admin operations workflow", () => {
     await expect(page.getByRole("button", { name: "调整日期" })).toHaveCount(0);
   });
 
-  test("qualification config validates, persists and leaves effective records unchanged", async ({
-    page,
-  }) => {
+  test("locked core qualification rules remain visible and read-only", async ({ page }) => {
     await page.goto("/admin/pilots/pilot-demo-01");
     const before = page
       .getByTestId("pilot-detail-desktop")
@@ -158,17 +156,10 @@ test.describe("admin operations workflow", () => {
       .filter({ hasText: "民用航空人员体检合格证" });
     await expect(before).toContainText("2027-08-10");
     await gotoAfterClientNavigation(page, "/admin/qualification-config");
-    await page.getByLabel("首次提醒（到期前天数） *").fill("20");
-    await page.getByLabel("再次提醒（到期前天数） *").fill("30");
-    await page.getByRole("button", { name: "保存并查看影响摘要" }).click();
-    await expect(page.getByText("首次提醒天数必须大于再次提醒天数")).toBeVisible();
-    await page.getByLabel("首次提醒（到期前天数） *").fill("90");
-    await page.getByLabel("再次提醒（到期前天数） *").fill("45");
-    await page.getByRole("button", { name: "保存并查看影响摘要" }).click();
-    await page.getByRole("button", { name: "确认保存" }).click();
-    await expect(page.getByText(/现有生效记录未被回写/)).toBeVisible();
-    await page.reload();
-    await expect(page.getByLabel("首次提醒（到期前天数） *")).toHaveValue("90");
+    await expect(page.getByText(/模板核心资质的结构化规则由模板锁定/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "添加条目" })).toBeDisabled();
+    await expect(page.getByRole("spinbutton", { name: "首次提醒（到期前天数）" })).toBeDisabled();
+    await expect(page.getByRole("radio", { name: "人工指定到期日" })).toBeDisabled();
     await page.goto("/admin/pilots/pilot-demo-01");
     await expect(
       page

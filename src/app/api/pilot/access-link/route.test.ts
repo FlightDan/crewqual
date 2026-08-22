@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   enqueue: vi.fn().mockResolvedValue("job-1"),
   fakeOutbox: vi.fn(),
+  runtimeIntegration: vi.fn(),
 }));
 
 vi.mock("@/server/rate-limit", () => ({
@@ -22,7 +23,7 @@ vi.mock("@/server/crypto", () => ({
 }));
 vi.mock("@/server/runtime-settings", () => ({
   getRuntimeSecurityPolicy: vi.fn().mockResolvedValue({ pilotAccessLinkTtlMinutes: 15 }),
-  getRuntimeIntegration: vi.fn().mockResolvedValue({ retryLimit: 3 }),
+  getRuntimeIntegration: mocks.runtimeIntegration,
 }));
 vi.mock("@/server/config", () => ({
   getServerConfig: () => ({ SMS_ADAPTER: "fake", APP_ORIGIN: "http://localhost:3000" }),
@@ -64,6 +65,11 @@ describe("pilot access link secure outbox", () => {
       unit: { organization: { defaultLocale: "zh-CN" } },
     });
     mocks.findToken.mockResolvedValue(null);
+    mocks.runtimeIntegration.mockResolvedValue({
+      enabled: true,
+      adapter: "webhook",
+      retryLimit: 3,
+    });
   });
 
   it("stores only an encrypted token payload and queues no raw token", async () => {
@@ -93,6 +99,20 @@ describe("pilot access link secure outbox", () => {
     mocks.findToken.mockResolvedValue({ id: "existing-token" });
     const response = await POST(request());
     expect(response.status).toBe(202);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("does not issue an inaccessible token while SMS is unconfigured", async () => {
+    mocks.runtimeIntegration.mockResolvedValue({
+      enabled: false,
+      adapter: "disabled",
+      retryLimit: 3,
+    });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(202);
+    expect(mocks.findToken).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });

@@ -15,6 +15,8 @@ dist
 build
 coverage
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 
 # Test and local runtime output
 playwright-report
@@ -24,6 +26,7 @@ test-results
 .dispatcher/
 .codex/
 .agents/
+.docs/
 
 # OS metadata
 .DS_Store

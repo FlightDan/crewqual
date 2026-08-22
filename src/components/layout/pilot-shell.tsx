@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/misc";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PilotProfile } from "@/types/services";
-import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export const anonymousMockPilotProfile: PilotProfile = {
   id: "anonymous-mock",
@@ -95,7 +95,6 @@ export function PilotShell({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <LocaleSwitcher />
             {!showBack && !isPageHeader ? (
               <Link
                 href={`${portalPath}/notifications`}

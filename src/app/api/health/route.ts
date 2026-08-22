@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       db.$queryRaw<Array<{ table_name: string | null }>>`
         SELECT to_regclass('pgboss.job')::text AS table_name
       `,
-      checkObjectStorage(config),
+      checkObjectStorage(),
       db.workerHeartbeat.findUnique({ where: { name: "primary" } }),
     ]);
     const queue = queueCheck[0]?.table_name ? "ok" : "unavailable";

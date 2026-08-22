@@ -4,7 +4,7 @@ import { assertSameOrigin, getRequestId, jsonData, jsonError, parseJson } from "
 import { createOpaqueToken, encryptSettingSecret, safeEqualHex, sha256 } from "@/server/crypto";
 import { getServerConfig } from "@/server/config";
 import { getPrisma } from "@/server/prisma";
-import { enqueuePilotAccessSms, shouldSendPilotAccessSms } from "@/server/sms-outbox";
+import { enqueuePilotAccessSms } from "@/server/sms-outbox";
 import { consumeRateLimit, requestAddress } from "@/server/rate-limit";
 import { getRuntimeIntegration, getRuntimeSecurityPolicy } from "@/server/runtime-settings";
 import { enqueueInTransaction, QUEUES } from "@/server/jobs";
@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
       pilot && pilot.active && safeEqualHex(sha256(pilot.mobile), sha256(input.mobile)),
     );
     if (matches && pilot) {
+      const sms = await getRuntimeIntegration("sms");
+      if (!sms.enabled || sms.adapter === "disabled") {
+        return jsonData({ accepted: true }, requestId, 202);
+      }
       const existingToken = await db.pilotAccessToken.findFirst({
         where: { pilotId: pilot.id, consumedAt: null, expiresAt: { gt: new Date() } },
       });
@@ -44,7 +48,6 @@ export async function POST(request: NextRequest) {
       if (existingToken) return jsonData({ accepted: true }, requestId, 202);
       const rawToken = createOpaqueToken();
       const expiresAt = new Date(Date.now() + policy.pilotAccessLinkTtlMinutes * 60 * 1000);
-      const sms = await getRuntimeIntegration("sms");
       await db.$transaction(async (tx) => {
         await tx.pilotAccessToken.deleteMany({
           where: { pilotId: pilot.id, consumedAt: null, expiresAt: { lte: new Date() } },
@@ -87,10 +90,8 @@ export async function POST(request: NextRequest) {
           type: "pilot_access_link",
         });
       });
-      if (await shouldSendPilotAccessSms()) {
-        const config = getServerConfig();
-        if (config.SMS_ADAPTER === "fake") enqueuePilotAccessSms(pilot.mobile, rawToken);
-      }
+      const config = getServerConfig();
+      if (config.SMS_ADAPTER === "fake") enqueuePilotAccessSms(pilot.mobile, rawToken);
     }
     return jsonData(
       { accepted: true, ...(allowed ? {} : { retryAfterSeconds: 900 }) },

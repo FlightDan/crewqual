@@ -43,6 +43,7 @@ function qualificationsFor(
   return qualificationDefinitions.map((item, index) => ({
     id: item.id,
     name: item.name,
+    translations: item.translations,
     parameter: item.parameter,
     cycleMonths: item.cycleMonths,
     expiresOn: expiryOverrides[item.id] ?? defaultExpiries[index]!,
@@ -552,6 +553,7 @@ function createReview(input: {
     role: pilotRoleLabel(pilot.roleCode),
     qualificationId: input.qualificationId,
     qualificationName: qualification.name,
+    qualificationTranslations: qualification.translations,
     submittedAt: input.submittedAt,
     humanStatus,
     aiStatus: input.aiStatus,
@@ -678,6 +680,7 @@ const qualificationConfigs: QualificationConfig[] = qualificationDefinitions.map
     positionCode: "PILOT",
     code: definition.code,
     name: definition.name,
+    translations: definition.translations ?? { "zh-CN": definition.name },
     core: true,
     locked: true,
     active: true,

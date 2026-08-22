@@ -299,30 +299,42 @@ describe("fourth-batch operation services", () => {
     const services = createMockAdminOperationsServices(store, clock, createSequenceIdGenerator());
     const config = store.getSnapshot().qualificationConfigs[0]!;
     const beforeQualification = structuredClone(store.getSnapshot().pilots[0]!.qualifications[0]);
+    const renamed = await services.qualificationConfigs.save("PILOT", config.id, {
+      ...config,
+      name: "被改名的核心项目",
+    });
+    expect(renamed.data.name).toBe("被改名的核心项目");
+    expect(renamed.data.translations["zh-CN"]).toBe("被改名的核心项目");
     await expect(
       services.qualificationConfigs.save("PILOT", config.id, {
         ...config,
-        name: "被改名的核心项目",
+        name: "仍然可以改名",
+        active: false,
       }),
-    ).rejects.toThrow("不可改名");
+    ).rejects.toThrow("不可停用");
     await expect(
       services.qualificationConfigs.save("PILOT", config.id, {
-        ...config,
+        ...renamed.data,
         reminders: { firstDays: 20, secondDays: 30 },
       }),
     ).rejects.toThrow("首次提醒天数");
     await expect(
       services.qualificationConfigs.save("PILOT", config.id, {
-        ...config,
+        ...renamed.data,
         parameterRestriction: { enabled: true, description: "" },
       }),
     ).rejects.toThrow("请填写说明");
+    await expect(
+      services.qualificationConfigs.save("PILOT", config.id, {
+        ...renamed.data,
+        reminders: { firstDays: 90, secondDays: 45 },
+      }),
+    ).rejects.toThrow("结构化规则不可修改");
     const saved = await services.qualificationConfigs.save("PILOT", config.id, {
-      ...config,
-      reminders: { firstDays: 90, secondDays: 45 },
-      expectedVersion: 1,
+      ...renamed.data,
+      expectedVersion: 2,
     });
-    expect(saved.data.version).toBe(2);
+    expect(saved.data.version).toBe(3);
     await expect(
       services.qualificationConfigs.save("PILOT", config.id, {
         ...config,
@@ -343,7 +355,7 @@ describe("fourth-batch operation services", () => {
     await expect(
       services.qualificationConfigs.save("PILOT", supplemental.id, {
         ...supplemental,
-        name: config.name,
+        name: renamed.data.name,
       }),
     ).rejects.toThrow("同名资质");
     await expect(

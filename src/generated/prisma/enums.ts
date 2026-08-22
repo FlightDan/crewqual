@@ -242,3 +242,11 @@ export const TemplateInstallationStatus = {
 } as const
 
 export type TemplateInstallationStatus = (typeof TemplateInstallationStatus)[keyof typeof TemplateInstallationStatus]
+
+
+export const ObjectStorageProvider = {
+  BUILTIN: 'BUILTIN',
+  S3: 'S3'
+} as const
+
+export type ObjectStorageProvider = (typeof ObjectStorageProvider)[keyof typeof ObjectStorageProvider]

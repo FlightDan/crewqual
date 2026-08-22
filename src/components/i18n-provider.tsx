@@ -57,18 +57,3 @@ export function useI18n(): I18nContextValue {
   if (value) return value;
   return fallbackI18nValue;
 }
-
-export function LocaleSwitcher() {
-  const { locale, setLocale, t } = useI18n();
-  const nextLocale: SupportedLocale = locale === "zh-CN" ? "en-US" : "zh-CN";
-  return (
-    <button
-      type="button"
-      aria-label={t("common.switchLanguage")}
-      onClick={() => setLocale(nextLocale)}
-      className="inline-flex min-h-10 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-secondary hover:bg-slate-50"
-    >
-      {nextLocale === "en-US" ? t("common.english") : t("common.chinese")}
-    </button>
-  );
-}

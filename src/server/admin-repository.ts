@@ -215,6 +215,7 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
       return {
         id: record.qualificationType.code,
         name: record.qualificationType.name,
+        translations: record.qualificationType.translations,
         parameter: record.levelOrParameter,
         expiresOn,
         credentialNumber: record.credentialNumber,
@@ -231,6 +232,7 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
     qualificationRecords: pilot.qualifications.map((record: any) => ({
       id: record.qualificationType.code,
       name: record.qualificationType.name,
+      translations: record.qualificationType.translations,
       parameter: record.levelOrParameter,
       expiresOn: dateOnly(record.expiryDate),
       credentialNumber: record.credentialNumber,
@@ -358,6 +360,7 @@ export function mapReview(request: any) {
     role: pilotRoleLabel(request.pilot.roleCode),
     qualificationId: request.qualificationType.code,
     qualificationName: request.qualificationType.name,
+    qualificationTranslations: request.qualificationType.translations,
     validityRule: (() => {
       try {
         return parseQualificationRuleSnapshot(request.qualificationRuleSnapshot).validityRule;
@@ -676,7 +679,10 @@ export async function approveReview(
         pilotId: request.pilotId,
         type: "review_approved",
         templateKey: "qualification.review.approved",
-        templateParams: { qualificationName: request.qualificationType.name },
+        templateParams: {
+          qualificationName: request.qualificationType.name,
+          qualificationTranslations: request.qualificationType.translations,
+        },
       });
       return replacement;
     });
@@ -754,7 +760,11 @@ export async function returnReview(
       pilotId: request.pilotId,
       type: "review_returned",
       templateKey: "qualification.review.returned",
-      templateParams: { reason: normalizedReason },
+      templateParams: {
+        reason: normalizedReason,
+        qualificationName: request.qualificationType.name,
+        qualificationTranslations: request.qualificationType.translations,
+      },
     });
   });
 }

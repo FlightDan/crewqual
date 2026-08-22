@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed v0.3.5-rc.N or v0.3.5 tag
+        description: Signed release tag (for example v1.0.0-rc.1 or v1.0.0)
         required: true
         type: string
       profile:
@@ -31,8 +31,8 @@ jobs:
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
       E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
       RELEASE_WEB_IMAGE: ${{ secrets.RELEASE_WEB_IMAGE }}
-      RELEASE_WORKER_IMAGE: ${{ secrets.RELEASE_WORKER_IMAGE }}
-      RELEASE_OPS_IMAGE: ${{ secrets.RELEASE_OPS_IMAGE }}
+      RELEASE_RUNTIME_IMAGE: ${{ secrets.RELEASE_RUNTIME_IMAGE }}
+      UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -62,6 +62,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag }}
       - name: Setup pnpm
         uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
       - name: Setup Node
@@ -75,6 +76,27 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Install release verification tools
         run: sudo ./scripts/release/install-tools.sh
+      - name: Build and sign updater manifest
+        if: inputs.profile == 'final'
+        run: |
+          set -euo pipefail
+          updater_dir="$RUNNER_TEMP/crewqual-updater"
+          ./updater/build-release.sh "$updater_dir"
+          export UPDATER_AMD64_SHA256="$(awk '{print $1}' "$updater_dir/crewqual-updater-linux-amd64.sha256")"
+          export UPDATER_ARM64_SHA256="$(awk '{print $1}' "$updater_dir/crewqual-updater-linux-arm64.sha256")"
+          export UPDATE_MANIFEST_OUTPUT="$RUNNER_TEMP/update-manifest-v1.json"
+          pnpm release:update-manifest
+          pnpm release:sign-update-manifest "$UPDATE_MANIFEST_OUTPUT" "$UPDATE_MANIFEST_OUTPUT.sig"
+          test "$(wc -c <"$UPDATE_MANIFEST_OUTPUT.sig")" -ge 80
+      - name: Upload signed updater manifest evidence
+        if: inputs.profile == 'final'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: signed-updater-manifest-${{ inputs.tag }}
+          path: |
+            ${{ runner.temp }}/update-manifest-v1.json
+            ${{ runner.temp }}/update-manifest-v1.json.sig
+          if-no-files-found: error
       - name: Prepare signed evidence inputs
         env:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}

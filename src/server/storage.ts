@@ -9,12 +9,12 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { getServerConfig } from "@/server/config";
 import { ApiError } from "@/server/api-error";
+import { getRuntimeStorageConfig, type RuntimeStorageConfig } from "@/server/runtime-storage";
 
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 export const MAX_EVIDENCE_DIMENSION = 2560;
 
-function getS3() {
-  const config = getServerConfig();
+function getS3(config: RuntimeStorageConfig) {
   return new S3Client({
     region: config.S3_REGION,
     endpoint: config.S3_ENDPOINT,
@@ -33,8 +33,8 @@ export async function putPrivateObjectAtKey(
   sha256: string,
 ) {
   assertStorageAccess();
-  const config = getServerConfig();
-  await getS3().send(
+  const config = await getRuntimeStorageConfig();
+  await getS3(config).send(
     new PutObjectCommand({
       Bucket: config.S3_BUCKET,
       Key: objectKey,
@@ -138,9 +138,9 @@ export async function putPrivateObject(
   extension: "jpg" | "avif",
 ) {
   assertStorageAccess();
-  const config = getServerConfig();
+  const config = await getRuntimeStorageConfig();
   const objectKey = `evidence/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
-  await getS3().send(
+  await getS3(config).send(
     new PutObjectCommand({
       Bucket: config.S3_BUCKET,
       Key: objectKey,
@@ -183,16 +183,18 @@ export async function convertJpegToLosslessAvif(bytes: Uint8Array) {
 
 export async function getPrivateEvidenceUrl(objectKey: string, expiresIn = 300) {
   assertStorageAccess();
-  const config = getServerConfig();
-  return getSignedUrl(getS3(), new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }), {
-    expiresIn,
-  });
+  const config = await getRuntimeStorageConfig();
+  return getSignedUrl(
+    getS3(config),
+    new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }),
+    { expiresIn },
+  );
 }
 
 export async function readPrivateEvidence(objectKey: string) {
   assertStorageAccess();
-  const config = getServerConfig();
-  const result = await getS3().send(
+  const config = await getRuntimeStorageConfig();
+  const result = await getS3(config).send(
     new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }),
   );
   if (!result.Body) throw new Error("Evidence object has no body");
@@ -201,6 +203,6 @@ export async function readPrivateEvidence(objectKey: string) {
 
 export async function deletePrivateEvidence(objectKey: string) {
   assertStorageAccess();
-  const config = getServerConfig();
-  await getS3().send(new DeleteObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }));
+  const config = await getRuntimeStorageConfig();
+  await getS3(config).send(new DeleteObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }));
 }

@@ -233,6 +233,11 @@ export type UploadReservation = Prisma.UploadReservationModel
  */
 export type SystemIntegrationSetting = Prisma.SystemIntegrationSettingModel
 /**
+ * Model ObjectStorageSetting
+ * 
+ */
+export type ObjectStorageSetting = Prisma.ObjectStorageSettingModel
+/**
  * Model SecurityPolicy
  * 
  */

@@ -47,6 +47,7 @@ import {
 } from "@/lib/admin-operations-validation";
 import { calculateExpectedExpiry } from "@/lib/qualification-rules";
 import { localizeError } from "@/lib/error-i18n";
+import { localizedQualificationName } from "@/lib/i18n";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import { useAdminSession } from "@/services/admin-session-provider";
@@ -217,7 +218,7 @@ function SquadronMultiSelect({
 }
 
 export function CalendarViewPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -658,7 +659,10 @@ export function CalendarViewPage() {
                 { label: t("calendar.allCore"), value: "all" },
                 ...state.qualificationConfigs
                   .filter((item) => item.core && item.qualificationId)
-                  .map((item) => ({ label: item.name, value: item.qualificationId! })),
+                  .map((item) => ({
+                    label: localizedQualificationName(item.name, item.translations, locale),
+                    value: item.qualificationId!,
+                  })),
               ]}
               onChange={(event) => updateParams({ qualification: event.target.value })}
             />
@@ -784,7 +788,11 @@ function calendarEventTitle(
   event: AdminCalendarEvent,
   kind: CalendarEventDayKind | undefined,
   t: (key: string, values?: Record<string, string | number>) => string,
+  locale: "zh-CN" | "en-US",
 ) {
+  if (event.type === "qualification_expiry" && event.qualificationName) {
+    return `${localizedQualificationName(event.qualificationName, event.qualificationTranslations, locale)} ${t("calendar.expirySuffix")}`;
+  }
   if (event.type !== "upgrade_stage") return event.title;
   if (!kind) return event.title;
   if (kind === "start") return `${event.title} · ${t("calendar.start")}`;
@@ -804,7 +812,7 @@ function MonthCalendar({
   onDate: (date: string) => void;
   onEvent: (event: AdminCalendarEvent, date: string) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const days = calendarDays("month", anchor);
   const month = anchor.slice(0, 7);
   const selectedEvents = calendarBoundaryEventsForDay(events, anchor);
@@ -867,7 +875,7 @@ function MonthCalendar({
                         className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-semibold ${event.type === "upgrade_stage" ? "bg-blue-50 text-info" : (event.daysRemaining ?? 0) < 0 ? "bg-red-50 text-danger" : "bg-orange-50 text-warning"}`}
                       >
                         {event.pilotName} ·{" "}
-                        {calendarEventTitle(event, calendarEventDayKind(event, day), t)}
+                        {calendarEventTitle(event, calendarEventDayKind(event, day), t, locale)}
                       </button>
                     ))}
                     {dayEvents.length > 2 ? (
@@ -1043,7 +1051,7 @@ function EventCard({
   compact?: boolean;
   dayKind?: CalendarEventDayKind;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <button
       type="button"
@@ -1051,7 +1059,9 @@ function EventCard({
       className={`w-full rounded-lg border border-border bg-card text-left hover:border-brand ${compact ? "p-2" : "p-3"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="truncate text-xs font-bold">{calendarEventTitle(event, dayKind, t)}</p>
+        <p className="truncate text-xs font-bold">
+          {calendarEventTitle(event, dayKind, t, locale)}
+        </p>
         <Badge tone={eventTone(event)} className="shrink-0 py-0.5 text-[10px]">
           {eventTypeLabel(event, t)}
         </Badge>
@@ -1090,7 +1100,7 @@ function DayQualificationPanel({
   onEdit: (target: QualificationEditTarget) => void;
   compact?: boolean;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <Card
       className={
@@ -1146,7 +1156,9 @@ function DayQualificationPanel({
               <div className="mt-2 flex flex-wrap gap-1">
                 {pilot.nodes.map((node) => (
                   <Badge key={node.id} tone={node.type === "upgrade_stage" ? "info" : "warning"}>
-                    {node.title}
+                    {node.type === "qualification_expiry"
+                      ? calendarEventTitle(node, undefined, t, locale)
+                      : node.title}
                   </Badge>
                 ))}
               </div>
@@ -1169,7 +1181,11 @@ function DayQualificationPanel({
                             >
                               <div className="min-w-0">
                                 <p className="truncate text-xs font-semibold">
-                                  {qualification.qualificationName}
+                                  {localizedQualificationName(
+                                    qualification.qualificationName,
+                                    qualification.qualificationTranslations,
+                                    locale,
+                                  )}
                                 </p>
                                 {record ? (
                                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -1193,7 +1209,11 @@ function DayQualificationPanel({
                                 <IconButton
                                   label={t("calendar.editQualification", {
                                     pilot: pilot.pilotName,
-                                    qualification: qualification.qualificationName,
+                                    qualification: localizedQualificationName(
+                                      qualification.qualificationName,
+                                      qualification.qualificationTranslations,
+                                      locale,
+                                    ),
                                   })}
                                   variant="ghost"
                                   size="sm"
@@ -1244,7 +1264,7 @@ function QualificationEditDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (target: QualificationEditTarget, values: ReviewCredentialFields) => Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const record = target?.qualification.record;
   const [values, setValues] = React.useState<ReviewCredentialFields>({
     credentialNumber: "",
@@ -1346,7 +1366,13 @@ function QualificationEditDialog({
         <DialogDescription className="mt-1 text-sm text-muted">
           {t("calendar.editDescription", {
             pilot: target?.pilotName ?? "",
-            qualification: target?.qualification.qualificationName ?? "",
+            qualification: target
+              ? localizedQualificationName(
+                  target.qualification.qualificationName,
+                  target.qualification.qualificationTranslations,
+                  locale,
+                )
+              : "",
           })}
         </DialogDescription>
         <div className="mt-4 space-y-3">
@@ -1428,7 +1454,7 @@ function EventDetail({
   onUpdated?: () => void;
   compact?: boolean;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { upgradePlans } = useApplicationServices();
   const { hasPermission } = useAdminSession();
   const canWrite = hasPermission("operations.write");
@@ -1531,7 +1557,11 @@ function EventDetail({
           </Button>
         ) : null}
       </div>
-      <h3 className="mt-3 text-lg font-bold">{event.title}</h3>
+      <h3 className="mt-3 text-lg font-bold">
+        {event.type === "qualification_expiry"
+          ? calendarEventTitle(event, undefined, t, locale)
+          : event.title}
+      </h3>
       <dl className="mt-4 grid grid-cols-[88px_1fr] gap-x-3 gap-y-3 text-sm">
         <dt className="text-muted">{t("calendar.planObject")}</dt>
         <dd className="font-semibold">
@@ -1547,7 +1577,13 @@ function EventDetail({
         {event.type === "qualification_expiry" ? (
           <>
             <dt className="text-muted">{t("calendar.qualificationItem")}</dt>
-            <dd>{event.qualificationName}</dd>
+            <dd>
+              {localizedQualificationName(
+                event.qualificationName ?? "",
+                event.qualificationTranslations,
+                locale,
+              )}
+            </dd>
             <dt className="text-muted">{t("calendar.expiryDate")}</dt>
             <dd>{event.date}</dd>
             <dt className="text-muted">{t("calendar.remainingLabel")}</dt>

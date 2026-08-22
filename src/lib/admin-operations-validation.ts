@@ -151,6 +151,8 @@ export const upgradePlanDraftSchema = z
 
 export const qualificationConfigInputBaseSchema = z.object({
   name: z.string().trim().min(2, "资质名称至少需要 2 个字符"),
+  translations: z.record(z.string(), z.string()).optional(),
+  locale: z.enum(["zh-CN", "en-US"]).default("zh-CN"),
   active: z.boolean(),
   customFields: qualificationCustomFieldsSchema,
   parameterRestriction: parameterRestrictionSchema,

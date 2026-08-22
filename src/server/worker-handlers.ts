@@ -342,6 +342,7 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
             : ("qualification.expiry.due" as const),
         templateParams: {
           qualificationName: record.qualificationType.name,
+          qualificationTranslations: record.qualificationType.translations,
           pilotName: record.pilot.displayName,
           daysRemaining: window.daysRemaining,
         },

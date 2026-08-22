@@ -55,7 +55,7 @@ export function OrganizationSettingsSection({
   onUnitsChange: (units: SettingsUnit[]) => void;
   notify: SettingsFeedback;
 }) {
-  const { t } = useI18n();
+  const { t, setLocale } = useI18n();
   const timezoneOptions = timezoneValues.map((value) => ({
     value,
     label: t(
@@ -71,6 +71,7 @@ export function OrganizationSettingsSection({
   const selected = units.find((item) => item.id === selectedId) ?? units[0];
   const [draft, setDraft] = React.useState<SettingsUnit | null>(selected ?? null);
   const [saving, setSaving] = React.useState(false);
+  const [savingLocale, setSavingLocale] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createDraft, setCreateDraft] = React.useState(emptyUnit);
   const [creating, setCreating] = React.useState(false);
@@ -104,6 +105,45 @@ export function OrganizationSettingsSection({
       notify("danger", t("settingsOrg.saveError"), localizeError(reason, t));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveSystemLocale = async (nextLocale: "zh-CN" | "en-US") => {
+    if (!draft?.organizationId || !isSuperAdmin) return;
+    setSavingLocale(true);
+    setError(null);
+    try {
+      const saved = await adminSettingsService.saveOrganizationLocale({
+        organizationId: draft.organizationId,
+        defaultLocale: nextLocale,
+        expectedVersion: draft.organizationVersion,
+      });
+      onUnitsChange(
+        units.map((item) =>
+          item.organizationId === saved.organizationId
+            ? {
+                ...item,
+                defaultLocale: saved.defaultLocale,
+                organizationVersion: saved.organizationVersion,
+              }
+            : item,
+        ),
+      );
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              defaultLocale: saved.defaultLocale,
+              organizationVersion: saved.organizationVersion,
+            }
+          : current,
+      );
+      setLocale(nextLocale);
+      notify("success", t("settingsOrg.localeSaved"));
+    } catch (reason) {
+      notify("danger", t("settingsOrg.localeSaveError"), localizeError(reason, t));
+    } finally {
+      setSavingLocale(false);
     }
   };
 
@@ -227,6 +267,19 @@ export function OrganizationSettingsSection({
                 </p>
               ) : null}
               <FieldGrid>
+                <Select
+                  label={t("settingsOrg.systemLocale")}
+                  options={[
+                    { value: "zh-CN", label: t("settingsOrg.localeZh") },
+                    { value: "en-US", label: t("settingsOrg.localeEn") },
+                  ]}
+                  value={draft.defaultLocale}
+                  disabled={!isSuperAdmin || !canWrite || savingLocale}
+                  onChange={(event) =>
+                    void saveSystemLocale(event.target.value as "zh-CN" | "en-US")
+                  }
+                  helperText={t("settingsOrg.systemLocaleHelp")}
+                />
                 <Input
                   label={t("settingsOrg.name")}
                   required

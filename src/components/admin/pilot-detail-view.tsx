@@ -21,6 +21,7 @@ import { useApplicationServices } from "@/services/application-services-provider
 import type { AdminPilotDetail } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
 import { localizedQualificationText } from "@/lib/messages";
+import { localizedQualificationName } from "@/lib/i18n";
 
 export function PilotDetailView({
   pilotId,
@@ -31,7 +32,7 @@ export function PilotDetailView({
 }) {
   const state = useAdminState();
   const { pilotDirectory } = useApplicationServices();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [pilot, setPilot] = React.useState<AdminPilotDetail | null | undefined>(undefined);
   const [refreshVersion, setRefreshVersion] = React.useState(0);
 
@@ -206,7 +207,12 @@ export function PilotDetailView({
                 {pilot.qualifications.map((qualification, index) => (
                   <tr key={qualification.id} className="border-t border-border">
                     <td className="px-3 py-3 font-semibold">
-                      {index + 1}. {qualification.name}
+                      {index + 1}.{" "}
+                      {localizedQualificationName(
+                        qualification.name,
+                        qualification.translations,
+                        locale,
+                      )}
                     </td>
                     <td className="px-3 py-3 text-secondary">
                       {qualification.parameter ?? t("pilotDetail.qualified")}
@@ -268,7 +274,7 @@ export function PilotDetailView({
 }
 
 function PilotReviewRecords({ pilot }: { pilot: AdminPilotDetail }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   if (!pilot.reviews.length)
     return (
       <EmptyState
@@ -285,7 +291,13 @@ function PilotReviewRecords({ pilot }: { pilot: AdminPilotDetail }) {
           className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
         >
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{review.qualificationName}</p>
+            <p className="truncate text-sm font-semibold">
+              {localizedQualificationName(
+                review.qualificationName,
+                review.qualificationTranslations,
+                locale,
+              )}
+            </p>
             <p className="mt-1 text-[11px] text-muted">
               {review.submittedAt} · {review.id}
             </p>

@@ -278,6 +278,7 @@ async function migrate() {
               organizationId: organization.id,
               code: type.code,
               name: type.name,
+              translations: type.translations as Prisma.InputJsonValue,
               category: "aviation",
               active: type.active,
               requiresEvidence: true,

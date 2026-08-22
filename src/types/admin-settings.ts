@@ -5,8 +5,10 @@ export type SettingsSectionId =
   | "notifications"
   | "ai"
   | "security"
+  | "storage"
   | "media"
-  | "backups";
+  | "backups"
+  | "updates";
 
 export type MediaOptimizationSetting = {
   id: "global";
@@ -66,6 +68,9 @@ export type BackupSettingsSnapshot = {
 
 export type SettingsUnit = {
   id: string;
+  organizationId: string | null;
+  defaultLocale: SupportedLocale;
+  organizationVersion: number;
   code: string;
   name: string;
   timezone: string;
@@ -149,12 +154,16 @@ export type AiIntegrationSetting = {
 };
 
 export type SecurityPolicy = {
+  networkMode: "lan" | "tls";
+  appOrigin: string;
+  appPort: number;
   adminLoginMode: AdminLoginMode;
   adminSessionTtlHours: number;
   pilotAccessLinkTtlMinutes: number;
   pilotSessionTtlMinutes: number;
   maxFailedAttempts: number;
   lockoutMinutes: number;
+  allowPublicAccess: boolean;
   version: number;
 };
 
@@ -199,3 +208,4 @@ export type AdminSettingsSnapshot = {
   audit: SettingsAuditItem[];
   systemHealth: SystemHealthItem[];
 };
+import type { SupportedLocale } from "@/lib/locale";

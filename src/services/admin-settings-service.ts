@@ -37,6 +37,9 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
   units: [
     {
       id: "unit-1",
+      organizationId: "unit-1",
+      defaultLocale: "zh-CN",
+      organizationVersion: 1,
       code: "FLT-01-SQ-01",
       name: "一大队一中队",
       timezone: "Asia/Shanghai",
@@ -51,6 +54,9 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
     },
     {
       id: "unit-2",
+      organizationId: "unit-2",
+      defaultLocale: "zh-CN",
+      organizationVersion: 1,
       code: "FLT-01-SQ-02",
       name: "一大队二中队",
       timezone: "Asia/Shanghai",
@@ -65,6 +71,9 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
     },
     {
       id: "unit-3",
+      organizationId: "unit-3",
+      defaultLocale: "zh-CN",
+      organizationVersion: 1,
       code: "TRN-CENTER",
       name: "飞行训练中心",
       timezone: "Asia/Shanghai",
@@ -267,12 +276,16 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
     version: 1,
   },
   security: {
+    networkMode: "tls",
+    appOrigin: "https://crewqual.example.com",
+    appPort: 443,
     adminLoginMode: "PASSWORD_TOTP",
     adminSessionTtlHours: 8,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: 60,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
+    allowPublicAccess: true,
     version: 1,
   },
   sessions: [
@@ -356,7 +369,20 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
   ],
 };
 
-export type UnitInput = Omit<SettingsUnit, "adminCount" | "pilotCount" | "updatedAt">;
+export type UnitInput = Omit<
+  SettingsUnit,
+  | "organizationId"
+  | "defaultLocale"
+  | "organizationVersion"
+  | "adminCount"
+  | "pilotCount"
+  | "updatedAt"
+>;
+export type OrganizationLocaleInput = {
+  organizationId: string;
+  defaultLocale: "zh-CN" | "en-US";
+  expectedVersion: number;
+};
 export type PositionInput = Omit<
   SettingsPosition,
   "id" | "organizationId" | "memberCount" | "qualificationCount" | "updatedAt"
@@ -402,6 +428,7 @@ export interface AdminSettingsService {
   load(unitId?: string): Promise<AdminSettingsSnapshot>;
   saveUnit(input: UnitInput): Promise<SettingsUnit>;
   createUnit(input: Omit<UnitInput, "id" | "version">): Promise<SettingsUnit>;
+  saveOrganizationLocale(input: OrganizationLocaleInput): Promise<SettingsUnit>;
   listPositions(): Promise<SettingsPosition[]>;
   createPosition(input: Omit<PositionInput, "id" | "version">): Promise<SettingsPosition>;
   savePosition(input: PositionInput): Promise<SettingsPosition>;
@@ -499,10 +526,33 @@ const mockService: AdminSettingsService = {
     });
     return result;
   },
+  async saveOrganizationLocale(input) {
+    let result!: SettingsUnit;
+    mockUpdate((snapshot) => {
+      const index = snapshot.units.findIndex(
+        (item) => item.organizationId === input.organizationId,
+      );
+      if (index < 0) throw new Error("未找到组织");
+      const current = snapshot.units[index]!;
+      if (current.organizationVersion !== input.expectedVersion)
+        throw new Error("组织语言设置已被其他管理员修改");
+      result = {
+        ...current,
+        defaultLocale: input.defaultLocale,
+        organizationVersion: input.expectedVersion + 1,
+      };
+      snapshot.units[index] = result;
+    });
+    return result;
+  },
   async createUnit(input) {
+    const id = `unit-${Date.now().toString(36)}`;
     const result: SettingsUnit = {
       ...input,
-      id: `unit-${Date.now().toString(36)}`,
+      id,
+      organizationId: id,
+      defaultLocale: "zh-CN",
+      organizationVersion: 1,
       version: 1,
       adminCount: 0,
       pilotCount: 0,
@@ -750,6 +800,8 @@ const remoteService: AdminSettingsService = {
     ),
   saveUnit: (input) => request("PATCH", { action: "unit.save", input }),
   createUnit: (input) => request("POST", { action: "unit.create", input }),
+  saveOrganizationLocale: (input) =>
+    request("PATCH", { action: "organization.locale.save", input }),
   listPositions: async () => (await request<AdminSettingsSnapshot>("GET")).positions,
   createPosition: (input) => request("POST", { action: "position.create", input }),
   savePosition: (input) => request("PATCH", { action: "position.save", input }),

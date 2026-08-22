@@ -1,4 +1,5 @@
 import { normalizeAppLocale, type AppLocale, upgradeStageLabel } from "@/lib/domain-i18n";
+import { translatedValue } from "@/lib/i18n";
 
 export const NOTIFICATION_TEMPLATE_KEYS = [
   "legacy.raw",
@@ -55,7 +56,11 @@ export function renderNotificationContent(input: {
   const key = isTemplateKey(input.templateKey) ? input.templateKey : "legacy.raw";
   const value = params(input.templateParams);
   const zh = locale === "zh-CN";
-  const qualificationName = text(value.qualificationName, zh ? "资质" : "Qualification");
+  const qualificationName = translatedValue(
+    value.qualificationTranslations,
+    locale,
+    text(value.qualificationName, zh ? "资质" : "Qualification"),
+  );
   const pilotName = text(value.pilotName, zh ? "飞行员" : "Pilot");
   const planTitle = text(value.planTitle, zh ? "升级计划" : "Upgrade plan");
   const stageName = upgradeStageLabel(value.stageCode, locale, number(value.stageOrder));

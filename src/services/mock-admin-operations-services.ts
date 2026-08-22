@@ -7,6 +7,12 @@ import {
   upgradeStageRescheduleSchema,
 } from "@/lib/admin-operations-validation";
 import { deriveQualificationDateState, systemClock } from "@/lib/qualification-date-status";
+import {
+  ocrChecksSchema,
+  parameterRestrictionSchema,
+  reminderRuleSchema,
+  validityRuleSchema,
+} from "@/lib/qualification-rules";
 import { adminSettingsService } from "@/services/admin-settings-service";
 import { adminStateStore, type AdminStateStore } from "@/services/admin-state-store";
 import { CORE_QUALIFICATION_IDS } from "@/types/services";
@@ -101,6 +107,7 @@ function deriveCalendarEvents(state: AdminStateV4, clock: Clock): AdminCalendarE
         positionName: "飞行员",
         qualificationId: item.id,
         qualificationName: item.name,
+        qualificationTranslations: item.translations,
         daysRemaining: dateState.daysRemaining,
         readonly: true,
       };
@@ -277,6 +284,7 @@ export function createMockAdminOperationsServices(
                   recordId: event.id,
                   qualificationId: record.id,
                   qualificationName: record.name,
+                  qualificationTranslations: record.translations,
                   credentialNumber: record.credentialNumber,
                   issueDate: record.issueDate,
                   expiryDate: record.expiryDate,
@@ -338,6 +346,7 @@ export function createMockAdminOperationsServices(
             return {
               qualificationId,
               qualificationName: config.name,
+              qualificationTranslations: config.translations,
               validityRule: config.validityRule,
               record: record
                 ? {
@@ -345,6 +354,7 @@ export function createMockAdminOperationsServices(
                     recordId: `qualification:${pilot.id}:${qualificationId}`,
                     qualificationId,
                     qualificationName: config.name,
+                    qualificationTranslations: config.translations,
                     credentialNumber: record.credentialNumber,
                     issueDate: record.issueDate,
                     expiryDate: record.expiryDate,
@@ -878,23 +888,51 @@ export function createMockAdminOperationsServices(
         if (!config) throw new Error("未找到资质配置");
         if (expectedVersion && expectedVersion !== (config.version ?? 1))
           throw new Error("资质配置已被其他管理员修改，请刷新后重试");
-        if (config.locked && validation.data.name !== config.name)
-          throw new Error("模板核心资质不可改名");
         if (config.locked && !validation.data.active) throw new Error("模板核心资质不可停用");
-        const normalizedName = validation.data.name.toLocaleLowerCase();
+        if (
+          config.locked &&
+          JSON.stringify({
+            customFields: config.customFields ?? [],
+            parameterRestriction: parameterRestrictionSchema.parse(config.parameterRestriction),
+            validityRule: validityRuleSchema.parse(config.validityRule),
+            reminders: reminderRuleSchema.parse(config.reminders),
+            ocrChecks: ocrChecksSchema.parse(config.ocrChecks),
+          }) !==
+            JSON.stringify({
+              customFields: validation.data.customFields,
+              parameterRestriction: validation.data.parameterRestriction,
+              validityRule: validation.data.validityRule,
+              reminders: validation.data.reminders,
+              ocrChecks: validation.data.ocrChecks,
+            })
+        ) {
+          throw new Error("模板核心资质的结构化规则不可修改");
+        }
+        const locale = validation.data.locale ?? "zh-CN";
+        const translations = {
+          ...(config.translations ?? {}),
+          ...(validation.data.translations ?? {}),
+        };
+        if (locale === "zh-CN") {
+          translations[locale] = validation.data.name;
+        } else if (validation.data.translations?.[locale]) {
+          translations[locale] = validation.data.translations[locale];
+        }
+        const normalizedName = (translations[locale] ?? validation.data.name).toLocaleLowerCase();
         if (
           state.qualificationConfigs.some(
             (item) =>
               item.id !== id &&
               item.positionCode === positionCode &&
-              item.name.toLocaleLowerCase() === normalizedName,
+              (item.translations?.[locale] ?? item.name).toLocaleLowerCase() === normalizedName,
           )
         )
           throw new Error("当前职位已存在同名资质");
         result = {
           ...config,
           ...(validation.data as QualificationConfigInput),
-          name: config.locked ? config.name : validation.data.name,
+          translations,
+          name: locale === "zh-CN" ? validation.data.name : config.name,
           active: config.locked ? true : validation.data.active,
           updatedAt: timestamp(clock),
           version: (config.version ?? 1) + 1,
@@ -915,10 +953,17 @@ export function createMockAdminOperationsServices(
       if (!validation.success) throw new Error(firstValidationMessage(validation.error));
       let result: QualificationConfig | null = null;
       store.update((state) => {
-        const name = validation.data.name.toLocaleLowerCase();
+        const locale = validation.data.locale ?? "zh-CN";
+        const translations = {
+          ...(validation.data.translations ?? {}),
+          [locale]: validation.data.translations?.[locale] ?? validation.data.name,
+        };
+        const name = (translations[locale] ?? validation.data.name).toLocaleLowerCase();
         if (
           state.qualificationConfigs.some(
-            (item) => item.positionCode === positionCode && item.name.toLocaleLowerCase() === name,
+            (item) =>
+              item.positionCode === positionCode &&
+              (item.translations?.[locale] ?? item.name).toLocaleLowerCase() === name,
           )
         )
           throw new Error("资质项目名称已存在");
@@ -926,6 +971,7 @@ export function createMockAdminOperationsServices(
         const id = ids.next("custom");
         result = {
           ...(validation.data as QualificationConfigInput),
+          translations,
           id,
           qualificationId: id,
           positionCode,

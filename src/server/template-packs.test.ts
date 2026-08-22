@@ -27,6 +27,7 @@ describe("qualification template packs", () => {
       positions: pack.positions,
       organizationDefaults: pack.organizationDefaults,
       translations: pack.translations,
+      descriptionTranslations: pack.descriptionTranslations,
       description: pack.description,
       name: pack.name,
       industryCode: pack.industryCode,

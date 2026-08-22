@@ -19,6 +19,7 @@ import type { AdminDashboardSummary, QualificationReview } from "@/types/service
 import { useAdminSession } from "@/services/admin-session-provider";
 import { useI18n } from "@/components/i18n-provider";
 import { localizedQualificationText } from "@/lib/messages";
+import { localizedQualificationName } from "@/lib/i18n";
 
 type DashboardMetricKey =
   "expired" | "due-7" | "due-30" | "pending-review" | "weekly-upgrade" | "delayed-upgrade";
@@ -27,7 +28,7 @@ export function AdminDashboardView() {
   const state = useAdminState();
   const { adminDashboard } = useApplicationServices();
   const { hasPermission } = useAdminSession();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const canDecide = hasPermission("reviews.decide");
   const [summary, setSummary] = React.useState<AdminDashboardSummary | null>(null);
   const [quickApproval, setQuickApproval] = React.useState<QualificationReview | null>(null);
@@ -168,7 +169,11 @@ export function AdminDashboardView() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{alert.pilotName}</p>
                   <p className="mt-0.5 truncate text-xs text-secondary">
-                    {alert.qualification.name}
+                    {localizedQualificationName(
+                      alert.qualification.name,
+                      alert.qualification.translations,
+                      locale,
+                    )}
                   </p>
                 </div>
                 <Badge
@@ -283,7 +288,7 @@ function DashboardMetricDetails({
   metric: DashboardMetricKey;
   summary: AdminDashboardSummary;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   if (metric === "expired" || metric === "due-7" || metric === "due-30") {
     const alerts = summary.qualificationAlerts.filter((alert) => {
       if (metric === "expired") return alert.daysRemaining < 0;
@@ -334,7 +339,13 @@ function DashboardMetricDetails({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-primary">{review.pilotName}</p>
-                <p className="mt-1 truncate text-xs text-secondary">{review.qualificationName}</p>
+                <p className="mt-1 truncate text-xs text-secondary">
+                  {localizedQualificationName(
+                    review.qualificationName,
+                    review.qualificationTranslations,
+                    locale,
+                  )}
+                </p>
                 <p className="mt-2 text-[11px] text-muted">
                   {t("dashboard.submittedAt", { date: review.submittedAt })}
                 </p>

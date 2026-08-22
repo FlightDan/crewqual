@@ -94,6 +94,7 @@ export const ModelName = {
   RateLimitBucket: 'RateLimitBucket',
   UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
+  ObjectStorageSetting: 'ObjectStorageSetting',
   SecurityPolicy: 'SecurityPolicy',
   WorkerHeartbeat: 'WorkerHeartbeat'
 } as const
@@ -335,6 +336,7 @@ export const QualificationTypeScalarFieldEnum = {
   id: 'id',
   code: 'code',
   name: 'name',
+  translations: 'translations',
   core: 'core',
   active: 'active',
   parameterRestriction: 'parameterRestriction',
@@ -848,6 +850,26 @@ export const SystemIntegrationSettingScalarFieldEnum = {
 export type SystemIntegrationSettingScalarFieldEnum = (typeof SystemIntegrationSettingScalarFieldEnum)[keyof typeof SystemIntegrationSettingScalarFieldEnum]
 
 
+export const ObjectStorageSettingScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  endpoint: 'endpoint',
+  region: 'region',
+  bucket: 'bucket',
+  credentialsCiphertext: 'credentialsCiphertext',
+  forcePathStyle: 'forcePathStyle',
+  sseKmsKeyId: 'sseKmsKeyId',
+  lastTestStatus: 'lastTestStatus',
+  lastTestMessage: 'lastTestMessage',
+  lastTestedAt: 'lastTestedAt',
+  version: 'version',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ObjectStorageSettingScalarFieldEnum = (typeof ObjectStorageSettingScalarFieldEnum)[keyof typeof ObjectStorageSettingScalarFieldEnum]
+
+
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
   adminLoginMode: 'adminLoginMode',
@@ -856,6 +878,7 @@ export const SecurityPolicyScalarFieldEnum = {
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',
   maxFailedAttempts: 'maxFailedAttempts',
   lockoutMinutes: 'lockoutMinutes',
+  allowPublicAccess: 'allowPublicAccess',
   version: 'version',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

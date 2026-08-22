@@ -25,6 +25,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "medical-certificate",
     name: "民用航空人员体检合格证",
+    translations: {
+      "zh-CN": "民用航空人员体检合格证",
+      "en-US": "Civil Aviation Personnel Medical Certificate",
+    },
     code: "QUAL-MC-01",
     parameter: "IA级（无限制）",
     cycleMonths: undefined,
@@ -32,6 +36,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "annual-recurrent-training",
     name: "机组年度复训合格证",
+    translations: {
+      "zh-CN": "机组年度复训合格证",
+      "en-US": "Annual Recurrent Training Certificate",
+    },
     code: "QUAL-TY-320",
     parameter: "合格",
     cycleMonths: 12,
@@ -39,6 +47,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "dangerous-goods-training",
     name: "危险品运输培训合格证",
+    translations: {
+      "zh-CN": "危险品运输培训合格证",
+      "en-US": "Dangerous Goods Transportation Training Certificate",
+    },
     code: "QUAL-DG-05",
     parameter: "合格（两年期）",
     cycleMonths: undefined,
@@ -46,6 +58,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "icao-english-endorsement",
     name: "ICAO英语语言能力等级签注",
+    translations: {
+      "zh-CN": "ICAO英语语言能力等级签注",
+      "en-US": "ICAO English Language Proficiency Endorsement",
+    },
     code: "QUAL-EN-04",
     parameter: "ICAO 4级",
     cycleMonths: undefined,
@@ -53,6 +69,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "chinese-language-assessment",
     name: "ICAO汉语语言能力等级签注",
+    translations: {
+      "zh-CN": "ICAO汉语语言能力等级签注",
+      "en-US": "ICAO Chinese Language Proficiency Endorsement",
+    },
     code: "QUAL-EM-02",
     parameter: "四级标准",
     cycleMonths: undefined,
@@ -60,6 +80,10 @@ export const CORE_QUALIFICATION_CATALOG = [
   {
     id: "simulator-recurrent-training",
     name: "模拟机复训（每6个月）",
+    translations: {
+      "zh-CN": "模拟机复训（每6个月）",
+      "en-US": "Simulator Recurrent Training (Every 6 Months)",
+    },
     code: "QUAL-PC-12",
     parameter: "A320",
     cycleMonths: 6,
@@ -67,6 +91,7 @@ export const CORE_QUALIFICATION_CATALOG = [
 ] as const satisfies ReadonlyArray<{
   id: QualificationId;
   name: string;
+  translations?: Record<string, string>;
   code: string;
   parameter: string;
   cycleMonths?: number;
@@ -94,6 +119,7 @@ export type QualificationSection = {
 export type Qualification = {
   id: QualificationId;
   name: string;
+  translations?: Record<string, string>;
   status: QualificationStatus;
   expiresOn: string;
   statusLabel: string;
@@ -175,6 +201,7 @@ export type SubmissionReceipt = {
   id: string;
   qualificationId: QualificationId;
   qualificationName: string;
+  qualificationTranslations?: Record<string, string>;
   submittedAt: string;
   status: SubmissionStatus;
   notifications: Array<"system" | "feishu" | "sms">;
@@ -243,6 +270,7 @@ export type QualificationReview = {
   role: string;
   qualificationId: QualificationId;
   qualificationName: string;
+  qualificationTranslations?: Record<string, string>;
   validityRule?: ValidityRule;
   ruleVersion?: number;
   submittedAt: string;
@@ -389,6 +417,7 @@ export type AdminCalendarEvent = {
   positionName?: string;
   qualificationId?: QualificationId;
   qualificationName?: string;
+  qualificationTranslations?: Record<string, string>;
   qualificationRecord?: AdminEditableQualificationRecord;
   qualificationValidityRule?: ValidityRule;
   planId?: UpgradePlanId;
@@ -427,6 +456,7 @@ export type AdminEditableQualificationRecord = ReviewCredentialFields &
     recordId: string;
     qualificationId: QualificationId;
     qualificationName: string;
+    qualificationTranslations?: Record<string, string>;
     lastVerifiedOn: string;
     version: number;
   };
@@ -434,6 +464,7 @@ export type AdminEditableQualificationRecord = ReviewCredentialFields &
 export type CalendarDayQualificationSlot = {
   qualificationId: QualificationId;
   qualificationName: string;
+  qualificationTranslations?: Record<string, string>;
   validityRule: ValidityRule;
   record: AdminEditableQualificationRecord | null;
 };
@@ -487,6 +518,7 @@ export type QualificationConfig = {
   positionCode: string;
   code: string;
   name: string;
+  translations: Record<string, string>;
   core: boolean;
   locked: boolean;
   active: boolean;
@@ -515,8 +547,16 @@ export type QualificationConfig = {
 };
 export type QualificationConfigInput = Omit<
   QualificationConfig,
-  "id" | "positionCode" | "code" | "core" | "locked" | "createdAt" | "updatedAt" | "qualificationId"
->;
+  | "id"
+  | "positionCode"
+  | "code"
+  | "core"
+  | "locked"
+  | "createdAt"
+  | "updatedAt"
+  | "qualificationId"
+  | "translations"
+> & { translations?: Record<string, string>; locale?: "zh-CN" | "en-US" };
 
 export type QualificationConfigCreateInput = QualificationConfigInput & {
   positionCode: string;
@@ -606,6 +646,7 @@ export type PilotManagementMeta = {
     id: string;
     code: string;
     name: string;
+    translations?: Record<string, string>;
     validityRule: ValidityRule;
     ruleVersion: number;
     parameterRestriction: QualificationConfig["parameterRestriction"];
@@ -617,6 +658,7 @@ export type PilotImportQualification = {
   qualificationId: string;
   qualificationCode: string;
   qualificationName: string;
+  qualificationTranslations?: Record<string, string>;
   issueDate: string;
   trainingDate: string;
   expiryDate: string;

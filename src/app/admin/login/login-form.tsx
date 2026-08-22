@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plane } from "lucide-react";
 import type { AdminLoginMode } from "@/types/admin-settings";
-import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockMode: boolean }) {
   const router = useRouter();
@@ -69,9 +69,7 @@ export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockM
   return (
     <main className="flex min-h-dvh w-full flex-col items-center justify-center bg-surface px-4 py-10">
       <div className="w-full max-w-[430px] rounded-xl border border-border bg-card p-6 shadow-card sm:p-8">
-        <div className="mb-3 flex justify-end">
-          <LocaleSwitcher />
-        </div>
+        <div className="mb-3 flex justify-end"></div>
         <div className="flex items-center gap-3">
           <span className="inline-flex size-10 items-center justify-center rounded-lg bg-brand text-white">
             <Plane aria-hidden="true" className="size-5" />

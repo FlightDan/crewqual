@@ -10,6 +10,7 @@ export type RuntimeSecurityPolicy = {
   pilotSessionTtlMinutes: number;
   maxFailedAttempts: number;
   lockoutMinutes: number;
+  allowPublicAccess: boolean;
 };
 
 export type RuntimeIntegration = {
@@ -38,6 +39,7 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
+    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE === "tls",
   };
   if (!shouldReadDatabase()) return fallback;
   const policy = await getPrisma().securityPolicy.findUnique({ where: { id: "global" } });
@@ -49,6 +51,7 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
         pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
         maxFailedAttempts: policy.maxFailedAttempts,
         lockoutMinutes: policy.lockoutMinutes,
+        allowPublicAccess: policy.allowPublicAccess,
       }
     : fallback;
 }

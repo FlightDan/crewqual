@@ -2,139 +2,154 @@
 
 ## 适用范围
 
-Docker Compose 适合单台 Linux 服务器上的试点、内网或中小规模部署。它把 Web、Worker、PostgreSQL、数据库迁移、首次初始化和 Caddy TLS 入口统一编排；PostgreSQL、Worker 和备份目录不暴露公网。
+一键安装适合单台 x86_64 或 arm64 Linux 服务器上的试点、内网或中小规模部署。生产清单包含 Web、共享 Runtime（Worker、迁移、Bootstrap 和运维命令）、PostgreSQL、私有 MinIO 与 Caddy TLS 入口。
 
-以下能力仍应使用外部服务，不建议塞进同一台业务主机：
+多机高可用、数据库主从、动态扩缩容或滚动发布应使用托管数据库/对象存储和 Kubernetes，不应继续放大单机 Compose。
 
-- HTTPS S3 兼容对象存储（证照图片）；
-- 真实 SMS webhook（Pilot 登录链接）；
-- 可选 Qwen/VLM HTTP API；
-- 异机或异区域备份目标。
+## 前置条件
 
-如果要求多机高可用、滚动发布、数据库主从或动态扩缩容，应改用托管数据库/对象存储加 Kubernetes，而不是继续放大单机 Compose。
+- Docker Engine 24+ 与 Docker Compose v2.24+；
+- 至少 4 vCPU、8 GiB 内存和 50 GiB 磁盘；
+- TLS 模式：业务域名的 A 记录已指向服务器，防火墙开放 80 和应用访问端口；
+- 局域网模式：选择的私网地址可被测试设备访问，公网端口不需要开放；
+- 两种模式都不应开放 3000、5432、9000、9001；
+- GitHub 仓库、正式 Release 以及 `ghcr.io/flightdan/crewqual-web`、`ghcr.io/flightdan/crewqual-runtime` 对应版本镜像为公开状态。
 
-## 一键部署
+安装器不会安装 Docker、修改 DNS/防火墙、挂载 Docker Socket 或删除数据卷。
 
-项目根目录提供 `install.sh`，用于在已经安装 Docker Engine 和 Docker Compose v2 的 Linux 主机上完成首次部署或升级：
+## 一键安装
 
 ```sh
-chmod +x install.sh
-./install.sh
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo -E bash
 ```
 
-首次执行且项目目录没有 `.env` 时，脚本会调用 `scripts/init-docker-env.sh` 交互式生成生产配置；后续执行不会覆盖已有 `.env`。脚本会校验 Compose 配置、构建镜像、启动 PostgreSQL、执行迁移和 bootstrap，然后等待 Web、Worker 健康。
+首次安装会从 `/dev/tty` 选择局域网或 TLS 模式，并选择应用端口。TLS 模式才询问公网域名和 TLS 通知邮箱。在 `/opt/crewqual` 生成权限为 `0600` 的 `.env`，自动创建数据库、MinIO、会话和设置加密密钥，然后启动固定版本的 Web 与 Runtime 镜像。安装完成时会在终端只显示一次 8 位首次配置授权码；访问 `/setup` 必须先输入该码，避免公网 TLS 部署在管理员完成初始化前被抢先接管。要启用受签名保护的系统更新，必须额外提供发布方的 Base64 Ed25519 公钥；安装器会先验签清单、部署文件和后续域名配置脚本，验签失败即停止。
 
-脚本不会安装 Docker、修改防火墙、删除数据卷或覆盖已有 `.env`。正式部署前仍需按下文准备服务器、域名、外部 S3 和 SMS webhook。无人值守部署请预先准备 `.env`，再执行：
+TLS 邮箱仅用于 ACME/Let's Encrypt 证书续期、到期或异常通知，不是应用登录邮箱，也不需要邮箱密码。
 
-```sh
-./install.sh --non-interactive
+部署完成后访问：
+
+```text
+https://你的域名/setup
 ```
 
-如需禁止构建阶段拉取更新的基础镜像：
+局域网模式访问安装器输出的 `http://私网地址:端口/setup`。后续切换到正式域名/TLS：
 
 ```sh
-./install.sh --no-pull
+sudo /opt/crewqual/configure-domain.sh \
+  --domain crewqual.example.com --tls-email ops@example.com --port 443
 ```
 
-## 1. 服务器与域名
+该脚本会执行配置校验、Caddy 证书和健康检查；任何失败都会回滚到原局域网配置。自定义 TLS 端口时，公网 TCP 80 仍必须转发给 Caddy，因为 ACME HTTP-01 验证使用标准 80 端口。
 
-准备一台 x86_64 或 arm64 Linux 服务器，建议至少 4 vCPU、8 GiB 内存、50 GiB 系统盘，并安装 Docker Engine 24+ 与 Docker Compose v2.24+。将业务域名的 A/AAAA 记录指向服务器，防火墙只开放 22、80、443；不要开放 3000、5432、9000、9001。
+欢迎页负责创建超级管理员、安装职位模板、选择证照对象存储、配置备份与通知。证照存储可以继续使用安装器提供的内置私有 MinIO，也可以切换到外部 HTTPS S3；切换前会执行临时对象的写入、读取和删除测试。短信可在欢迎页稍后配置，不会阻塞首次启动。
 
-发布包应是固定 Git tag 的源码包，或由 CI 产生的固定版本镜像，不要直接部署开发工作区。
-
-## 2. 生成生产配置
-
-在项目目录执行交互式初始化：
+### 固定版本
 
 ```sh
-chmod +x scripts/init-docker-env.sh
-./scripts/init-docker-env.sh
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo -E bash -s -- --version v1.0.0
 ```
 
-脚本不会覆盖已有 `.env`，会生成 URL-safe 的数据库口令、会话密钥和设置加密密钥，并以 `0600` 权限保存配置。首位超级管理员在 Web 安装向导中创建；脚本默认关闭 VLM，确认 Qwen 服务可达后再设置 `VLM_ADAPTER=qwen`。
-
-如需手工配置，复制 `.env.example` 为 `.env`。必须满足：
-
-- `APP_ORIGIN=https://域名`，`APP_DOMAIN` 只填域名；
-- `POSTGRES_PASSWORD` 与两个 PostgreSQL URL 中的密码相同，建议只用十六进制，避免 URL 转义错误；
-- `SESSION_SECRET` 至少 48 字符，`SETTINGS_ENCRYPTION_KEY` 至少 32 字符且二者不同；
-- S3 endpoint 使用 HTTPS，桶为私有桶；
-- `SMS_ADAPTER=webhook` 且 webhook 为真实可达的 HTTPS 地址；
-- 默认将三个 `INITIAL_ADMIN_*` 变量留空并使用 `/setup`；无人值守安装时必须同时提供邮箱、至少 12 位密码和至少 16 位 Base32 TOTP secret。
-
-不要把 `.env` 发送到聊天工具或提交到 Git。
-
-## 3. 首次启动与验收
+### 无人值守首次安装
 
 ```sh
-docker compose config --quiet
-docker compose build --pull
-docker compose up -d
-docker compose ps -a
-docker compose logs --tail=100 migrate bootstrap web worker caddy
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo -E bash -s -- --domain crewqual.example.com \
+    --tls-email ops@example.com --non-interactive
+```
+
+### 离线复用本机镜像
+
+```sh
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo -E bash -s -- --version v1.0.0 --no-pull
+```
+
+`--no-pull` 仍需从对应 Git tag 下载 Compose 与 Caddy 配置，因此不代表完全离线安装。
+
+## 安装目录与数据
+
+安装器管理以下文件：
+
+- `/opt/crewqual/compose.yaml`：当前版本生产编排；
+- `/opt/crewqual/Caddyfile`：HTTPS 入口；
+- `/opt/crewqual/.env`：部署版本、域名和密钥，权限为 `0600`。
+
+持久数据位于 Docker 命名卷：PostgreSQL、MinIO、Caddy、Worker 本地备份各自独立。重复运行安装器只更新版本字段和受管理的 Compose/Caddy 文件，不覆盖已有域名或密钥。
+
+不要执行：
+
+```sh
+docker compose down -v
+```
+
+该命令会删除 PostgreSQL、MinIO、Caddy 和本地备份卷，数据通常无法从主机恢复。
+
+## 日常运维
+
+```sh
+cd /opt/crewqual
+sudo docker compose ps -a
+sudo docker compose logs -f --tail=200 web worker caddy
 curl --fail --silent --show-error https://你的域名/api/health
 ```
 
-启动顺序为 `postgres → migrate → bootstrap → web/worker → caddy`。`migrate` 和 `bootstrap` 正常状态是 `Exited (0)`；Web 和 Worker 应为 `healthy`。健康接口应返回 `status=ok`，同时报告 database、storage、queue、worker 为 `ok`。
+`migrate`、`bootstrap` 和 `minio-init` 的正常状态是 `Exited (0)`；Web 与 Worker 应为 `healthy`，Caddy、PostgreSQL 和 MinIO 应保持运行。
 
-`bootstrap` 会同步固定角色和权限。无人值守发布时同时提供三个 `INITIAL_ADMIN_*` 变量，bootstrap 会创建一个超级管理员、一个组织/根单位，以及仅包含 `PILOT/飞行员` 职位和标准资质要求的飞行员模板；不会写入任何人员或演示资质记录。交互式部署可以将三个变量留空并使用 `/setup` 完成同一初始化流程。
-
-完成安装并使用密码和 TOTP 登录一次后：
-
-1. 把初始账号资料存入密码管理器；
-2. 从 `.env` 删除 `INITIAL_ADMIN_PASSWORD` 和 `INITIAL_ADMIN_TOTP_SECRET` 的值；
-3. 执行 `docker compose rm -f bootstrap`，清除保留初始 secret 的已退出容器；
-4. 在管理后台创建实名管理员，并验证 SMS、对象存储和备份目标。
-
-## 4. 日常运维
-
-查看状态和日志：
+安全重启应用：
 
 ```sh
-docker compose ps -a
-docker compose logs -f --tail=200 web worker caddy
-curl --fail https://你的域名/api/health
+cd /opt/crewqual
+sudo docker compose restart web worker caddy
 ```
 
-重启应用不会删除数据：
+停止服务但保留数据卷：
 
 ```sh
-docker compose restart web worker caddy
+cd /opt/crewqual
+sudo docker compose down
 ```
 
-停止但保留卷：
+内置 MinIO 的 `minio-data` 卷与 Worker 的 `backup-data` 卷都在同一台主机，不能替代异机备份。应在欢迎页或系统设置中配置 S3/WebDAV/SMB 等异机目标，并定期执行恢复演练。
+
+## 升级与版本切换
+
+升级前先备份 PostgreSQL 和当前证照对象存储，再重复执行安装命令：
 
 ```sh
-docker compose down
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo -E bash
 ```
 
-不要执行 `docker compose down -v`，该命令会删除 PostgreSQL、Caddy、MinIO 和本地备份卷。
+安装器解析最新正式 Release，下载该 Git tag 中的部署清单，拉取对应的 Web/Runtime 镜像，运行幂等迁移与 Bootstrap，然后等待服务健康。
 
-Worker 的 `/backups` 映射到 `backup-data` 卷。应用内本地备份目标可填写 endpoint `/backups`；生产仍建议再配置异机 S3/WebDAV/SMB 目标，并实际做恢复演练。
-
-## 5. 升级与回滚
-
-升级前先完成数据库与对象存储备份，然后在维护窗口执行：
+也可以指定版本：
 
 ```sh
-docker compose build --pull
-docker compose up -d
-docker compose ps -a
-curl --fail https://你的域名/api/health
+export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<发布方提供的 Base64 Ed25519 公钥>'
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo -E bash -s -- --version v1.0.0
 ```
 
-新镜像会重新运行幂等迁移和初始化任务。应用镜像应按发布号保存，回滚时切回上一发布包/镜像并重新启动；数据库迁移不自动向下回滚。若新迁移不向后兼容，必须按该版本的发布说明从升级前备份恢复到隔离实例，验证后再切换，不能直接在生产库试错。
+指定旧版本只切换镜像和部署清单，不会向下回滚数据库迁移。若新版本迁移不向后兼容，必须使用升级前备份恢复 PostgreSQL 和对象存储到隔离实例验证，不能直接在生产数据库上降级。
 
-## 6. 本地开发依赖
+## 源码构建与开发
 
-本地开发可只启动 PostgreSQL 和可选 MinIO，不要把开发 MinIO 当作生产对象存储：
+一键安装使用公开 GHCR 镜像，不需要 Git checkout。本地开发或需要自行构建时才使用源码 Compose：
 
 ```sh
+cp .env.example .env
 docker compose --profile dev up -d postgres minio minio-init
+pnpm install --frozen-lockfile
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
 pnpm dev:worker
 ```
 
-开发 seed 包含演示数据，因此不属于生产部署流程。
+源码 Compose、开发 seed 和开发 MinIO 不属于生产一键安装流程。

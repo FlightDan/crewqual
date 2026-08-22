@@ -14,7 +14,14 @@ import {
   verifyTotp,
 } from "@/server/crypto";
 import { checkObjectStorage } from "@/server/health";
+import { probeObjectStorage } from "@/server/health";
 import { getPrisma } from "@/server/prisma";
+import { normalizeLocalBackupLocation } from "@/server/backup-path";
+import {
+  resolveSetupStorage,
+  setupStorageSchema,
+  storageSettingData,
+} from "@/server/runtime-storage";
 import { installTemplatePackInTransaction, parseTemplatePack } from "@/server/template-packs";
 import type {
   SetupCompleteInput,
@@ -47,6 +54,7 @@ export const setupCompleteSchema = z
     locale: setupLocaleSchema,
     timezone: z.string().trim().min(1).max(64).refine(isValidTimezone, "时区无效"),
     organizationName: z.string().trim().max(128),
+    storage: setupStorageSchema,
     admin: z.object({
       displayName: z.string().trim().min(1).max(128),
       email: z
@@ -105,16 +113,16 @@ export const setupCompleteSchema = z
         message: "请填写备份目标",
       });
     }
-    if (
-      value.backup.enabled &&
-      value.backup.targetType === "LOCAL" &&
-      !value.backup.endpoint.startsWith("/backups")
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["backup", "endpoint"],
-        message: "本地备份必须位于 Worker 的 /backups 卷",
-      });
+    if (value.backup.enabled && value.backup.targetType === "LOCAL") {
+      try {
+        normalizeLocalBackupLocation(value.backup.endpoint, value.backup.basePath);
+      } catch (error) {
+        context.addIssue({
+          code: "custom",
+          path: ["backup", "endpoint"],
+          message: error instanceof Error ? error.message : "本地备份路径无效",
+        });
+      }
     }
     if (
       value.backup.enabled &&
@@ -233,6 +241,7 @@ function mapTemplate(row: {
       name: row.name,
       description: row.description,
       translations: translatedRecord(row.translations),
+      descriptionTranslations: pack.descriptionTranslations,
       positionCount: pack.positions.length,
       qualificationCount: pack.qualificationDefinitions.length,
     };
@@ -249,6 +258,9 @@ const mockTemplates: SetupTemplate[] = [
     name: "飞行员",
     description: "包含机长、副驾驶等岗位，以及执照、体检和型别等级等基础合规要求。",
     translations: { "en-US": "Flight crew" },
+    descriptionTranslations: {
+      "en-US": "Core qualifications for captains, first officers, and flight crew compliance.",
+    },
     positionCount: 2,
     qualificationCount: 12,
   },
@@ -259,6 +271,7 @@ const mockTemplates: SetupTemplate[] = [
     name: "乘务员",
     description: "客舱乘务员、乘务长，以及客舱应急训练和联合演练要求。",
     translations: { "en-US": "Cabin crew" },
+    descriptionTranslations: { "en-US": "Cabin crew roles, emergency training, and joint drills." },
     positionCount: 2,
     qualificationCount: 8,
   },
@@ -269,6 +282,9 @@ const mockTemplates: SetupTemplate[] = [
     name: "签派员",
     description: "运行控制与飞行签派人员，涵盖执照、行业训练与专项研讨。",
     translations: { "en-US": "Flight dispatcher" },
+    descriptionTranslations: {
+      "en-US": "Flight dispatch licensing, recurrent training, and workshops.",
+    },
     positionCount: 1,
     qualificationCount: 6,
   },
@@ -279,6 +295,9 @@ const mockTemplates: SetupTemplate[] = [
     name: "机务人员",
     description: "航空维修工程师，涵盖机型放行签署、岗位执照及安全规范。",
     translations: { "en-US": "Maintenance crew" },
+    descriptionTranslations: {
+      "en-US": "Aircraft maintenance licensing, release authority, and safety standards.",
+    },
     positionCount: 1,
     qualificationCount: 10,
   },
@@ -289,6 +308,9 @@ const mockTemplates: SetupTemplate[] = [
     name: "安全监察员",
     description: "安全管理与审核人员，包含 SMS 安全管理与审计员认证模板。",
     translations: { "en-US": "Safety inspector" },
+    descriptionTranslations: {
+      "en-US": "Safety management, SMS controls, and auditor certification templates.",
+    },
     positionCount: 1,
     qualificationCount: 5,
   },
@@ -351,7 +373,7 @@ export async function getSetupOverview(): Promise<SetupOverview> {
       }),
       db.organization.findFirst({ where: { active: true }, orderBy: { createdAt: "asc" } }),
     ]),
-    checkObjectStorage(config),
+    checkObjectStorage(),
   ]);
 
   if (databaseProbe.status === "rejected") {
@@ -465,9 +487,8 @@ export function validateSetupBackupTarget(input: {
   if (!endpoint || !basePath) {
     throw new ApiError("BACKUP_TARGET_INVALID", "请填写完整的备份目标", 422);
   }
-  if (input.type === "LOCAL" && !endpoint.startsWith("/backups")) {
-    throw new ApiError("INVALID_LOCAL_BACKUP_PATH", "本地备份必须使用 Worker 的 /backups 卷", 422);
-  }
+  const localLocation =
+    input.type === "LOCAL" ? normalizeLocalBackupLocation(endpoint, basePath) : null;
   if (input.type === "S3") {
     let url: URL;
     try {
@@ -485,6 +506,7 @@ export function validateSetupBackupTarget(input: {
       input.type === "LOCAL"
         ? "目录格式有效；初始化后将由 Worker 验证实际写入权限"
         : "目标格式有效；初始化后可在系统设置中执行连接测试",
+    ...(localLocation ?? {}),
   };
 }
 
@@ -518,6 +540,17 @@ function unitCode() {
 
 export async function completeSetup(rawInput: SetupCompleteInput): Promise<SetupCompleteResult> {
   const input = setupCompleteSchema.parse(rawInput);
+  const storageConfig = resolveSetupStorage(input.storage);
+  try {
+    await probeObjectStorage(storageConfig);
+  } catch (error) {
+    throw new ApiError(
+      "OBJECT_STORAGE_UNAVAILABLE",
+      error instanceof Error ? error.message : "对象存储连接测试失败",
+      422,
+    );
+  }
+  const storageData = storageSettingData(input.storage);
   let verifiedTotp: VerifiedPayload | null = null;
   if (input.admin.requireTotp) {
     verifiedTotp = decodeSetupToken(input.admin.verifiedTotpToken ?? "", verifiedPayloadSchema);
@@ -526,11 +559,13 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
     }
   }
   if (input.backup.enabled) {
-    validateSetupBackupTarget({
+    const backupLocation = validateSetupBackupTarget({
       type: input.backup.targetType,
       endpoint: input.backup.endpoint,
       basePath: input.backup.basePath,
     });
+    input.backup.endpoint = backupLocation.endpoint ?? input.backup.endpoint;
+    input.backup.basePath = backupLocation.basePath ?? input.backup.basePath;
   }
   const passwordHash = await hashPassword(input.admin.password);
   const totpSecret = verifiedTotp?.secret ?? createTotpSecret();
@@ -620,11 +655,31 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
         where: { id: "global" },
         update: {
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
+          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE === "tls",
           version: { increment: 1 },
         },
         create: {
           id: "global",
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
+          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE === "tls",
+        },
+      });
+
+      await tx.objectStorageSetting.upsert({
+        where: { id: "global" },
+        update: {
+          ...storageData,
+          lastTestStatus: "connected",
+          lastTestMessage: "Setup read/write/delete probe passed",
+          lastTestedAt: new Date(),
+          version: { increment: 1 },
+        },
+        create: {
+          id: "global",
+          ...storageData,
+          lastTestStatus: "connected",
+          lastTestMessage: "Setup read/write/delete probe passed",
+          lastTestedAt: new Date(),
         },
       });
 
@@ -743,6 +798,7 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
         adminEmail: admin.email,
         installedTemplateCount: input.templatePackIds.length,
         installedPositionCount,
+        storageMode: input.storage.mode,
         backupEnabled: input.backup.enabled,
         notificationChannels: routes[0]?.channels ?? [],
       };

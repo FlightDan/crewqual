@@ -38,6 +38,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         positionCode: item.position.code,
         code: definition.code,
         name: definition.name,
+        translations: definition.translations ?? {},
         core: item.required && item.upgradePrerequisite,
         locked: Boolean(item.sourcePackCode),
         active: item.active && definition.active,

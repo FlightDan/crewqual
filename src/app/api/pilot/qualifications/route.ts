@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         const item = {
           id: record.qualificationType.code,
           name: record.qualificationType.name,
+          translations: record.qualificationType.translations,
           expiresOn,
           status: state.status,
           statusLabel: state.statusLabel,

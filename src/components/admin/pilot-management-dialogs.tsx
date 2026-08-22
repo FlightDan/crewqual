@@ -22,6 +22,7 @@ import type {
 } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
 import { localizeError } from "@/lib/error-i18n";
+import { localizedQualificationName } from "@/lib/i18n";
 
 const emptyInput: PilotManagementInput = {
   employeeNumber: "",
@@ -194,7 +195,7 @@ function PilotQualificationCreateDialog({
   onCompleted: () => void;
 }) {
   const { pilotDirectory } = useApplicationServices();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [meta, setMeta] = React.useState<PilotManagementMeta | null>(null);
   const [qualificationId, setQualificationId] = React.useState("");
   const [values, setValues] =
@@ -305,7 +306,7 @@ function PilotQualificationCreateDialog({
                   setValues(emptyQualificationInput);
                 }}
                 options={availableQualifications.map((item) => ({
-                  label: item.name,
+                  label: localizedQualificationName(item.name, item.translations, locale),
                   value: item.code,
                 }))}
               />

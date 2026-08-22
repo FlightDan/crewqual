@@ -60,6 +60,7 @@ export type QualificationTypeCountAggregateOutputType = {
   id: number
   code: number
   name: number
+  translations: number
   core: number
   active: number
   parameterRestriction: number
@@ -107,6 +108,7 @@ export type QualificationTypeCountAggregateInputType = {
   id?: true
   code?: true
   name?: true
+  translations?: true
   core?: true
   active?: true
   parameterRestriction?: true
@@ -209,6 +211,7 @@ export type QualificationTypeGroupByOutputType = {
   id: string
   code: string
   name: string
+  translations: runtime.JsonValue
   core: boolean
   active: boolean
   parameterRestriction: runtime.JsonValue
@@ -247,6 +250,7 @@ export type QualificationTypeWhereInput = {
   id?: Prisma.UuidFilter<"QualificationType"> | string
   code?: Prisma.StringFilter<"QualificationType"> | string
   name?: Prisma.StringFilter<"QualificationType"> | string
+  translations?: Prisma.JsonFilter<"QualificationType">
   core?: Prisma.BoolFilter<"QualificationType"> | boolean
   active?: Prisma.BoolFilter<"QualificationType"> | boolean
   parameterRestriction?: Prisma.JsonFilter<"QualificationType">
@@ -264,6 +268,7 @@ export type QualificationTypeOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   code?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  translations?: Prisma.SortOrder
   core?: Prisma.SortOrder
   active?: Prisma.SortOrder
   parameterRestriction?: Prisma.SortOrder
@@ -284,6 +289,7 @@ export type QualificationTypeWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.QualificationTypeWhereInput[]
   NOT?: Prisma.QualificationTypeWhereInput | Prisma.QualificationTypeWhereInput[]
   name?: Prisma.StringFilter<"QualificationType"> | string
+  translations?: Prisma.JsonFilter<"QualificationType">
   core?: Prisma.BoolFilter<"QualificationType"> | boolean
   active?: Prisma.BoolFilter<"QualificationType"> | boolean
   parameterRestriction?: Prisma.JsonFilter<"QualificationType">
@@ -301,6 +307,7 @@ export type QualificationTypeOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   code?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  translations?: Prisma.SortOrder
   core?: Prisma.SortOrder
   active?: Prisma.SortOrder
   parameterRestriction?: Prisma.SortOrder
@@ -324,6 +331,7 @@ export type QualificationTypeScalarWhereWithAggregatesInput = {
   id?: Prisma.UuidWithAggregatesFilter<"QualificationType"> | string
   code?: Prisma.StringWithAggregatesFilter<"QualificationType"> | string
   name?: Prisma.StringWithAggregatesFilter<"QualificationType"> | string
+  translations?: Prisma.JsonWithAggregatesFilter<"QualificationType">
   core?: Prisma.BoolWithAggregatesFilter<"QualificationType"> | boolean
   active?: Prisma.BoolWithAggregatesFilter<"QualificationType"> | boolean
   parameterRestriction?: Prisma.JsonWithAggregatesFilter<"QualificationType">
@@ -339,6 +347,7 @@ export type QualificationTypeCreateInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -356,6 +365,7 @@ export type QualificationTypeUncheckedCreateInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -373,6 +383,7 @@ export type QualificationTypeUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -390,6 +401,7 @@ export type QualificationTypeUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -407,6 +419,7 @@ export type QualificationTypeCreateManyInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -422,6 +435,7 @@ export type QualificationTypeUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -437,6 +451,7 @@ export type QualificationTypeUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -452,6 +467,7 @@ export type QualificationTypeCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   code?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  translations?: Prisma.SortOrder
   core?: Prisma.SortOrder
   active?: Prisma.SortOrder
   parameterRestriction?: Prisma.SortOrder
@@ -530,6 +546,7 @@ export type QualificationTypeCreateWithoutRecordsInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -546,6 +563,7 @@ export type QualificationTypeUncheckedCreateWithoutRecordsInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -578,6 +596,7 @@ export type QualificationTypeUpdateWithoutRecordsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -594,6 +613,7 @@ export type QualificationTypeUncheckedUpdateWithoutRecordsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -610,6 +630,7 @@ export type QualificationTypeCreateWithoutUpdateRequestsInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -626,6 +647,7 @@ export type QualificationTypeUncheckedCreateWithoutUpdateRequestsInput = {
   id?: string
   code: string
   name: string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: boolean
   active?: boolean
   parameterRestriction: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -658,6 +680,7 @@ export type QualificationTypeUpdateWithoutUpdateRequestsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -674,6 +697,7 @@ export type QualificationTypeUncheckedUpdateWithoutUpdateRequestsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   code?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  translations?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   parameterRestriction?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -730,6 +754,7 @@ export type QualificationTypeSelect<ExtArgs extends runtime.Types.Extensions.Int
   id?: boolean
   code?: boolean
   name?: boolean
+  translations?: boolean
   core?: boolean
   active?: boolean
   parameterRestriction?: boolean
@@ -748,6 +773,7 @@ export type QualificationTypeSelectCreateManyAndReturn<ExtArgs extends runtime.T
   id?: boolean
   code?: boolean
   name?: boolean
+  translations?: boolean
   core?: boolean
   active?: boolean
   parameterRestriction?: boolean
@@ -763,6 +789,7 @@ export type QualificationTypeSelectUpdateManyAndReturn<ExtArgs extends runtime.T
   id?: boolean
   code?: boolean
   name?: boolean
+  translations?: boolean
   core?: boolean
   active?: boolean
   parameterRestriction?: boolean
@@ -778,6 +805,7 @@ export type QualificationTypeSelectScalar = {
   id?: boolean
   code?: boolean
   name?: boolean
+  translations?: boolean
   core?: boolean
   active?: boolean
   parameterRestriction?: boolean
@@ -789,7 +817,7 @@ export type QualificationTypeSelectScalar = {
   updatedAt?: boolean
 }
 
-export type QualificationTypeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "code" | "name" | "core" | "active" | "parameterRestriction" | "validityRule" | "reminders" | "ocrChecks" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["qualificationType"]>
+export type QualificationTypeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "code" | "name" | "translations" | "core" | "active" | "parameterRestriction" | "validityRule" | "reminders" | "ocrChecks" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["qualificationType"]>
 export type QualificationTypeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   records?: boolean | Prisma.QualificationType$recordsArgs<ExtArgs>
   updateRequests?: boolean | Prisma.QualificationType$updateRequestsArgs<ExtArgs>
@@ -808,6 +836,7 @@ export type $QualificationTypePayload<ExtArgs extends runtime.Types.Extensions.I
     id: string
     code: string
     name: string
+    translations: runtime.JsonValue
     core: boolean
     active: boolean
     parameterRestriction: runtime.JsonValue
@@ -1245,6 +1274,7 @@ export interface QualificationTypeFieldRefs {
   readonly id: Prisma.FieldRef<"QualificationType", 'String'>
   readonly code: Prisma.FieldRef<"QualificationType", 'String'>
   readonly name: Prisma.FieldRef<"QualificationType", 'String'>
+  readonly translations: Prisma.FieldRef<"QualificationType", 'Json'>
   readonly core: Prisma.FieldRef<"QualificationType", 'Boolean'>
   readonly active: Prisma.FieldRef<"QualificationType", 'Boolean'>
   readonly parameterRestriction: Prisma.FieldRef<"QualificationType", 'Json'>

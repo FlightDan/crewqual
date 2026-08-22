@@ -104,6 +104,10 @@ function templateLabel(template: SetupTemplate, locale: SetupLocale) {
   return template.translations[locale] || template.name;
 }
 
+function templateDescription(template: SetupTemplate, locale: SetupLocale) {
+  return template.descriptionTranslations?.[locale] || template.description;
+}
+
 function statusTone(status: SetupEnvironmentStatus) {
   if (status === "ok") return "success" as const;
   if (status === "warning" || status === "unknown") return "warning" as const;
@@ -211,11 +215,11 @@ function SetupShell({
                 >
                   {label}
                 </span>
-                {number === 2 && !complete ? (
+                {(number === 2 || number === 3) && !complete ? (
                   <Badge tone="warning" className="px-1.5 py-0.5 text-[9px]">
                     {copy.required}
                   </Badge>
-                ) : number >= 3 && number <= 5 && !complete ? (
+                ) : number >= 4 && number <= 6 && !complete ? (
                   <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-600">
                     {skipped.has(number) ? copy.later : copy.optional}
                   </span>
@@ -238,7 +242,7 @@ function SetupShell({
           <div className="h-1 bg-slate-200">
             <div
               className="h-full bg-brand transition-[width] duration-300"
-              style={{ width: `${(step / 7) * 100}%` }}
+              style={{ width: `${(step / 8) * 100}%` }}
             />
           </div>
         </header>
@@ -391,6 +395,146 @@ function WelcomeStep({
           <Alert tone="danger">{copy.welcome.databaseBlocked}</Alert>
         ) : null}
       </Card>
+    </div>
+  );
+}
+
+function StorageStep({
+  locale,
+  storage,
+  busy,
+  testResult,
+  onChange,
+  onTest,
+}: {
+  locale: SetupLocale;
+  storage: SetupCompleteInput["storage"];
+  busy: boolean;
+  testResult: { ok: boolean; message: string } | null;
+  onChange: (storage: SetupCompleteInput["storage"]) => void;
+  onTest: () => void;
+}) {
+  const copy = setupCopy[locale];
+  const external = storage.mode === "s3" ? storage : null;
+  return (
+    <div className="space-y-6">
+      <SetupTitle
+        title={copy.storage.title}
+        description={copy.storage.description}
+        locale={locale}
+        required
+      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <button
+          type="button"
+          aria-pressed={storage.mode === "builtin"}
+          className={cn(
+            "rounded-lg border bg-card p-5 text-left shadow-card",
+            storage.mode === "builtin"
+              ? "border-2 border-brand ring-2 ring-brand/10"
+              : "border-border",
+          )}
+          onClick={() => onChange({ mode: "builtin" })}
+        >
+          <Database aria-hidden="true" className="size-6 text-brand" />
+          <strong className="mt-3 block text-primary">{copy.storage.builtin}</strong>
+          <span className="mt-2 block text-xs leading-5 text-secondary">
+            {copy.storage.builtinHelp}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={storage.mode === "s3"}
+          className={cn(
+            "rounded-lg border bg-card p-5 text-left shadow-card",
+            storage.mode === "s3" ? "border-2 border-brand ring-2 ring-brand/10" : "border-border",
+          )}
+          onClick={() =>
+            onChange({
+              mode: "s3",
+              endpoint: "https://s3.example.com",
+              region: "us-east-1",
+              bucket: "crewqual-private",
+              accessKeyId: "",
+              secretAccessKey: "",
+              forcePathStyle: false,
+              sseKmsKeyId: "",
+            })
+          }
+        >
+          <FileArchive aria-hidden="true" className="size-6 text-brand" />
+          <strong className="mt-3 block text-primary">{copy.storage.external}</strong>
+          <span className="mt-2 block text-xs leading-5 text-secondary">
+            {copy.storage.externalHelp}
+          </span>
+        </button>
+      </div>
+      {external ? (
+        <Card className="space-y-5 p-4 sm:p-7">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label={copy.storage.endpoint}
+              required
+              type="url"
+              value={external.endpoint}
+              onChange={(event) => onChange({ ...external, endpoint: event.target.value })}
+            />
+            <Input
+              label={copy.storage.region}
+              required
+              value={external.region}
+              onChange={(event) => onChange({ ...external, region: event.target.value })}
+            />
+            <Input
+              label={copy.storage.bucket}
+              required
+              value={external.bucket}
+              onChange={(event) => onChange({ ...external, bucket: event.target.value })}
+            />
+            <Input
+              label={copy.storage.accessKey}
+              required
+              autoComplete="off"
+              value={external.accessKeyId}
+              onChange={(event) => onChange({ ...external, accessKeyId: event.target.value })}
+            />
+            <Input
+              label={copy.storage.secretKey}
+              required
+              type="password"
+              autoComplete="new-password"
+              value={external.secretAccessKey}
+              onChange={(event) => onChange({ ...external, secretAccessKey: event.target.value })}
+            />
+            <Input
+              label={copy.storage.kmsKey}
+              value={external.sseKmsKeyId ?? ""}
+              onChange={(event) => onChange({ ...external, sseKmsKeyId: event.target.value })}
+            />
+          </div>
+          <Switch
+            checked={external.forcePathStyle}
+            label={
+              <span>
+                <span className="block font-semibold">{copy.storage.pathStyle}</span>
+                <span className="mt-1 block text-xs font-normal text-muted">
+                  {copy.storage.pathStyleHelp}
+                </span>
+              </span>
+            }
+            onChange={(event) => onChange({ ...external, forcePathStyle: event.target.checked })}
+          />
+        </Card>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="secondary" loading={busy} onClick={onTest}>
+          <RefreshCw aria-hidden="true" className="size-4" />
+          {busy ? copy.storage.testing : copy.storage.test}
+        </Button>
+        {testResult ? (
+          <Alert tone={testResult.ok ? "success" : "danger"}>{testResult.message}</Alert>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -628,7 +772,8 @@ function PositionsStep({
   const [query, setQuery] = React.useState("");
   const [customHint, setCustomHint] = React.useState(false);
   const filtered = templates.filter((template) => {
-    const value = `${templateLabel(template, locale)} ${template.description}`.toLowerCase();
+    const value =
+      `${templateLabel(template, locale)} ${templateDescription(template, locale)}`.toLowerCase();
     return value.includes(query.trim().toLowerCase());
   });
   const icons = [UsersRound, UserRoundCog, Clock3, Wrench, ShieldCheck];
@@ -692,7 +837,7 @@ function PositionsStep({
                   <h2 className="font-semibold text-primary">{templateLabel(template, locale)}</h2>
                 </div>
                 <p className="mt-3 line-clamp-2 text-xs leading-5 text-secondary">
-                  {template.description}
+                  {templateDescription(template, locale)}
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-3 text-xs">
                   <span className="text-muted">
@@ -817,6 +962,7 @@ function BackupStep({
                 <Input
                   label={copy.backup.targetPath}
                   value={backup.endpoint}
+                  disabled={backup.targetType === "LOCAL"}
                   onChange={(event) => onChange({ endpoint: event.target.value })}
                 />
                 <Button type="button" variant="secondary" loading={busy} onClick={onTest}>
@@ -1139,6 +1285,7 @@ function ReviewStep({
   locale,
   organizationName,
   timezone,
+  storage,
   admin,
   templates,
   selected,
@@ -1149,6 +1296,7 @@ function ReviewStep({
   locale: SetupLocale;
   organizationName: string;
   timezone: string;
+  storage: SetupCompleteInput["storage"];
   admin: { displayName: string; email: string; requireTotp: boolean };
   templates: SetupTemplate[];
   selected: Set<string>;
@@ -1168,7 +1316,14 @@ function ReviewStep({
     <div className="space-y-6">
       <SetupTitle title={copy.review.title} description={copy.review.description} locale={locale} />
       <Card className="p-4 sm:p-7">
-        <SummarySection title={copy.review.admin} step={2} onEdit={onEdit} locale={locale}>
+        <SummarySection title={copy.review.storage} step={2} onEdit={onEdit} locale={locale}>
+          <SummaryRow label={copy.review.storageMode}>
+            {storage.mode === "builtin"
+              ? copy.review.builtinStorage
+              : `${copy.review.externalStorage} (${storage.bucket})`}
+          </SummaryRow>
+        </SummarySection>
+        <SummarySection title={copy.review.admin} step={3} onEdit={onEdit} locale={locale}>
           <SummaryRow label={copy.review.name}>{admin.displayName}</SummaryRow>
           <SummaryRow label={copy.review.email}>{admin.email}</SummaryRow>
           <SummaryRow label={copy.review.totp}>
@@ -1179,7 +1334,7 @@ function ReviewStep({
             )}
           </SummaryRow>
         </SummarySection>
-        <SummarySection title={copy.review.positions} step={3} onEdit={onEdit} locale={locale}>
+        <SummarySection title={copy.review.positions} step={4} onEdit={onEdit} locale={locale}>
           <SummaryRow label={copy.review.selectedTemplates}>
             {picked.length
               ? picked.map((item) => templateLabel(item, locale)).join(", ")
@@ -1189,7 +1344,7 @@ function ReviewStep({
             {picked.length ? copy.review.automaticRules(qualifications) : copy.review.none}
           </SummaryRow>
         </SummarySection>
-        <SummarySection title={copy.review.backup} step={4} onEdit={onEdit} locale={locale}>
+        <SummarySection title={copy.review.backup} step={5} onEdit={onEdit} locale={locale}>
           <SummaryRow label={copy.review.backupStatus}>
             {backup.enabled ? copy.review.enabled : <Badge>{copy.review.disabled}</Badge>}
           </SummaryRow>
@@ -1202,7 +1357,7 @@ function ReviewStep({
             </>
           ) : null}
         </SummarySection>
-        <SummarySection title={copy.review.notifications} step={5} onEdit={onEdit} locale={locale}>
+        <SummarySection title={copy.review.notifications} step={6} onEdit={onEdit} locale={locale}>
           <SummaryRow label={copy.review.channels}>
             {channels.length ? channels.join(", ") : copy.review.none}
           </SummaryRow>
@@ -1304,6 +1459,65 @@ function SuccessStep({
   );
 }
 
+function SetupAuthorizationGate({
+  locale,
+  onAuthorized,
+}: {
+  locale: SetupLocale;
+  onAuthorized: () => void;
+}) {
+  const copy = setupCopy[locale].authorization;
+  const [code, setCode] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const authorize = async () => {
+    if (!/^\d{8}$/.test(code)) {
+      setError(copy.required);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await apiRequest<{ authorized: true }>("/api/setup/authorize", "POST", { code });
+      onAuthorized();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Authorization failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-surface px-4 py-8">
+      <Card className="w-full max-w-lg space-y-6 p-6 sm:p-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight text-primary">{copy.title}</h1>
+          <p className="text-sm leading-6 text-secondary">{copy.description}</p>
+        </div>
+        <Input
+          label={copy.code}
+          placeholder={copy.placeholder}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{8}"
+          maxLength={8}
+          value={code}
+          error={error}
+          className="font-mono text-lg tracking-[0.35em]"
+          onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") void authorize();
+          }}
+        />
+        <Button type="button" className="w-full" loading={busy} onClick={() => void authorize()}>
+          {busy ? copy.submitting : copy.submit}
+        </Button>
+      </Card>
+    </main>
+  );
+}
+
 export function SetupWizard({ initialOverview }: { initialOverview: SetupOverview }) {
   const [overview, setOverview] = React.useState(initialOverview);
   const [step, setStep] = React.useState(1);
@@ -1312,6 +1526,9 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
   const [organizationName, setOrganizationName] = React.useState(
     initialOverview.defaults.organizationName,
   );
+  const [storage, setStorage] = React.useState<SetupCompleteInput["storage"]>({
+    mode: "builtin",
+  });
   const [admin, setAdmin] = React.useState({
     displayName: "",
     email: "",
@@ -1348,8 +1565,13 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
   const [backupResult, setBackupResult] = React.useState<{ ok: boolean; message: string } | null>(
     null,
   );
+  const [storageResult, setStorageResult] = React.useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
   const [error, setError] = React.useState("");
   const [result, setResult] = React.useState<SetupCompleteResult | null>(null);
+  const [authorized, setAuthorized] = React.useState(initialOverview.mode === "mock");
   const copy = setupCopy[locale];
 
   React.useEffect(() => {
@@ -1357,6 +1579,10 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `${LOCALE_COOKIE}=${encodeURIComponent(locale)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
   }, [locale]);
+
+  if (!authorized) {
+    return <SetupAuthorizationGate locale={locale} onAuthorized={() => setAuthorized(true)} />;
+  }
 
   const updateAdmin = (patch: Partial<typeof admin>) => {
     setAdmin((current) => ({ ...current, ...patch }));
@@ -1489,15 +1715,56 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     }
   };
 
+  const testStorage = async () => {
+    setBusy(true);
+    setStorageResult(null);
+    try {
+      if (storage.mode === "s3") {
+        if (
+          !storage.endpoint.trim() ||
+          !storage.region.trim() ||
+          !storage.bucket.trim() ||
+          !storage.accessKeyId.trim() ||
+          !storage.secretAccessKey
+        ) {
+          setStorageResult({ ok: false, message: copy.storage.required });
+          return false;
+        }
+      }
+      if (overview.mode === "mock") {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        setStorageResult({ ok: true, message: copy.storage.valid });
+      } else {
+        setStorageResult(
+          await apiRequest<{ ok: boolean; message: string }>(
+            "/api/setup/storage-test",
+            "POST",
+            storage,
+          ),
+        );
+      }
+      return true;
+    } catch (reason) {
+      setStorageResult({
+        ok: false,
+        message: reason instanceof Error ? reason.message : copy.errors.request,
+      });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const goBack = () => {
     setError("");
     setStep((value) => Math.max(1, value - 1));
   };
   const goNext = async () => {
     setError("");
-    if (step === 2 && !(await validateAdmin())) return;
+    if (step === 2 && !(await testStorage())) return;
+    if (step === 3 && !(await validateAdmin())) return;
     if (
-      step === 5 &&
+      step === 6 &&
       !notifications.inApp &&
       !notifications.feishu.enabled &&
       !notifications.sms.enabled
@@ -1510,13 +1777,13 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
       next.delete(step);
       return next;
     });
-    setStep((value) => Math.min(6, value + 1));
+    setStep((value) => Math.min(7, value + 1));
   };
   const skipStep = () => {
     setSkipped((current) => new Set(current).add(step));
-    if (step === 3) setSelectedTemplates(new Set());
-    if (step === 4) setBackup((current) => ({ ...current, enabled: false }));
-    if (step === 5) {
+    if (step === 4) setSelectedTemplates(new Set());
+    if (step === 5) setBackup((current) => ({ ...current, enabled: false }));
+    if (step === 6) {
       setNotifications((current) => ({
         ...current,
         inApp: true,
@@ -1537,6 +1804,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
       locale,
       timezone,
       organizationName,
+      storage,
       admin: {
         displayName: admin.displayName.trim(),
         email: admin.email.trim().toLowerCase(),
@@ -1559,6 +1827,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
           adminEmail: payload.admin.email,
           installedTemplateCount: payload.templatePackIds.length,
           installedPositionCount: payload.templatePackIds.length,
+          storageMode: payload.storage.mode,
           backupEnabled: payload.backup.enabled,
           notificationChannels: [
             ...(payload.notifications.inApp ? ["inApp"] : []),
@@ -1569,7 +1838,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
       } else {
         setResult(await apiRequest<SetupCompleteResult>("/api/setup/complete", "POST", payload));
       }
-      setStep(7);
+      setStep(8);
       setAdmin((current) => ({
         ...current,
         password: "",
@@ -1591,7 +1860,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     }
   };
 
-  if (step === 7 && result) {
+  if (step === 8 && result) {
     return <SuccessStep locale={locale} result={result} totpEnabled={admin.requireTotp} />;
   }
 
@@ -1612,6 +1881,20 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     );
   } else if (step === 2) {
     content = (
+      <StorageStep
+        locale={locale}
+        storage={storage}
+        busy={busy}
+        testResult={storageResult}
+        onChange={(next) => {
+          setStorage(next);
+          setStorageResult(null);
+        }}
+        onTest={() => void testStorage()}
+      />
+    );
+  } else if (step === 3) {
+    content = (
       <AdminStep
         locale={locale}
         admin={admin}
@@ -1621,7 +1904,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         onGenerateTotp={() => void generateTotp()}
       />
     );
-  } else if (step === 3) {
+  } else if (step === 4) {
     content = (
       <PositionsStep
         locale={locale}
@@ -1637,7 +1920,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         }
       />
     );
-  } else if (step === 4) {
+  } else if (step === 5) {
     content = (
       <BackupStep
         locale={locale}
@@ -1651,7 +1934,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         onTest={() => void testBackup()}
       />
     );
-  } else if (step === 5) {
+  } else if (step === 6) {
     content = (
       <NotificationsStep
         locale={locale}
@@ -1667,6 +1950,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         locale={locale}
         organizationName={organizationName}
         timezone={timezone}
+        storage={storage}
         admin={admin}
         templates={overview.templates}
         selected={selectedTemplates}
@@ -1677,15 +1961,15 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     );
   }
 
-  const optional = step >= 3 && step <= 5;
+  const optional = step >= 4 && step <= 6;
   const primaryLabel =
     step === 1
       ? copy.welcome.start
-      : step === 2
+      : step === 3
         ? admin.requireTotp
           ? copy.admin.verify
           : copy.admin.save
-        : step === 6
+        : step === 7
           ? copy.review.finish
           : copy.continue;
   const primaryDisabled = step === 1 && overview.environment.database === "error";
@@ -1716,11 +2000,11 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
                 type="button"
                 loading={busy}
                 disabled={primaryDisabled}
-                onClick={() => (step === 6 ? void complete() : void goNext())}
+                onClick={() => (step === 7 ? void complete() : void goNext())}
                 className="min-w-24"
               >
-                {step === 6 && !busy ? <Check aria-hidden="true" className="size-4" /> : null}
-                {busy && step === 6 ? copy.review.finishing : primaryLabel}
+                {step === 7 && !busy ? <Check aria-hidden="true" className="size-4" /> : null}
+                {busy && step === 7 ? copy.review.finishing : primaryLabel}
               </Button>
             </>
           }

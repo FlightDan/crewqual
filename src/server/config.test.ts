@@ -57,7 +57,7 @@ describe("server configuration safety", () => {
     expect(() => getServerConfig()).toThrow("SMS_WEBHOOK_URL is required");
   });
 
-  it("allows disabled external integrations only for an explicitly isolated acceptance environment", () => {
+  it("allows SMS to remain disabled until the welcome wizard configures it", () => {
     Object.assign(process.env, {
       NODE_ENV: "production",
       SERVICE_MODE: "remote",
@@ -69,11 +69,27 @@ describe("server configuration safety", () => {
       S3_SECRET_ACCESS_KEY: "production-storage-secret",
       S3_ENDPOINT: "https://s3.example.test",
       SMS_ADAPTER: "disabled",
-      CREWQUAL_ACCEPTANCE_EXTERNALS_DISABLED: "1",
-      ACCEPTANCE_ENVIRONMENT_ID: "1",
     });
 
     expect(getServerConfig()).toMatchObject({ SMS_ADAPTER: "disabled" });
+  });
+
+  it("allows only the trusted internal MinIO HTTP endpoint in builtin mode", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      STORAGE_MODE: "builtin",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "http://minio:9000",
+      SMS_ADAPTER: "disabled",
+    });
+
+    expect(getServerConfig()).toMatchObject({ STORAGE_MODE: "builtin" });
   });
 
   it("rejects production with incomplete storage credentials", () => {
@@ -99,6 +115,47 @@ describe("server configuration safety", () => {
       NODE_ENV: "production",
       SERVICE_MODE: "remote",
       APP_ORIGIN: "http://crewqual.example.test/admin",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "webhook",
+      SMS_WEBHOOK_URL: "https://sms.example.test/send",
+    });
+
+    expect(() => getServerConfig()).toThrow("APP_ORIGIN must be an exact HTTPS origin");
+  });
+
+  it("allows a private HTTP origin for LAN deployments", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      DEPLOYMENT_NETWORK_MODE: "lan",
+      APP_ORIGIN: "http://192.168.1.20:8080",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "webhook",
+      SMS_WEBHOOK_URL: "https://sms.example.test/send",
+    });
+
+    expect(getServerConfig()).toMatchObject({
+      APP_ORIGIN: "http://192.168.1.20:8080",
+      DEPLOYMENT_NETWORK_MODE: "lan",
+    });
+  });
+
+  it("rejects a public HTTP origin even when LAN mode is selected", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      DEPLOYMENT_NETWORK_MODE: "lan",
+      APP_ORIGIN: "http://example.com:8080",
       DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
       SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
       SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",

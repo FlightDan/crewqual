@@ -98,6 +98,7 @@ function serializeMember(person: IncludedMember) {
         definitionId: assignment.qualificationDefinitionId,
         code: assignment.qualificationDefinition.code,
         name: assignment.qualificationDefinition.name,
+        translations: assignment.qualificationDefinition.translations,
         description: assignment.qualificationDefinition.description,
         positionCode:
           assignment.positionAssignment?.position?.code ??

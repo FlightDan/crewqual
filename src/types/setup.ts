@@ -17,6 +17,7 @@ export type SetupTemplate = {
   name: string;
   description: string;
   translations: Record<string, string>;
+  descriptionTranslations?: Record<string, string>;
   positionCount: number;
   qualificationCount: number;
 };
@@ -38,6 +39,18 @@ export type SetupCompleteInput = {
   locale: SetupLocale;
   timezone: string;
   organizationName: string;
+  storage:
+    | { mode: "builtin" }
+    | {
+        mode: "s3";
+        endpoint: string;
+        region: string;
+        bucket: string;
+        accessKeyId: string;
+        secretAccessKey: string;
+        forcePathStyle: boolean;
+        sseKmsKeyId?: string;
+      };
   admin: {
     displayName: string;
     email: string;
@@ -78,6 +91,7 @@ export type SetupCompleteResult = {
   adminEmail: string;
   installedTemplateCount: number;
   installedPositionCount: number;
+  storageMode: "builtin" | "s3";
   backupEnabled: boolean;
   notificationChannels: string[];
 };

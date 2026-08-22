@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { setupCompleteSchema, validateSetupBackupTarget } from "@/server/setup";
+import type { SetupCompleteInput } from "@/types/setup";
 
-function validSetupInput() {
+function validSetupInput(): SetupCompleteInput {
   return {
     locale: "zh-CN",
     timezone: "Asia/Shanghai",
     organizationName: "测试航空公司",
+    storage: { mode: "builtin" },
     admin: {
       displayName: "系统管理员",
       email: "admin@example.com",
@@ -35,6 +37,21 @@ describe("setup validation", () => {
     expect(
       validateSetupBackupTarget({ type: "LOCAL", endpoint: "/backups", basePath: "crewqual" }),
     ).toEqual(expect.objectContaining({ ok: true }));
+  });
+
+  it("accepts built-in storage and validates external S3 fields", () => {
+    expect(setupCompleteSchema.parse(validSetupInput()).storage).toEqual({ mode: "builtin" });
+    const input = validSetupInput();
+    input.storage = {
+      mode: "s3",
+      endpoint: "https://s3.example.com",
+      region: "us-east-1",
+      bucket: "crewqual-private",
+      accessKeyId: "access",
+      secretAccessKey: "secret-value",
+      forcePathStyle: false,
+    };
+    expect(setupCompleteSchema.parse(input).storage.mode).toBe("s3");
   });
 
   it("requires the verified enrollment token when TOTP is enabled", () => {

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { z } from "zod";
 import {
   ApiError,
@@ -105,6 +107,25 @@ describe("API transport contract", () => {
         }),
       ),
     ).not.toThrow();
+  });
+
+  it("rejects mutations while the updater maintenance marker exists", () => {
+    const directory = mkdtempSync(`${tmpdir()}/crewqual-maintenance-`);
+    const marker = `${directory}/maintenance`;
+    writeFileSync(marker, "{}\n");
+    vi.stubEnv("CREWQUAL_MAINTENANCE_FILE", marker);
+    try {
+      expect(() =>
+        assertSameOrigin(
+          new Request("http://crewqual.test/api/example", {
+            method: "POST",
+            headers: { origin: "http://crewqual.test" },
+          }),
+        ),
+      ).toThrowError(expect.objectContaining({ code: "MAINTENANCE", status: 503 }));
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("bounds pagination and enforces optimistic versions", () => {

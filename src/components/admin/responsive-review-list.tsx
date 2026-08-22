@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { QualificationReview } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationName } from "@/lib/i18n";
 
 export function ResponsiveReviewList({
   reviews,
@@ -15,7 +16,7 @@ export function ResponsiveReviewList({
   showQuickApprove?: boolean;
   onQuickApprove?: (review: QualificationReview) => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   if (reviews.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-secondary">
@@ -58,7 +59,11 @@ export function ResponsiveReviewList({
                   <p className="mt-0.5 text-xs text-muted">{review.employeeNumber}</p>
                 </td>
                 <td className="max-w-[240px] px-4 py-3 text-secondary">
-                  {review.qualificationName}
+                  {localizedQualificationName(
+                    review.qualificationName,
+                    review.qualificationTranslations,
+                    locale,
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">
                   {review.submittedAt}
@@ -107,7 +112,13 @@ export function ResponsiveReviewList({
               </div>
               <ReviewStatusBadge status={review.humanStatus} />
             </div>
-            <p className="mt-3 text-sm font-medium text-secondary">{review.qualificationName}</p>
+            <p className="mt-3 text-sm font-medium text-secondary">
+              {localizedQualificationName(
+                review.qualificationName,
+                review.qualificationTranslations,
+                locale,
+              )}
+            </p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               <AiResultBadge status={review.aiStatus} />
               <span className="text-[11px] text-muted">

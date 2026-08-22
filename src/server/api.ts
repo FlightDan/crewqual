@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerConfig } from "@/server/config";
@@ -108,6 +109,11 @@ export async function parseJson<T>(request: Request, schema: z.ZodType<T>): Prom
 
 export function assertSameOrigin(request: Request) {
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return;
+  if (isMaintenanceMode()) {
+    throw new ApiError("MAINTENANCE", "系统正在维护，请稍后重试", 503, undefined, {
+      retryAfterSeconds: 60,
+    });
+  }
   const origin = request.headers.get("origin");
   // Resolve the configured origin through the validated server configuration.
   // Reading process.env directly here made an unset APP_ORIGIN silently accept
@@ -116,6 +122,11 @@ export function assertSameOrigin(request: Request) {
   if (!origin || origin !== configuredOrigin) {
     throw new ApiError("ORIGIN_MISMATCH", "请求来源无效", 403);
   }
+}
+
+export function isMaintenanceMode() {
+  if (process.env.CREWQUAL_MAINTENANCE_MODE === "1") return true;
+  return existsSync(process.env.CREWQUAL_MAINTENANCE_FILE ?? "/run/crewqual-updater/maintenance");
 }
 
 export function assertExpectedVersion(actual: number, expected: number | undefined) {

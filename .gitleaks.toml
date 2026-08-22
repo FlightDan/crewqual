@@ -1,0 +1,7 @@
+[allowlist]
+description = "Historical .env.example placeholders only"
+regexes = [
+  '''replace-with-at-least-48-characters''',
+  '''replace-with-at-least-16-characters''',
+  '''replace-with-at-least-12-characters''',
+]

@@ -17,9 +17,10 @@ import { useApplicationServices } from "@/services/application-services-provider
 import type { QualificationReview } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
 import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationName } from "@/lib/i18n";
 
 export function ReviewDetailView({ reviewId }: { reviewId: string }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const state = useAdminState();
   const { reviews } = useApplicationServices();
   const { hasPermission } = useAdminSession();
@@ -85,7 +86,13 @@ export function ReviewDetailView({ reviewId }: { reviewId: string }) {
             <h3 className="mt-2 text-base font-bold">
               {review.pilotName}（{review.role} · {review.employeeNumber}）
             </h3>
-            <p className="mt-1 text-sm text-secondary">{review.qualificationName}</p>
+            <p className="mt-1 text-sm text-secondary">
+              {localizedQualificationName(
+                review.qualificationName,
+                review.qualificationTranslations,
+                locale,
+              )}
+            </p>
             <p className="mt-1 text-xs text-muted">
               {t("reviewDetail.submitted", { date: review.submittedAt })}
             </p>

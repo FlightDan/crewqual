@@ -2,10 +2,24 @@
 	email {$TLS_EMAIL}
 }
 
-{$APP_DOMAIN} {
+{$CADDY_SITE_ADDRESS} {
 	encode zstd gzip
+	handle_errors {
+		respond "CrewQual 正在更新，请稍后刷新页面。" 503
+	}
 	request_body {
 		max_size 12MB
+	}
+	@tls protocol https
+	header @tls Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	handle /api/internal/network-access {
+		respond 404
+	}
+	@public not remote_ip private_ranges
+	forward_auth @public web:3000 {
+		uri /api/internal/network-access
+		header_up X-Crewqual-Network-Secret {$NETWORK_ACCESS_SECRET}
+		header_up X-Crewqual-Remote-IP {http.request.remote.host}
 	}
 	reverse_proxy web:3000 {
 		header_up -X-Forwarded-For
@@ -15,7 +29,6 @@
 	}
 	header {
 		-Server
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "same-origin"

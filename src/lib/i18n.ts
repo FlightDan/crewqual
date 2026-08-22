@@ -23,3 +23,11 @@ export function translatedValue(translations: unknown, locale: SupportedLocale, 
   const localized = values[locale] ?? values["zh-CN"];
   return typeof localized === "string" && localized.trim() ? localized : fallback;
 }
+
+export function localizedQualificationName(
+  name: string,
+  translations: unknown,
+  locale: SupportedLocale,
+) {
+  return translatedValue(translations, locale, name);
+}

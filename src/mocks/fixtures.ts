@@ -26,6 +26,7 @@ export const pilotQualificationFixtures: QualificationRecord[] = CORE_QUALIFICAT
   (item) => ({
     id: item.id,
     name: item.name,
+    translations: item.translations,
     expiresOn: pilotQualificationExpiry[item.id]!,
     parameter: item.parameter,
     cycleMonths: item.cycleMonths,

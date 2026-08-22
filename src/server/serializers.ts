@@ -68,6 +68,7 @@ export function serializeQualificationConfig(item: any) {
     qualificationId: item.code,
     code: item.code,
     name: item.name,
+    translations: item.translations ?? {},
     core: item.core,
     active: item.active,
     parameterRestriction: item.parameterRestriction,

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import type { Qualification } from "@/types/services";
 import { useI18n } from "@/components/i18n-provider";
 import { localizedQualificationText } from "@/lib/messages";
+import { localizedQualificationName } from "@/lib/i18n";
 
 function qualificationTone(status: Qualification["status"]) {
   if (status === "expired") return "danger" as const;
@@ -11,14 +12,15 @@ function qualificationTone(status: Qualification["status"]) {
 }
 
 export function QualificationHealthList({ qualifications }: { qualifications: Qualification[] }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="grid gap-3" data-testid="qualification-health-list">
       {qualifications.map((qualification, index) => (
         <Card key={qualification.id} className="p-4 shadow-none">
           <div className="flex items-start justify-between gap-3">
             <h4 className="text-sm font-bold text-primary">
-              {index + 1}. {qualification.name}
+              {index + 1}.{" "}
+              {localizedQualificationName(qualification.name, qualification.translations, locale)}
             </h4>
             <Badge tone={qualificationTone(qualification.status)} className="shrink-0 py-0.5">
               {localizedQualificationText(qualification.statusLabel, t)}

@@ -1,6 +1,6 @@
 {
   "name": "crewqual-ui",
-  "version": "0.3.5",
+  "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.15.0",
   "scripts": {
@@ -39,9 +39,16 @@
     "release:verify:e2e": "node --import tsx scripts/release/verify.ts e2e",
     "release:verify:supply-chain": "node --import tsx scripts/release/verify.ts supply-chain",
     "release:verify:artifact": "node --import tsx scripts/release/verify.ts artifact",
-    "release:manifest": "node --import tsx scripts/release/migration-manifest.ts"
+    "release:manifest": "node --import tsx scripts/release/migration-manifest.ts",
+    "release:update-manifest": "node --import tsx scripts/release/update-manifest.ts",
+    "release:sign-update-manifest": "node --import tsx scripts/release/sign-update-manifest.ts"
   },
   "pnpm": {
+    "overrides": {
+      "deepmerge-ts": "8.0.1",
+      "postcss": "8.5.26",
+      "sharp": "0.35.3"
+    },
     "onlyBuiltDependencies": [
       "@prisma/engines",
       "argon2",
@@ -76,7 +83,7 @@
     "react-hook-form": "^7.62.0",
     "tailwind-merge": "^3.3.1",
     "tsx": "^4.20.3",
-    "sharp": "^0.34.3",
+    "sharp": "^0.35.3",
     "zod": "^4.0.17"
   },
   "devDependencies": {

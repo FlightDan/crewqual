@@ -6,7 +6,7 @@ import { Bell } from "lucide-react";
 import { getAdminRouteTitleKey } from "@/components/layout/navigation";
 import { AdminAccountMenu } from "@/components/layout/admin-account-menu";
 import { useAdminSession } from "@/services/admin-session-provider";
-import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AdminTopBar() {
   const pathname = usePathname();
@@ -26,7 +26,6 @@ export function AdminTopBar() {
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <LocaleSwitcher />
         <Link
           href="/admin/notifications"
           aria-label={t("navigation.notifications")}

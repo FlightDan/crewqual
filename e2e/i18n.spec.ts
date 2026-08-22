@@ -18,7 +18,7 @@ async function reloadAfterClientNavigation(page: Page) {
   }
 }
 
-test.describe("i18n language detection and switching", () => {
+test.describe("i18n system language detection", () => {
   test("uses browser English when no locale cookie exists", async ({ browser }) => {
     const context = await browser.newContext({ locale: "en-US" });
     const page = await context.newPage();
@@ -28,16 +28,15 @@ test.describe("i18n language detection and switching", () => {
     await context.close();
   });
 
-  test("a manual switch persists and overrides browser language", async ({ browser }) => {
+  test("public pages do not expose per-browser language switches", async ({ browser }) => {
     const context = await browser.newContext({ locale: "zh-CN" });
     const page = await context.newPage();
     await page.goto("/deployment");
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-    await page.getByRole("button", { name: "切换语言" }).click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
+    await expect(page.getByRole("button", { name: "切换语言" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Switch language" })).toHaveCount(0);
     await reloadAfterClientNavigation(page);
-    await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
-    await expect(page.getByRole("heading", { name: "Post-deployment checklist" })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await context.close();
   });
 });

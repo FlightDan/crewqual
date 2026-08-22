@@ -22,6 +22,8 @@ export const ADMIN_PERMISSION_CODES = [
   "settings.security.write",
   "settings.backups.write",
   "settings.backups.restore",
+  "settings.updates.read",
+  "settings.updates.install",
   "audit.read",
 ] as const;
 

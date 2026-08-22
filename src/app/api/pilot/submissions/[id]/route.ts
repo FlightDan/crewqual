@@ -19,6 +19,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         id: submission.id,
         qualificationId: submission.qualificationType.code,
         qualificationName: submission.qualificationType.name,
+        qualificationTranslations: submission.qualificationType.translations,
         submittedAt: submission.submittedAt.toISOString(),
         status: toSubmissionStatus(submission.status),
         notifications: ["system"],

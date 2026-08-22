@@ -177,6 +177,7 @@ export const mockSubmissionService: SubmissionService = {
       id,
       qualificationId: draft.qualificationId,
       qualificationName: qualification?.name ?? "资质更新",
+      qualificationTranslations: qualification?.translations,
       submittedAt: new Date().toISOString(),
       status: "received",
       notifications: ["system", "feishu", "sms"],

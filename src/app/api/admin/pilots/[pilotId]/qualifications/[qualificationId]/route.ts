@@ -35,6 +35,7 @@ function mapQualificationRecord(record: QualificationRecordWithType) {
     recordId: record.id,
     qualificationId: record.qualificationType.code,
     qualificationName: record.qualificationType.name,
+    qualificationTranslations: record.qualificationType.translations,
     credentialNumber: record.credentialNumber,
     issueDate: dateOnly(record.issueDate),
     trainingDate: dateOnly(record.trainingDate),

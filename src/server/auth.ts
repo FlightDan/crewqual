@@ -6,6 +6,7 @@ import { ApiError } from "@/server/api";
 import { createOpaqueToken, safeEqualHex, sha256 } from "@/server/crypto";
 import { getPrisma } from "@/server/prisma";
 import { getRuntimeSecurityPolicy } from "@/server/runtime-settings";
+import { getServerConfig } from "@/server/config";
 
 export const COOKIE_NAMES = {
   admin: "crewqual_admin_session",
@@ -60,11 +61,12 @@ function hashCsrf(value: string) {
 }
 
 function sessionCookie(name: string, value: string, maxAge: number) {
+  const secure = getServerConfig().APP_ORIGIN.startsWith("https:");
   return {
     name,
     value,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax" as const,
     path: "/",
     maxAge,
@@ -102,12 +104,13 @@ export async function setSessionCookies(
   csrfToken: string,
   maxAge: number,
 ) {
+  const secure = getServerConfig().APP_ORIGIN.startsWith("https:");
   cookieStore.set(sessionCookie(COOKIE_NAMES[kind], token, maxAge));
   cookieStore.set({
     name: `${COOKIE_NAMES[kind]}_csrf`,
     value: csrfToken,
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     path: "/",
     maxAge,
@@ -120,7 +123,7 @@ export async function setSessionCookies(
       name: `${COOKIE_NAMES.member}_csrf`,
       value: csrfToken,
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure,
       sameSite: "lax",
       path: "/",
       maxAge,

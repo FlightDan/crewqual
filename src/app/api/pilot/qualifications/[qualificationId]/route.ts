@@ -24,6 +24,11 @@ export async function GET(
           {
             id: record.qualificationType.code,
             name: record.qualificationType.name,
+            translations:
+              record.qualificationType.translations &&
+              typeof record.qualificationType.translations === "object"
+                ? (record.qualificationType.translations as Record<string, string>)
+                : {},
             expiresOn: record.expiryDate?.toISOString().slice(0, 10) ?? "",
             parameter: record.levelOrParameter,
             cycleMonths: undefined,

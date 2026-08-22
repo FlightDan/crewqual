@@ -52,6 +52,7 @@ export type SecurityPolicyMinAggregateOutputType = {
   pilotSessionTtlMinutes: number | null
   maxFailedAttempts: number | null
   lockoutMinutes: number | null
+  allowPublicAccess: boolean | null
   version: number | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -65,6 +66,7 @@ export type SecurityPolicyMaxAggregateOutputType = {
   pilotSessionTtlMinutes: number | null
   maxFailedAttempts: number | null
   lockoutMinutes: number | null
+  allowPublicAccess: boolean | null
   version: number | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -78,6 +80,7 @@ export type SecurityPolicyCountAggregateOutputType = {
   pilotSessionTtlMinutes: number
   maxFailedAttempts: number
   lockoutMinutes: number
+  allowPublicAccess: number
   version: number
   createdAt: number
   updatedAt: number
@@ -111,6 +114,7 @@ export type SecurityPolicyMinAggregateInputType = {
   pilotSessionTtlMinutes?: true
   maxFailedAttempts?: true
   lockoutMinutes?: true
+  allowPublicAccess?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -124,6 +128,7 @@ export type SecurityPolicyMaxAggregateInputType = {
   pilotSessionTtlMinutes?: true
   maxFailedAttempts?: true
   lockoutMinutes?: true
+  allowPublicAccess?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -137,6 +142,7 @@ export type SecurityPolicyCountAggregateInputType = {
   pilotSessionTtlMinutes?: true
   maxFailedAttempts?: true
   lockoutMinutes?: true
+  allowPublicAccess?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -237,6 +243,7 @@ export type SecurityPolicyGroupByOutputType = {
   pilotSessionTtlMinutes: number
   maxFailedAttempts: number
   lockoutMinutes: number
+  allowPublicAccess: boolean
   version: number
   createdAt: Date
   updatedAt: Date
@@ -273,6 +280,7 @@ export type SecurityPolicyWhereInput = {
   pilotSessionTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
   maxFailedAttempts?: Prisma.IntFilter<"SecurityPolicy"> | number
   lockoutMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
+  allowPublicAccess?: Prisma.BoolFilter<"SecurityPolicy"> | boolean
   version?: Prisma.IntFilter<"SecurityPolicy"> | number
   createdAt?: Prisma.DateTimeFilter<"SecurityPolicy"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"SecurityPolicy"> | Date | string
@@ -286,6 +294,7 @@ export type SecurityPolicyOrderByWithRelationInput = {
   pilotSessionTtlMinutes?: Prisma.SortOrder
   maxFailedAttempts?: Prisma.SortOrder
   lockoutMinutes?: Prisma.SortOrder
+  allowPublicAccess?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -302,6 +311,7 @@ export type SecurityPolicyWhereUniqueInput = Prisma.AtLeast<{
   pilotSessionTtlMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
   maxFailedAttempts?: Prisma.IntFilter<"SecurityPolicy"> | number
   lockoutMinutes?: Prisma.IntFilter<"SecurityPolicy"> | number
+  allowPublicAccess?: Prisma.BoolFilter<"SecurityPolicy"> | boolean
   version?: Prisma.IntFilter<"SecurityPolicy"> | number
   createdAt?: Prisma.DateTimeFilter<"SecurityPolicy"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"SecurityPolicy"> | Date | string
@@ -315,6 +325,7 @@ export type SecurityPolicyOrderByWithAggregationInput = {
   pilotSessionTtlMinutes?: Prisma.SortOrder
   maxFailedAttempts?: Prisma.SortOrder
   lockoutMinutes?: Prisma.SortOrder
+  allowPublicAccess?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -336,6 +347,7 @@ export type SecurityPolicyScalarWhereWithAggregatesInput = {
   pilotSessionTtlMinutes?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
   maxFailedAttempts?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
   lockoutMinutes?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
+  allowPublicAccess?: Prisma.BoolWithAggregatesFilter<"SecurityPolicy"> | boolean
   version?: Prisma.IntWithAggregatesFilter<"SecurityPolicy"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SecurityPolicy"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"SecurityPolicy"> | Date | string
@@ -349,6 +361,7 @@ export type SecurityPolicyCreateInput = {
   pilotSessionTtlMinutes?: number
   maxFailedAttempts?: number
   lockoutMinutes?: number
+  allowPublicAccess?: boolean
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -362,6 +375,7 @@ export type SecurityPolicyUncheckedCreateInput = {
   pilotSessionTtlMinutes?: number
   maxFailedAttempts?: number
   lockoutMinutes?: number
+  allowPublicAccess?: boolean
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -375,6 +389,7 @@ export type SecurityPolicyUpdateInput = {
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   maxFailedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockoutMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  allowPublicAccess?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -388,6 +403,7 @@ export type SecurityPolicyUncheckedUpdateInput = {
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   maxFailedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockoutMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  allowPublicAccess?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -401,6 +417,7 @@ export type SecurityPolicyCreateManyInput = {
   pilotSessionTtlMinutes?: number
   maxFailedAttempts?: number
   lockoutMinutes?: number
+  allowPublicAccess?: boolean
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -414,6 +431,7 @@ export type SecurityPolicyUpdateManyMutationInput = {
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   maxFailedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockoutMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  allowPublicAccess?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -427,6 +445,7 @@ export type SecurityPolicyUncheckedUpdateManyInput = {
   pilotSessionTtlMinutes?: Prisma.IntFieldUpdateOperationsInput | number
   maxFailedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockoutMinutes?: Prisma.IntFieldUpdateOperationsInput | number
+  allowPublicAccess?: Prisma.BoolFieldUpdateOperationsInput | boolean
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -440,6 +459,7 @@ export type SecurityPolicyCountOrderByAggregateInput = {
   pilotSessionTtlMinutes?: Prisma.SortOrder
   maxFailedAttempts?: Prisma.SortOrder
   lockoutMinutes?: Prisma.SortOrder
+  allowPublicAccess?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -462,6 +482,7 @@ export type SecurityPolicyMaxOrderByAggregateInput = {
   pilotSessionTtlMinutes?: Prisma.SortOrder
   maxFailedAttempts?: Prisma.SortOrder
   lockoutMinutes?: Prisma.SortOrder
+  allowPublicAccess?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -475,6 +496,7 @@ export type SecurityPolicyMinOrderByAggregateInput = {
   pilotSessionTtlMinutes?: Prisma.SortOrder
   maxFailedAttempts?: Prisma.SortOrder
   lockoutMinutes?: Prisma.SortOrder
+  allowPublicAccess?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -503,6 +525,7 @@ export type SecurityPolicySelect<ExtArgs extends runtime.Types.Extensions.Intern
   pilotSessionTtlMinutes?: boolean
   maxFailedAttempts?: boolean
   lockoutMinutes?: boolean
+  allowPublicAccess?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -516,6 +539,7 @@ export type SecurityPolicySelectCreateManyAndReturn<ExtArgs extends runtime.Type
   pilotSessionTtlMinutes?: boolean
   maxFailedAttempts?: boolean
   lockoutMinutes?: boolean
+  allowPublicAccess?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -529,6 +553,7 @@ export type SecurityPolicySelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   pilotSessionTtlMinutes?: boolean
   maxFailedAttempts?: boolean
   lockoutMinutes?: boolean
+  allowPublicAccess?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -542,12 +567,13 @@ export type SecurityPolicySelectScalar = {
   pilotSessionTtlMinutes?: boolean
   maxFailedAttempts?: boolean
   lockoutMinutes?: boolean
+  allowPublicAccess?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type SecurityPolicyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "adminLoginMode" | "adminSessionTtlHours" | "pilotAccessLinkTtlMinutes" | "pilotSessionTtlMinutes" | "maxFailedAttempts" | "lockoutMinutes" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["securityPolicy"]>
+export type SecurityPolicyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "adminLoginMode" | "adminSessionTtlHours" | "pilotAccessLinkTtlMinutes" | "pilotSessionTtlMinutes" | "maxFailedAttempts" | "lockoutMinutes" | "allowPublicAccess" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["securityPolicy"]>
 
 export type $SecurityPolicyPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SecurityPolicy"
@@ -560,6 +586,7 @@ export type $SecurityPolicyPayload<ExtArgs extends runtime.Types.Extensions.Inte
     pilotSessionTtlMinutes: number
     maxFailedAttempts: number
     lockoutMinutes: number
+    allowPublicAccess: boolean
     version: number
     createdAt: Date
     updatedAt: Date
@@ -993,6 +1020,7 @@ export interface SecurityPolicyFieldRefs {
   readonly pilotSessionTtlMinutes: Prisma.FieldRef<"SecurityPolicy", 'Int'>
   readonly maxFailedAttempts: Prisma.FieldRef<"SecurityPolicy", 'Int'>
   readonly lockoutMinutes: Prisma.FieldRef<"SecurityPolicy", 'Int'>
+  readonly allowPublicAccess: Prisma.FieldRef<"SecurityPolicy", 'Boolean'>
   readonly version: Prisma.FieldRef<"SecurityPolicy", 'Int'>
   readonly createdAt: Prisma.FieldRef<"SecurityPolicy", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"SecurityPolicy", 'DateTime'>

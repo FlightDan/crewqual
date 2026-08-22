@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Bell, Bot, Building2, ShieldCheck, Users, ImageDown } from "lucide-react";
+import {
+  Bell,
+  Bot,
+  Building2,
+  Database,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+  ImageDown,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AdminAccessDenied } from "@/components/admin/admin-access-denied";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
@@ -13,6 +22,8 @@ import { PositionSettingsSection } from "@/components/admin/settings/position-se
 import { SecuritySettingsSection } from "@/components/admin/settings/security-settings-section";
 import { MediaOptimizationSection } from "@/components/admin/settings/media-optimization-section";
 import { BackupSettingsSection } from "@/components/admin/settings/backup-settings-section";
+import { ObjectStorageSettingsSection } from "@/components/admin/settings/object-storage-settings-section";
+import { SystemUpdatesSection } from "@/components/admin/settings/system-updates-section";
 import {
   SettingsSkeleton,
   type SettingsFeedback,
@@ -77,6 +88,13 @@ const sections: SectionDefinition[] = [
     icon: ShieldCheck,
   },
   {
+    id: "storage",
+    labelKey: "settings.section.storage",
+    descriptionKey: "settings.section.storageDescription",
+    icon: Database,
+    superAdminOnly: true,
+  },
+  {
     id: "media",
     labelKey: "settings.section.media",
     descriptionKey: "settings.section.mediaDescription",
@@ -88,6 +106,13 @@ const sections: SectionDefinition[] = [
     labelKey: "settings.section.backups",
     descriptionKey: "settings.section.backupsDescription",
     icon: ShieldCheck,
+    superAdminOnly: true,
+  },
+  {
+    id: "updates",
+    labelKey: "settings.section.updates",
+    descriptionKey: "settings.section.updatesDescription",
+    icon: RefreshCw,
     superAdminOnly: true,
   },
 ];
@@ -322,11 +347,20 @@ export function AdminSettingsView() {
                 notify={notify}
               />
             ) : null}
+            {activeSection === "storage" && isSuperAdmin ? (
+              <ObjectStorageSettingsSection
+                canWrite={hasPermission("settings.security.write")}
+                notify={notify}
+              />
+            ) : null}
             {activeSection === "backups" && isSuperAdmin ? (
               <BackupSettingsSection
                 canWrite={hasPermission("settings.security.write")}
                 notify={notify}
               />
+            ) : null}
+            {activeSection === "updates" && isSuperAdmin ? (
+              <SystemUpdatesSection notify={notify} />
             ) : null}
           </div>
         </div>

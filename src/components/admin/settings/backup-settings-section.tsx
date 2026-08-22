@@ -19,7 +19,7 @@ import { localizeError } from "@/lib/error-i18n";
 const emptyTarget = {
   name: "",
   type: "LOCAL",
-  endpoint: "/var/backups/crewqual",
+  endpoint: "/backups",
   basePath: "crewqual",
   secret: "",
   encryptionEnabled: true,
@@ -150,12 +150,18 @@ export function BackupSettingsSection({
                 { label: "WebDAV", value: "WEBDAV" },
                 { label: "S3", value: "S3" },
               ]}
-              onChange={(event) => setTarget({ ...target, type: event.target.value })}
+              onChange={(event) =>
+                setTarget({
+                  ...target,
+                  type: event.target.value,
+                  endpoint: event.target.value === "LOCAL" ? "/backups" : target.endpoint,
+                })
+              }
             />
             <Input
               label={t("settingsBackup.endpoint")}
               value={target.endpoint}
-              disabled={!canWrite}
+              disabled={!canWrite || target.type === "LOCAL"}
               onChange={(event) => setTarget({ ...target, endpoint: event.target.value })}
             />
             <Input
@@ -173,6 +179,11 @@ export function BackupSettingsSection({
               onChange={(event) => setTarget({ ...target, secret: event.target.value })}
             />
           </div>
+          <p className="text-xs text-muted">
+            {target.type === "LOCAL"
+              ? t("settingsBackup.localProtectionHint")
+              : t("settingsBackup.remoteRecoveryHint")}
+          </p>
           <Switch
             checked={target.encryptionEnabled}
             disabled={!canWrite}
@@ -184,7 +195,11 @@ export function BackupSettingsSection({
             <Button
               type="button"
               loading={saving}
-              disabled={!canWrite || !target.name || (target.encryptionEnabled && !target.secret)}
+              disabled={
+                !canWrite ||
+                !target.name ||
+                (target.type !== "LOCAL" && target.encryptionEnabled && !target.secret)
+              }
               onClick={() => void createTarget()}
             >
               {t("settingsBackup.saveTarget")}

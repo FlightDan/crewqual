@@ -12,6 +12,7 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { pilotRoleLabel } from "@/lib/domain-i18n";
 import { useI18n } from "@/components/i18n-provider";
+import { localizedQualificationName } from "@/lib/i18n";
 
 type Member = {
   id: string;
@@ -31,6 +32,7 @@ type Member = {
   qualifications: Array<{
     code: string;
     name: string;
+    translations?: Record<string, string>;
     positionCode: string | null;
     source: string;
     status: "missing" | "expired" | "due" | "valid";
@@ -71,6 +73,7 @@ function mockMember(
       return {
         code: item.id,
         name: item.name,
+        translations: item.translations,
         positionCode: "PILOT",
         source: "LEGACY_RECORD",
         status,
@@ -89,7 +92,7 @@ const statusTones = {
 
 export function MemberDetailView({ memberId }: { memberId: string }) {
   const state = useAdminState();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const remoteMode = isRemoteServiceMode();
   const [member, setMember] = React.useState<Member | null | undefined>(undefined);
   React.useEffect(() => {
@@ -191,7 +194,13 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
           {member.qualifications.map((qualification) => (
             <div key={qualification.code} className="flex flex-wrap items-center gap-3 px-5 py-4">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">{qualification.name}</p>
+                <p className="font-semibold">
+                  {localizedQualificationName(
+                    qualification.name,
+                    qualification.translations,
+                    locale,
+                  )}
+                </p>
                 <p className="mt-1 text-xs text-muted">
                   {qualification.positionCode ?? t("memberDetail.orgLevel")} ·{" "}
                   {t("memberDetail.source", { value: qualification.source })}

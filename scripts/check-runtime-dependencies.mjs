@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = JSON.parse(await readFile(resolve("package.json"), "utf8"));
-const runtimePackages = ["runtime/worker/package.json", "runtime/ops/package.json"];
+const runtimePackages = ["runtime/package.json"];
 const forbidden = new Set([
   "next",
   "react",

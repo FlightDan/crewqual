@@ -2,7 +2,7 @@ name: verify
 
 on:
   push:
-    tags: ["v0.3.*"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 

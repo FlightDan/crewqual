@@ -3,7 +3,6 @@ import { CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { getRequestLocale, localizedTitle } from "@/lib/server-locale";
 import { translate } from "@/lib/messages";
-import { LocaleSwitcher } from "@/components/i18n-provider";
 
 export async function generateMetadata() {
   return { title: `CrewQual ${await localizedTitle("部署说明", "Deployment guide")}` };
@@ -32,7 +31,6 @@ export default async function DeploymentGuidePage() {
               <p className="text-xs text-muted">{t("deployment.subtitle")}</p>
             </div>
           </div>
-          <LocaleSwitcher />
         </div>
         <h1 className="mt-8 text-3xl font-bold text-primary">{t("deployment.title")}</h1>
         <p className="mt-3 text-sm leading-6 text-secondary">{t("deployment.description")}</p>

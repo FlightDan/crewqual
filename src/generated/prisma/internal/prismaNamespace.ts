@@ -440,6 +440,7 @@ export const ModelName = {
   RateLimitBucket: 'RateLimitBucket',
   UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
+  ObjectStorageSetting: 'ObjectStorageSetting',
   SecurityPolicy: 'SecurityPolicy',
   WorkerHeartbeat: 'WorkerHeartbeat'
 } as const
@@ -457,7 +458,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "securityPolicy" | "workerHeartbeat"
+    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "objectStorageSetting" | "securityPolicy" | "workerHeartbeat"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3643,6 +3644,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ObjectStorageSetting: {
+      payload: Prisma.$ObjectStorageSettingPayload<ExtArgs>
+      fields: Prisma.ObjectStorageSettingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ObjectStorageSettingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ObjectStorageSettingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        findFirst: {
+          args: Prisma.ObjectStorageSettingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ObjectStorageSettingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        findMany: {
+          args: Prisma.ObjectStorageSettingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>[]
+        }
+        create: {
+          args: Prisma.ObjectStorageSettingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        createMany: {
+          args: Prisma.ObjectStorageSettingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ObjectStorageSettingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>[]
+        }
+        delete: {
+          args: Prisma.ObjectStorageSettingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        update: {
+          args: Prisma.ObjectStorageSettingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        deleteMany: {
+          args: Prisma.ObjectStorageSettingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ObjectStorageSettingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ObjectStorageSettingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>[]
+        }
+        upsert: {
+          args: Prisma.ObjectStorageSettingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ObjectStorageSettingPayload>
+        }
+        aggregate: {
+          args: Prisma.ObjectStorageSettingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateObjectStorageSetting>
+        }
+        groupBy: {
+          args: Prisma.ObjectStorageSettingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ObjectStorageSettingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ObjectStorageSettingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ObjectStorageSettingCountAggregateOutputType> | number
+        }
+      }
+    }
     SecurityPolicy: {
       payload: Prisma.$SecurityPolicyPayload<ExtArgs>
       fields: Prisma.SecurityPolicyFieldRefs
@@ -4051,6 +4126,7 @@ export const QualificationTypeScalarFieldEnum = {
   id: 'id',
   code: 'code',
   name: 'name',
+  translations: 'translations',
   core: 'core',
   active: 'active',
   parameterRestriction: 'parameterRestriction',
@@ -4564,6 +4640,26 @@ export const SystemIntegrationSettingScalarFieldEnum = {
 export type SystemIntegrationSettingScalarFieldEnum = (typeof SystemIntegrationSettingScalarFieldEnum)[keyof typeof SystemIntegrationSettingScalarFieldEnum]
 
 
+export const ObjectStorageSettingScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  endpoint: 'endpoint',
+  region: 'region',
+  bucket: 'bucket',
+  credentialsCiphertext: 'credentialsCiphertext',
+  forcePathStyle: 'forcePathStyle',
+  sseKmsKeyId: 'sseKmsKeyId',
+  lastTestStatus: 'lastTestStatus',
+  lastTestMessage: 'lastTestMessage',
+  lastTestedAt: 'lastTestedAt',
+  version: 'version',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ObjectStorageSettingScalarFieldEnum = (typeof ObjectStorageSettingScalarFieldEnum)[keyof typeof ObjectStorageSettingScalarFieldEnum]
+
+
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
   adminLoginMode: 'adminLoginMode',
@@ -4572,6 +4668,7 @@ export const SecurityPolicyScalarFieldEnum = {
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',
   maxFailedAttempts: 'maxFailedAttempts',
   lockoutMinutes: 'lockoutMinutes',
+  allowPublicAccess: 'allowPublicAccess',
   version: 'version',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -5044,6 +5141,20 @@ export type ListEnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRe
 
 
 /**
+ * Reference to a field of type 'ObjectStorageProvider'
+ */
+export type EnumObjectStorageProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ObjectStorageProvider'>
+    
+
+
+/**
+ * Reference to a field of type 'ObjectStorageProvider[]'
+ */
+export type ListEnumObjectStorageProviderFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ObjectStorageProvider[]'>
+    
+
+
+/**
  * Reference to a field of type 'AdminLoginMode'
  */
 export type EnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode'>
@@ -5264,6 +5375,7 @@ export type GlobalOmitConfig = {
   rateLimitBucket?: Prisma.RateLimitBucketOmit
   uploadReservation?: Prisma.UploadReservationOmit
   systemIntegrationSetting?: Prisma.SystemIntegrationSettingOmit
+  objectStorageSetting?: Prisma.ObjectStorageSettingOmit
   securityPolicy?: Prisma.SecurityPolicyOmit
   workerHeartbeat?: Prisma.WorkerHeartbeatOmit
 }

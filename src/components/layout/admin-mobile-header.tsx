@@ -7,7 +7,7 @@ import { getAdminRouteTitleKey } from "@/components/layout/navigation";
 import { Avatar } from "@/components/ui/misc";
 import { IconButton } from "@/components/ui/button";
 import { useAdminSession } from "@/services/admin-session-provider";
-import { LocaleSwitcher, useI18n } from "@/components/i18n-provider";
+import { useI18n } from "@/components/i18n-provider";
 
 export function AdminMobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
@@ -37,7 +37,6 @@ export function AdminMobileHeader({ onMenuClick }: { onMenuClick: () => void }) 
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <LocaleSwitcher />
         <Link
           href="/admin/notifications"
           aria-label={t("navigation.notifications")}

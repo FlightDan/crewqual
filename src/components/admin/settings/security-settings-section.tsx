@@ -80,7 +80,11 @@ export function SecuritySettingsSection({
       setCurrentTotpCode("");
       if (saved.reauthenticate && isRemoteServiceMode()) {
         notify("success", t("settingsSecurity.saveSuccess"), t("settingsSecurity.reauthRemote"));
-        window.location.assign("/admin/login?reason=security-policy-changed");
+        const loginUrl = `${saved.policy.appOrigin}/admin/login?reason=security-policy-changed`;
+        window.setTimeout(
+          () => window.location.assign(loginUrl),
+          draft.appPort !== policy.appPort ? 4000 : 0,
+        );
         return;
       }
       notify(
@@ -110,7 +114,11 @@ export function SecuritySettingsSection({
       );
       return;
     }
-    if (draft.adminLoginMode !== policy.adminLoginMode) {
+    if (
+      draft.adminLoginMode !== policy.adminLoginMode ||
+      draft.allowPublicAccess !== policy.allowPublicAccess ||
+      draft.appPort !== policy.appPort
+    ) {
       setCredentialDialogOpen(true);
       return;
     }
@@ -167,6 +175,25 @@ export function SecuritySettingsSection({
               <p className="mt-1 text-xs text-muted">{t("settingsSecurity.globalDescription")}</p>
             </div>
           </div>
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 size-4"
+                checked={draft.allowPublicAccess}
+                disabled={!canWrite}
+                onChange={(event) =>
+                  setDraft({ ...draft, allowPublicAccess: event.target.checked })
+                }
+              />
+              <span>
+                <span className="font-semibold">{t("settingsSecurity.publicAccess")}</span>
+                <span className="mt-1 block text-xs text-muted">
+                  {t("settingsSecurity.publicAccessHelp")}
+                </span>
+              </span>
+            </label>
+          </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="rounded-md border border-border p-3">
@@ -182,6 +209,15 @@ export function SecuritySettingsSection({
             <p className="mt-2 text-xs text-muted">{t("settingsSecurity.modeHelp")}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Input
+              label={t("settingsSecurity.networkPort")}
+              type="number"
+              min={1}
+              max={65535}
+              value={draft.appPort}
+              disabled={!canWrite}
+              onChange={(event) => setDraft({ ...draft, appPort: Number(event.target.value) })}
+            />
             <Input
               label={t("settingsSecurity.adminTtl")}
               type="number"
