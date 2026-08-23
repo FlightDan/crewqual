@@ -7,6 +7,8 @@ FAKE_BIN="$TEST_DIR/bin"
 INSTALL_DIR="$TEST_DIR/install"
 SECOND_INSTALL_DIR="$TEST_DIR/install-second"
 LAN_INSTALL_DIR="$TEST_DIR/install-lan"
+HTTP_INSTALL_DIR="$TEST_DIR/install-http"
+RC_INSTALL_DIR="$TEST_DIR/install-rc"
 ENGLISH_INSTALL_DIR="$TEST_DIR/install-english"
 DOWNLOAD_FAILURE_DIR="$TEST_DIR/install-download-failure"
 DEPLOY_FAILURE_DIR="$TEST_DIR/install-deploy-failure"
@@ -29,10 +31,23 @@ openssl genpkey -algorithm ED25519 -out "$TEST_KEY_DIR/private.pem" >/dev/null 2
 openssl pkey -in "$TEST_KEY_DIR/private.pem" -pubout -outform DER -out "$TEST_KEY_DIR/public.der" >/dev/null 2>&1
 tail -c 32 "$TEST_KEY_DIR/public.der" | base64 -w0 >"$TEST_KEY_DIR/public.b64"
 cat >"$FIXTURE_DIR/update-manifest-v1.json" <<EOF
-{"schemaVersion":1,"version":"v9.8.7","channel":"stable","composeSha256":"$compose_sha256","caddySha256":"$caddy_sha256","configureDomainSha256":"$configure_domain_sha256","updater":{"amd64":"$(printf a%.0s {1..64})","arm64":"$(printf b%.0s {1..64})"},"webImage":"ghcr.io/flightdan/crewqual-web@sha256:$(printf a%.0s {1..64})","runtimeImage":"ghcr.io/flightdan/crewqual-runtime@sha256:$(printf b%.0s {1..64})","composeUrl":"https://example.invalid/compose","caddyUrl":"https://example.invalid/Caddyfile","configureDomainUrl":"https://example.invalid/configure-domain.sh","migrationPolicy":"backward-compatible"}
+{"schemaVersion":1,"version":"v9.8.7","channel":"stable","signingKeyId":"test-ed25519","publishedAt":"2026-08-24T00:00:00Z","releaseNotesUrl":"https://github.com/FlightDan/crewqual/releases/tag/v9.8.7","composeSha256":"$compose_sha256","caddySha256":"$caddy_sha256","configureDomainSha256":"$configure_domain_sha256","updater":{"amd64":"$(printf a%.0s {1..64})","arm64":"$(printf b%.0s {1..64})","amd64Url":"https://github.com/FlightDan/crewqual/releases/download/v9.8.7/crewqual-updater-linux-amd64","arm64Url":"https://github.com/FlightDan/crewqual/releases/download/v9.8.7/crewqual-updater-linux-arm64"},"webImage":"ghcr.io/flightdan/crewqual-web@sha256:$(printf a%.0s {1..64})","runtimeImage":"ghcr.io/flightdan/crewqual-runtime@sha256:$(printf b%.0s {1..64})","composeUrl":"https://github.com/FlightDan/crewqual/releases/download/v9.8.7/docker-compose.install.yml","caddyUrl":"https://github.com/FlightDan/crewqual/releases/download/v9.8.7/Caddyfile","configureDomainUrl":"https://github.com/FlightDan/crewqual/releases/download/v9.8.7/configure-domain.sh","minimumVersion":"","minimumUpdaterVersion":"0.1.0","migrationPolicy":"backward-compatible"}
 EOF
 openssl pkeyutl -sign -rawin -inkey "$TEST_KEY_DIR/private.pem" -in "$FIXTURE_DIR/update-manifest-v1.json" -out "$TEST_KEY_DIR/manifest.sig"
 base64 -w0 "$TEST_KEY_DIR/manifest.sig" >"$FIXTURE_DIR/update-manifest-v1.json.sig"
+cp "$FIXTURE_DIR/update-manifest-v1.json" "$FIXTURE_DIR/update-manifest-v9.8.7.json"
+cp "$FIXTURE_DIR/update-manifest-v1.json.sig" "$FIXTURE_DIR/update-manifest-v9.8.7.json.sig"
+printf '%s\n' "$(printf a%.0s {1..64})  crewqual-updater-linux-amd64" "$(printf b%.0s {1..64})  crewqual-updater-linux-arm64" >"$FIXTURE_DIR/SHA256SUMS"
+openssl pkeyutl -sign -rawin -inkey "$TEST_KEY_DIR/private.pem" -in "$FIXTURE_DIR/SHA256SUMS" -out "$TEST_KEY_DIR/sums.sig"
+base64 -w0 "$TEST_KEY_DIR/sums.sig" >"$FIXTURE_DIR/SHA256SUMS.sig"
+for release_tag in v9.8.8 v9.8.9 v9.8.7-rc.2; do
+  sed "s/v9\.8\.7/$release_tag/g" "$FIXTURE_DIR/update-manifest-v1.json" >"$FIXTURE_DIR/update-manifest-$release_tag.json"
+  if [[ "$release_tag" == *-rc.* ]]; then
+    sed -i 's/"channel":"stable"/"channel":"rc"/' "$FIXTURE_DIR/update-manifest-$release_tag.json"
+  fi
+  openssl pkeyutl -sign -rawin -inkey "$TEST_KEY_DIR/private.pem" -in "$FIXTURE_DIR/update-manifest-$release_tag.json" -out "$TEST_KEY_DIR/manifest-$release_tag.sig"
+  base64 -w0 "$TEST_KEY_DIR/manifest-$release_tag.sig" >"$FIXTURE_DIR/update-manifest-$release_tag.json.sig"
+done
 
 cat >"$FAKE_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
@@ -61,16 +76,24 @@ while (($#)); do
 done
 if ((effective)); then
   printf '%s' 'https://github.com/FlightDan/crewqual/releases/tag/v9.8.7'
+elif [[ "$url" == *"api.github.com"* && "$url" == *"/releases"* ]]; then
+  printf '%s\n' '[' '  {"tag_name":"v9.8.7"}' ']'
 elif [[ "$url" == */update-manifest-v1.json ]]; then
-  cp "$CREWQUAL_TEST_FIXTURES/update-manifest-v1.json" "$output"
+  release_tag="$(printf '%s' "$url" | sed -nE 's#^.*/(v[^/]+)/update-manifest-v1\.json$#\1#p')"
+  cp "$CREWQUAL_TEST_FIXTURES/update-manifest-$release_tag.json" "$output"
 elif [[ "$url" == */update-manifest-v1.json.sig ]]; then
-  cp "$CREWQUAL_TEST_FIXTURES/update-manifest-v1.json.sig" "$output"
+  release_tag="$(printf '%s' "$url" | sed -nE 's#^.*/(v[^/]+)/update-manifest-v1\.json\.sig$#\1#p')"
+  cp "$CREWQUAL_TEST_FIXTURES/update-manifest-$release_tag.json.sig" "$output"
+elif [[ "$url" == */SHA256SUMS ]]; then
+  cp "$CREWQUAL_TEST_FIXTURES/SHA256SUMS" "$output"
+elif [[ "$url" == */SHA256SUMS.sig ]]; then
+  cp "$CREWQUAL_TEST_FIXTURES/SHA256SUMS.sig" "$output"
 elif [[ "$url" == */docker-compose.install.yml ]]; then
   [[ "${CREWQUAL_TEST_CURL_FAIL:-0}" != "1" ]] || exit 22
   cp "$CREWQUAL_TEST_FIXTURES/docker-compose.install.yml" "$output"
 elif [[ "$url" == */Caddyfile ]]; then
   cp "$CREWQUAL_TEST_FIXTURES/Caddyfile" "$output"
-elif [[ "$url" == */scripts/configure-domain.sh ]]; then
+elif [[ "$url" == */configure-domain.sh ]]; then
   cp "$CREWQUAL_TEST_FIXTURES/configure-domain.sh" "$output"
 else
   exit 22
@@ -129,8 +152,9 @@ run_installer() {
   PATH="$FAKE_BIN:$PATH" \
     CREWQUAL_INSTALL_TEST_MODE=1 \
     CREWQUAL_INSTALL_DIR="$target_dir" \
-    CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY="$(cat "$TEST_KEY_DIR/public.b64")" \
     CREWQUAL_TEST_FIXTURES="$FIXTURE_DIR" \
+    CREWQUAL_TEST_TRUSTED_PUBLIC_KEY="$(cat "$TEST_KEY_DIR/public.b64")" \
+    CREWQUAL_TEST_KEY_ID="test-ed25519" \
     CREWQUAL_TEST_CURL_FAIL="${CREWQUAL_TEST_CURL_FAIL:-0}" \
     CREWQUAL_TEST_DOCKER_FAIL_ACTION="${CREWQUAL_TEST_DOCKER_FAIL_ACTION:-}" \
     bash "$PROJECT_DIR/install.sh" "$@"
@@ -141,6 +165,7 @@ run_installer --domain crewqual.example.com --tls-email ops@example.com --non-in
 [[ -f "$INSTALL_DIR/compose.yaml" && -f "$INSTALL_DIR/Caddyfile" && -f "$INSTALL_DIR/.env" ]]
 [[ "$(stat -c '%a' "$INSTALL_DIR/.env")" == "600" ]]
 grep -q "CREWQUAL_VERSION='v9.8.7'" "$INSTALL_DIR/.env"
+! grep -q '^CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY=' "$INSTALL_DIR/.env"
 grep -q 'CREWQUAL_RUNTIME_IMAGE: ${CREWQUAL_RUNTIME_IMAGE' "$INSTALL_DIR/compose.yaml"
 
 before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
@@ -150,6 +175,11 @@ after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_E
 [[ "$before_secrets" == "$after_secrets" ]]
 grep -q "CREWQUAL_VERSION='v9.8.8'" "$INSTALL_DIR/.env"
 grep -q "INSTALL_LANGUAGE='zh'" "$INSTALL_DIR/.env"
+
+CREWQUAL_TEST_INSTALL_DIR="$RC_INSTALL_DIR" \
+  run_installer --version v9.8.7-rc.2 --domain rc.example.com \
+  --tls-email rc@example.com --non-interactive >/dev/null
+grep -q "CREWQUAL_VERSION='v9.8.7-rc.2'" "$RC_INSTALL_DIR/.env"
 
 english_log="$TEST_DIR/english.log"
 CREWQUAL_TEST_INSTALL_DIR="$ENGLISH_INSTALL_DIR" \
@@ -177,6 +207,14 @@ grep -q "APP_ORIGIN='http://192.168.1.20:8081'" "$LAN_INSTALL_DIR/.env"
 grep -q "APP_PORT='8081'" "$LAN_INSTALL_DIR/.env"
 grep -q "ACME_PORT='18080'" "$LAN_INSTALL_DIR/.env"
 [[ -x "$LAN_INSTALL_DIR/configure-domain.sh" ]]
+
+CREWQUAL_TEST_INSTALL_DIR="$HTTP_INSTALL_DIR" \
+  run_installer --version v9.8.7 --network-mode http --public-address 203.0.113.20 \
+  --port 8082 --non-interactive >/dev/null
+grep -q "DEPLOYMENT_NETWORK_MODE='http'" "$HTTP_INSTALL_DIR/.env"
+grep -q "APP_ORIGIN='http://203.0.113.20:8082'" "$HTTP_INSTALL_DIR/.env"
+grep -q "APP_DOMAIN='203.0.113.20'" "$HTTP_INSTALL_DIR/.env"
+grep -q "CADDY_SITE_ADDRESS='http://:8082'" "$HTTP_INSTALL_DIR/.env"
 
 download_failure_log="$TEST_DIR/download-failure.log"
 if CREWQUAL_TEST_INSTALL_DIR="$DOWNLOAD_FAILURE_DIR" CREWQUAL_TEST_CURL_FAIL=1 \

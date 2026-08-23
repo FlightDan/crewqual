@@ -1,6 +1,6 @@
 {
   "name": "crewqual-ui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "packageManager": "pnpm@10.15.0",
   "scripts": {
@@ -39,6 +39,10 @@
     "release:verify:e2e": "node --import tsx scripts/release/verify.ts e2e",
     "release:verify:supply-chain": "node --import tsx scripts/release/verify.ts supply-chain",
     "release:verify:artifact": "node --import tsx scripts/release/verify.ts artifact",
+    "release:check-keyring": "node --import tsx scripts/release/check-keyring.ts",
+    "release:manage-manifest-key": "node --import tsx scripts/release/manage-manifest-key.ts",
+    "release:assemble-assets": "node --import tsx scripts/release/assemble-release-assets.ts",
+    "release:sign-file": "node --import tsx scripts/release/sign-file.ts",
     "release:manifest": "node --import tsx scripts/release/migration-manifest.ts",
     "release:update-manifest": "node --import tsx scripts/release/update-manifest.ts",
     "release:sign-update-manifest": "node --import tsx scripts/release/sign-update-manifest.ts"

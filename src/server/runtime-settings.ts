@@ -39,7 +39,7 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
-    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE === "tls",
+    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE !== "lan",
   };
   if (!shouldReadDatabase()) return fallback;
   const policy = await getPrisma().securityPolicy.findUnique({ where: { id: "global" } });

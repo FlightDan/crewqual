@@ -150,6 +150,27 @@ describe("server configuration safety", () => {
     });
   });
 
+  it("allows an explicit public HTTP origin for temporary VPS deployments", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      DEPLOYMENT_NETWORK_MODE: "http",
+      APP_ORIGIN: "http://203.0.113.20:8080",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "disabled",
+    });
+
+    expect(getServerConfig()).toMatchObject({
+      APP_ORIGIN: "http://203.0.113.20:8080",
+      DEPLOYMENT_NETWORK_MODE: "http",
+    });
+  });
+
   it("rejects a public HTTP origin even when LAN mode is selected", () => {
     Object.assign(process.env, {
       NODE_ENV: "production",

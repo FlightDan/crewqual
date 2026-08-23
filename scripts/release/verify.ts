@@ -137,7 +137,11 @@ async function preflight(evidence: ReleaseEvidence) {
   const commit = tagCommit(tag);
   const head = command("git", ["rev-parse", "HEAD"]).output.trim();
   if (commit !== head) throw new Error(`tag commit ${commit} 不等于 HEAD ${head}`);
-  if (command("git", ["verify-tag", tag], { allowFailure: true }).status !== 0) {
+  if (command("git", ["cat-file", "-t", tag]).output.trim() !== "tag") {
+    throw new Error(`release tag 必须是 annotated tag：${tag}`);
+  }
+  const tagVerification = command("git", ["verify-tag", "--raw", tag], { allowFailure: true });
+  if (tagVerification.status !== 0 || !tagVerification.output.includes("[GNUPG:] VALIDSIG")) {
     throw new Error(`tag 未通过 git verify-tag：${tag}`);
   }
   const signers =
@@ -145,9 +149,21 @@ async function preflight(evidence: ReleaseEvidence) {
       .map((value) => value.trim())
       .filter(Boolean) ?? [];
   if (signers.length) {
-    const signer = command("git", ["show", "-s", "--format=%GF", tag]).output.trim().toLowerCase();
-    if (!signers.map((value) => value.toLowerCase()).includes(signer)) {
-      throw new Error(`tag 签名者不在 RELEASE_SIGNER_FINGERPRINTS：${signer}`);
+    const validSig = tagVerification.output.match(
+      /\[GNUPG:\] VALIDSIG\s+([A-Fa-f0-9]+).*?\s([A-Fa-f0-9]{40})\s*$/m,
+    );
+    const signing = validSig?.[1]?.toLowerCase();
+    const primary = validSig?.[2]?.toLowerCase();
+    if (
+      !signing ||
+      !primary ||
+      !signers
+        .map((value) => value.toLowerCase())
+        .some((value) => value === signing || value === primary)
+    ) {
+      throw new Error(
+        `tag 签名主键/子键不在 RELEASE_SIGNER_FINGERPRINTS：${signing ?? "unknown"}/${primary ?? "unknown"}`,
+      );
     }
   } else if (evidence.profile === "final") {
     throw new Error("final 发布必须设置 RELEASE_SIGNER_FINGERPRINTS");

@@ -11,9 +11,12 @@ readonly WAIT_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_TIMEOUT_SECONDS:-300}"
 readonly UPDATER_BINARY_DIR="/usr/local/libexec"
 readonly UPDATER_CONFIG_DIR="/etc/crewqual-updater"
 readonly UPDATER_DATA_DIR="/var/lib/crewqual-updater"
+# Generated from security/update-manifest-keyring.json; release CI checks drift.
+readonly BUILTIN_UPDATE_KEYRING_JSON='{"schemaVersion":1,"keys":[{"id":"manifest-a1ba0c3f6cf25851","publicKey":"Db7Vh2kVfil0HhhBWfhRxmKKbTBt0IYCDvG+E0KOGP0=","status":"active"}]}'
 
 INSTALL_DIR="${CREWQUAL_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 RELEASE_VERSION=""
+CHANNEL_INPUT="stable"
 LANGUAGE_INPUT="${CREWQUAL_INSTALL_LANGUAGE:-}"
 APP_DOMAIN_INPUT=""
 TLS_EMAIL_INPUT=""
@@ -21,6 +24,7 @@ NETWORK_MODE_INPUT=""
 APP_PORT_INPUT=""
 PORT_SELECTION=""
 LAN_ADDRESS_INPUT=""
+PUBLIC_ADDRESS_INPUT=""
 APP_ORIGIN_VALUE=""
 CADDY_SITE_ADDRESS_VALUE=""
 APP_BIND_VALUE="0.0.0.0"
@@ -28,6 +32,7 @@ ACME_BIND_VALUE="127.0.0.1"
 ACME_PORT_VALUE="18080"
 SETUP_AUTH_CODE_DISPLAY=""
 NON_INTERACTIVE=0
+AUTO_INSTALL_DOCKER=0
 PULL_IMAGES=1
 TEMP_DIR=""
 ENV_FILE=""
@@ -37,6 +42,10 @@ EXISTING_INSTALL=0
 ROLLBACK_DIR=""
 UPGRADE_DB_BACKUP=""
 PREVIOUS_CONFIGURE_DOMAIN=0
+TRUSTED_PUBLIC_KEY_VALUE=""
+TRUSTED_KEY_ID_VALUE=""
+MANIFEST_WEB_IMAGE=""
+MANIFEST_RUNTIME_IMAGE=""
 
 usage() {
   cat <<'EOF'
@@ -45,14 +54,18 @@ Usage: install.sh [options]
 Install or upgrade CrewQual with public GHCR images.
 
 Options:
-  --version VERSION   Install an exact GitHub Release (for example v1.0.0).
+  --version VERSION   Install an exact GitHub Release (for example v1.0.1).
+  --channel CHANNEL   Release channel: stable (default) or rc.
   --domain HOSTNAME   Public hostname used by CrewQual and Caddy.
   --tls-email EMAIL   Email used for ACME/TLS notifications.
-  --network-mode MODE Initial network mode: lan or tls.
+  --network-mode MODE Initial network mode: lan, http, or tls.
   --lan-address IP    Advertised private IPv4 address in LAN mode.
+  --public-address HOST
+                      Public IPv4 address or hostname in HTTP mode.
   --port PORT         Application access port (default: 8080 for new installs).
   --random-port       Select a free high port for the application.
   --language LANG     Installer language: zh or en (default: zh).
+  --install-docker    Install missing Docker Engine/Compose v2 using Docker's official method.
   --non-interactive   Fail instead of prompting for missing first-install values.
   --no-pull           Reuse locally cached images when available.
   -h, --help          Show this help.
@@ -61,8 +74,8 @@ Environment:
   CREWQUAL_INSTALL_DIR              Install directory (default: /opt/crewqual).
   CREWQUAL_INSTALL_TIMEOUT_SECONDS  Container health timeout (default: 300).
   CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY
-                                    Base64 Ed25519 public key used to verify the
-                                    signed release manifest (required for managed updates).
+                                    Legacy compatibility input. It is accepted only when
+                                    the value already exists in the built-in keyring.
 
 The installer never removes Docker volumes and never overwrites secrets in an
 existing .env. Re-running it upgrades the managed Compose/Caddy files and image
@@ -92,8 +105,8 @@ msg() {
     en:invalid_language) printf 'Language must be zh or en: %s' "$1" ;;
     zh:command_unavailable) printf '命令不可用: %s' "$1" ;;
     en:command_unavailable) printf 'Command unavailable: %s' "$1" ;;
-    zh:version_invalid) printf '版本格式无效: %s（应类似 v1.0.0）' "$1" ;;
-    en:version_invalid) printf 'Invalid version format: %s (expected v1.0.0)' "$1" ;;
+    zh:version_invalid) printf '版本格式无效: %s（应类似 v1.0.1 或 v1.0.1-rc.1）' "$1" ;;
+    en:version_invalid) printf 'Invalid version format: %s (expected v1.0.1 or v1.0.1-rc.1)' "$1" ;;
     zh:domain_invalid_shape) printf '域名必须是不含协议、端口和路径的主机名' ;;
     en:domain_invalid_shape) printf 'The domain must be a hostname without a protocol, port, or path' ;;
     zh:domain_invalid) printf '域名格式无效: %s' "$1" ;;
@@ -124,14 +137,28 @@ msg() {
     en:port_reserved) printf 'Application port 80 cannot be used; it is reserved for ACME HTTP validation' ;;
     zh:network_prompt) printf '网络模式 [1=局域网测试, 2=立即配置 TLS]: ' ;;
     en:network_prompt) printf 'Network mode [1=LAN test, 2=Configure TLS now]: ' ;;
-    zh:network_required) printf '首次非交互安装必须传入 --network-mode lan|tls' ;;
-    en:network_required) printf 'First non-interactive install requires --network-mode lan|tls' ;;
-    zh:network_invalid) printf '网络模式必须是 lan 或 tls' ;;
-    en:network_invalid) printf 'Network mode must be lan or tls' ;;
+    zh:network_required) printf '首次非交互安装必须传入 --network-mode lan|http|tls' ;;
+    en:network_required) printf 'First non-interactive install requires --network-mode lan|http|tls' ;;
+    zh:network_invalid) printf '网络模式必须是 lan、http 或 tls' ;;
+    en:network_invalid) printf 'Network mode must be lan, http, or tls' ;;
     zh:lan_required) printf '局域网模式非交互安装必须传入 --lan-address' ;;
     en:lan_required) printf 'Non-interactive LAN installation requires --lan-address' ;;
     zh:lan_address_prompt) printf '局域网访问地址 [%s]: ' "$1" ;;
     en:lan_address_prompt) printf 'LAN access address [%s]: ' "$1" ;;
+    zh:lan_only_prompt) printf '是否仅允许局域网访问？[Y/n]: ' ;;
+    en:lan_only_prompt) printf 'Allow LAN access only? [Y/n]: ' ;;
+    zh:public_address_prompt) printf '公网访问地址（IPv4 或主机名）[%s]: ' "$1" ;;
+    en:public_address_prompt) printf 'Public address (IPv4 or hostname) [%s]: ' "$1" ;;
+    zh:public_address_required) printf '公网 HTTP 模式必须传入 --public-address' ;;
+    en:public_address_required) printf 'Public HTTP mode requires --public-address' ;;
+    zh:public_address_invalid) printf '公网访问地址格式无效（不要包含协议、端口或路径）: %s' "$1" ;;
+    en:public_address_invalid) printf 'Invalid public address (do not include a scheme, port, or path): %s' "$1" ;;
+    zh:public_http_warning) printf '警告：公网 HTTP 不加密，首次授权码、登录密码、TOTP 和业务数据可能被窃听或篡改。请限制防火墙来源并尽快启用 HTTPS；启用后应更换管理员密码与 TOTP、撤销所有活跃会话，并轮换 HTTP 阶段录入过的 API/Webhook 密钥。' ;;
+    en:public_http_warning) printf 'Warning: public HTTP is unencrypted. The setup code, passwords, TOTP codes, and business data may be intercepted or modified. Restrict firewall sources and enable HTTPS as soon as possible; afterward, change administrator passwords and TOTP, revoke all active sessions, and rotate API or webhook keys entered during the HTTP phase.' ;;
+    zh:public_http_confirm) printf '仍然继续公网 HTTP 部署？[y/N]: ' ;;
+    en:public_http_confirm) printf 'Continue with public HTTP deployment? [y/N]: ' ;;
+    zh:public_http_declined) printf '已取消公网 HTTP 部署' ;;
+    en:public_http_declined) printf 'Public HTTP deployment was cancelled' ;;
     zh:tls_domain_prompt) printf 'CrewQual 公网域名: ' ;;
     en:tls_domain_prompt) printf 'CrewQual public domain: ' ;;
     zh:tls_email_prompt) printf 'TLS 通知邮箱: ' ;;
@@ -140,20 +167,22 @@ msg() {
     en:tls_domain_required) printf 'TLS mode requires --domain' ;;
     zh:tls_email_required) printf 'TLS 模式必须传入 --tls-email' ;;
     en:tls_email_required) printf 'TLS mode requires --tls-email' ;;
-    zh:no_tty) printf '当前没有交互式终端；请传入网络模式、端口和必要的域名参数' ;;
-    en:no_tty) printf 'No interactive terminal is available; pass the network mode, port, and required domain parameters' ;;
-    zh:resolve_latest) printf '解析最新 CrewQual 正式版本' ;;
-    en:resolve_latest) printf 'Resolve the latest CrewQual release' ;;
+    zh:no_tty) printf '当前没有交互式终端；请传入网络模式、端口和必要的地址或域名参数' ;;
+    en:no_tty) printf 'No interactive terminal is available; pass the network mode, port, and required address or domain parameters' ;;
+    zh:resolve_latest) printf '解析最新 CrewQual Release' ;;
+    en:resolve_latest) printf 'Resolve the latest CrewQual Release' ;;
+    zh:release_unavailable) printf '无法从 GitHub 获取最新 CrewQual Release' ;;
+    en:release_unavailable) printf 'Could not resolve the latest CrewQual GitHub Release' ;;
     zh:latest_version) printf '最新版本: %s' "$1" ;;
     en:latest_version) printf 'Latest version: %s' "$1" ;;
     zh:download_manifest) printf '下载 %s 部署清单' "$1" ;;
     en:download_manifest) printf 'Download the %s deployment manifest' "$1" ;;
     zh:deployment_empty) printf '下载的部署文件为空' ;;
     en:deployment_empty) printf 'Downloaded deployment files are empty' ;;
-    zh:trusted_key_required) printf '首次安装必须设置 CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY' ;;
-    en:trusted_key_required) printf 'First installation requires CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY' ;;
-    zh:trusted_key_missing) printf '缺少 CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY；拒绝安装未验签的正式发布' ;;
-    en:trusted_key_missing) printf 'CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY is missing; refusing to install an unsigned release' ;;
+    zh:trusted_key_required) printf '发布清单的签名 key ID 不在内置 keyring 中' ;;
+    en:trusted_key_required) printf 'The manifest signing key ID is not in the built-in keyring' ;;
+    zh:trusted_key_missing) printf '发布清单签名 key ID 不受信任；拒绝安装' ;;
+    en:trusted_key_missing) printf 'The release signing key ID is not trusted; refusing to install' ;;
     zh:key_base64) printf '更新器公钥不是合法 Base64' ;;
     en:key_base64) printf 'Updater public key is not valid Base64' ;;
     zh:key_length) printf '更新器公钥必须是 32 字节 Ed25519 公钥' ;;
@@ -210,6 +239,8 @@ msg() {
     en:setup_auth_code) printf 'First-setup authorization code (shown once): %s' "$1" ;;
     zh:setup_auth_warning) printf '请立即保存该授权码；首次配置前需要在 /setup 输入它。' ;;
     en:setup_auth_warning) printf 'Save this code now; it is required at /setup before initial configuration.' ;;
+    zh:public_http_postinstall) printf '安全提醒：当前通过公网 HTTP 明文访问。请尽快配置 HTTPS；完成后更换管理员密码与 TOTP、撤销所有活跃会话，并轮换 HTTP 阶段录入过的 API/Webhook 密钥。' ;;
+    en:public_http_postinstall) printf 'Security reminder: this deployment is publicly accessible over unencrypted HTTP. Enable HTTPS as soon as possible; afterward, change administrator passwords and TOTP, revoke all active sessions, and rotate API or webhook keys entered during the HTTP phase.' ;;
     zh:validate_manifest) printf '校验 %s 生产部署清单' "$1" ;;
     en:validate_manifest) printf 'Validate the %s production deployment manifest' "$1" ;;
     zh:pull_images) printf '拉取 CrewQual %s 镜像' "$1" ;;
@@ -224,8 +255,8 @@ msg() {
     en:run_bootstrap) printf 'Initialize the production baseline' ;;
     zh:start_web_worker) printf '启动 Web 与 Worker' ;;
     en:start_web_worker) printf 'Start Web and Worker' ;;
-    zh:start_https) printf '启动 HTTPS 入口' ;;
-    en:start_https) printf 'Start HTTPS entrypoint' ;;
+    zh:start_https) printf '启动 Web 访问入口' ;;
+    en:start_https) printf 'Start web entrypoint' ;;
     zh:deployment_complete) printf 'CrewQual %s 部署完成' "$1" ;;
     en:deployment_complete) printf 'CrewQual %s deployment complete' "$1" ;;
     zh:welcome) printf '欢迎配置: %s/setup' "$1" ;;
@@ -246,12 +277,36 @@ msg() {
     en:existing_domain) printf 'The existing deployment uses domain %s; the installer will not overwrite it. Back up and edit .env manually first' "$1" ;;
     zh:existing_email) printf '已有部署的 TLS 邮箱为 %s；安装器不会覆盖它，请手工修改 .env' "$1" ;;
     en:existing_email) printf 'The existing deployment uses TLS email %s; the installer will not overwrite it. Edit .env manually' "$1" ;;
-    zh:deployment_unsigned) printf '缺少 CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY；拒绝安装未验签的正式发布' ;;
-    en:deployment_unsigned) printf 'CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY is missing; refusing to install an unsigned release' ;;
+    zh:deployment_unsigned) printf '缺少签名公钥；拒绝安装未验签的正式发布' ;;
+    en:deployment_unsigned) printf 'Signing public key is missing; refusing to install an unsigned release' ;;
     zh:compose_unavailable) printf '无法连接 Docker daemon' ;;
     en:compose_unavailable) printf 'Cannot connect to the Docker daemon' ;;
     zh:compose_plugin_missing) printf 'Docker Compose v2 plugin 不可用' ;;
     en:compose_plugin_missing) printf 'Docker Compose v2 plugin is unavailable' ;;
+    zh:docker_engine_missing) printf '未检测到可用的 Docker Engine' ;;
+    en:docker_engine_missing) printf 'A usable Docker Engine was not detected' ;;
+    zh:docker_daemon_missing) printf 'Docker Engine 已安装，但无法连接 Docker daemon' ;;
+    en:docker_daemon_missing) printf 'Docker Engine is installed, but the Docker daemon is unavailable' ;;
+    zh:docker_engine_prompt) printf '是否按 Docker 官方方式安装 Docker Engine？[y/N]: ' ;;
+    en:docker_engine_prompt) printf "Install Docker Engine using Docker's official method? [y/N]: " ;;
+    zh:docker_daemon_prompt) printf '是否尝试启动现有的 Docker daemon？[y/N]: ' ;;
+    en:docker_daemon_prompt) printf 'Try to start the existing Docker daemon? [y/N]: ' ;;
+    zh:compose_plugin_prompt) printf '未检测到 Docker Compose v2 插件，是否按 Docker 官方方式安装？[y/N]: ' ;;
+    en:compose_plugin_prompt) printf "Docker Compose v2 is missing. Install it using Docker's official method? [y/N]: " ;;
+    zh:docker_install_noninteractive) printf '%s；非交互模式不会自动安装，请先安装依赖后重试，或显式传入 --install-docker' "$1" ;;
+    en:docker_install_noninteractive) printf '%s; non-interactive mode will not install it automatically. Install it first or pass --install-docker explicitly' "$1" ;;
+    zh:docker_install_declined) printf '未获得安装 Docker 依赖的确认，安装已终止' ;;
+    en:docker_install_declined) printf 'Docker dependency installation was not approved; installation stopped' ;;
+    zh:docker_install_engine) printf '使用 Docker 官方安装脚本安装 Docker Engine' ;;
+    en:docker_install_engine) printf "Install Docker Engine with Docker's official installer" ;;
+    zh:docker_install_compose) printf '使用 Docker 官方软件源安装 Docker Compose v2 插件' ;;
+    en:docker_install_compose) printf "Install Docker Compose v2 from Docker's official package repository" ;;
+    zh:docker_install_engine_failed) printf 'Docker Engine 安装后仍不可用，请检查 daemon 状态并重试' ;;
+    en:docker_install_engine_failed) printf 'Docker Engine is still unavailable after installation; check the daemon and retry' ;;
+    zh:docker_install_compose_failed) printf 'Docker Compose v2 插件安装后仍不可用，请检查安装结果并重试' ;;
+    en:docker_install_compose_failed) printf 'Docker Compose v2 is still unavailable after installation; check the result and retry' ;;
+    zh:docker_compose_os_unsupported) printf '无法识别支持 Docker Compose v2 软件包的包管理器（需要 apt-get、dnf 或 yum）' ;;
+    en:docker_compose_os_unsupported) printf 'Could not find a package manager supported for Docker Compose v2 (apt-get, dnf, or yum required)' ;;
     zh:linux_only) printf '当前安装器仅支持 Linux' ;;
     en:linux_only) printf 'This installer only supports Linux' ;;
     zh:run_as_root) printf '请使用 sudo 运行安装器（默认写入 %s）' "$1" ;;
@@ -273,6 +328,90 @@ msg() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$(msg command_unavailable "$1")"
+}
+
+prompt_yes_no() {
+  local prompt="$1"
+  local result=""
+  ((NON_INTERACTIVE)) && return 1
+  [[ -r /dev/tty ]] || die "$(msg no_tty)"
+  read -r -p "$prompt" result </dev/tty
+  case "$result" in
+    y|Y|yes|YES|Yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+install_docker_engine() {
+  local script_path
+  script_path="$(mktemp)"
+  log "$(msg docker_install_engine)"
+  if ! curl -fsSL --retry 3 --retry-all-errors \
+    https://get.docker.com -o "$script_path"; then
+    rm -f -- "$script_path"
+    die "$(msg docker_install_engine_failed)"
+  fi
+  if ! sh "$script_path"; then
+    rm -f -- "$script_path"
+    die "$(msg docker_install_engine_failed)"
+  fi
+  rm -f -- "$script_path"
+  if command -v systemctl >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
+    systemctl enable --now docker >/dev/null 2>&1 || true
+  fi
+  docker info >/dev/null 2>&1 || die "$(msg docker_install_engine_failed)"
+}
+
+install_compose_plugin() {
+  log "$(msg docker_install_compose)"
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y docker-compose-plugin
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y docker-compose-plugin
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y docker-compose-plugin
+  else
+    die "$(msg docker_compose_os_unsupported)"
+  fi
+  docker compose version >/dev/null 2>&1 || die "$(msg docker_install_compose_failed)"
+}
+
+ensure_docker_engine() {
+  if ! command -v docker >/dev/null 2>&1; then
+    if ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg docker_engine_prompt)"; then
+      install_docker_engine
+    elif ((NON_INTERACTIVE)); then
+      die "$(msg docker_install_noninteractive "$(msg docker_engine_missing)")"
+    else
+      die "$(msg docker_install_declined)"
+    fi
+  fi
+
+  if ! docker info >/dev/null 2>&1; then
+    if command -v systemctl >/dev/null 2>&1 && \
+      { ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg docker_daemon_prompt)"; }; then
+      systemctl enable --now docker || die "$(msg docker_install_engine_failed)"
+    elif ((NON_INTERACTIVE)); then
+      die "$(msg docker_install_noninteractive "$(msg docker_daemon_missing)")"
+    else
+      die "$(msg compose_unavailable)"
+    fi
+  fi
+
+  docker info >/dev/null 2>&1 || die "$(msg compose_unavailable)"
+}
+
+ensure_compose_plugin() {
+  docker compose version >/dev/null 2>&1 && return 0
+  if ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg compose_plugin_prompt)"; then
+    install_compose_plugin
+  elif ((NON_INTERACTIVE)); then
+    die "$(msg docker_install_noninteractive "$(msg compose_plugin_missing)")"
+  else
+    die "$(msg docker_install_declined)"
+  fi
+  docker compose version >/dev/null 2>&1 || die "$(msg docker_install_compose_failed)"
 }
 
 atomic_install() {
@@ -374,8 +513,12 @@ restore_existing_install() {
 }
 
 validate_version() {
-  [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+  [[ "$1" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.(0|[1-9][0-9]*))?$ ]] ||
     die "$(msg version_invalid "$1")"
+}
+
+validate_channel() {
+  [[ "$1" == "stable" || "$1" == "rc" ]] || die "channel must be stable or rc: $1"
 }
 
 validate_domain() {
@@ -406,6 +549,24 @@ validate_lan_address() {
   done
   [[ "$value" == 10.* || "$value" == 192.168.* || "$value" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] ||
     die "$(msg lan_private "$value")"
+}
+
+validate_public_address() {
+  local value="$1" part
+  local -a parts=()
+  [[ -n "$value" && "$value" != *://* && "$value" != */* && "$value" != *:* && "$value" != *[[:space:]]* ]] ||
+    die "$(msg public_address_invalid "$value")"
+  if [[ "$value" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    IFS=. read -r -a parts <<<"$value"
+    for part in "${parts[@]}"; do
+      ((part <= 255)) || die "$(msg public_address_invalid "$value")"
+    done
+    [[ "$value" != "0.0.0.0" && "$value" != 127.* ]] ||
+      die "$(msg public_address_invalid "$value")"
+    return 0
+  fi
+  [[ "$value" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]] ||
+    die "$(msg public_address_invalid "$value")"
 }
 
 port_is_available() {
@@ -471,7 +632,23 @@ detect_lan_address() {
   return 1
 }
 
+detect_public_address() {
+  local value
+  for value in $(hostname -I 2>/dev/null || true); do
+    if [[ "$value" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] &&
+      [[ ! "$value" =~ ^10\. ]] &&
+      [[ ! "$value" =~ ^192\.168\. ]] &&
+      [[ ! "$value" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] &&
+      [[ ! "$value" =~ ^127\. ]]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  done
+  return 1
+}
+
 prepare_network_config() {
+  local lan_only_answer="" detected_public_address="" public_prompt_default=""
   if [[ -z "$NETWORK_MODE_INPUT" ]]; then
     if [[ -n "$APP_DOMAIN_INPUT" || -n "$TLS_EMAIL_INPUT" ]]; then
       NETWORK_MODE_INPUT="tls"
@@ -484,8 +661,21 @@ prepare_network_config() {
       esac
     fi
   fi
-  [[ "$NETWORK_MODE_INPUT" == "lan" || "$NETWORK_MODE_INPUT" == "tls" ]] ||
+  [[ "$NETWORK_MODE_INPUT" == "lan" || "$NETWORK_MODE_INPUT" == "http" || "$NETWORK_MODE_INPUT" == "tls" ]] ||
     die "$(msg network_invalid)"
+
+  if [[ "$NETWORK_MODE_INPUT" == "lan" && "$NON_INTERACTIVE" == "0" ]]; then
+    lan_only_answer="$(prompt_value "$(msg lan_only_prompt)")"
+    case "$lan_only_answer" in
+      n|N|no|NO|No|否)
+        NETWORK_MODE_INPUT="http"
+        echo "$(msg public_http_warning)" >&2
+        prompt_yes_no "$(msg public_http_confirm)" || die "$(msg public_http_declined)"
+        ;;
+    esac
+  elif [[ "$NETWORK_MODE_INPUT" == "http" ]]; then
+    echo "$(msg public_http_warning)" >&2
+  fi
 
   choose_port
   if [[ "$NETWORK_MODE_INPUT" == "lan" ]]; then
@@ -504,6 +694,30 @@ prepare_network_config() {
     APP_DOMAIN_INPUT="lan.local"
     TLS_EMAIL_INPUT="crewqual-local@lan.invalid"
     APP_ORIGIN_VALUE="http://${LAN_ADDRESS_INPUT}:${APP_PORT_INPUT}"
+    CADDY_SITE_ADDRESS_VALUE="http://:${APP_PORT_INPUT}"
+    APP_BIND_VALUE="0.0.0.0"
+    ACME_BIND_VALUE="127.0.0.1"
+    ACME_PORT_VALUE="18080"
+    if ! port_is_available "$ACME_PORT_VALUE"; then
+      ACME_PORT_VALUE="$(random_free_port)"
+    fi
+  elif [[ "$NETWORK_MODE_INPUT" == "http" ]]; then
+    if [[ -z "$PUBLIC_ADDRESS_INPUT" ]]; then
+      PUBLIC_ADDRESS_INPUT="$APP_DOMAIN_INPUT"
+    fi
+    if [[ -z "$PUBLIC_ADDRESS_INPUT" ]]; then
+      if ((NON_INTERACTIVE)); then
+        die "$(msg public_address_required)"
+      fi
+      detected_public_address="$(detect_public_address || true)"
+      public_prompt_default="${detected_public_address:-$(if [[ "$LANGUAGE_INPUT" == en ]]; then printf 'enter the VPS public IP'; else printf '请输入 VPS 公网 IP'; fi)}"
+      PUBLIC_ADDRESS_INPUT="$(prompt_value "$(msg public_address_prompt "$public_prompt_default")")"
+      [[ -n "$PUBLIC_ADDRESS_INPUT" ]] || PUBLIC_ADDRESS_INPUT="$detected_public_address"
+    fi
+    validate_public_address "$PUBLIC_ADDRESS_INPUT"
+    APP_DOMAIN_INPUT="$PUBLIC_ADDRESS_INPUT"
+    TLS_EMAIL_INPUT="crewqual-local@lan.invalid"
+    APP_ORIGIN_VALUE="http://${PUBLIC_ADDRESS_INPUT}:${APP_PORT_INPUT}"
     CADDY_SITE_ADDRESS_VALUE="http://:${APP_PORT_INPUT}"
     APP_BIND_VALUE="0.0.0.0"
     ACME_BIND_VALUE="127.0.0.1"
@@ -577,16 +791,23 @@ select_language() {
 }
 
 resolve_release_version() {
-  local effective_url=""
+  local release_json=""
   if [[ -n "$RELEASE_VERSION" ]]; then
     validate_version "$RELEASE_VERSION"
+    if [[ "$RELEASE_VERSION" == *-rc.* ]]; then CHANNEL_INPUT="rc"; fi
+    validate_channel "$CHANNEL_INPUT"
     return
   fi
   log "$(msg resolve_latest)"
-  effective_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
-    "https://github.com/${GITHUB_REPOSITORY}/releases/latest")"
-  RELEASE_VERSION="${effective_url%/}"
-  RELEASE_VERSION="${RELEASE_VERSION##*/}"
+  local endpoint="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
+  [[ "$CHANNEL_INPUT" == "rc" ]] && endpoint="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100"
+  release_json="$(curl -fsSL --retry 3 --retry-all-errors \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    "$endpoint")"
+  RELEASE_VERSION="$(printf '%s' "$release_json" | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+  [[ -n "$RELEASE_VERSION" ]] || die "$(msg release_unavailable)"
+  [[ "$CHANNEL_INPUT" == "rc" || "$RELEASE_VERSION" != *-rc.* ]] || die "stable channel returned a release candidate"
   validate_version "$RELEASE_VERSION"
   echo "$(msg latest_version "$RELEASE_VERSION")"
 }
@@ -596,9 +817,29 @@ manifest_value() {
   sed -nE "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"([^\"]+)\".*/\1/p" "$TEMP_DIR/update-manifest-v1.json" | head -n 1
 }
 
+resolve_trusted_public_key() {
+  TRUSTED_KEY_ID_VALUE="$(manifest_value signingKeyId)"
+  [[ -n "$TRUSTED_KEY_ID_VALUE" ]] || die "$(msg trusted_key_missing)"
+  TRUSTED_PUBLIC_KEY_VALUE=""
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" && -n "${CREWQUAL_TEST_TRUSTED_PUBLIC_KEY:-}" ]]; then
+    TRUSTED_PUBLIC_KEY_VALUE="$CREWQUAL_TEST_TRUSTED_PUBLIC_KEY"
+    [[ "${CREWQUAL_TEST_KEY_ID:-$TRUSTED_KEY_ID_VALUE}" == "$TRUSTED_KEY_ID_VALUE" ]] || die "$(msg trusted_key_missing)"
+  else
+    local legacy="${CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY:-}"
+    if [[ -n "$legacy" ]]; then
+      printf '%s' "$BUILTIN_UPDATE_KEYRING_JSON" | grep -Fq "\"id\":\"$TRUSTED_KEY_ID_VALUE\"" || die "$(msg trusted_key_missing)"
+      printf '%s' "$BUILTIN_UPDATE_KEYRING_JSON" | grep -Fq "\"publicKey\":\"$legacy\"" || die "$(msg trusted_key_missing)"
+      TRUSTED_PUBLIC_KEY_VALUE="$legacy"
+    else
+      TRUSTED_PUBLIC_KEY_VALUE="$(printf '%s' "$BUILTIN_UPDATE_KEYRING_JSON" | sed -nE "s/.*\"id\":\"$TRUSTED_KEY_ID_VALUE\"[^}]*\"publicKey\":\"([^\"]+)\".*/\1/p")"
+      [[ -n "$TRUSTED_PUBLIC_KEY_VALUE" ]] || die "$(msg trusted_key_missing)"
+    fi
+  fi
+}
+
 verify_release_manifest() {
   local trusted key_raw key_der key_pem signature_raw
-  trusted="$(env_value CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY)"
+  trusted="$TRUSTED_PUBLIC_KEY_VALUE"
   [[ -n "$trusted" ]] || die "$(msg trusted_key_missing)"
   key_raw="$TEMP_DIR/updater-public-key.raw"
   key_der="$TEMP_DIR/updater-public-key.der"
@@ -617,6 +858,20 @@ verify_release_manifest() {
   openssl pkeyutl -verify -pubin -inkey "$key_pem" -rawin \
     -in "$TEMP_DIR/update-manifest-v1.json" -sigfile "$signature_raw" >/dev/null 2>&1 ||
     die "$(msg signature_invalid)"
+  local sums_signature_raw="$TEMP_DIR/SHA256SUMS.sig.raw"
+  printf '%s' "$(tr -d '[:space:]' <"$TEMP_DIR/SHA256SUMS.sig")" | base64 --decode >"$sums_signature_raw" 2>/dev/null || die "$(msg signature_base64)"
+  openssl pkeyutl -verify -pubin -inkey "$key_pem" -rawin \
+    -in "$TEMP_DIR/SHA256SUMS" -sigfile "$sums_signature_raw" >/dev/null 2>&1 ||
+    die "$(msg signature_invalid)"
+  local manifest_channel
+  manifest_channel="$(manifest_value channel)"
+  [[ "$manifest_channel" == "$CHANNEL_INPUT" || ( "$CHANNEL_INPUT" == "rc" && "$manifest_channel" == "stable" ) ]] || die "manifest channel does not match requested channel"
+  [[ "$(manifest_value version)" == "$RELEASE_VERSION" ]] || die "manifest version does not match requested release tag"
+  [[ "$(manifest_value signingKeyId)" == "$TRUSTED_KEY_ID_VALUE" ]] || die "manifest signing key id is not trusted"
+  MANIFEST_WEB_IMAGE="$(manifest_value webImage)"
+  MANIFEST_RUNTIME_IMAGE="$(manifest_value runtimeImage)"
+  [[ "$MANIFEST_WEB_IMAGE" =~ ^ghcr\.io/flightdan/crewqual-web@sha256:[a-f0-9]{64}$ ]] || die "manifest webImage is not an official digest"
+  [[ "$MANIFEST_RUNTIME_IMAGE" =~ ^ghcr\.io/flightdan/crewqual-runtime@sha256:[a-f0-9]{64}$ ]] || die "manifest runtimeImage is not an official digest"
   local compose_expected caddy_expected
   compose_expected="$(manifest_value composeSha256)"
   caddy_expected="$(manifest_value caddySha256)"
@@ -634,10 +889,12 @@ verify_release_manifest() {
     [[ "$(sha256sum "$TEMP_DIR/configure-domain.sh" | awk '{print $1}')" == "$network_expected" ]] ||
       die "$(msg configure_sha_failed)"
   fi
+  [[ "$(manifest_value composeUrl)" == "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/docker-compose.install.yml" ]] || die "manifest compose URL is not the expected release asset"
+  [[ "$(manifest_value caddyUrl)" == "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/Caddyfile" ]] || die "manifest Caddy URL is not the expected release asset"
+  [[ "$(manifest_value configureDomainUrl)" == "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/configure-domain.sh" ]] || die "manifest configure-domain URL is not the expected release asset"
 }
 
 download_release_files() {
-  local raw_base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${RELEASE_VERSION}"
   local release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}"
   TEMP_DIR="$(mktemp -d)"
   log "$(msg download_manifest "$RELEASE_VERSION")"
@@ -646,18 +903,22 @@ download_release_files() {
   curl -fsSL --retry 3 --retry-all-errors \
     "$release_base/update-manifest-v1.json.sig" -o "$TEMP_DIR/update-manifest-v1.sig"
   curl -fsSL --retry 3 --retry-all-errors \
-    "$raw_base/docker-compose.install.yml" -o "$TEMP_DIR/compose.yaml"
+    "$release_base/SHA256SUMS" -o "$TEMP_DIR/SHA256SUMS"
   curl -fsSL --retry 3 --retry-all-errors \
-    "$raw_base/Caddyfile" -o "$TEMP_DIR/Caddyfile"
+    "$release_base/SHA256SUMS.sig" -o "$TEMP_DIR/SHA256SUMS.sig"
+  curl -fsSL --retry 3 --retry-all-errors \
+    "$release_base/docker-compose.install.yml" -o "$TEMP_DIR/compose.yaml"
+  curl -fsSL --retry 3 --retry-all-errors \
+    "$release_base/Caddyfile" -o "$TEMP_DIR/Caddyfile"
   if [[ -n "$(manifest_value configureDomainSha256)" ]]; then
     curl -fsSL --retry 3 --retry-all-errors \
-      "$raw_base/scripts/configure-domain.sh" -o "$TEMP_DIR/configure-domain.sh"
+      "$release_base/configure-domain.sh" -o "$TEMP_DIR/configure-domain.sh"
   fi
   [[ -s "$TEMP_DIR/compose.yaml" && -s "$TEMP_DIR/Caddyfile" ]] || die "$(msg deployment_empty)"
 }
 
 write_initial_env() {
-  local postgres_password session_secret settings_key minio_user minio_password updater_secret backup_key network_secret trusted_public_key setup_auth_code setup_auth_hash setup_auth_random
+  local postgres_password session_secret settings_key minio_user minio_password updater_secret backup_key network_secret setup_auth_code setup_auth_hash setup_auth_random
   postgres_password="$(openssl rand -hex 32)"
   session_secret="$(openssl rand -hex 48)"
   settings_key="$(openssl rand -hex 32)"
@@ -670,14 +931,13 @@ write_initial_env() {
   setup_auth_code="$(printf '%08d' "$((16#$setup_auth_random % 100000000))")"
   setup_auth_hash="$(printf '%s' "$setup_auth_code" | sha256sum | awk '{print $1}')"
   SETUP_AUTH_CODE_DISPLAY="$setup_auth_code"
-  trusted_public_key="${CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY:-}"
-  [[ -n "$trusted_public_key" ]] || die "$(msg trusted_key_required)"
+  [[ -n "$TRUSTED_PUBLIC_KEY_VALUE" ]] || die "$(msg trusted_key_required)"
 
   umask 077
   {
     printf "CREWQUAL_VERSION='%s'\n" "$RELEASE_VERSION"
-    printf "CREWQUAL_WEB_IMAGE='ghcr.io/flightdan/crewqual-web:%s'\nCREWQUAL_RUNTIME_IMAGE='ghcr.io/flightdan/crewqual-runtime:%s'\n" "$RELEASE_VERSION" "$RELEASE_VERSION"
-    printf "CREWQUAL_UPDATER_SOCKET='/run/crewqual-updater/api.sock'\nCREWQUAL_UPDATER_SHARED_SECRET='%s'\nCREWQUAL_UPDATER_BACKUP_KEY='%s'\nCREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='%s'\n" "$updater_secret" "$backup_key" "$trusted_public_key"
+    printf "CREWQUAL_WEB_IMAGE='%s'\nCREWQUAL_RUNTIME_IMAGE='%s'\n" "$MANIFEST_WEB_IMAGE" "$MANIFEST_RUNTIME_IMAGE"
+    printf "CREWQUAL_UPDATER_SOCKET='/run/crewqual-updater/api.sock'\nCREWQUAL_UPDATER_SHARED_SECRET='%s'\nCREWQUAL_UPDATER_BACKUP_KEY='%s'\n" "$updater_secret" "$backup_key"
     printf "INSTALL_LANGUAGE='%s'\n" "$LANGUAGE_INPUT"
     printf '%s\n' "NODE_ENV=production" "SERVICE_MODE=remote" "NEXT_PUBLIC_SERVICE_MODE=remote"
     printf "APP_ORIGIN='%s'\nAPP_DOMAIN='%s'\nTLS_EMAIL='%s'\n" \
@@ -723,6 +983,25 @@ ensure_env_key() {
   if ! grep -q "^${key}=" "$replacement"; then
     printf "%s='%s'\n" "$key" "$value" >>"$replacement"
   fi
+}
+
+set_env_key() {
+  local key="$1" value="$2" replacement="$TEMP_DIR/env.updated" staged="$TEMP_DIR/env.updated.next"
+  awk -v key="$key" -v value="$value" '
+    BEGIN {
+      replacement = key "=\047" value "\047"
+      replaced = 0
+    }
+    index($0, key "=") == 1 {
+      if (!replaced) print replacement
+      replaced = 1
+      next
+    }
+    { print }
+    END { if (!replaced) print replacement }
+  ' "$replacement" >"$staged"
+  mv -f -- "$staged" "$replacement"
+  chmod 600 "$replacement"
 }
 
 generate_setup_auth_code() {
@@ -802,7 +1081,7 @@ install_updater() {
     echo "$(msg systemd_missing)" >&2
     return 1
   fi
-  local arch asset_url tmp expected actual target shared backup trusted
+  local arch asset_url tmp expected actual sums_expected target shared backup trusted
   case "$(uname -m)" in
     x86_64|amd64) arch="amd64" ;;
     aarch64|arm64) arch="arm64" ;;
@@ -823,16 +1102,23 @@ install_updater() {
   [[ "$expected" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "$(msg updater_hash_missing "$arch")" >&2; return 1; }
   actual="$(sha256sum "$tmp" | awk '{print $1}')"
   [[ "$expected" =~ ^[a-fA-F0-9]{64}$ && "$expected" == "$actual" ]] || { echo "$(msg updater_checksum)" >&2; return 1; }
+  sums_expected="$(grep -E "^[a-fA-F0-9]{64}[[:space:]]+crewqual-updater-linux-${arch}$" "$TEMP_DIR/SHA256SUMS" | awk '{print $1}' | head -n 1)"
+  [[ "$sums_expected" == "$actual" ]] || { echo "$(msg updater_checksum)" >&2; return 1; }
+  "$tmp" verify-manifest --manifest "$TEMP_DIR/update-manifest-v1.json" \
+    --signature "$TEMP_DIR/update-manifest-v1.sig" --tag "$RELEASE_VERSION" >/dev/null 2>&1 || {
+    echo "$(msg signature_invalid)" >&2
+    return 1
+  }
   target="$UPDATER_BINARY_DIR/crewqual-updater"
   install -d -m 0755 "$UPDATER_BINARY_DIR" "$UPDATER_CONFIG_DIR" "$UPDATER_DATA_DIR" /run/crewqual-updater
   install -m 0755 "$tmp" "$target"
   shared="$(env_value CREWQUAL_UPDATER_SHARED_SECRET)"
   backup="$(env_value CREWQUAL_UPDATER_BACKUP_KEY)"
-  trusted="$(env_value CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY)"
+  trusted="$TRUSTED_PUBLIC_KEY_VALUE"
   [[ -n "$trusted" ]] || { echo "$(msg updater_trust_missing)" >&2; return 1; }
   umask 077
-  printf '{"installDir":"%s","dataDir":"%s","composeFile":"%s","envFile":"%s","caddyFile":"%s","socket":"/run/crewqual-updater/api.sock","sharedSecret":"%s","backupKey":"%s","trustedPublicKey":"%s","manifestURL":"https://github.com/%s/releases/latest/download/update-manifest-v1.json","updaterVersion":"%s"}\n' \
-    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$trusted" "$GITHUB_REPOSITORY" "${RELEASE_VERSION#v}" >"$UPDATER_CONFIG_DIR/config.json"
+  printf '{"installDir":"%s","dataDir":"%s","composeFile":"%s","envFile":"%s","caddyFile":"%s","socket":"/run/crewqual-updater/api.sock","sharedSecret":"%s","backupKey":"%s","channel":"%s","releaseAPIURL":"https://api.github.com/repos/%s/releases","trustedPublicKeys":[{"id":"%s","publicKey":"%s","status":"active"}],"updaterVersion":"%s"}\n' \
+    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$CHANNEL_INPUT" "$GITHUB_REPOSITORY" "$TRUSTED_KEY_ID_VALUE" "$trusted" "${RELEASE_VERSION#v}" >"$UPDATER_CONFIG_DIR/config.json"
   chmod 600 "$UPDATER_CONFIG_DIR/config.json"
   cat >"$UPDATER_CONFIG_DIR/crewqual-updater.service" <<EOF
 [Unit]
@@ -884,6 +1170,12 @@ while (($# > 0)); do
       RELEASE_VERSION="$2"
       shift 2
       ;;
+    --channel)
+      (($# >= 2)) || die "$(msg missing_option_value --channel)"
+      CHANNEL_INPUT="$2"
+      validate_channel "$CHANNEL_INPUT"
+      shift 2
+      ;;
     --domain)
       (($# >= 2)) || die "$(msg missing_option_value --domain)"
       APP_DOMAIN_INPUT="$2"
@@ -904,6 +1196,11 @@ while (($# > 0)); do
       LAN_ADDRESS_INPUT="$2"
       shift 2
       ;;
+    --public-address)
+      (($# >= 2)) || die "$(msg missing_option_value --public-address)"
+      PUBLIC_ADDRESS_INPUT="$2"
+      shift 2
+      ;;
     --port)
       (($# >= 2)) || die "$(msg missing_option_value --port)"
       APP_PORT_INPUT="$2"
@@ -918,6 +1215,10 @@ while (($# > 0)); do
       (($# >= 2)) || die "$(msg missing_option_value --language)"
       LANGUAGE_INPUT="$2"
       shift 2
+      ;;
+    --install-docker)
+      AUTO_INSTALL_DOCKER=1
+      shift
       ;;
     --non-interactive)
       NON_INTERACTIVE=1
@@ -950,7 +1251,6 @@ fi
 [[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
 
 require_command curl
-require_command docker
 require_command openssl
 require_command awk
 require_command sed
@@ -960,15 +1260,18 @@ require_command sha256sum
 require_command base64
 require_command xxd
 require_command hostname
+require_command grep
 
-docker info >/dev/null 2>&1 || die "$(msg compose_unavailable)"
-docker compose version >/dev/null 2>&1 || die "$(msg compose_plugin_missing)"
+ensure_docker_engine
+ensure_compose_plugin
 
 trap cleanup EXIT
 trap on_error ERR
 
 resolve_release_version
 download_release_files
+resolve_trusted_public_key
+verify_release_manifest
 
 mkdir -p -- "$INSTALL_DIR"
 if [[ ! -e "$INSTALL_DIR/.crewqual-official-install" ]]; then
@@ -1013,8 +1316,14 @@ if [[ -f "$ENV_FILE" ]]; then
   if [[ "$existing_mode" == "tls" ]]; then
     validate_domain "$APP_DOMAIN_INPUT"
     validate_email "$TLS_EMAIL_INPUT"
-  else
+  elif [[ "$existing_mode" == "lan" ]]; then
     validate_lan_address "$(printf '%s' "$APP_ORIGIN_VALUE" | sed -E 's#^http://([^:]+):.*#\1#')"
+  elif [[ "$existing_mode" == "http" ]]; then
+    validate_public_address "$APP_DOMAIN_INPUT"
+    [[ "$APP_ORIGIN_VALUE" == "http://${APP_DOMAIN_INPUT}:"* ]] ||
+      die "$(msg public_address_invalid "$APP_DOMAIN_INPUT")"
+  else
+    die "$(msg network_invalid)"
   fi
   update_managed_version
 else
@@ -1022,18 +1331,22 @@ else
   write_initial_env
 fi
 
-# Older official installs predate the updater/image variables. Add only missing
-# keys and never replace existing secrets or user-managed image references.
+# Older official installs may contain mutable official tags. Replace those with
+# the signed digest, but refuse to silently take ownership of custom images.
 if [[ -f "$TEMP_DIR/env.updated" ]]; then
-  ensure_env_key CREWQUAL_WEB_IMAGE "ghcr.io/flightdan/crewqual-web:${RELEASE_VERSION}"
-  ensure_env_key CREWQUAL_RUNTIME_IMAGE "ghcr.io/flightdan/crewqual-runtime:${RELEASE_VERSION}"
+  existing_web_image="$(env_value CREWQUAL_WEB_IMAGE)"
+  existing_runtime_image="$(env_value CREWQUAL_RUNTIME_IMAGE)"
+  if [[ -n "$existing_web_image" && ! "$existing_web_image" =~ ^ghcr\.io/flightdan/crewqual-web(@sha256:[a-f0-9]{64}|:[A-Za-z0-9._-]+)$ ]]; then
+    die "existing CREWQUAL_WEB_IMAGE is custom; handle it explicitly before installing a signed release"
+  fi
+  if [[ -n "$existing_runtime_image" && ! "$existing_runtime_image" =~ ^ghcr\.io/flightdan/crewqual-runtime(@sha256:[a-f0-9]{64}|:[A-Za-z0-9._-]+)$ ]]; then
+    die "existing CREWQUAL_RUNTIME_IMAGE is custom; handle it explicitly before installing a signed release"
+  fi
+  set_env_key CREWQUAL_WEB_IMAGE "$MANIFEST_WEB_IMAGE"
+  set_env_key CREWQUAL_RUNTIME_IMAGE "$MANIFEST_RUNTIME_IMAGE"
   ensure_env_key CREWQUAL_UPDATER_SOCKET "/run/crewqual-updater/api.sock"
   [[ -n "$(env_value CREWQUAL_UPDATER_SHARED_SECRET)" ]] || ensure_env_key CREWQUAL_UPDATER_SHARED_SECRET "$(openssl rand -hex 32)"
   [[ -n "$(env_value CREWQUAL_UPDATER_BACKUP_KEY)" ]] || ensure_env_key CREWQUAL_UPDATER_BACKUP_KEY "$(openssl rand -hex 32)"
-  [[ -n "$(env_value CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY)" ]] || {
-    [[ -n "${CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY:-}" ]] || die "$(msg deployment_unsigned)"
-  ensure_env_key CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY "$CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY"
-  }
   ensure_env_key INSTALL_LANGUAGE "$LANGUAGE_INPUT"
   ensure_env_key DEPLOYMENT_NETWORK_MODE "$NETWORK_MODE_INPUT"
   ensure_env_key APP_PORT "$APP_PORT_INPUT"
@@ -1048,8 +1361,6 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   [[ -n "$(env_value SETUP_AUTH_CODE_HASH)" ]] || generate_setup_auth_code
 fi
 
-verify_release_manifest
-
 log "$(msg validate_manifest "$RELEASE_VERSION")"
 docker compose --project-directory "$TEMP_DIR" --env-file "$TEMP_DIR/env.updated" \
   -f "$TEMP_DIR/compose.yaml" config --quiet
@@ -1060,14 +1371,15 @@ if [[ "$EXISTING_INSTALL" == "1" ]]; then
   create_upgrade_database_backup
 fi
 
+# Deliver and strictly verify the updater before changing managed deployment
+# files. Its verify-manifest command is the authoritative JSON parser.
+install_updater
 atomic_install "$TEMP_DIR/env.updated" "$ENV_FILE" 0600
 atomic_install "$TEMP_DIR/compose.yaml" "$COMPOSE_FILE" 0644
 atomic_install "$TEMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile" 0644
 if [[ -s "$TEMP_DIR/configure-domain.sh" ]]; then
   atomic_install "$TEMP_DIR/configure-domain.sh" "$INSTALL_DIR/configure-domain.sh" 0755
 fi
-
-install_updater
 
 if ((PULL_IMAGES)); then
   log "$(msg pull_images "$RELEASE_VERSION")"
@@ -1103,6 +1415,9 @@ echo
 if [[ -n "$SETUP_AUTH_CODE_DISPLAY" ]]; then
   echo "$(msg setup_auth_code "$SETUP_AUTH_CODE_DISPLAY")"
   echo "$(msg setup_auth_warning)"
+fi
+if [[ "$NETWORK_MODE_INPUT" == "http" ]]; then
+  echo "$(msg public_http_postinstall)" >&2
 fi
 echo "$(msg welcome "${APP_ORIGIN_VALUE}")"
 echo "$(msg install_dir "$INSTALL_DIR")"

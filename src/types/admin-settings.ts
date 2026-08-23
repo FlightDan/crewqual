@@ -154,7 +154,7 @@ export type AiIntegrationSetting = {
 };
 
 export type SecurityPolicy = {
-  networkMode: "lan" | "tls";
+  networkMode: "lan" | "http" | "tls";
   appOrigin: string;
   appPort: number;
   adminLoginMode: AdminLoginMode;

@@ -54,7 +54,7 @@ export type NetworkJobStatus = {
 };
 
 export type NetworkApplyInput = {
-  mode: "lan" | "tls";
+  mode: "lan" | "http" | "tls";
   origin: string;
   domain: string;
   tlsEmail: string;

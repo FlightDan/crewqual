@@ -123,7 +123,7 @@ const integrationSchema = z.object({
 });
 
 const securitySchema = z.object({
-  networkMode: z.enum(["lan", "tls"]).optional(),
+  networkMode: z.enum(["lan", "http", "tls"]).optional(),
   appOrigin: z.string().url().optional(),
   appPort: z.number().int().min(1).max(65535).optional(),
   adminLoginMode: z.enum(["PASSWORD_TOTP", "TOTP_ONLY", "PASSWORD_ONLY"]),
@@ -482,7 +482,7 @@ async function loadSnapshot(
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
-    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE === "tls",
+    allowPublicAccess: config.DEPLOYMENT_NETWORK_MODE !== "lan",
     version: 1,
   };
   const actorIds = [
@@ -1245,10 +1245,10 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       const requestedPublicAccess =
         input.allowPublicAccess ??
         current?.allowPublicAccess ??
-        config.DEPLOYMENT_NETWORK_MODE === "tls";
+        config.DEPLOYMENT_NETWORK_MODE !== "lan";
       const networkChanged = requestedPort !== config.APP_PORT;
       const accessChanged =
-        (current?.allowPublicAccess ?? config.DEPLOYMENT_NETWORK_MODE === "tls") !==
+        (current?.allowPublicAccess ?? config.DEPLOYMENT_NETWORK_MODE !== "lan") !==
         requestedPublicAccess;
       if (networkChanged && accessChanged) {
         throw new ApiError(
@@ -1308,7 +1308,7 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         const origin = new URL(config.APP_ORIGIN);
         origin.port = String(requestedPort);
         const siteAddress =
-          config.DEPLOYMENT_NETWORK_MODE === "lan"
+          config.DEPLOYMENT_NETWORK_MODE === "lan" || config.DEPLOYMENT_NETWORK_MODE === "http"
             ? `http://:${requestedPort}`
             : `${config.APP_DOMAIN}${requestedPort === 443 ? "" : `:${requestedPort}`}`;
         await requestNetworkApply({

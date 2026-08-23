@@ -91,12 +91,17 @@ describe("deployment configuration", () => {
 
   it("keeps the public installer versioned, pipe-safe, and volume-preserving", () => {
     expect(installer).toContain("/releases/latest");
+    expect(installer).toContain("--channel CHANNEL");
     expect(installer).toContain("/dev/tty");
     expect(installer).toContain('DEFAULT_INSTALL_DIR="/opt/crewqual"');
     expect(installer).toContain(
-      "raw.githubusercontent.com/${GITHUB_REPOSITORY}/${RELEASE_VERSION}",
+      "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}",
     );
     expect(installer).toContain("atomic_install");
+    expect(installer).toContain("是否仅允许局域网访问？[Y/n]");
+    expect(installer).toContain("--public-address HOST");
+    expect(installer).toContain('NETWORK_MODE_INPUT="http"');
+    expect(installer).toContain("public_http_warning");
     expect(installer).not.toMatch(/^\s*(compose|docker compose)\s+down\s+-v/m);
     expect(installer).not.toMatch(/^\s*docker\s+volume\s+(rm|prune)/m);
   });

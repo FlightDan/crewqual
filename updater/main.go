@@ -9,14 +9,13 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -25,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,23 +40,27 @@ const (
 )
 
 type Config struct {
-	InstallDir       string `json:"installDir"`
-	DataDir          string `json:"dataDir"`
-	ComposeFile      string `json:"composeFile"`
-	EnvFile          string `json:"envFile"`
-	CaddyFile        string `json:"caddyFile"`
-	Socket           string `json:"socket"`
-	SharedSecret     string `json:"sharedSecret"`
-	BackupKey        string `json:"backupKey"`
-	TrustedPublicKey string `json:"trustedPublicKey"`
-	ManifestURL      string `json:"manifestURL"`
-	UpdaterVersion   string `json:"updaterVersion"`
+	InstallDir        string             `json:"installDir"`
+	DataDir           string             `json:"dataDir"`
+	ComposeFile       string             `json:"composeFile"`
+	EnvFile           string             `json:"envFile"`
+	CaddyFile         string             `json:"caddyFile"`
+	Socket            string             `json:"socket"`
+	SharedSecret      string             `json:"sharedSecret"`
+	BackupKey         string             `json:"backupKey"`
+	Channel           string             `json:"channel"`
+	ReleaseAPIURL     string             `json:"releaseAPIURL"`
+	TrustedPublicKeys []TrustedPublicKey `json:"trustedPublicKeys"`
+	TrustedPublicKey  string             `json:"trustedPublicKey"`
+	ManifestURL       string             `json:"manifestURL"`
+	UpdaterVersion    string             `json:"updaterVersion"`
 }
 
 type Manifest struct {
 	SchemaVersion         int    `json:"schemaVersion"`
 	Version               string `json:"version"`
 	Channel               string `json:"channel"`
+	SigningKeyID          string `json:"signingKeyId"`
 	PublishedAt           string `json:"publishedAt"`
 	ReleaseNotesURL       string `json:"releaseNotesUrl"`
 	ComposeURL            string `json:"composeUrl"`
@@ -70,8 +72,10 @@ type Manifest struct {
 	WebImage              string `json:"webImage"`
 	RuntimeImage          string `json:"runtimeImage"`
 	Updater               struct {
-		AMD64 string `json:"amd64"`
-		ARM64 string `json:"arm64"`
+		AMD64    string `json:"amd64"`
+		ARM64    string `json:"arm64"`
+		AMD64URL string `json:"amd64Url"`
+		ARM64URL string `json:"arm64Url"`
 	} `json:"updater"`
 	MinimumVersion  string `json:"minimumVersion"`
 	MigrationPolicy string `json:"migrationPolicy"`
@@ -144,9 +148,13 @@ type envelope struct {
 	Error string `json:"error,omitempty"`
 }
 
-var versionPattern = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)$`)
+var versionPattern = exactVersionPattern
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "verify-manifest" {
+		fatal(verifyManifestCommand(os.Args[2:]))
+		return
+	}
 	cfgPath := os.Getenv("CREWQUAL_UPDATER_CONFIG")
 	if cfgPath == "" {
 		cfgPath = "/etc/crewqual-updater/config.json"
@@ -172,8 +180,46 @@ func main() {
 	case "status":
 		fatal(writeJSON(os.Stdout, app.status()))
 	default:
-		fatal(fmt.Errorf("usage: crewqual-updater [serve|check|status]"))
+		fatal(fmt.Errorf("usage: crewqual-updater [serve|check|status|verify-manifest]"))
 	}
+}
+
+func verifyManifestCommand(args []string) error {
+	flags := flag.NewFlagSet("verify-manifest", flag.ContinueOnError)
+	manifestPath := flags.String("manifest", "", "manifest JSON path")
+	signaturePath := flags.String("signature", "", "manifest signature path")
+	expectedTag := flags.String("tag", "", "expected release tag")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *manifestPath == "" || *signaturePath == "" {
+		return errors.New("verify-manifest requires --manifest and --signature")
+	}
+	keys, err := builtinTrustedKeys()
+	if err != nil {
+		return err
+	}
+	if os.Getenv("CREWQUAL_INSTALL_TEST_MODE") == "1" {
+		if testKey := os.Getenv("CREWQUAL_TEST_TRUSTED_PUBLIC_KEY"); testKey != "" {
+			keys = []TrustedPublicKey{{ID: os.Getenv("CREWQUAL_TEST_KEY_ID"), PublicKey: testKey, Status: "active"}}
+			if keys[0].ID == "" {
+				keys[0].ID = "test-ed25519"
+			}
+		}
+	}
+	raw, err := os.ReadFile(*manifestPath)
+	if err != nil {
+		return err
+	}
+	signature, err := os.ReadFile(*signaturePath)
+	if err != nil {
+		return err
+	}
+	manifest, err := verifyManifestBytes(raw, signature, keys, *expectedTag)
+	if err != nil {
+		return err
+	}
+	return writeJSON(os.Stdout, manifest)
 }
 
 func fatal(err error) {
@@ -206,6 +252,43 @@ func loadConfig(path string) (Config, error) {
 	}
 	if cfg.UpdaterVersion == "" {
 		cfg.UpdaterVersion = "0.1.0"
+	}
+	if cfg.Channel == "" {
+		cfg.Channel = "stable"
+	}
+	if cfg.Channel != "stable" && cfg.Channel != "rc" {
+		return Config{}, errors.New("updater channel must be stable or rc")
+	}
+	if cfg.ReleaseAPIURL == "" {
+		cfg.ReleaseAPIURL = "https://api.github.com/repos/" + officialRepository + "/releases"
+	}
+	if len(cfg.TrustedPublicKeys) == 0 {
+		builtin, keyringErr := builtinTrustedKeys()
+		if keyringErr != nil {
+			return Config{}, keyringErr
+		}
+		if cfg.TrustedPublicKey != "" {
+			matched := false
+			for _, key := range builtin {
+				if key.PublicKey == cfg.TrustedPublicKey && key.Status != "retired" {
+					cfg.TrustedPublicKeys = []TrustedPublicKey{key}
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				return Config{}, errors.New("legacy trustedPublicKey is not present in the built-in keyring")
+			}
+		} else {
+			cfg.TrustedPublicKeys = builtin
+		}
+	}
+	keyringRaw, err := json.Marshal(keyringDocument{SchemaVersion: 1, Keys: cfg.TrustedPublicKeys})
+	if err != nil {
+		return Config{}, err
+	}
+	if _, err := loadKeyring(keyringRaw); err != nil {
+		return Config{}, fmt.Errorf("invalid updater trustedPublicKeys: %w", err)
 	}
 	return cfg, nil
 }
@@ -479,8 +562,8 @@ func jobDone(job *Job) bool {
 }
 
 func validateNetworkInput(input NetworkInput) error {
-	if input.Mode != "lan" && input.Mode != "tls" {
-		return errors.New("network mode must be lan or tls")
+	if input.Mode != "lan" && input.Mode != "http" && input.Mode != "tls" {
+		return errors.New("network mode must be lan, http, or tls")
 	}
 	if input.Port < 1 || input.Port > 65535 || input.Port == 80 {
 		return errors.New("application port must be 1-65535 and cannot be 80")
@@ -492,8 +575,8 @@ func validateNetworkInput(input NetworkInput) error {
 	if input.Mode == "tls" && parsed.Scheme != "https" {
 		return errors.New("TLS mode requires an HTTPS origin")
 	}
-	if input.Mode == "lan" && parsed.Scheme != "http" {
-		return errors.New("LAN mode requires an HTTP origin")
+	if (input.Mode == "lan" || input.Mode == "http") && parsed.Scheme != "http" {
+		return errors.New("LAN and public HTTP modes require an HTTP origin")
 	}
 	if input.Mode == "lan" {
 		ip := net.ParseIP(parsed.Hostname())
@@ -638,30 +721,24 @@ func (a *App) statusWithManifest(m *Manifest) map[string]any {
 }
 
 func (a *App) check() (*Manifest, error) {
-	if a.cfg.ManifestURL == "" {
-		return nil, errors.New("manifest URL is not configured")
-	}
-	resp, err := http.Get(a.cfg.ManifestURL)
+	manifestURL, expectedTag, err := resolveManifestRelease(a.cfg)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("manifest request returned %s", resp.Status)
-	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
+	raw, err := newReleaseHTTPClient().get(manifestURL, 2*1024*1024)
 	if err != nil {
 		return nil, err
 	}
-	var manifest Manifest
-	if err := json.Unmarshal(raw, &manifest); err != nil {
+	signature, err := newReleaseHTTPClient().get(manifestURL+".sig", 4096)
+	if err != nil {
 		return nil, err
 	}
-	if err := validateManifest(manifest); err != nil {
+	manifest, err := verifyManifestBytes(raw, signature, a.cfg.TrustedPublicKeys, expectedTag)
+	if err != nil {
 		return nil, err
 	}
-	if err := a.verifyManifest(raw); err != nil {
-		return nil, err
+	if a.cfg.Channel == "stable" && manifest.Channel != "stable" {
+		return nil, errors.New("stable updater channel refuses a release candidate")
 	}
 	a.stateMu.Lock()
 	a.manifest, a.manifestRaw = &manifest, raw
@@ -670,59 +747,6 @@ func (a *App) check() (*Manifest, error) {
 	_ = a.saveState()
 	a.stateMu.Unlock()
 	return &manifest, nil
-}
-
-func validateManifest(m Manifest) error {
-	sha256Pattern := regexp.MustCompile(`^[a-f0-9]{64}$`)
-	if m.SchemaVersion != 1 || m.Channel != "stable" || !versionPattern.MatchString(m.Version) || m.WebImage == "" || m.RuntimeImage == "" || m.ComposeURL == "" || m.CaddyURL == "" || !sha256Pattern.MatchString(m.ComposeSHA256) || !sha256Pattern.MatchString(m.CaddySHA256) || !sha256Pattern.MatchString(m.Updater.AMD64) || !sha256Pattern.MatchString(m.Updater.ARM64) {
-		return errors.New("invalid release manifest")
-	}
-	if m.MigrationPolicy != "backward-compatible" && m.MigrationPolicy != "manual-required" {
-		return errors.New("unsupported migration policy")
-	}
-	for _, rawURL := range []string{m.ComposeURL, m.CaddyURL} {
-		if !strings.HasPrefix(rawURL, "https://") {
-			return errors.New("release files must use HTTPS")
-		}
-	}
-	if (m.ConfigureDomainURL == "") != (m.ConfigureDomainSHA256 == "") {
-		return errors.New("configure-domain.sh URL and checksum must be provided together")
-	}
-	if m.ConfigureDomainURL != "" {
-		if !strings.HasPrefix(m.ConfigureDomainURL, "https://") || !sha256Pattern.MatchString(m.ConfigureDomainSHA256) {
-			return errors.New("invalid configure-domain.sh release metadata")
-		}
-	}
-	for _, image := range []string{m.WebImage, m.RuntimeImage} {
-		if !strings.Contains(image, "@sha256:") || !regexp.MustCompile(`@sha256:[a-f0-9]{64}$`).MatchString(image) {
-			return errors.New("release images must use complete sha256 digests")
-		}
-	}
-	return nil
-}
-
-func (a *App) verifyManifest(raw []byte) error {
-	if a.cfg.TrustedPublicKey == "" {
-		return errors.New("release signing key is not configured")
-	}
-	public, err := base64.StdEncoding.DecodeString(a.cfg.TrustedPublicKey)
-	if err != nil || len(public) != ed25519.PublicKeySize {
-		return errors.New("invalid release signing key")
-	}
-	resp, err := http.Get(a.cfg.ManifestURL + ".sig")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	sigText, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	if err != nil || resp.StatusCode != 200 {
-		return errors.New("release signature unavailable")
-	}
-	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(sigText)))
-	if err != nil || !ed25519.Verify(ed25519.PublicKey(public), raw, sig) {
-		return errors.New("release manifest signature verification failed")
-	}
-	return nil
 }
 
 func (a *App) run(job *Job, manifest Manifest) {
@@ -1133,20 +1157,16 @@ func updateEnv(input string, values map[string]string) string {
 }
 
 func downloadAndHash(url, destination, expected string) error {
-	response, err := http.Get(url)
+	body, err := newReleaseHTTPClient().get(url, 128*1024*1024)
 	if err != nil {
 		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		return fmt.Errorf("download returned %s", response.Status)
 	}
 	out, err := os.Create(destination)
 	if err != nil {
 		return err
 	}
 	hash := sha256.New()
-	_, copyErr := io.Copy(io.MultiWriter(out, hash), response.Body)
+	_, copyErr := io.Copy(io.MultiWriter(out, hash), bytes.NewReader(body))
 	closeErr := out.Close()
 	if copyErr != nil {
 		return copyErr
@@ -1188,23 +1208,7 @@ func validateManagedPath(path string) error {
 }
 
 func compareVersion(left, right string) int {
-	parse := func(value string) [3]int {
-		match := versionPattern.FindStringSubmatch(value)
-		if match == nil {
-			return [3]int{}
-		}
-		return [3]int{mustInt(match[1]), mustInt(match[2]), mustInt(match[3])}
-	}
-	a, b := parse(left), parse(right)
-	for i := range a {
-		if a[i] < b[i] {
-			return -1
-		}
-		if a[i] > b[i] {
-			return 1
-		}
-	}
-	return 0
+	return compareSemVer(left, right)
 }
 
 func mustInt(value string) int { result, _ := strconv.Atoi(value); return result }

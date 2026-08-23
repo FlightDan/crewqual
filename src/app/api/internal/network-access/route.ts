@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const policy = await getPrisma().securityPolicy.findUnique({ where: { id: "global" } });
     const allowed =
-      policy?.allowPublicAccess ?? getServerConfig().DEPLOYMENT_NETWORK_MODE === "tls";
+      policy?.allowPublicAccess ?? getServerConfig().DEPLOYMENT_NETWORK_MODE !== "lan";
     return new NextResponse(null, {
       status: allowed ? 204 : 403,
       headers: { "cache-control": "no-store" },

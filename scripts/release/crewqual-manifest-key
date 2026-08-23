@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+exec node --import tsx /root/crewqual/scripts/release/manage-manifest-key.ts \
+  "$@" \
+  --repo /root/crewqual \
+  --key-dir /root/crewqual-release-keys

@@ -1,150 +1,175 @@
-# CrewQual
+<div align="center">
+  <h1>CrewQual</h1>
+  <p><strong>自托管的人员资质与合规管理平台</strong></p>
+  <p>把资质台账、到期预警、材料提交、AI 辅助核验、人工审核与升级计划放进同一个可追溯闭环。</p>
+  <p>
+    <img alt="License: AGPL-3.0-only" src="https://img.shields.io/badge/license-AGPL--3.0--only-2563eb.svg">
+    <img alt="Self-hosted" src="https://img.shields.io/badge/deployment-self--hosted-0f766e.svg">
+    <img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ed.svg">
+    <img alt="Chinese and English" src="https://img.shields.io/badge/i18n-中文%20%7C%20English-7c3aed.svg">
+  </p>
+  <p><kbd><strong>简体中文</strong></kbd> · <a href="./README.en.md"><kbd>English</kbd></a></p>
+  <p><a href="#快速开始">Quick Start</a> · <a href="#saas-与企业服务">SaaS 与企业服务</a></p>
+</div>
 
-CrewQual is a modern, self-hosted personnel qualification and compliance management platform.
-It is designed for aviation organizations and other teams that need to continuously manage licenses, training, expiration dates, and progression plans.
-CrewQual brings personnel qualifications, expiration alerts, document submissions, assisted verification, manual review, and progression plans together in one traceable and auditable workflow.
+<p align="center">
+  <img src="./docs/images/readme/admin-dashboard.png" alt="CrewQual 管理员总览" width="50%">
+</p>
 
-## Features
+> 截图不包含任何真实人员信息。
 
-- **Member portal**: Members can use a mobile device to view their qualifications, expiration dates, and alerts, then upload evidence or submit qualification update requests.
-- **Member and position management**: Maintain personnel, organizational, and position relationships, and assign qualification requirements by position.
-- **Qualification rules**: Configure qualification types, validity periods, reminder rules, and applicable positions.
-- **Review workspace**: Process qualification updates submitted by members, combining document recognition, rule validation, and manual review before records take effect.
-- **Calendar and alerts**: View upcoming qualification expirations, planned checks, and other key milestones in one place.
-- **Progression plans**: Configure advancement goals, assessment items, time windows, and stage-based tasks.
-- **Notification center**: Send configurable notifications for qualification expirations, review results, and plan milestones.
-- **Security and permissions**: Role-based permissions, access control, and audit logging for critical business operations.
-- **Operations**: Docker Compose deployment, health checks, asynchronous jobs, object storage, and backup and restore support.
+## 一套完整的资质管理闭环
 
-## Why CrewQual
+CrewQual 是一款现代化可私有部署的人员资质与合规管理平台。
 
-- **Designed around the complete lifecycle**: Expiration reminders, member submissions, document recognition, final manual review, and record activation are handled in one system.
-- **Human decisions remain in control**: AI/OCR reduces data-entry and verification effort, while final approval always remains with an authorized administrator.
-- **Adaptable to different positions**: Positions, qualification requirements, reminder rules, and progression paths are configurable.
-- **Built for mobile and desktop**: The member portal is optimized for mobile use, while the administration console supports both desktop and mobile workflows.
-- **Self-hosted and data-controlled**: Business data is stored in PostgreSQL, while qualification images can be stored in private S3-compatible storage and deployed in an organization-controlled environment.
-- **Auditable and recoverable**: Critical actions are logged, with support for asynchronous jobs, health checks, backup, and recovery.
+面向航空及其他需要持续管理证照、培训、有效期与晋级计划的组织。
 
-## CrewQual vs. Multidimensional Table Tools
+它将人员资质、到期预警、材料提交、辅助校验、人工审核和升级计划整合到统一、可追踪、可审计的工作流中。
 
-CrewQual is a better fit when qualification compliance is a long-term, business-critical process that needs systematic management.
+| 管理侧 | 成员侧 | 平台能力 |
+| --- | --- | --- |
+| 资质与岗位规则配置 | 移动端资质查询 | Docker Compose 自托管 |
+| 到期预警与统一日历 | 凭证拍摄或上传 | PostgreSQL 与私有对象存储 |
+| AI 辅助核验与人工审核 | 到期日识别与手动修正 | 权限控制、操作审计|
+| 档案维护与升级计划 | 进度与临期提醒 | 健康检查、备份与恢复 |
 
-- **A ready-to-use business model**: Personnel, positions, qualifications, expiration dates, review records, and progression plans are built in, so you do not need to design a complex table structure from scratch.
-- **A complete qualification lifecycle**: Cover document submission, AI-assisted verification, manual review, record activation, expiration alerts, and notifications.
-- **Stronger business constraints**: Qualification statuses, rule versions, evidence ownership, and review permissions are enforced consistently by the system, reducing accidental changes, missing configuration, and inconsistent rules.
-- **Dedicated experiences for different roles**: Members use a mobile portal for queries and submissions, while administrators use a workspace for reviews and risk management instead of sharing one complex table.
-- **Business-level auditability**: Record not only who changed which field, but also review decisions, the rules used, evidence, and complete state transitions.
-- **Independent deployment and data control**: Self-host CrewQual and control the database, qualification files, backup policies, and external-service integrations.
-- **Deep customization**: Customize the system in code to match an organization’s position structure, qualification rules, progression paths, and approval policies.
+## 产品界面
 
-For organizations with few personnel, simple rules, and no need for complex review or audit capabilities, a multidimensional table tool may be sufficient.
-CrewQual is intended for organizations where qualification management is becoming a long-term, standardized business process.
+<p><strong>人工审核工作台</strong></p>
 
-## Quick Start
+<p align="center">
+  <img src="./docs/images/readme/qualification-review.png" alt="CrewQual 人工资质审核工作台" width="50%">
+</p>
 
-On a Linux host with Docker Engine and Docker Compose v2 installed, run the installer. On first installation, you will choose a language and then choose between **LAN testing** and **Configure TLS now**. LAN mode does not require a domain or TLS email address, uses port `8080` by default, and only allows private-network sources. You can also set the installer language with `--language zh|en` or `CREWQUAL_INSTALL_LANGUAGE`.
+<p><sub>并排核对凭证、成员提交字段、AI 辅助结果与当前生效记录；最终决定始终由授权管理员作出。</sub></p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>用户侧上传证照</strong><br><br>
+      <p align="center"><img src="./docs/images/readme/member-credential-upload-mobile.png" alt="CrewQual 用户侧上传并复核证照" width="50%"></p>
+      <br><sub>证照上传后自动识别日期，用户可复核、修正并提交更新；AI 不可用时也能继续手动填写。</sub>
+    </td>
+    <td width="50%" valign="top">
+      <strong>管理员手机端维护资质</strong><br><br>
+      <p align="center"><img src="./docs/images/readme/admin-qualification-maintenance-mobile.png" alt="CrewQual 管理员手机端维护成员资质" width="50%"></p>
+      <br><sub>管理员可在手机端核对并修正当前生效记录，保存后立即更新资质并写入审计日志。</sub>
+    </td>
+  </tr>
+</table>
+
+## 为什么选择 CrewQual
+
+- **围绕业务闭环设计**：覆盖到期提醒、成员提交、文档识别、人工复核、记录生效和结果通知。
+- **人工决策优先**：AI/OCR 用于减少录入与核对成本，不会自动批准资质更新。
+- **适配不同岗位与路径**：岗位、资质要求、有效期、提醒规则和升级节点都可以配置。
+- **同时适合移动端和桌面端**：成员流程针对手机优化，管理端适合集中审核与风险处置。
+- **数据由部署方控制**：业务数据存储在 PostgreSQL，凭证图像可放在私有 S3 兼容对象存储中。
+- **可审计、可恢复**：关键操作保留审计记录，并提供异步任务、健康检查、备份与恢复能力。
+
+## 与多维表格工具的区别
+
+CrewQual 更适合将资质合规作为长期、关键业务进行系统化管理。
+
+- 开箱即用的业务模型：内置人员、职位、资质、有效期、审核记录与晋级计划，无需从零设计复杂表格。
+- 完整的资质闭环：覆盖材料提交、AI 辅助核验、人工审核、记录生效、到期预警和通知。
+- 更严格的业务约束：资质状态、规则版本、证据归属与审核权限由系统统一执行，减少误改、漏配和规则不一致。
+- 面向不同角色的专属体验：成员通过移动端完成查询与提交，管理员通过工作台进行审核和风险管理，而不是共同操作一张复杂表格。
+- 业务级审计能力：不仅记录“谁修改了哪个字段”，还记录审核决定、规则依据、证据材料和完整状态变化。
+- 独立部署与数据控制：支持私有化部署，可自主控制数据库、证照文件、备份策略和外部服务集成。
+- 支持深度定制：可以根据组织的职位体系、资质规则、晋级路径和审批制度进行代码级定制。
+
+## 快速开始
+
+适用于 amd64 架构的 Linux 主机。
+
+不保证在 arm64 或者 Windows WLS2下能够正常运行，在后续会加入完整测试。
 
 ```sh
-export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<Base64 Ed25519 public key provided by the publisher>'
-curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo -E bash
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash
 ```
+安装结束后，终端会一次性显示 8 位首次设置授权码；访问提示的 `/setup` 地址即可完成初始化。
 
-The installer resolves the latest official GitHub Release, pulls the public `crewqual-web` and `crewqual-runtime` GHCR images, and installs deployment files in `/opt/crewqual`. After installation, an 8-digit first-time setup authorization code is shown once in the terminal. Enter this code when visiting `/setup`; in LAN mode, visit the displayed `http://LAN_ADDRESS:PORT/setup`, or in TLS mode, visit `https://DOMAIN[:PORT]/setup`. During installation, you can choose the default port, a random available port, or a custom port.
+安装器默认解析最新的 stable 官方 GitHub Release，不包含 RC 版本。如需安装最新 RC，请显式传入 `--channel rc`。
 
-The TLS email address is only the contact address for ACME/Let's Encrypt certificate expiration, renewal, or error notifications. It is not a CrewQual login address, and no email password is required.
+首次安装时可以选择中文或英文，并在以下两种模式中选择：
 
-After a LAN deployment, you can bind a production domain and enable TLS with `/opt/crewqual/configure-domain.sh`:
+- **局域网测试**：默认使用 `8080` 端口，不需要域名或 TLS 邮箱。选择后安装器会继续询问“是否仅允许局域网访问”；选择“否”可临时通过公网 IP + HTTP 访问 VPS。
+- **立即配置 TLS**：绑定生产域名并通过 ACME / Let's Encrypt 获取证书。
+
+公网 HTTP 模式不会加密首次授权码、登录凭据、TOTP 或业务数据。安装器会要求再次确认并显示安全警告；仅建议临时使用，同时应通过防火墙限制来源。配置 HTTPS 后，请更换管理员密码与 TOTP、撤销所有活跃会话，并轮换 HTTP 阶段录入过的 API/Webhook 密钥。无人值守安装可显式使用 `--network-mode http --public-address <VPS公网IP>`。
+
+局域网或临时公网 HTTP 部署完成后，可以再绑定生产域名并启用 TLS：
 
 ```sh
 sudo /opt/crewqual/configure-domain.sh \
   --domain crewqual.example.com --tls-email ops@example.com --port 443
 ```
 
-The script enables public access only after certificate issuance and health checks succeed; if either fails, it restores the previous LAN configuration. When using a custom TLS port, public TCP port 80 must still reach Caddy for ACME HTTP validation.
+脚本只会在证书签发和健康检查成功后开放公网访问；任一步骤失败都会恢复原有局域网配置。使用自定义 TLS 端口时，公网 TCP 80 端口仍需能够到达 Caddy，以完成 ACME HTTP 验证。
 
-Install a fixed version:
-
-```sh
-export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<Base64 Ed25519 public key provided by the publisher>'
-curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
-  | sudo -E bash -s -- --version v1.0.0
-```
-
-Unattended installation:
+安装指定版本：
 
 ```sh
-export CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY='<Base64 Ed25519 public key provided by the publisher>'
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
-  | sudo -E bash -s -- --domain crewqual.example.com \
-    --tls-email ops@example.com --non-interactive
+  | sudo bash -s -- --version v1.0.1
 ```
 
-Running the installation command again upgrades the deployment while preserving `/opt/crewqual/.env` and Docker volumes. For complete installation, backup, fixed-version, and source-deployment instructions, see [`docs/docker-deployment.md`](docs/docker-deployment.md).
+无人值守安装：
 
-## SaaS and Enterprise Services
+```sh
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo bash -s -- --install-docker --non-interactive
+```
 
-CrewQual can be self-hosted and also offers managed services for enterprises and small teams, including:
+再次运行安装命令会升级现有部署，并保留 `/opt/crewqual/.env` 与 Docker volumes。TLS 邮箱仅用于证书到期、续期或错误通知，不是 CrewQual 登录账号，也不需要提供邮箱密码。
 
-- Fully managed deployments
-- Data migration and initial setup
-- System configuration and user training
-- Operations and data backups
-- Message notification channel integrations
-- Enterprise internal OA integrations
-- Custom features and business-process adaptation
+## SaaS 与企业服务
 
-Contact CrewQual@devdan.cc.
+CrewQual 可自行部署，也提供面向企业和小型团队的托管服务，包括：
 
-## Roadmap
+- 完全托管
+- 数据迁移
+- 系统配置
+- 运维与数据备份
+- 消息通知渠道集成
+- 企业内部OA集成
+- 功能定制与业务流程适配
 
-- [x] Member qualification lookup, evidence upload, and update requests
-- [x] Administrative review, qualification alerts, calendars, and progression plans
-- [x] Role-based permissions, audit records, notification queues, and private object storage
-- [x] Docker Compose deployment, health checks, and backup support
-- [x] i18n and multilingual support
-- [ ] One-click migration from multidimensional table tools
-- [ ] Node 22 → 24
+联系邮箱：`CrewQual@devdan.cc`
 
-## Privacy and Security
+## 路线图
 
-CrewQual is designed to be self-hosted. Unless the deployment owner explicitly configures external services or third-party integrations, personnel information, qualification records, certificate files, and other business data remain on infrastructure controlled by the deploying organization.
+- [ ] 从多维表格一键迁移
+- [ ] Node.js 22 → 24
+- [ ] arm架构、windows wsl2、macos完整支持
 
-CrewQual may process information such as names, employee IDs, contact details, qualification expiration dates, training records, and certificate images. Deployment owners should configure and manage the system according to their own data-security, access-control, backup, and compliance requirements.
+## 隐私与安全
 
-AI-assisted verification is optional and is not required by CrewQual’s core functionality. When enabling AI or other external services, deployment owners should select providers appropriate to their data-processing policies, confidentiality requirements, and applicable laws, and confirm that data transmission and processing meet their organization’s requirements.
+CrewQual 以自托管为默认设计。除非部署方主动配置外部服务或第三方集成，人员信息、资质记录与凭证文件都保留在部署方控制的基础设施中。
 
-CrewQual does not proactively send business data to third-party services unless the deployment owner configures it to do so.
+AI 辅助核验是可选能力，不影响核心流程；启用外部 AI 服务前，部署方应根据适用法律、保密要求与数据处理政策选择供应商。
 
-If you discover a vulnerability that may affect CrewQual’s security, please do not disclose exploitation details through a public issue.
+CrewQual 本身不会在未经配置的情况下主动将业务数据发送至第三方服务。
 
-Contact CrewQual@devdan.cc.
+发现可能影响 CrewQual 的安全问题时，请勿在公开 Issue 中披露利用细节。请阅读 [SECURITY.md](./SECURITY.md) 或联系 `CrewQual@devdan.cc`。
 
-See [SECURITY.md](./SECURITY.md) for the vulnerability reporting process.
+## 参与贡献
 
-## Contributing
+欢迎通过 Issues 与 Pull Requests 改进代码、测试、文档、界面和部署流程。
 
-Contributions to CrewQual’s development, testing, and improvement are welcome.
+代码贡献须遵守 [CLA.md](./CLA.md)，参与方式见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
-If you find a bug, have a feature suggestion, or want to improve the documentation, interface, deployment process, or existing functionality, you can participate through GitHub Issues or Pull Requests.
+## 许可证
 
-Feedback from real-world use cases in aviation qualification management, training management, and compliance workflows is also highly welcome. Even if you do not contribute code, sharing business requirements, process differences, and user experiences can help improve CrewQual.
+CrewQual 仅以 GNU Affero General Public License v3.0 发布（SPDX：`AGPL-3.0-only`），完整条款见 [LICENSE](./LICENSE)。
 
-CrewQual 1.0.0 is intended for production deployment. Interfaces and data structures follow a versioned upgrade strategy. Before each upgrade, you should still complete acceptance testing, an off-host backup, and an isolated recovery drill.
+你可以在遵守 AGPL-3.0 条款的前提下自由使用、部署、研究、修改和再分发 CrewQual。
 
-Code contributions must comply with the project’s Contributor License Agreement (CLA). Contributors retain copyright in their contributions and grant the CrewQual project the licenses necessary for use and relicensing under the CLA. See `CLA.md` for the specific terms.
+如果你修改 CrewQual，并通过网络向用户提供对该修改版本的访问，请确保按照 AGPL-3.0 的要求向相关用户提供对应源代码。
 
-Thank you to everyone who contributes issues, code, documentation, suggestions, or real-world feedback to CrewQual.
+未来 CrewQual 可能同时提供其他授权方式，例如面向商业部署、托管服务、定制开发或不希望受到 AGPL-3.0 开源义务约束的组织提供商业许可证。
 
-## License
+具体授权条件请以仓库中的 LICENSE 文件及后续公布的商业授权条款为准。
 
-CrewQual is released under the GNU Affero General Public License v3.0 **only** (SPDX: `AGPL-3.0-only`). See [LICENSE](./LICENSE) for the complete license terms.
-
-You may use, deploy, study, modify, and redistribute CrewQual in accordance with the AGPL-3.0 terms.
-
-If you modify CrewQual and make that modified version available to users over a network, make the corresponding source code available to those users as required by AGPL-3.0.
-
-In the future, CrewQual may also offer alternative licensing options, such as commercial licenses for organizations that need commercial deployments, managed services, custom development, or an arrangement without the open-source obligations of AGPL-3.0.
-
-The applicable terms are those in the repository’s LICENSE file and any subsequently published commercial licensing terms.
-
-The explanations in this README are provided for guidance only. The full AGPL-3.0 license text in LICENSE governs the specific rights and obligations.
+README 中的说明仅用于帮助理解，具体权利和义务以 LICENSE 中的 AGPL-3.0 正文为准。

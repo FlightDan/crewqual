@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Signed release tag (for example v1.0.0-rc.1 or v1.0.0)
+        description: Signed release tag (for example v1.0.1-rc.1 or v1.0.1)
         required: true
         type: string
       profile:
@@ -13,56 +13,87 @@ on:
         default: rc
         type: choice
         options: [rc, final]
+      upgrade_from_tag:
+        description: Explicit lower compatible release used by upgrade/rollback acceptance
+        required: true
+        type: string
 permissions:
   contents: read
   id-token: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  RELEASE_PROFILE: ${{ inputs.profile }}
+  RELEASE_UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
+  RELEASE_RUN_ID: ${{ github.run_id }}
+  RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
+  E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+  E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+  E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
+  RELEASE_WEB_IMAGE: ${{ secrets.RELEASE_WEB_IMAGE }}
+  RELEASE_RUNTIME_IMAGE: ${{ secrets.RELEASE_RUNTIME_IMAGE }}
+  UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+  UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+  RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64 }}
+  RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+  RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+  EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
+  BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+  RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
+  S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
+  S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
+  BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
+  BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
+  BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
+  BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
+  BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
+  RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  COSIGN_CERT_IDENTITY_REGEXP: ${{ secrets.COSIGN_CERT_IDENTITY_REGEXP }}
+  COSIGN_OIDC_ISSUER: ${{ secrets.COSIGN_OIDC_ISSUER }}
+  LICENSE_APPROVALS_FILE: /tmp/license-approvals.json
+  RELEASE_EVIDENCE_SIGNATURE: /tmp/evidence.sig
+  SMS_ADAPTER: disabled
+  FEISHU_ADAPTER: disabled
+  VLM_ADAPTER: disabled
 
 jobs:
   acceptance:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     environment: release-sandbox
-    env:
-      RELEASE_TAG: ${{ inputs.tag }}
-      RELEASE_PROFILE: ${{ inputs.profile }}
-      RELEASE_RUN_ID: ${{ github.run_id }}
-      RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
-      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-      E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
-      RELEASE_WEB_IMAGE: ${{ secrets.RELEASE_WEB_IMAGE }}
-      RELEASE_RUNTIME_IMAGE: ${{ secrets.RELEASE_RUNTIME_IMAGE }}
-      UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-      EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
-      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
-      RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
-      S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
-      S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
-      BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
-      BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
-      BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
-      BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
-      BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
-      RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
-      COSIGN_CERT_IDENTITY_REGEXP: ${{ secrets.COSIGN_CERT_IDENTITY_REGEXP }}
-      COSIGN_OIDC_ISSUER: ${{ secrets.COSIGN_OIDC_ISSUER }}
-      LICENSE_APPROVALS_FILE: /tmp/license-approvals.json
-      RELEASE_EVIDENCE_SIGNATURE: /tmp/evidence.sig
-      SMS_ADAPTER: disabled
-      FEISHU_ADAPTER: disabled
-      VLM_ADAPTER: disabled
     steps:
       - name: Checkout signed release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
+      - name: Verify annotated tag and signer allowlist
+        env:
+          GNUPGHOME: ${{ runner.temp }}/release-gnupg
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s' "$RELEASE_TAG_SIGNING_PUBLIC_KEY_B64" | base64 --decode > "$RUNNER_TEMP/tag-signing-key.asc"
+          gpg --batch --homedir "$GNUPGHOME" --import "$RUNNER_TEMP/tag-signing-key.asc"
+          ! git cat-file -t "$RELEASE_TAG" | grep -qx tag && { echo 'release tag must be annotated'; exit 1; }
+          raw="$(git verify-tag --raw "$RELEASE_TAG" 2>&1)"
+          printf '%s\n' "$raw" | grep -q '\[GNUPG:\] VALIDSIG '
+          signing_fpr="$(printf '%s\n' "$raw" | awk '$2=="VALIDSIG" {print $3; exit}')"
+          primary_fpr="$(printf '%s\n' "$raw" | awk '$2=="VALIDSIG" {print $NF; exit}')"
+          [[ -n "$signing_fpr" && -n "$primary_fpr" ]]
+          allowed=0
+          IFS=',' read -r -a fingerprints <<< "$RELEASE_SIGNER_FINGERPRINTS"
+          for allowed_fpr in "${fingerprints[@]}"; do
+            allowed_fpr="${allowed_fpr//[[:space:]]/}"
+            [[ "${allowed_fpr,,}" == "${signing_fpr,,}" || "${allowed_fpr,,}" == "${primary_fpr,,}" ]] && allowed=1
+          done
+          ((allowed == 1)) || { echo 'tag signing primary/subkey is not allowlisted'; exit 1; }
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
       - name: Setup pnpm
         uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
       - name: Setup Node
@@ -76,32 +107,37 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium firefox webkit
       - name: Install release verification tools
         run: sudo ./scripts/release/install-tools.sh
-      - name: Build and sign updater manifest
-        if: inputs.profile == 'final'
+      - name: Verify keyring and build signed release assets
+        id: release-assets
         run: |
           set -euo pipefail
+          export RELEASE_PUBLISHED_AT="$(git log -1 --format=%cI "$RELEASE_TAG")"
+          RELEASE_REQUIRE_ACTIVE_KEY=1 pnpm release:check-keyring
           updater_dir="$RUNNER_TEMP/crewqual-updater"
+          asset_dir="$RUNNER_TEMP/release-assets"
+          mkdir -p "$asset_dir"
           ./updater/build-release.sh "$updater_dir"
+          cp "$updater_dir/crewqual-updater-linux-amd64" "$asset_dir/"
+          cp "$updater_dir/crewqual-updater-linux-arm64" "$asset_dir/"
           export UPDATER_AMD64_SHA256="$(awk '{print $1}' "$updater_dir/crewqual-updater-linux-amd64.sha256")"
           export UPDATER_ARM64_SHA256="$(awk '{print $1}' "$updater_dir/crewqual-updater-linux-arm64.sha256")"
-          export UPDATE_MANIFEST_OUTPUT="$RUNNER_TEMP/update-manifest-v1.json"
+          export UPDATE_MANIFEST_OUTPUT="$asset_dir/update-manifest-v1.json"
           pnpm release:update-manifest
-          pnpm release:sign-update-manifest "$UPDATE_MANIFEST_OUTPUT" "$UPDATE_MANIFEST_OUTPUT.sig"
-          test "$(wc -c <"$UPDATE_MANIFEST_OUTPUT.sig")" -ge 80
-      - name: Upload signed updater manifest evidence
-        if: inputs.profile == 'final'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: signed-updater-manifest-${{ inputs.tag }}
-          path: |
-            ${{ runner.temp }}/update-manifest-v1.json
-            ${{ runner.temp }}/update-manifest-v1.json.sig
-          if-no-files-found: error
+          pnpm release:sign-update-manifest "$UPDATE_MANIFEST_OUTPUT" "$asset_dir/update-manifest-v1.json.sig"
+          "$asset_dir/crewqual-updater-linux-amd64" verify-manifest --manifest "$asset_dir/update-manifest-v1.json" --signature "$asset_dir/update-manifest-v1.json.sig" --tag "$RELEASE_TAG" >/dev/null
+          cp "$asset_dir/update-manifest-v1.json" "$RUNNER_TEMP/manifest-tampered.json"
+          printf ' ' >> "$RUNNER_TEMP/manifest-tampered.json"
+          if "$asset_dir/crewqual-updater-linux-amd64" verify-manifest --manifest "$RUNNER_TEMP/manifest-tampered.json" --signature "$asset_dir/update-manifest-v1.json.sig" --tag "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'tampered manifest unexpectedly verified'; exit 1
+          fi
+          cp docker-compose.install.yml Caddyfile scripts/configure-domain.sh "$asset_dir/"
+          echo "asset_dir=$asset_dir" >> "$GITHUB_OUTPUT"
       - name: Prepare signed evidence inputs
         env:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
           RELEASE_EVIDENCE_SIGNATURE_B64: ${{ secrets.RELEASE_EVIDENCE_SIGNATURE_B64 }}
         run: |
+          set -euo pipefail
           printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
           printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
           pnpm release:manifest .artifacts/migration-checksums.json
@@ -110,13 +146,102 @@ jobs:
         env:
           RELEASE_DEFER_ARTIFACT: "1"
         run: pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
-      - name: Sign release evidence
-        if: env.RELEASE_PROFILE == 'final'
+      - name: Assemble evidence and sign every release asset
         run: |
-          cosign sign-blob --yes \
-            --output-signature "$RELEASE_EVIDENCE_SIGNATURE" \
-            --output-certificate /tmp/evidence.pem \
-            ".artifacts/release/$RELEASE_RUN_ID/evidence.json"
-      - name: Verify signed release evidence
-        if: env.RELEASE_PROFILE == 'final'
-        run: pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+          set -euo pipefail
+          evidence_dir=".artifacts/release/$RELEASE_RUN_ID"
+          asset_dir="${{ steps.release-assets.outputs.asset_dir }}"
+          cp "$evidence_dir/evidence.json" "$asset_dir/evidence.json"
+          RELEASE_ASSET_DIR="$asset_dir" RELEASE_EVIDENCE_PATH="$evidence_dir/evidence.json" pnpm release:assemble-assets
+          find "$asset_dir" -maxdepth 1 -type f ! -name 'evidence*' ! -name SHA256SUMS ! -name SHA256SUMS.sig -printf '%f\n' | sort | while read -r file; do sha256sum "$asset_dir/$file"; done > "$asset_dir/SHA256SUMS"
+          export SIGN_FILE_INPUT="$asset_dir/SHA256SUMS"
+          export SIGN_FILE_OUTPUT="$asset_dir/SHA256SUMS.sig"
+          pnpm release:sign-file
+          cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
+          RELEASE_ASSET_DIR="$asset_dir" RELEASE_EVIDENCE_PATH="$evidence_dir/evidence.json" pnpm release:assemble-assets
+          export SIGN_FILE_INPUT="$asset_dir/evidence.json"
+          export SIGN_FILE_OUTPUT="$asset_dir/evidence.json.sig"
+          pnpm release:sign-file
+          cosign sign-blob --yes --output-signature "$asset_dir/evidence.sig" --output-certificate "$asset_dir/evidence.pem" "$asset_dir/evidence.json"
+          cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
+          RELEASE_EVIDENCE_SIGNATURE="$asset_dir/evidence.sig" pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+      - name: Upload complete release bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets-${{ inputs.tag }}
+          path: ${{ runner.temp }}/release-assets
+          if-no-files-found: error
+
+  publish:
+    needs: acceptance
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-assets-${{ inputs.tag }}
+          path: release-assets
+      - name: Create or validate prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "CrewQual $RELEASE_TAG" --notes "Signed release assets" --prerelease --latest=false
+          fi
+      - name: Upload assets without clobber and verify remote hashes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for file in release-assets/*; do
+            name="$(basename "$file")"
+            remote="$(gh release view "$RELEASE_TAG" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
+            if [[ -n "$remote" ]]; then
+              remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
+              local_hash="$(sha256sum "$file" | awk '{print $1}')"
+              [[ "$remote_hash" == "$local_hash" ]] || { echo "asset collision with different bytes: $name"; exit 1; }
+            else
+              gh release upload "$RELEASE_TAG" "$file"
+            fi
+          done
+  post-publish-host-acceptance:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    environment: release-sandbox
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 1
+      - name: Install published release on a clean host and exercise upgrade/rollback
+        env:
+          TARGET_TAG: ${{ inputs.tag }}
+          UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
+        run: sudo -E ./scripts/release/post-publish-acceptance.sh
+
+  promote-final:
+    needs: post-publish-host-acceptance
+    if: inputs.profile == 'final'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Promote accepted final release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --prerelease=false --latest=true
+
+  keep-rc-prerelease:
+    needs: post-publish-host-acceptance
+    if: inputs.profile == 'rc'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Keep accepted RC prerelease off latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$RELEASE_TAG" --prerelease=true --latest=false

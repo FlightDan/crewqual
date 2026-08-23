@@ -13,9 +13,11 @@ import (
 )
 
 func TestValidateManifest(t *testing.T) {
-	valid := Manifest{SchemaVersion: 1, Version: "v1.0.0", Channel: "stable", ComposeURL: "https://example.invalid/compose", CaddyURL: "https://example.invalid/Caddyfile", ComposeSHA256: strings.Repeat("a", 64), CaddySHA256: strings.Repeat("b", 64), WebImage: "ghcr.io/example/web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", RuntimeImage: "ghcr.io/example/runtime@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", MigrationPolicy: "backward-compatible"}
+	valid := Manifest{SchemaVersion: 1, Version: "v1.0.0", Channel: "stable", SigningKeyID: "test-ed25519", PublishedAt: "2026-08-24T00:00:00Z", ReleaseNotesURL: "https://github.com/FlightDan/crewqual/releases/tag/v1.0.0", ComposeURL: "https://github.com/FlightDan/crewqual/releases/download/v1.0.0/docker-compose.install.yml", CaddyURL: "https://github.com/FlightDan/crewqual/releases/download/v1.0.0/Caddyfile", ConfigureDomainURL: "https://github.com/FlightDan/crewqual/releases/download/v1.0.0/configure-domain.sh", ComposeSHA256: strings.Repeat("a", 64), CaddySHA256: strings.Repeat("b", 64), ConfigureDomainSHA256: strings.Repeat("e", 64), WebImage: "ghcr.io/flightdan/crewqual-web@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", RuntimeImage: "ghcr.io/flightdan/crewqual-runtime@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", MigrationPolicy: "backward-compatible"}
 	valid.Updater.AMD64 = strings.Repeat("c", 64)
 	valid.Updater.ARM64 = strings.Repeat("d", 64)
+	valid.Updater.AMD64URL = "https://github.com/FlightDan/crewqual/releases/download/v1.0.0/crewqual-updater-linux-amd64"
+	valid.Updater.ARM64URL = "https://github.com/FlightDan/crewqual/releases/download/v1.0.0/crewqual-updater-linux-arm64"
 	if err := validateManifest(valid); err != nil {
 		t.Fatalf("valid manifest rejected: %v", err)
 	}
@@ -44,6 +46,11 @@ func TestValidateNetworkInput(t *testing.T) {
 	if err := validateNetworkInput(invalid); err == nil {
 		t.Fatal("public HTTP origin accepted in LAN mode")
 	}
+	publicHTTP := base
+	publicHTTP.Mode, publicHTTP.Origin, publicHTTP.Domain = "http", "http://203.0.113.20:8080", "203.0.113.20"
+	if err := validateNetworkInput(publicHTTP); err != nil {
+		t.Fatalf("valid public HTTP configuration rejected: %v", err)
+	}
 	invalid = base
 	invalid.Port = 80
 	if err := validateNetworkInput(invalid); err == nil {
@@ -61,8 +68,18 @@ func TestValidateNetworkInput(t *testing.T) {
 }
 
 func TestCompareVersion(t *testing.T) {
-	if compareVersion("v1.2.0", "v1.1.9") <= 0 || compareVersion("v1.0.0", "v1.0.0") != 0 || compareVersion("v0.9.9", "v1.0.0") >= 0 {
+	if compareVersion("v1.2.0", "v1.1.9") <= 0 || compareVersion("v1.0.0", "v1.0.0") != 0 || compareVersion("v0.9.9", "v1.0.0") >= 0 || compareVersion("v1.0.0-rc.1", "v1.0.0-rc.2") >= 0 || compareVersion("v1.0.0-rc.2", "v1.0.0") >= 0 {
 		t.Fatal("semver comparison failed")
+	}
+}
+
+func TestStrictJSONRejectsDuplicateAndTrailingData(t *testing.T) {
+	var target map[string]string
+	if err := decodeStrictJSON([]byte(`{"version":"v1.0.0","version":"v1.0.1"}`), &target); err == nil {
+		t.Fatal("duplicate JSON object key was accepted")
+	}
+	if err := decodeStrictJSON([]byte(`{"version":"v1.0.0"} {"extra":true}`), &target); err == nil {
+		t.Fatal("trailing JSON data was accepted")
 	}
 }
 

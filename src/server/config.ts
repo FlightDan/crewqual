@@ -5,7 +5,7 @@ const booleanFromEnv = z
   .default("false")
   .transform((value) => value === "true");
 const optionalUrl = z.union([z.string().url(), z.literal("")]).default("");
-const networkMode = z.enum(["lan", "tls"]).default("tls");
+const networkMode = z.enum(["lan", "http", "tls"]).default("tls");
 
 const serverConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -85,12 +85,16 @@ export function getServerConfig(): ServerConfig {
         /^10\./.test(appOrigin.hostname) ||
         /^192\.168\./.test(appOrigin.hostname) ||
         /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(appOrigin.hostname));
+    const isPublicHttpOrigin =
+      appOrigin.protocol === "http:" && parsed.data.DEPLOYMENT_NETWORK_MODE === "http";
+    const isTlsOrigin =
+      appOrigin.protocol === "https:" && parsed.data.DEPLOYMENT_NETWORK_MODE === "tls";
     if (
-      (!isPrivateHttpOrigin && appOrigin.protocol !== "https:") ||
+      (!isPrivateHttpOrigin && !isPublicHttpOrigin && !isTlsOrigin) ||
       parsed.data.APP_ORIGIN !== appOrigin.origin
     ) {
       throw new Error(
-        "Production APP_ORIGIN must be an exact HTTPS origin, or a private HTTP origin in LAN mode",
+        "Production APP_ORIGIN must be an exact HTTPS origin, a private HTTP origin in LAN mode, or an HTTP origin in public HTTP mode",
       );
     }
     if (parsed.data.SESSION_SECRET.length < 48) {

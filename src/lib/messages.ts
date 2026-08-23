@@ -614,7 +614,7 @@ const zhCN: MessageDictionary = {
   "settingsSecurity.networkPort": "应用访问端口",
   "settingsSecurity.publicAccess": "允许公网来源访问",
   "settingsSecurity.publicAccessHelp":
-    "关闭时仅允许回环和私网来源。局域网 HTTP 模式开启此项会明文暴露登录和业务流量。",
+    "关闭时仅允许回环和私网来源。任何 HTTP 模式下开放公网都会明文暴露登录和业务流量。",
   "settingsSecurity.savePolicy": "保存安全策略",
   "settingsSecurity.modeConfirmTitle": "确认切换管理员登录模式",
   "settingsSecurity.modeConfirmDescription":
@@ -2255,7 +2255,7 @@ const enUS: MessageDictionary = {
   "settingsSecurity.networkPort": "Application access port",
   "settingsSecurity.publicAccess": "Allow public sources",
   "settingsSecurity.publicAccessHelp":
-    "When disabled, only loopback and private-network sources are allowed. Enabling this in LAN HTTP mode exposes credentials and traffic in plaintext.",
+    "When disabled, only loopback and private-network sources are allowed. Public access in any HTTP mode exposes credentials and traffic in plaintext.",
   "settingsSecurity.savePolicy": "Save security policy",
   "settingsSecurity.modeConfirmTitle": "Confirm administrator login mode switch",
   "settingsSecurity.modeConfirmDescription":

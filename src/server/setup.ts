@@ -655,13 +655,13 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
         where: { id: "global" },
         update: {
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
-          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE === "tls",
+          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE !== "lan",
           version: { increment: 1 },
         },
         create: {
           id: "global",
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
-          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE === "tls",
+          allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE !== "lan",
         },
       });
 

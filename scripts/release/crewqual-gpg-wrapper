@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly DEFAULT_PASSPHRASE_FILE="/root/crewqual-release-keys/gpg-passphrase"
+passphrase_file="${CREWQUAL_GPG_PASSPHRASE_FILE:-$DEFAULT_PASSPHRASE_FILE}"
+gpg_binary="${CREWQUAL_GPG_BIN:-$(command -v gpg)}"
+
+[[ -x "$gpg_binary" ]] || { printf 'gpg binary not found\n' >&2; exit 1; }
+
+if [[ -e "$passphrase_file" ]]; then
+  [[ ! -L "$passphrase_file" ]] || { printf 'passphrase file must not be a symbolic link\n' >&2; exit 1; }
+  [[ -f "$passphrase_file" ]] || { printf 'passphrase path must be a regular file\n' >&2; exit 1; }
+  [[ "$(stat -c '%a' "$passphrase_file")" == "600" ]] || { printf 'passphrase file must have mode 0600\n' >&2; exit 1; }
+  [[ "$(stat -c '%u' "$passphrase_file")" == "$(id -u)" ]] || { printf 'passphrase file owner mismatch\n' >&2; exit 1; }
+  if [[ -s "$passphrase_file" ]]; then
+    exec "$gpg_binary" --batch --pinentry-mode loopback --passphrase-file "$passphrase_file" "$@"
+  fi
+fi
+
+exec "$gpg_binary" "$@"
