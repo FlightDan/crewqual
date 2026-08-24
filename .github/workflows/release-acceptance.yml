@@ -274,7 +274,11 @@ jobs:
           export SIGN_FILE_INPUT="$asset_dir/evidence.json"
           export SIGN_FILE_OUTPUT="$asset_dir/evidence.json.sig"
           pnpm release:sign-file
-          cosign sign-blob --yes --bundle "$asset_dir/evidence.bundle.json" "$asset_dir/evidence.json"
+          # COSIGN_OIDC_ISSUER is needed by verification, but Cosign v3
+          # treats it as an explicit service URL and rejects it while using
+          # the TUF signing config for keyless signing. Keep it out of the
+          # signing process and restore it for the verification command.
+          env -u COSIGN_OIDC_ISSUER cosign sign-blob --yes --bundle "$asset_dir/evidence.bundle.json" "$asset_dir/evidence.json"
           cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
           RELEASE_EVIDENCE_BUNDLE="$asset_dir/evidence.bundle.json" pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
       - name: Upload complete release bundle

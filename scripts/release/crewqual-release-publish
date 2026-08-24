@@ -82,6 +82,10 @@ ensure_repo() {
   remote="$(git -C "$REPO_DIR" remote get-url origin)"
   [[ "$remote" == *"github.com/FlightDan/crewqual"* ]] ||
     die "origin 不是 FlightDan/crewqual: $remote"
+  # The signing helper scripts run `node --import tsx`. Node resolves that
+  # package from the current working directory, so make the orchestration
+  # independent of the directory from which the command was invoked.
+  REPO_DIR="$(cd "$REPO_DIR" && pwd -P)"
 }
 
 current_branch() {
@@ -178,6 +182,7 @@ ensure_gh_auth() {
 sync_secrets() {
   ensure_secure_dir
   ensure_gh_auth 0
+  cd "$REPO_DIR"
   if is_true "$DRY_RUN"; then
     announce "同步 GPG tag、manifest secrets，以及 $RELEASE_ENVIRONMENT 环境签名者白名单"
     return
@@ -303,6 +308,7 @@ release() {
   RELEASE_YES="${RELEASE_YES:-0}"
   ensure_secure_dir
   ensure_repo
+  cd "$REPO_DIR"
   branch="$(current_branch)"
   commit="$(git -C "$REPO_DIR" rev-parse HEAD)"
   profile="$(profile_for_tag "$tag")"
