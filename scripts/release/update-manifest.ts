@@ -16,11 +16,7 @@ const releaseAsset = (version: string, asset: string) =>
 
 function normalizeUtcTimestamp(value: string, source = "publishedAt") {
   const trimmed = value.trim();
-  if (
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
-      trimmed,
-    )
-  ) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(trimmed)) {
     throw new Error(`${source} must be an RFC3339 timestamp with a timezone`);
   }
   const epoch = Date.parse(trimmed);

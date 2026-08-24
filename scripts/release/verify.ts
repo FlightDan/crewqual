@@ -1,8 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import {
   DeleteObjectCommand,
   GetBucketEncryptionCommand,
@@ -117,10 +116,12 @@ function assertDigestImage(name: string) {
 function assertActionsPinned() {
   const workflowDir = join(process.cwd(), ".github", "workflows");
   if (!existsSync(workflowDir)) throw new Error("缺少 .github/workflows");
-  const files = spawnSync("rg", ["--files", workflowDir], { encoding: "utf8" })
-    .stdout.trim()
-    .split("\n")
-    .filter(Boolean);
+  const listFiles = (directory: string): string[] =>
+    readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(directory, entry.name);
+      return entry.isDirectory() ? listFiles(path) : [path];
+    });
+  const files = listFiles(workflowDir);
   for (const file of files) {
     const text = readFileSync(file, "utf8");
     for (const match of text.matchAll(/\buses:\s*[^@\s]+@([^\s#]+)/g)) {
