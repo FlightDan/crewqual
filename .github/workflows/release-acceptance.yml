@@ -21,8 +21,9 @@ on:
         type: choice
         options: [local, full]
       upgrade_from_tag:
-        description: Explicit lower compatible release used by upgrade/rollback acceptance
-        required: true
+        description: Existing lower release for upgrade/rollback; leave blank for the first deployable release
+        required: false
+        default: ''
         type: string
       replace_existing_assets:
         description: Allow replacing existing assets when the same release tag is intentionally covered

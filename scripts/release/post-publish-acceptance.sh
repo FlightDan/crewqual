@@ -24,12 +24,14 @@ compare_version() {
 }
 channel_for() { [[ "$1" == *-rc.* ]] && printf rc || printf stable; }
 
-[[ -n "$target" && -n "$baseline" ]] || die "TARGET_TAG and explicit UPGRADE_FROM_TAG are required"
+[[ -n "$target" ]] || die "TARGET_TAG is required"
 version_parts "$target" >/dev/null || die "invalid target tag: $target"
-version_parts "$baseline" >/dev/null || die "invalid upgrade baseline tag: $baseline"
-[[ "$(compare_version "$baseline" "$target")" == -1 ]] || die "upgrade baseline must be lower than target"
-if [[ "$target" == *-rc.* ]]; then
-  [[ "$baseline" == *-rc.* ]] || die "RC acceptance requires an RC baseline"
+if [[ -n "$baseline" ]]; then
+  version_parts "$baseline" >/dev/null || die "invalid upgrade baseline tag: $baseline"
+  [[ "$(compare_version "$baseline" "$target")" == -1 ]] || die "upgrade baseline must be lower than target"
+  if [[ "$target" == *-rc.* ]]; then
+    [[ "$baseline" == *-rc.* ]] || die "RC acceptance requires an RC baseline"
+  fi
 fi
 
 install_from_tag() {
@@ -71,6 +73,11 @@ fi
 rm -f "$bad_env"
 sudo docker compose --project-directory "$fresh_dir" --env-file "$fresh_dir/.env" -f "$fresh_dir/compose.yaml" down >/dev/null 2>&1 || true
 sudo rm -rf -- "$fresh_dir"
+
+if [[ -z "$baseline" ]]; then
+  echo "first-release fresh-install acceptance passed"
+  exit 0
+fi
 
 # The first repaired RC is a bootstrap release by design. It still requires
 # an explicit lower tag in workflow input, but that historical RC is not a

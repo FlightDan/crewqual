@@ -29,10 +29,12 @@ Usage:
   crewqual-release-publish [--dry-run] status
   crewqual-release-publish [--dry-run] sync-secrets
   crewqual-release-publish [--dry-run] make-public
-  crewqual-release-publish [--dry-run] release TAG --upgrade-from BASELINE [options]
+  crewqual-release-publish [--dry-run] release TAG (--upgrade-from BASELINE|--first-release) [options]
 
 Release options:
   --acceptance-scope local|full   Default: local
+  --first-release                Run fresh-install acceptance only; do not upgrade or roll back
+  --upgrade-from BASELINE        Use an existing lower release for upgrade/rollback acceptance
   --strict-clean                  Refuse a dirty worktree
   --replace-existing-tag         Explicitly allow replacing an existing local/remote tag (default)
   --no-replace-existing-tag      Refuse to replace an existing local/remote tag
@@ -41,6 +43,8 @@ Release options:
 Examples:
   crewqual-release-publish release v1.0.2-rc.1 \
     --upgrade-from v1.0.1-rc.1 --acceptance-scope local
+  crewqual-release-publish release v1.0.4 \
+    --first-release --acceptance-scope local
   crewqual-release-publish --dry-run release v1.0.2 \
     --upgrade-from v1.0.1
 
@@ -113,14 +117,16 @@ compare_version() {
 validate_release_args() {
   local tag="$1" baseline="$2" scope="$3"
   version_parts "$tag" >/dev/null || die "无效 release tag: $tag"
-  version_parts "$baseline" >/dev/null || die "无效 upgrade baseline tag: $baseline"
-  if [[ "$tag" == *-rc.* ]]; then
-    [[ "$baseline" == *-rc.* ]] || die "RC 只能使用 RC baseline"
-  else
-    [[ "$baseline" != *-rc.* ]] || die "稳定版只能使用稳定版 baseline"
+  if [[ -n "$baseline" ]]; then
+    version_parts "$baseline" >/dev/null || die "无效 upgrade baseline tag: $baseline"
+    if [[ "$tag" == *-rc.* ]]; then
+      [[ "$baseline" == *-rc.* ]] || die "RC 只能使用 RC baseline"
+    else
+      [[ "$baseline" != *-rc.* ]] || die "稳定版只能使用稳定版 baseline"
+    fi
+    [[ "$(compare_version "$baseline" "$tag")" == -1 ]] ||
+      die "upgrade baseline 必须低于目标 tag"
   fi
-  [[ "$(compare_version "$baseline" "$tag")" == -1 ]] ||
-    die "upgrade baseline 必须低于目标 tag"
   [[ "$scope" == local || "$scope" == full ]] || die "acceptance scope 必须是 local 或 full"
 }
 
@@ -256,7 +262,7 @@ confirm_release() {
   is_true "$RELEASE_YES" && return
   [[ -t 0 ]] || die "非交互终端请使用 --yes"
   printf '\n即将发布:\n  tag=%s\n  profile=%s\n  baseline=%s\n  branch=%s\n  commit=%s\n' \
-    "$tag" "$profile" "$baseline" "$branch" "$commit"
+    "$tag" "$profile" "${baseline:-<first-release>}" "$branch" "$commit"
   [[ "$replace_tag" == 1 && "$remote_tag" == 1 ]] &&
     printf '警告：将强制覆盖远端同名 tag，远端发布历史将指向当前 HEAD。\n'
   [[ "$replace_tag" == 1 && "$remote_tag" == 0 ]] &&
@@ -271,7 +277,7 @@ confirm_release() {
 dispatch_and_wait() {
   local tag="$1" profile="$2" scope="$3" baseline="$4" replace_tag="$5" started output run_url run_id
   if is_true "$DRY_RUN"; then
-    announce "将触发 $WORKFLOW_FILE (tag=$tag, profile=$profile, acceptance_scope=$scope, upgrade_from_tag=$baseline)"
+    announce "将触发 $WORKFLOW_FILE (tag=$tag, profile=$profile, acceptance_scope=$scope, upgrade_from_tag=${baseline:-<first-release>})"
     return
   fi
   started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -386,12 +392,13 @@ status() {
 
 parse_release() {
   [[ $# -ge 1 ]] || usage 2
-  local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=1
+  local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=1 first_release=0
   shift
   RELEASE_YES=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; shift 2 ;;
+      --first-release) [[ -z "$baseline" ]] || die "--first-release 不能与 --upgrade-from 同时使用"; first_release=1; shift ;;
       --acceptance-scope) [[ $# -ge 2 ]] || die "--acceptance-scope 需要参数"; scope="$2"; shift 2 ;;
       --strict-clean) strict_clean=1; shift ;;
       --replace-existing-tag) replace_tag=1; shift ;;
@@ -402,7 +409,11 @@ parse_release() {
       *) die "未知 release 参数: $1" ;;
     esac
   done
-  [[ -n "$baseline" ]] || die "必须提供 --upgrade-from"
+  if ((first_release)); then
+    [[ -z "$baseline" ]] || die "--first-release 不能与 --upgrade-from 同时使用"
+  else
+    [[ -n "$baseline" ]] || die "必须提供 --upgrade-from 或 --first-release"
+  fi
   release "$tag" "$baseline" "$scope" "$strict_clean" "$replace_tag"
 }
 
