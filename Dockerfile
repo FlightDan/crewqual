@@ -36,6 +36,7 @@ LABEL org.opencontainers.image.revision="$VCS_REF" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.source="$SOURCE_URL"
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -48,6 +49,7 @@ LABEL org.opencontainers.image.revision="$VCS_REF" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.source="$SOURCE_URL"
 RUN apt-get update \
+  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends ca-certificates wget gnupg rclone \
   && install -d /usr/share/postgresql-common/pgdg \
   && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
@@ -57,7 +59,8 @@ RUN apt-get update \
   && apt-get purge -y --auto-remove wget gnupg gnupg-utils dirmngr \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
   && pg_dump --version | grep -E ' 16\.' \
-  && install -d -o node -g node /backups
+  && install -d -o node -g node /backups \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 
 FROM data-runtime AS runtime-runner
@@ -77,6 +80,7 @@ CMD ["node", "--import", "tsx", "src/worker/index.ts"]
 FROM web-runtime AS web-runner
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --chown=node:node --from=builder /app/.next/standalone ./
 COPY --chown=node:node --from=builder /app/.next/static ./.next/static
 COPY --chown=node:node --from=builder /app/public ./public

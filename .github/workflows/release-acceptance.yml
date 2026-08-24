@@ -244,7 +244,11 @@ jobs:
             printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
             printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
           else
-            printf '%s\n' '{"licenses":[]}' > "$LICENSE_APPROVALS_FILE"
+            if [[ -n "$LICENSE_APPROVALS_JSON" ]]; then
+              printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
+            else
+              printf '%s\n' '{"licenses":[]}' > "$LICENSE_APPROVALS_FILE"
+            fi
             : > "$RELEASE_EVIDENCE_SIGNATURE"
           fi
           pnpm release:manifest .artifacts/migration-checksums.json
