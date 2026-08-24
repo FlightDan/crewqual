@@ -1370,7 +1370,9 @@ generate_setup_auth_code() {
 }
 
 container_id() {
-  compose ps -q "$1" 2>/dev/null | head -n 1
+  # Include stopped one-shot services so completion checks can observe their
+  # exit status after Docker Compose removes them from the running list.
+  compose ps -aq "$1" 2>/dev/null | head -n 1
 }
 
 container_status() {
