@@ -29,6 +29,9 @@ describe("deployment configuration", () => {
     expect(compose).toMatch(/\n  caddy:/);
     expect(compose).toMatch(/\n  minio:/);
     expect(compose).toMatch(/\n  minio-init:/);
+    for (const text of [compose, releaseCompose, installCompose]) {
+      expect(text).toMatch(/minio-init:\s*\n\s+image: minio\/mc@sha256:[0-9a-f]{64}/);
+    }
     expect(compose).toMatch(/networks:\s+\[internal\]/);
     expect(compose).toMatch(/driver: bridge/);
     expect(compose).toMatch(/pg_isready -U crewqual -d crewqual/);

@@ -1072,7 +1072,20 @@ async function main() {
   }
   evidence.finishedAt = new Date().toISOString();
   await writeJson(join(artifactDir(id), "evidence.json"), evidence);
-  if (evidence.gates.some((item) => item.status !== "PASS")) process.exitCode = 3;
+  const failedGates = evidence.gates.filter((item) => item.status !== "PASS");
+  if (failedGates.length) {
+    console.error(
+      JSON.stringify({
+        event: "release_verification_failed",
+        failures: failedGates.map(({ id: gateId, status, detail }) => ({
+          id: gateId,
+          status,
+          detail,
+        })),
+      }),
+    );
+    process.exitCode = 3;
+  }
 }
 
 void main().catch((error: unknown) => {

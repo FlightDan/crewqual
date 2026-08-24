@@ -276,7 +276,7 @@ services:
     networks: [internal]
 
   minio-init:
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    image: minio/mc@sha256:fb8f773eac8ef9d6da0486d5dec2f42f219358bcb8de579d1623d518c9ebd4cc
     profiles: [dev]
     entrypoint: ["/bin/sh", "-c"]
     command:
