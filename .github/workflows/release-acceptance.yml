@@ -322,7 +322,11 @@ jobs:
           set -euo pipefail
           for file in release-assets/*; do
             name="$(basename "$file")"
-            remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
+            # Use the Release asset's canonical URL. browserDownloadUrl is
+            # intermittently omitted by gh when the Release has just been
+            # updated, which would make an existing asset look absent and
+            # cause a non-clobbering upload to fail with a name collision.
+            remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .url" | head -n 1)"
             if [[ -n "$remote" ]]; then
               remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
               local_hash="$(sha256sum "$file" | awk '{print $1}')"
@@ -332,7 +336,7 @@ jobs:
                   exit 1
                 }
                 gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber "$file"
-                remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
+                remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .url" | head -n 1)"
                 remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
               fi
               [[ "$remote_hash" == "$local_hash" ]] || { echo "asset verification failed after upload: $name"; exit 1; }
