@@ -6,6 +6,7 @@ TEST_DIR="$(mktemp -d)"
 FAKE_BIN="$TEST_DIR/bin"
 INSTALL_DIR="$TEST_DIR/install"
 SECOND_INSTALL_DIR="$TEST_DIR/install-second"
+CUSTOM_INSTALL_DIR="$TEST_DIR/install-custom"
 LAN_INSTALL_DIR="$TEST_DIR/install-lan"
 HTTP_INSTALL_DIR="$TEST_DIR/install-http"
 RC_INSTALL_DIR="$TEST_DIR/install-rc"
@@ -25,6 +26,10 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$FAKE_BIN" "$FIXTURE_DIR" "$TEST_KEY_DIR"
+mkdir -p "$TEST_DIR/custom-cert"
+openssl req -x509 -newkey rsa:2048 -nodes -keyout "$TEST_DIR/custom-cert/privkey.pem" \
+  -out "$TEST_DIR/custom-cert/fullchain.pem" -days 30 \
+  -subj "/CN=custom.example.com" -addext "subjectAltName=DNS:custom.example.com" >/dev/null 2>&1
 cp "$PROJECT_DIR/docker-compose.install.yml" "$FIXTURE_DIR/docker-compose.install.yml"
 cp "$PROJECT_DIR/Caddyfile" "$FIXTURE_DIR/Caddyfile"
 cp "$PROJECT_DIR/scripts/configure-domain.sh" "$FIXTURE_DIR/configure-domain.sh"
@@ -228,6 +233,19 @@ CREWQUAL_TEST_INSTALL_DIR="$SECOND_INSTALL_DIR" \
   --tls-email second@example.com --non-interactive >/dev/null
 second_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$SECOND_INSTALL_DIR/.env")"
 [[ "$before_secrets" != "$second_secrets" ]]
+
+CREWQUAL_TEST_INSTALL_DIR="$CUSTOM_INSTALL_DIR" \
+  run_installer --version v9.8.7 --network-mode tls --domain custom.example.com \
+  --tls-cert "$TEST_DIR/custom-cert/fullchain.pem" \
+  --tls-key "$TEST_DIR/custom-cert/privkey.pem" --port 8443 --non-interactive >/dev/null
+grep -q "CADDY_TLS_CONFIG='tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem'" "$CUSTOM_INSTALL_DIR/.env"
+grep -q "CADDY_EMAIL_CONFIG=''" "$CUSTOM_INSTALL_DIR/.env"
+cmp -s "$TEST_DIR/custom-cert/fullchain.pem" "$CUSTOM_INSTALL_DIR/tls/fullchain.pem"
+cmp -s "$TEST_DIR/custom-cert/privkey.pem" "$CUSTOM_INSTALL_DIR/tls/privkey.pem"
+custom_cert_before="$(sha256sum "$CUSTOM_INSTALL_DIR/tls/fullchain.pem" "$CUSTOM_INSTALL_DIR/tls/privkey.pem")"
+CREWQUAL_TEST_INSTALL_DIR="$CUSTOM_INSTALL_DIR" \
+  run_installer --version v9.8.8 --non-interactive >/dev/null
+[[ "$custom_cert_before" == "$(sha256sum "$CUSTOM_INSTALL_DIR/tls/fullchain.pem" "$CUSTOM_INSTALL_DIR/tls/privkey.pem")" ]]
 
 CREWQUAL_TEST_INSTALL_DIR="$LAN_INSTALL_DIR" \
   run_installer --version v9.8.7 --network-mode lan --lan-address 192.168.1.20 \

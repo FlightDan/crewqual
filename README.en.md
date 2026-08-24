@@ -113,6 +113,31 @@ On first installation, choose Chinese or English and one of two deployment modes
 - **LAN testing** uses port `8080` by default and requires no domain or TLS email. The installer then asks whether access should remain LAN-only; answer no to temporarily access a VPS through its public IP over HTTP.
 - **Configure TLS now** binds a production domain and obtains a certificate through ACME / Let's Encrypt.
 
+If you already have a certificate from a CA or cloud provider, use custom certificate mode during the first installation:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo bash -s -- --network-mode tls \
+      --domain crewqual.example.com \
+      --tls-cert /etc/ssl/crewqual/fullchain.pem \
+      --tls-key /etc/ssl/crewqual/privkey.pem \
+      --port 443
+```
+
+`--tls-cert` must be a PEM server certificate or full chain, and `--tls-key` must be its matching unencrypted PEM private key. The installer checks certificate expiry, hostname coverage, and the certificate/key pair, then copies them to `/opt/crewqual/tls/` for Caddy. Custom certificate mode does not require `--tls-email`; rerun the installer or `configure-domain.sh` with the renewed files after certificate renewal.
+
+After a LAN installation, switch to a custom certificate with:
+
+```sh
+sudo /opt/crewqual/configure-domain.sh \
+  --domain crewqual.example.com \
+  --tls-cert /etc/ssl/crewqual/fullchain.pem \
+  --tls-key /etc/ssl/crewqual/privkey.pem \
+  --port 443
+```
+
+Without `--tls-cert` and `--tls-key`, the existing Caddy ACME automatic certificate mode remains in use. Issuing a new certificate does not automatically revoke an existing one; the old certificate remains valid until it expires or is separately revoked by its CA.
+
 Public HTTP does not encrypt the first-setup authorization code, login credentials, TOTP, or business data. The installer requires another confirmation and displays a security warning. Use this mode only temporarily and restrict source addresses with a firewall. After configuring HTTPS, change the administrator password and TOTP, revoke all active sessions, and rotate any API or webhook keys entered during the HTTP phase. For unattended installation, explicitly use `--network-mode http --public-address <VPS_PUBLIC_IP>`.
 
 After a LAN or temporary public-HTTP deployment, bind a production domain and enable TLS with:

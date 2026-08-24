@@ -112,6 +112,31 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
 - **局域网测试**：默认使用 `8080` 端口，不需要域名或 TLS 邮箱。选择后安装器会继续询问“是否仅允许局域网访问”；选择“否”可临时通过公网 IP + HTTP 访问 VPS。
 - **立即配置 TLS**：绑定生产域名并通过 ACME / Let's Encrypt 获取证书。
 
+如果你已经从云厂商或 CA 申请好了证书，可以在首次安装时使用自有证书模式：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo bash -s -- --network-mode tls \
+      --domain crewqual.example.com \
+      --tls-cert /etc/ssl/crewqual/fullchain.pem \
+      --tls-key /etc/ssl/crewqual/privkey.pem \
+      --port 443
+```
+
+`--tls-cert` 应为 PEM 格式的服务器证书或完整证书链，`--tls-key` 应为匹配的未加密 PEM 私钥。安装器会校验证书有效期、域名覆盖范围和证书/私钥匹配关系，然后复制到 `/opt/crewqual/tls/` 并由 Caddy 使用。自有证书模式不需要 `--tls-email`；如果之后证书续期，需要重新运行安装器或 `configure-domain.sh` 传入新文件。
+
+如果已经先按局域网模式安装，也可以这样切换到自有证书：
+
+```sh
+sudo /opt/crewqual/configure-domain.sh \
+  --domain crewqual.example.com \
+  --tls-cert /etc/ssl/crewqual/fullchain.pem \
+  --tls-key /etc/ssl/crewqual/privkey.pem \
+  --port 443
+```
+
+不传 `--tls-cert` 和 `--tls-key` 时，仍使用 Caddy 的 ACME 自动证书模式。申请新的证书不会自动吊销你已有的旧证书；旧证书会继续有效到期或被 CA 单独吊销。
+
 公网 HTTP 模式不会加密首次授权码、登录凭据、TOTP 或业务数据。安装器会要求再次确认并显示安全警告；仅建议临时使用，同时应通过防火墙限制来源。配置 HTTPS 后，请更换管理员密码与 TOTP、撤销所有活跃会话，并轮换 HTTP 阶段录入过的 API/Webhook 密钥。无人值守安装可显式使用 `--network-mode http --public-address <VPS公网IP>`。
 
 局域网或临时公网 HTTP 部署完成后，可以再绑定生产域名并启用 TLS：

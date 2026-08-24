@@ -1,8 +1,9 @@
 {
-	email {$TLS_EMAIL}
+	{$CADDY_EMAIL_CONFIG}
 }
 
 {$CADDY_SITE_ADDRESS} {
+	{$CADDY_TLS_CONFIG}
 	encode zstd gzip
 	handle_errors {
 		respond "CrewQual 正在更新，请稍后刷新页面。" 503

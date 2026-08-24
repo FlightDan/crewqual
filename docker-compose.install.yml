@@ -180,12 +180,15 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN is required}
       TLS_EMAIL: ${TLS_EMAIL:?TLS_EMAIL is required}
       CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:?CADDY_SITE_ADDRESS is required}
+      CADDY_TLS_CONFIG: ${CADDY_TLS_CONFIG:-}
+      CADDY_EMAIL_CONFIG: ${CADDY_EMAIL_CONFIG:-}
       NETWORK_ACCESS_SECRET: ${NETWORK_ACCESS_SECRET:?NETWORK_ACCESS_SECRET is required}
     ports:
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-443}:${APP_PORT:-443}"
       - "${ACME_BIND:-127.0.0.1}:${ACME_PORT:-18080}:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./tls:/etc/caddy/tls:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

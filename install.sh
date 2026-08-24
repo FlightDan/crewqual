@@ -31,9 +31,14 @@ LAN_ADDRESS_INPUT=""
 PUBLIC_ADDRESS_INPUT=""
 APP_ORIGIN_VALUE=""
 CADDY_SITE_ADDRESS_VALUE=""
+CADDY_TLS_CONFIG_VALUE=""
+CADDY_EMAIL_CONFIG_VALUE=""
 APP_BIND_VALUE="0.0.0.0"
 ACME_BIND_VALUE="127.0.0.1"
 ACME_PORT_VALUE="18080"
+TLS_CERT_INPUT=""
+TLS_KEY_INPUT=""
+AUTO_TLS_INPUT=0
 SETUP_AUTH_CODE_DISPLAY=""
 NON_INTERACTIVE=0
 AUTO_INSTALL_DOCKER=0
@@ -46,6 +51,8 @@ EXISTING_INSTALL=0
 ROLLBACK_DIR=""
 UPGRADE_DB_BACKUP=""
 PREVIOUS_CONFIGURE_DOMAIN=0
+PREVIOUS_TLS_CERT=0
+PREVIOUS_TLS_KEY=0
 TRUSTED_PUBLIC_KEY_VALUE=""
 TRUSTED_KEY_ID_VALUE=""
 MANIFEST_WEB_IMAGE=""
@@ -66,6 +73,9 @@ Options:
   --channel CHANNEL   Release channel: stable (default) or rc.
   --domain HOSTNAME   Public hostname used by CrewQual and Caddy.
   --tls-email EMAIL   Email used for ACME/TLS notifications.
+  --tls-cert FILE     Use an existing PEM certificate/full chain instead of ACME.
+  --tls-key FILE      Use the matching unencrypted PEM private key.
+  --auto-tls          Use Caddy ACME automatic certificate management.
   --network-mode MODE Initial network mode: lan, http, or tls.
   --lan-address HOST  Advertised localhost or private IPv4 address in LAN mode.
   --public-address HOST
@@ -183,6 +193,26 @@ msg() {
     en:tls_domain_required) printf 'TLS mode requires --domain' ;;
     zh:tls_email_required) printf 'TLS 模式必须传入 --tls-email' ;;
     en:tls_email_required) printf 'TLS mode requires --tls-email' ;;
+    zh:tls_cert_pair) printf '自有证书模式必须同时传入 --tls-cert 和 --tls-key' ;;
+    en:tls_cert_pair) printf 'Custom certificate mode requires both --tls-cert and --tls-key' ;;
+    zh:tls_cert_file) printf '证书文件不可读或不存在: %s' "$1" ;;
+    en:tls_cert_file) printf 'Certificate file is missing or unreadable: %s' "$1" ;;
+    zh:tls_key_file) printf '私钥文件不可读或不存在: %s' "$1" ;;
+    en:tls_key_file) printf 'Private key file is missing or unreadable: %s' "$1" ;;
+    zh:tls_cert_invalid) printf '证书不是有效的 PEM X.509 证书: %s' "$1" ;;
+    en:tls_cert_invalid) printf 'The certificate is not a valid PEM X.509 certificate: %s' "$1" ;;
+    zh:tls_key_invalid) printf '私钥不是可用的未加密 PEM 私钥: %s' "$1" ;;
+    en:tls_key_invalid) printf 'The private key is not a usable unencrypted PEM key: %s' "$1" ;;
+    zh:tls_cert_expired) printf '证书已过期: %s' "$1" ;;
+    en:tls_cert_expired) printf 'The certificate is expired: %s' "$1" ;;
+    zh:tls_cert_domain) printf '证书不包含域名 %s' "$1" ;;
+    en:tls_cert_domain) printf 'The certificate does not cover domain %s' "$1" ;;
+    zh:tls_cert_key_mismatch) printf '证书与私钥不匹配' ;;
+    en:tls_cert_key_mismatch) printf 'The certificate and private key do not match' ;;
+    zh:tls_custom_non_tls) printf '只有 TLS 网络模式可以使用自有证书' ;;
+    en:tls_custom_non_tls) printf 'Custom certificates can only be used with TLS network mode' ;;
+    zh:tls_custom_missing_installed) printf '已配置自有证书，但安装目录缺少证书文件，请重新传入 --tls-cert 和 --tls-key' ;;
+    en:tls_custom_missing_installed) printf 'Custom TLS is configured but the installed certificate files are missing; pass --tls-cert and --tls-key again' ;;
     zh:no_tty) printf '当前没有交互式终端；请传入网络模式、端口和必要的地址或域名参数' ;;
     en:no_tty) printf 'No interactive terminal is available; pass the network mode, port, and required address or domain parameters' ;;
     zh:resolve_latest) printf '解析最新 CrewQual Release' ;;
@@ -673,6 +703,16 @@ snapshot_existing_install() {
     PREVIOUS_CONFIGURE_DOMAIN=1
     cp -p -- "$INSTALL_DIR/configure-domain.sh" "$ROLLBACK_DIR/configure-domain.sh"
   fi
+  if [[ -f "$INSTALL_DIR/tls/fullchain.pem" ]]; then
+    PREVIOUS_TLS_CERT=1
+    mkdir -p -- "$ROLLBACK_DIR/tls"
+    cp -p -- "$INSTALL_DIR/tls/fullchain.pem" "$ROLLBACK_DIR/tls/fullchain.pem"
+  fi
+  if [[ -f "$INSTALL_DIR/tls/privkey.pem" ]]; then
+    PREVIOUS_TLS_KEY=1
+    mkdir -p -- "$ROLLBACK_DIR/tls"
+    cp -p -- "$INSTALL_DIR/tls/privkey.pem" "$ROLLBACK_DIR/tls/privkey.pem"
+  fi
 }
 
 create_upgrade_database_backup() {
@@ -703,6 +743,16 @@ restore_existing_install() {
     atomic_install "$ROLLBACK_DIR/configure-domain.sh" "$INSTALL_DIR/configure-domain.sh" 0755 || failed=1
   elif [[ "$PREVIOUS_CONFIGURE_DOMAIN" == "0" && -f "$INSTALL_DIR/configure-domain.sh" ]]; then
     rm -f -- "$INSTALL_DIR/configure-domain.sh" || failed=1
+  fi
+  if ((PREVIOUS_TLS_CERT)); then
+    atomic_install "$ROLLBACK_DIR/tls/fullchain.pem" "$INSTALL_DIR/tls/fullchain.pem" 0644 || failed=1
+  elif [[ -f "$INSTALL_DIR/tls/fullchain.pem" ]]; then
+    rm -f -- "$INSTALL_DIR/tls/fullchain.pem" || failed=1
+  fi
+  if ((PREVIOUS_TLS_KEY)); then
+    atomic_install "$ROLLBACK_DIR/tls/privkey.pem" "$INSTALL_DIR/tls/privkey.pem" 0600 || failed=1
+  elif [[ -f "$INSTALL_DIR/tls/privkey.pem" ]]; then
+    rm -f -- "$INSTALL_DIR/tls/privkey.pem" || failed=1
   fi
   if [[ -s "$UPGRADE_DB_BACKUP" && ${#COMPOSE[@]} -gt 0 ]]; then
     compose up -d postgres >/dev/null 2>&1 || failed=1
@@ -738,6 +788,67 @@ validate_domain() {
 validate_email() {
   [[ "$1" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] ||
     die "$(msg email_invalid "$1")"
+}
+
+custom_tls_requested() {
+  [[ -n "$TLS_CERT_INPUT" || -n "$TLS_KEY_INPUT" ]]
+}
+
+validate_custom_tls() {
+  local domain="$1" cert="$TLS_CERT_INPUT" key="$TLS_KEY_INPUT"
+  if [[ -z "$cert" || -z "$key" ]]; then
+    die "$(msg tls_cert_pair)"
+  fi
+  [[ -f "$cert" && -r "$cert" ]] || die "$(msg tls_cert_file "$cert")"
+  [[ -f "$key" && -r "$key" ]] || die "$(msg tls_key_file "$key")"
+  openssl x509 -in "$cert" -noout >/dev/null 2>&1 || die "$(msg tls_cert_invalid "$cert")"
+  openssl pkey -in "$key" -passin pass: -noout >/dev/null 2>&1 || die "$(msg tls_key_invalid "$key")"
+  openssl x509 -in "$cert" -checkend 0 -noout >/dev/null 2>&1 || die "$(msg tls_cert_expired "$cert")"
+  openssl x509 -in "$cert" -checkhost "$domain" -noout >/dev/null 2>&1 || die "$(msg tls_cert_domain "$domain")"
+
+  local cert_public key_public
+  cert_public="$(openssl x509 -in "$cert" -pubkey -noout | openssl pkey -pubin -outform DER 2>/dev/null | sha256sum | awk '{print $1}')" ||
+    die "$(msg tls_cert_invalid "$cert")"
+  key_public="$(openssl pkey -in "$key" -passin pass: -pubout -outform DER 2>/dev/null | sha256sum | awk '{print $1}')" ||
+    die "$(msg tls_key_invalid "$key")"
+  [[ -n "$cert_public" && "$cert_public" == "$key_public" ]] || die "$(msg tls_cert_key_mismatch)"
+}
+
+set_tls_config_values() {
+  if [[ -n "$CADDY_TLS_CONFIG_VALUE" ]]; then
+    CADDY_EMAIL_CONFIG_VALUE=""
+  else
+    CADDY_EMAIL_CONFIG_VALUE="email $TLS_EMAIL_INPUT"
+  fi
+}
+
+prepare_custom_tls_files() {
+  local tls_dir="$INSTALL_DIR/tls"
+  local cert_target="$tls_dir/fullchain.pem"
+  local key_target="$tls_dir/privkey.pem"
+  install -d -m 0700 "$tls_dir"
+
+  if [[ -n "$CADDY_TLS_CONFIG_VALUE" ]]; then
+    if custom_tls_requested; then
+      if [[ ! -f "$cert_target" ]] || ! cmp -s "$TLS_CERT_INPUT" "$cert_target"; then
+        install -m 0644 "$TLS_CERT_INPUT" "$cert_target"
+      else
+        chmod 0644 "$cert_target"
+      fi
+      if [[ ! -f "$key_target" ]] || ! cmp -s "$TLS_KEY_INPUT" "$key_target"; then
+        install -m 0600 "$TLS_KEY_INPUT" "$key_target"
+      else
+        chmod 0600 "$key_target"
+      fi
+    else
+      [[ -s "$cert_target" && -s "$key_target" ]] || die "$(msg tls_custom_missing_installed)"
+      chmod 0644 "$cert_target"
+      chmod 0600 "$key_target"
+    fi
+  else
+    [[ -e "$cert_target" ]] || install -m 0644 /dev/null "$cert_target"
+    [[ -e "$key_target" ]] || install -m 0600 /dev/null "$key_target"
+  fi
 }
 
 validate_port() {
@@ -880,6 +991,9 @@ prepare_network_config() {
   fi
   [[ "$NETWORK_MODE_INPUT" == "lan" || "$NETWORK_MODE_INPUT" == "http" || "$NETWORK_MODE_INPUT" == "tls" ]] ||
     die "$(msg network_invalid)"
+  if [[ "$NETWORK_MODE_INPUT" != "tls" ]] && custom_tls_requested; then
+    die "$(msg tls_custom_non_tls)"
+  fi
 
   if [[ "$NETWORK_MODE_INPUT" == "lan" && "$NON_INTERACTIVE" == "0" ]]; then
     lan_only_answer="$(prompt_value "$(msg lan_only_prompt)")"
@@ -910,6 +1024,8 @@ prepare_network_config() {
     validate_lan_address "$LAN_ADDRESS_INPUT"
     APP_DOMAIN_INPUT="lan.local"
     TLS_EMAIL_INPUT="crewqual-local@lan.invalid"
+    CADDY_TLS_CONFIG_VALUE=""
+    set_tls_config_values
     APP_ORIGIN_VALUE="http://${LAN_ADDRESS_INPUT}:${APP_PORT_INPUT}"
     CADDY_SITE_ADDRESS_VALUE="http://:${APP_PORT_INPUT}"
     if [[ "$LAN_ADDRESS_INPUT" == "localhost" || "$LAN_ADDRESS_INPUT" == "127.0.0.1" ]]; then
@@ -939,6 +1055,8 @@ prepare_network_config() {
     validate_public_address "$PUBLIC_ADDRESS_INPUT"
     APP_DOMAIN_INPUT="$PUBLIC_ADDRESS_INPUT"
     TLS_EMAIL_INPUT="crewqual-local@lan.invalid"
+    CADDY_TLS_CONFIG_VALUE=""
+    set_tls_config_values
     APP_ORIGIN_VALUE="http://${PUBLIC_ADDRESS_INPUT}:${APP_PORT_INPUT}"
     CADDY_SITE_ADDRESS_VALUE="http://:${APP_PORT_INPUT}"
     APP_BIND_VALUE="0.0.0.0"
@@ -952,12 +1070,20 @@ prepare_network_config() {
       ((NON_INTERACTIVE)) && die "$(msg tls_domain_required)"
       APP_DOMAIN_INPUT="$(prompt_value "$(msg tls_domain_prompt)")"
     }
-    [[ -n "$TLS_EMAIL_INPUT" ]] || {
-      ((NON_INTERACTIVE)) && die "$(msg tls_email_required)"
-      TLS_EMAIL_INPUT="$(prompt_value "$(msg tls_email_prompt)")"
-    }
     validate_domain "$APP_DOMAIN_INPUT"
-    validate_email "$TLS_EMAIL_INPUT"
+    if custom_tls_requested; then
+      validate_custom_tls "$APP_DOMAIN_INPUT"
+      TLS_EMAIL_INPUT="${TLS_EMAIL_INPUT:-crewqual-local@lan.invalid}"
+      CADDY_TLS_CONFIG_VALUE='tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem'
+    else
+      [[ -n "$TLS_EMAIL_INPUT" ]] || {
+        ((NON_INTERACTIVE)) && die "$(msg tls_email_required)"
+        TLS_EMAIL_INPUT="$(prompt_value "$(msg tls_email_prompt)")"
+      }
+      validate_email "$TLS_EMAIL_INPUT"
+      CADDY_TLS_CONFIG_VALUE=""
+    fi
+    set_tls_config_values
     APP_ORIGIN_VALUE="https://${APP_DOMAIN_INPUT}"
     CADDY_SITE_ADDRESS_VALUE="$APP_DOMAIN_INPUT"
     if [[ "$APP_PORT_INPUT" != 443 ]]; then
@@ -1172,8 +1298,8 @@ write_initial_env() {
     printf '%s\n' "NODE_ENV=production" "SERVICE_MODE=remote" "NEXT_PUBLIC_SERVICE_MODE=remote"
     printf "APP_ORIGIN='%s'\nAPP_DOMAIN='%s'\nTLS_EMAIL='%s'\n" \
       "$APP_ORIGIN_VALUE" "$APP_DOMAIN_INPUT" "$TLS_EMAIL_INPUT"
-    printf "DEPLOYMENT_NETWORK_MODE='%s'\nAPP_PORT='%s'\nCADDY_SITE_ADDRESS='%s'\nAPP_BIND='%s'\nACME_BIND='%s'\nACME_PORT='%s'\nNETWORK_ACCESS_SECRET='%s'\n" \
-      "$NETWORK_MODE_INPUT" "$APP_PORT_INPUT" "$CADDY_SITE_ADDRESS_VALUE" "$APP_BIND_VALUE" "$ACME_BIND_VALUE" "$ACME_PORT_VALUE" "$network_secret"
+    printf "DEPLOYMENT_NETWORK_MODE='%s'\nAPP_PORT='%s'\nCADDY_SITE_ADDRESS='%s'\nCADDY_TLS_CONFIG='%s'\nCADDY_EMAIL_CONFIG='%s'\nAPP_BIND='%s'\nACME_BIND='%s'\nACME_PORT='%s'\nNETWORK_ACCESS_SECRET='%s'\n" \
+      "$NETWORK_MODE_INPUT" "$APP_PORT_INPUT" "$CADDY_SITE_ADDRESS_VALUE" "$CADDY_TLS_CONFIG_VALUE" "$CADDY_EMAIL_CONFIG_VALUE" "$APP_BIND_VALUE" "$ACME_BIND_VALUE" "$ACME_PORT_VALUE" "$network_secret"
     printf "POSTGRES_PASSWORD='%s'\n" "$postgres_password"
     printf "DATABASE_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
     printf "DIRECT_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
@@ -1459,6 +1585,20 @@ while (($# > 0)); do
       TLS_EMAIL_INPUT="$2"
       shift 2
       ;;
+    --tls-cert)
+      (($# >= 2)) || die "$(msg missing_option_value --tls-cert)"
+      TLS_CERT_INPUT="$2"
+      shift 2
+      ;;
+    --tls-key)
+      (($# >= 2)) || die "$(msg missing_option_value --tls-key)"
+      TLS_KEY_INPUT="$2"
+      shift 2
+      ;;
+    --auto-tls)
+      AUTO_TLS_INPUT=1
+      shift
+      ;;
     --network-mode)
       (($# >= 2)) || die "$(msg missing_option_value --network-mode)"
       NETWORK_MODE_INPUT="$2"
@@ -1511,6 +1651,10 @@ while (($# > 0)); do
       ;;
   esac
 done
+
+if ((AUTO_TLS_INPUT)) && custom_tls_requested; then
+  die "--auto-tls 不能与 --tls-cert/--tls-key 同时使用"
+fi
 
 ENV_FILE="$INSTALL_DIR/.env"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
@@ -1586,6 +1730,18 @@ if [[ -f "$ENV_FILE" ]]; then
   APP_ORIGIN_VALUE="$(env_value APP_ORIGIN)"
   CADDY_SITE_ADDRESS_VALUE="$(env_value CADDY_SITE_ADDRESS)"
   [[ -n "$CADDY_SITE_ADDRESS_VALUE" ]] || CADDY_SITE_ADDRESS_VALUE="$APP_DOMAIN_INPUT"
+  CADDY_TLS_CONFIG_VALUE="$(env_value CADDY_TLS_CONFIG)"
+  if [[ "$existing_mode" != "tls" ]] && custom_tls_requested; then
+    die "$(msg tls_custom_non_tls)"
+  fi
+  if [[ "$existing_mode" == "tls" ]] && custom_tls_requested; then
+    validate_domain "$APP_DOMAIN_INPUT"
+    validate_custom_tls "$APP_DOMAIN_INPUT"
+    CADDY_TLS_CONFIG_VALUE='tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/privkey.pem'
+  elif ((AUTO_TLS_INPUT)); then
+    CADDY_TLS_CONFIG_VALUE=""
+  fi
+  set_tls_config_values
   APP_BIND_VALUE="$(env_value APP_BIND)"
   [[ -n "$APP_BIND_VALUE" ]] || APP_BIND_VALUE="0.0.0.0"
   ACME_BIND_VALUE="$(env_value ACME_BIND)"
@@ -1640,6 +1796,13 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   ensure_env_key APP_DOMAIN "$APP_DOMAIN_INPUT"
   ensure_env_key TLS_EMAIL "$TLS_EMAIL_INPUT"
   ensure_env_key CADDY_SITE_ADDRESS "$CADDY_SITE_ADDRESS_VALUE"
+  if custom_tls_requested || ((AUTO_TLS_INPUT)); then
+    set_env_key CADDY_TLS_CONFIG "$CADDY_TLS_CONFIG_VALUE"
+    set_env_key CADDY_EMAIL_CONFIG "$CADDY_EMAIL_CONFIG_VALUE"
+  else
+    ensure_env_key CADDY_TLS_CONFIG "$CADDY_TLS_CONFIG_VALUE"
+    ensure_env_key CADDY_EMAIL_CONFIG "$CADDY_EMAIL_CONFIG_VALUE"
+  fi
   ensure_env_key APP_BIND "$APP_BIND_VALUE"
   ensure_env_key ACME_BIND "$ACME_BIND_VALUE"
   ensure_env_key ACME_PORT "$ACME_PORT_VALUE"
@@ -1647,13 +1810,17 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   [[ -n "$(env_value SETUP_AUTH_CODE_HASH)" ]] || generate_setup_auth_code
 fi
 
+if [[ "$EXISTING_INSTALL" == "1" ]]; then
+  snapshot_existing_install
+fi
+prepare_custom_tls_files
+
 log "$(msg validate_manifest "$RELEASE_VERSION")"
 docker compose --project-directory "$TEMP_DIR" --env-file "$TEMP_DIR/env.updated" \
   -f "$TEMP_DIR/compose.yaml" config --quiet
 
 COMPOSE=(docker compose --project-directory "$INSTALL_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 if [[ "$EXISTING_INSTALL" == "1" ]]; then
-  snapshot_existing_install
   create_upgrade_database_backup
 fi
 
