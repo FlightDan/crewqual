@@ -301,8 +301,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --title "CrewQual $RELEASE_TAG" --notes "Signed release assets" --prerelease --latest=false
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "CrewQual $RELEASE_TAG" --notes "Signed release assets" --prerelease --latest=false
           fi
       - name: Upload assets without clobber and verify remote hashes
         env:
@@ -311,13 +311,13 @@ jobs:
           set -euo pipefail
           for file in release-assets/*; do
             name="$(basename "$file")"
-            remote="$(gh release view "$RELEASE_TAG" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
+            remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
             if [[ -n "$remote" ]]; then
               remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
               local_hash="$(sha256sum "$file" | awk '{print $1}')"
               [[ "$remote_hash" == "$local_hash" ]] || { echo "asset collision with different bytes: $name"; exit 1; }
             else
-              gh release upload "$RELEASE_TAG" "$file"
+              gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "$file"
             fi
           done
   post-publish-host-acceptance:
@@ -353,7 +353,7 @@ jobs:
       - name: Promote accepted final release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$RELEASE_TAG" --prerelease=false --latest=true
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest=true
 
   keep-rc-prerelease:
     needs: post-publish-host-acceptance
@@ -365,4 +365,4 @@ jobs:
       - name: Keep accepted RC prerelease off latest
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$RELEASE_TAG" --prerelease=true --latest=false
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=true --latest=false
