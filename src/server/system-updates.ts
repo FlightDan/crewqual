@@ -33,11 +33,24 @@ function currentVersion() {
   return process.env.CREWQUAL_VERSION || packageJson.version;
 }
 
+function updaterMode() {
+  return process.env.CREWQUAL_UPDATER_MODE === "manual" ? "manual" : "managed";
+}
+
+function manualModeError() {
+  return new ApiError(
+    "UPDATER_UNAVAILABLE",
+    "当前部署使用手动升级模式，请在宿主机重新运行安装命令",
+    503,
+  );
+}
+
 function signature(timestamp: string, nonce: string, body: string, secret: string) {
   return createHmac("sha256", secret).update(`${timestamp}.${nonce}.${body}`).digest("hex");
 }
 
 async function agentRequest<T>(path: string, method: "GET" | "POST", input?: unknown) {
+  if (updaterMode() === "manual") throw manualModeError();
   const secret = process.env.CREWQUAL_UPDATER_SHARED_SECRET;
   if (!secret) throw new ApiError("UPDATER_UNAVAILABLE", "宿主机更新器尚未配置", 503);
   try {
@@ -128,6 +141,22 @@ async function latestRelease() {
 
 export async function getSystemUpdateSnapshot(refresh = false): Promise<SystemUpdateSnapshot> {
   const localVersion = currentVersion();
+  if (updaterMode() === "manual") {
+    const release = await latestRelease();
+    return {
+      mode: "manual",
+      currentVersion: localVersion,
+      latestVersion: release?.version ?? null,
+      releaseNotesUrl: release?.notesUrl ?? null,
+      releasePublishedAt: release?.publishedAt ?? null,
+      releaseChannel: release ? "stable" : "unknown",
+      canInstall: false,
+      reason: "当前部署使用手动升级模式，请在宿主机重新运行安装命令",
+      updaterVersion: null,
+      agentAvailable: false,
+      job: null,
+    };
+  }
   try {
     const status = await agentRequest<AgentResponse>(
       refresh ? "/v1/check" : "/v1/status",

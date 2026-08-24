@@ -6,6 +6,7 @@ x-app-environment: &app-environment
   CREWQUAL_VERSION: ${CREWQUAL_VERSION:?CREWQUAL_VERSION is required}
   CREWQUAL_WEB_IMAGE: ${CREWQUAL_WEB_IMAGE:?CREWQUAL_WEB_IMAGE is required}
   CREWQUAL_RUNTIME_IMAGE: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
+  CREWQUAL_UPDATER_MODE: ${CREWQUAL_UPDATER_MODE:-managed}
   CREWQUAL_UPDATER_SOCKET: ${CREWQUAL_UPDATER_SOCKET:-/run/crewqual-updater/api.sock}
   CREWQUAL_UPDATER_SHARED_SECRET: ${CREWQUAL_UPDATER_SHARED_SECRET:-}
   APP_ORIGIN: ${APP_ORIGIN:?APP_ORIGIN is required}
@@ -147,7 +148,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /run/crewqual-updater:/run/crewqual-updater:ro
+      - type: bind
+        source: ${CREWQUAL_UPDATER_HOST_DIR:-/run/crewqual-updater}
+        target: /run/crewqual-updater
+        read_only: true
+        bind:
+          create_host_path: true
     restart: unless-stopped
     networks: [internal]
 

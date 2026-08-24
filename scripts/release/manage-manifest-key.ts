@@ -310,25 +310,43 @@ async function writeReleaseEnv(keyDir: string, material: KeyMaterial) {
 
 async function writeReadme(keyDir: string) {
   const path = join(keyDir, "README.txt");
-  if (await assertNoSymlink(path, "key directory README")) return;
-  await writeFile(
+  const existing = await assertNoSymlink(path, "key directory README");
+  if (existing && !existing.isFile()) fail("key directory README must be a regular file");
+  await writeAtomic(
     path,
     [
-      "CrewQual manifest signing keys",
+      "CrewQual 发布签名密钥目录",
       "",
-      "This directory contains private release-signing material. Keep the directory mode 0700 and back it up offline with encryption.",
-      "The private key is never copied into the repository.",
+      "本目录保存 CrewQual manifest 和 Release tag 的签名材料。目录权限必须为 0700。",
+      "私钥不会复制到 Git 仓库；请使用加密方式制作离线备份。",
       "",
-      "Commands:",
+      "一、Manifest Ed25519 密钥",
       "  ./crewqual-manifest-key status",
       "  ./crewqual-manifest-key sync",
       "  ./crewqual-manifest-key rotate-stage",
       "  ./crewqual-manifest-key rotate-activate",
       "  ./crewqual-manifest-key github-sync",
       "",
+      "二、GPG Release tag 签名",
+      "  ./crewqual-release-tag setup",
+      "  ./crewqual-release-tag unlock",
+      "  ./crewqual-release-tag sign",
+      "  ./crewqual-release-tag verify v1.0.1",
+      "  ./crewqual-release-tag github-sync",
+      "",
+      "直接运行 sign 会交互询问 tag，例如 v1.0.1 或 v1.0.1-rc.1。",
+      "默认允许脏工作区，但签名 tag 只包含当前 HEAD，不包含未提交改动。",
+      "如需严格禁止脏工作区，使用 sign --strict-clean。",
+      "",
+      "三、本地密码文件",
+      "  gpg-passphrase",
+      "  文件权限必须为 0600，只写入一行 GPG 密码。留空则使用 gpg-agent。",
+      "  密码文件是本地明文敏感文件，绝不能提交或复制到 Git 仓库。",
+      "",
     ].join("\n"),
-    { mode: 0o600 },
+    0o600,
   );
+  await chmod(path, 0o600);
 }
 
 function verifyRoundTrip(material: KeyMaterial) {

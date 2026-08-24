@@ -81,15 +81,30 @@ CrewQual is a better fit when qualification compliance is a long-term, business-
 
 ## Quick start
 
-For Linux hosts with amd64 architecture.
-
-Normal operation on arm64 or Windows WSL2 is not guaranteed. Full testing will be added in the future.
+Supports amd64 Linux hosts and Windows x86_64 with WSL2 Ubuntu using Docker Desktop Linux containers. Full arm64 and macOS testing is not yet complete.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash
 ```
 
 After installation, the terminal displays an 8-digit first-setup authorization code once. Visit the displayed `/setup` URL to complete initialization.
+
+### Windows with WSL2
+
+Docker Desktop is installed and runs on Windows, while the CrewQual installation script always runs in the WSL2 Ubuntu terminal:
+
+1. Enable the current Ubuntu distribution under Docker Desktop `Settings > Resources > WSL Integration`.
+2. In Ubuntu, verify that both `docker info` and `docker compose version` succeed.
+3. Run the CrewQual installation command above in Ubuntu without `--install-docker`.
+
+WSL2 automatically uses manual update mode and binds only to `http://localhost:8080` by default, which is directly accessible from a Windows browser. To upgrade, rerun the same installation command in Ubuntu. For phones or other LAN devices, pass the private IPv4 address of the Windows network adapter:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo bash -s -- --network-mode lan --lan-address 192.168.1.20
+```
+
+You must also allow the selected inbound TCP port through Windows Firewall. Do not use the changing WSL2 internal `172.x` NAT address. If `docker info` fails, start Docker Desktop and recheck WSL Integration for the Ubuntu distribution.
 
 By default, the installer resolves the latest stable official GitHub Release and does not include release candidates. To install the latest RC, explicitly pass `--channel rc`.
 
@@ -116,11 +131,12 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
   | sudo bash -s -- --version v1.0.1
 ```
 
-Unattended installation:
+Unattended installation on a regular Linux host:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
-  | sudo bash -s -- --install-docker --non-interactive
+  | sudo bash -s -- --install-docker --non-interactive \
+      --network-mode lan --lan-address 192.168.1.20
 ```
 
 Running the installation command again upgrades the existing deployment while preserving `/opt/crewqual/.env` and Docker volumes. The TLS email is used only for certificate expiration, renewal, or error notifications. It is not a CrewQual login account, and no email password is required.
@@ -143,7 +159,7 @@ Contact: `CrewQual@devdan.cc`
 
 - [ ] One-click migration from multidimensional table tools
 - [ ] Node.js 22 → 24
-- [ ] Full support for ARM architectures, Windows WSL2, and macOS
+- [ ] Full support for ARM architectures and macOS
 
 ## Privacy and security
 

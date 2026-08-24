@@ -8,6 +8,10 @@ set -Eeuo pipefail
 readonly GITHUB_REPOSITORY="FlightDan/crewqual"
 readonly DEFAULT_INSTALL_DIR="/opt/crewqual"
 readonly WAIT_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_TIMEOUT_SECONDS:-300}"
+readonly DOCKER_COMMAND_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS:-30}"
+readonly NETWORK_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_TIMEOUT_SECONDS:-60}"
+readonly NETWORK_RETRY_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_RETRY_TIMEOUT_SECONDS:-180}"
+readonly PACKAGE_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS:-900}"
 readonly UPDATER_BINARY_DIR="/usr/local/libexec"
 readonly UPDATER_CONFIG_DIR="/etc/crewqual-updater"
 readonly UPDATER_DATA_DIR="/var/lib/crewqual-updater"
@@ -46,6 +50,10 @@ TRUSTED_PUBLIC_KEY_VALUE=""
 TRUSTED_KEY_ID_VALUE=""
 MANIFEST_WEB_IMAGE=""
 MANIFEST_RUNTIME_IMAGE=""
+IS_WSL=0
+UPDATER_MODE="managed"
+UPDATER_HOST_DIR="/run/crewqual-updater"
+UPDATER_VERIFIER=""
 
 usage() {
   cat <<'EOF'
@@ -59,7 +67,7 @@ Options:
   --domain HOSTNAME   Public hostname used by CrewQual and Caddy.
   --tls-email EMAIL   Email used for ACME/TLS notifications.
   --network-mode MODE Initial network mode: lan, http, or tls.
-  --lan-address IP    Advertised private IPv4 address in LAN mode.
+  --lan-address HOST  Advertised localhost or private IPv4 address in LAN mode.
   --public-address HOST
                       Public IPv4 address or hostname in HTTP mode.
   --port PORT         Application access port (default: 8080 for new installs).
@@ -73,6 +81,14 @@ Options:
 Environment:
   CREWQUAL_INSTALL_DIR              Install directory (default: /opt/crewqual).
   CREWQUAL_INSTALL_TIMEOUT_SECONDS  Container health timeout (default: 300).
+  CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS
+                                    Docker/systemd command timeout (default: 30).
+  CREWQUAL_INSTALL_NETWORK_TIMEOUT_SECONDS
+                                    Per-request network timeout (default: 60).
+  CREWQUAL_INSTALL_NETWORK_RETRY_TIMEOUT_SECONDS
+                                    Total retry window for network requests (default: 180).
+  CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS
+                                    Package/Docker installation timeout (default: 900).
   CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY
                                     Legacy compatibility input. It is accepted only when
                                     the value already exists in the built-in keyring.
@@ -205,6 +221,46 @@ msg() {
     en:configure_missing) printf 'Release manifest includes configure-domain.sh, but the file could not be downloaded' ;;
     zh:configure_sha_failed) printf 'configure-domain.sh SHA-256 校验失败，拒绝安装' ;;
     en:configure_sha_failed) printf 'configure-domain.sh SHA-256 verification failed; refusing to install' ;;
+    zh:install_interrupted) printf '安装已中断（按 Ctrl-C 触发）' ;;
+    en:install_interrupted) printf 'Installation interrupted (Ctrl-C)' ;;
+    zh:preflight) printf '检查安装环境' ;;
+    en:preflight) printf 'Check installation prerequisites' ;;
+    zh:docker_check) printf '检查 Docker Engine 和 daemon（最多等待 %ss）' "$1" ;;
+    en:docker_check) printf 'Check Docker Engine and daemon (wait up to %ss)' "$1" ;;
+    zh:docker_start) printf '启动 Docker daemon（最多等待 %ss）' "$1" ;;
+    en:docker_start) printf 'Start Docker daemon (wait up to %ss)' "$1" ;;
+    zh:docker_ready) printf 'Docker Engine 已就绪' ;;
+    en:docker_ready) printf 'Docker Engine is ready' ;;
+    zh:compose_check) printf '检查 Docker Compose v2（最多等待 %ss）' "$1" ;;
+    en:compose_check) printf 'Check Docker Compose v2 (wait up to %ss)' "$1" ;;
+    zh:compose_ready) printf 'Docker Compose v2 已就绪' ;;
+    en:compose_ready) printf 'Docker Compose v2 is ready' ;;
+    zh:wsl_detected) printf '检测到 WSL2；使用 Windows Docker Desktop，并启用当前 Ubuntu 的 WSL Integration' ;;
+    en:wsl_detected) printf 'WSL2 detected; use Docker Desktop for Windows with WSL Integration enabled for this Ubuntu distribution' ;;
+    zh:wsl_docker_missing) printf 'WSL2 中未找到 Docker CLI。请在 Windows 安装并启动 Docker Desktop，在 Settings > Resources > WSL Integration 中启用当前 Ubuntu，然后重新打开 Ubuntu 终端' ;;
+    en:wsl_docker_missing) printf 'Docker CLI was not found in WSL2. Install and start Docker Desktop on Windows, enable this Ubuntu distribution under Settings > Resources > WSL Integration, then reopen the Ubuntu terminal' ;;
+    zh:wsl_docker_unavailable) printf 'WSL2 无法连接 Docker Desktop。请启动 Docker Desktop，确认当前 Ubuntu 已启用 WSL Integration，然后在 Ubuntu 中运行 docker info 验证' ;;
+    en:wsl_docker_unavailable) printf 'WSL2 cannot connect to Docker Desktop. Start Docker Desktop, confirm WSL Integration is enabled for this Ubuntu distribution, then run docker info in Ubuntu' ;;
+    zh:wsl_compose_unavailable) printf 'WSL2 中 Docker Compose v2 不可用。请更新 Docker Desktop 并重新启用当前 Ubuntu 的 WSL Integration' ;;
+    en:wsl_compose_unavailable) printf 'Docker Compose v2 is unavailable in WSL2. Update Docker Desktop and re-enable WSL Integration for this Ubuntu distribution' ;;
+    zh:wsl_install_docker_ignored) printf 'WSL2 由 Windows Docker Desktop 提供 Docker；已忽略 --install-docker' ;;
+    en:wsl_install_docker_ignored) printf 'Docker is provided by Docker Desktop on Windows in WSL2; --install-docker was ignored' ;;
+    zh:download_asset) printf '下载 %s' "$1" ;;
+    en:download_asset) printf 'Download %s' "$1" ;;
+    zh:download_failed) printf '下载失败: %s' "$1" ;;
+    en:download_failed) printf 'Download failed: %s' "$1" ;;
+    zh:docker_installer_download) printf '下载 Docker 官方安装脚本' ;;
+    en:docker_installer_download) printf 'Download Docker official installer' ;;
+    zh:package_update) printf '更新系统软件包索引' ;;
+    en:package_update) printf 'Update system package indexes' ;;
+    zh:package_install) printf '安装 Docker Compose v2 软件包' ;;
+    en:package_install) printf 'Install Docker Compose v2 package' ;;
+    zh:command_timeout) printf '命令超过 %ss 仍未完成，已自动终止' "$1" ;;
+    en:command_timeout) printf 'Command did not finish within %ss and was terminated' "$1" ;;
+    zh:network_timeout) printf '网络请求超过 %ss，已自动终止；请检查网络或代理' "$1" ;;
+    en:network_timeout) printf 'Network request exceeded %ss and was terminated; check the network or proxy' "$1" ;;
+    zh:network_failed) printf '网络请求失败；请检查网络、DNS 或代理' ;;
+    en:network_failed) printf 'Network request failed; check the network, DNS, or proxy' ;;
     zh:wait_status) printf '等待 %s: %s' "$1" "$2" ;;
     en:wait_status) printf 'Wait for %s: %s' "$1" "$2" ;;
     zh:service_status_bad) printf '%s 状态异常: %s' "$1" "$2" ;;
@@ -235,6 +291,14 @@ msg() {
     en:updater_trust_missing) printf 'Notice: updater trusted public key is not configured; refusing to install the updater.' ;;
     zh:updater_start_failed) printf '错误: 更新器服务启动失败，无法完成更新器交付。' ;;
     en:updater_start_failed) printf 'Error: the updater service failed to start; delivery cannot complete.' ;;
+    zh:manual_updater_mode) printf 'WSL2 使用手动升级模式；不会安装宿主机自动更新服务' ;;
+    en:manual_updater_mode) printf 'WSL2 uses manual update mode; the host automatic updater service will not be installed' ;;
+    zh:manual_upgrade_command) printf '升级方式: 在 WSL2 Ubuntu 中重新运行 CrewQual 安装命令' ;;
+    en:manual_upgrade_command) printf 'To upgrade, rerun the CrewQual installation command in WSL2 Ubuntu' ;;
+    zh:updater_disable_failed) printf '警告: 无法停止已有 CrewQual 更新器；请手工执行 systemctl disable --now crewqual-updater.service crewqual-updater.socket' ;;
+    en:updater_disable_failed) printf 'Warning: could not stop the existing CrewQual updater; run systemctl disable --now crewqual-updater.service crewqual-updater.socket manually' ;;
+    zh:wsl_lan_firewall) printf 'WSL2 将使用 Windows 局域网地址 %s；请确认 Windows 防火墙允许 TCP %s 入站' "$1" "$2" ;;
+    en:wsl_lan_firewall) printf 'WSL2 will use Windows LAN address %s; ensure Windows Firewall allows inbound TCP %s' "$1" "$2" ;;
     zh:setup_auth_code) printf '首次配置授权码（仅显示一次）: %s' "$1" ;;
     en:setup_auth_code) printf 'First-setup authorization code (shown once): %s' "$1" ;;
     zh:setup_auth_warning) printf '请立即保存该授权码；首次配置前需要在 /setup 输入它。' ;;
@@ -305,6 +369,8 @@ msg() {
     en:docker_install_engine_failed) printf 'Docker Engine is still unavailable after installation; check the daemon and retry' ;;
     zh:docker_install_compose_failed) printf 'Docker Compose v2 插件安装后仍不可用，请检查安装结果并重试' ;;
     en:docker_install_compose_failed) printf 'Docker Compose v2 is still unavailable after installation; check the result and retry' ;;
+    zh:updater_start) printf '启动 CrewQual 自动更新器' ;;
+    en:updater_start) printf 'Start CrewQual updater' ;;
     zh:docker_compose_os_unsupported) printf '无法识别支持 Docker Compose v2 软件包的包管理器（需要 apt-get、dnf 或 yum）' ;;
     en:docker_compose_os_unsupported) printf 'Could not find a package manager supported for Docker Compose v2 (apt-get, dnf, or yum required)' ;;
     zh:linux_only) printf '当前安装器仅支持 Linux' ;;
@@ -330,6 +396,108 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$(msg command_unavailable "$1")"
 }
 
+detect_wsl() {
+  case "${CREWQUAL_INSTALL_TEST_PLATFORM:-}" in
+    wsl) return 0 ;;
+    linux) return 1 ;;
+  esac
+  [[ -n "${WSL_INTEROP:-}" || -n "${WSL_DISTRO_NAME:-}" ]] && return 0
+  grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null && return 0
+  grep -qi microsoft /proc/version 2>/dev/null
+}
+
+configure_host_platform() {
+  if detect_wsl; then
+    IS_WSL=1
+    UPDATER_MODE="manual"
+    UPDATER_HOST_DIR="$INSTALL_DIR/.updater-runtime"
+    log "$(msg wsl_detected)"
+  fi
+}
+
+docker_command_available() {
+  [[ "${CREWQUAL_INSTALL_TEST_DOCKER_MISSING:-0}" != "1" ]] && command -v docker >/dev/null 2>&1
+}
+
+on_interrupt() {
+  trap - INT TERM
+  printf '\n%s\n' "$(msg install_interrupted)" >&2
+  exit 130
+}
+
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  timeout --foreground --kill-after=10s "${seconds}s" "$@"
+}
+
+curl_fetch() {
+  curl --fail --show-error --location --progress-bar \
+    --retry 3 --retry-all-errors --retry-max-time "$NETWORK_RETRY_TIMEOUT_SECONDS" \
+    --connect-timeout 15 --max-time "$NETWORK_TIMEOUT_SECONDS" "$@"
+}
+
+check_docker_daemon() {
+  local output="" status=0
+  if output="$(run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" docker info 2>&1)"; then
+    return 0
+  else
+    status=$?
+  fi
+  [[ -n "$output" ]] && printf '%s\n' "$output" >&2
+  if [[ "$status" == "124" || "$status" == "137" ]]; then
+    echo "$(msg command_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
+  fi
+  return "$status"
+}
+
+check_compose_plugin() {
+  local output="" status=0
+  if output="$(run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" docker compose version 2>&1)"; then
+    return 0
+  else
+    status=$?
+  fi
+  [[ -n "$output" ]] && printf '%s\n' "$output" >&2
+  if [[ "$status" == "124" || "$status" == "137" ]]; then
+    echo "$(msg command_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
+  fi
+  return "$status"
+}
+
+report_command_timeout() {
+  local status="$1"
+  local seconds="$2"
+  [[ "$status" == "124" || "$status" == "137" ]] &&
+    echo "$(msg command_timeout "$seconds")" >&2
+}
+
+report_network_failure() {
+  local status="$1"
+  if [[ "$status" == "28" ]]; then
+    echo "$(msg network_timeout "$NETWORK_TIMEOUT_SECONDS")" >&2
+  else
+    echo "$(msg network_failed)" >&2
+  fi
+}
+
+download_asset() {
+  local label="$1"
+  local url="$2"
+  local destination="$3"
+  local status=0
+  log "$(msg download_asset "$label")"
+  if curl_fetch "$url" -o "$destination"; then
+    return 0
+  else
+    status=$?
+  fi
+  report_network_failure "$status"
+  die "$(msg download_failed "$label")"
+}
+
+trap on_interrupt INT TERM
+
 prompt_yes_no() {
   local prompt="$1"
   local result=""
@@ -346,39 +514,69 @@ install_docker_engine() {
   local script_path
   script_path="$(mktemp)"
   log "$(msg docker_install_engine)"
-  if ! curl -fsSL --retry 3 --retry-all-errors \
-    https://get.docker.com -o "$script_path"; then
+  log "$(msg docker_installer_download)"
+  if ! curl_fetch https://get.docker.com -o "$script_path"; then
     rm -f -- "$script_path"
     die "$(msg docker_install_engine_failed)"
   fi
-  if ! sh "$script_path"; then
+  if DEBIAN_FRONTEND=noninteractive run_with_timeout "$PACKAGE_TIMEOUT_SECONDS" sh "$script_path"; then
+    :
+  else
+    local status=$?
     rm -f -- "$script_path"
+    report_command_timeout "$status" "$PACKAGE_TIMEOUT_SECONDS"
     die "$(msg docker_install_engine_failed)"
   fi
   rm -f -- "$script_path"
-  if command -v systemctl >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
-    systemctl enable --now docker >/dev/null 2>&1 || true
+  if command -v systemctl >/dev/null 2>&1 && ! check_docker_daemon; then
+    log "$(msg docker_start "$DOCKER_COMMAND_TIMEOUT_SECONDS")"
+    run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl enable --now docker || true
   fi
-  docker info >/dev/null 2>&1 || die "$(msg docker_install_engine_failed)"
+  check_docker_daemon || die "$(msg docker_install_engine_failed)"
 }
 
 install_compose_plugin() {
   log "$(msg docker_install_compose)"
   if command -v apt-get >/dev/null 2>&1; then
-    apt-get update
-    apt-get install -y docker-compose-plugin
+    log "$(msg package_update)"
+    if DEBIAN_FRONTEND=noninteractive run_with_timeout "$PACKAGE_TIMEOUT_SECONDS" apt-get update; then
+      :
+    else
+      local status=$?
+      report_command_timeout "$status" "$PACKAGE_TIMEOUT_SECONDS"
+      die "$(msg docker_install_compose_failed)"
+    fi
+    log "$(msg package_install)"
+    if DEBIAN_FRONTEND=noninteractive run_with_timeout "$PACKAGE_TIMEOUT_SECONDS" apt-get install -y docker-compose-plugin; then
+      :
+    else
+      local status=$?
+      report_command_timeout "$status" "$PACKAGE_TIMEOUT_SECONDS"
+      die "$(msg docker_install_compose_failed)"
+    fi
   elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y docker-compose-plugin
+    log "$(msg package_install)"
+    DEBIAN_FRONTEND=noninteractive run_with_timeout "$PACKAGE_TIMEOUT_SECONDS" dnf install -y docker-compose-plugin || die "$(msg docker_install_compose_failed)"
   elif command -v yum >/dev/null 2>&1; then
-    yum install -y docker-compose-plugin
+    log "$(msg package_install)"
+    DEBIAN_FRONTEND=noninteractive run_with_timeout "$PACKAGE_TIMEOUT_SECONDS" yum install -y docker-compose-plugin || die "$(msg docker_install_compose_failed)"
   else
     die "$(msg docker_compose_os_unsupported)"
   fi
-  docker compose version >/dev/null 2>&1 || die "$(msg docker_install_compose_failed)"
+  check_compose_plugin || die "$(msg docker_install_compose_failed)"
 }
 
 ensure_docker_engine() {
-  if ! command -v docker >/dev/null 2>&1; then
+  log "$(msg docker_check "$DOCKER_COMMAND_TIMEOUT_SECONDS")"
+  if ((IS_WSL)); then
+    docker_command_available || die "$(msg wsl_docker_missing)"
+    ((AUTO_INSTALL_DOCKER)) && echo "$(msg wsl_install_docker_ignored)" >&2
+    check_docker_daemon || die "$(msg wsl_docker_unavailable)"
+    log "$(msg docker_ready)"
+    return 0
+  fi
+
+  if ! docker_command_available; then
     if ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg docker_engine_prompt)"; then
       install_docker_engine
     elif ((NON_INTERACTIVE)); then
@@ -388,10 +586,11 @@ ensure_docker_engine() {
     fi
   fi
 
-  if ! docker info >/dev/null 2>&1; then
+  if ! check_docker_daemon; then
     if command -v systemctl >/dev/null 2>&1 && \
       { ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg docker_daemon_prompt)"; }; then
-      systemctl enable --now docker || die "$(msg docker_install_engine_failed)"
+      log "$(msg docker_start "$DOCKER_COMMAND_TIMEOUT_SECONDS")"
+      run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl enable --now docker || die "$(msg docker_install_engine_failed)"
     elif ((NON_INTERACTIVE)); then
       die "$(msg docker_install_noninteractive "$(msg docker_daemon_missing)")"
     else
@@ -399,11 +598,17 @@ ensure_docker_engine() {
     fi
   fi
 
-  docker info >/dev/null 2>&1 || die "$(msg compose_unavailable)"
+  check_docker_daemon || die "$(msg compose_unavailable)"
+  log "$(msg docker_ready)"
 }
 
 ensure_compose_plugin() {
-  docker compose version >/dev/null 2>&1 && return 0
+  log "$(msg compose_check "$DOCKER_COMMAND_TIMEOUT_SECONDS")"
+  check_compose_plugin && {
+    log "$(msg compose_ready)"
+    return 0
+  }
+  ((IS_WSL)) && die "$(msg wsl_compose_unavailable)"
   if ((AUTO_INSTALL_DOCKER)) || prompt_yes_no "$(msg compose_plugin_prompt)"; then
     install_compose_plugin
   elif ((NON_INTERACTIVE)); then
@@ -411,7 +616,8 @@ ensure_compose_plugin() {
   else
     die "$(msg docker_install_declined)"
   fi
-  docker compose version >/dev/null 2>&1 || die "$(msg docker_install_compose_failed)"
+  check_compose_plugin || die "$(msg docker_install_compose_failed)"
+  log "$(msg compose_ready)"
 }
 
 atomic_install() {
@@ -541,6 +747,9 @@ validate_port() {
 
 validate_lan_address() {
   local value="$1"
+  if [[ "$value" == "localhost" || "$value" == "127.0.0.1" ]]; then
+    return 0
+  fi
   [[ "$value" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || die "$(msg lan_ipv4 "$value")"
   local part
   IFS=. read -r -a parts <<<"$value"
@@ -623,6 +832,10 @@ choose_port() {
 
 detect_lan_address() {
   local value
+  if ((IS_WSL)); then
+    printf '%s' 'localhost'
+    return 0
+  fi
   for value in $(hostname -I 2>/dev/null || true); do
     if [[ "$value" =~ ^10\. || "$value" =~ ^192\.168\. || "$value" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]]; then
       printf '%s' "$value"
@@ -653,8 +866,12 @@ prepare_network_config() {
     if [[ -n "$APP_DOMAIN_INPUT" || -n "$TLS_EMAIL_INPUT" ]]; then
       NETWORK_MODE_INPUT="tls"
     elif ((NON_INTERACTIVE)); then
-        die "$(msg network_required)"
+      if ((IS_WSL)); then
+        NETWORK_MODE_INPUT="lan"
       else
+        die "$(msg network_required)"
+      fi
+    else
       case "$(prompt_value "$(msg network_prompt)")" in
         2) NETWORK_MODE_INPUT="tls" ;;
         *) NETWORK_MODE_INPUT="lan" ;;
@@ -695,7 +912,12 @@ prepare_network_config() {
     TLS_EMAIL_INPUT="crewqual-local@lan.invalid"
     APP_ORIGIN_VALUE="http://${LAN_ADDRESS_INPUT}:${APP_PORT_INPUT}"
     CADDY_SITE_ADDRESS_VALUE="http://:${APP_PORT_INPUT}"
-    APP_BIND_VALUE="0.0.0.0"
+    if [[ "$LAN_ADDRESS_INPUT" == "localhost" || "$LAN_ADDRESS_INPUT" == "127.0.0.1" ]]; then
+      APP_BIND_VALUE="127.0.0.1"
+    else
+      APP_BIND_VALUE="0.0.0.0"
+      ((IS_WSL)) && echo "$(msg wsl_lan_firewall "$LAN_ADDRESS_INPUT" "$APP_PORT_INPUT")" >&2
+    fi
     ACME_BIND_VALUE="127.0.0.1"
     ACME_PORT_VALUE="18080"
     if ! port_is_available "$ACME_PORT_VALUE"; then
@@ -791,7 +1013,7 @@ select_language() {
 }
 
 resolve_release_version() {
-  local release_json=""
+  local release_json="" status=0
   if [[ -n "$RELEASE_VERSION" ]]; then
     validate_version "$RELEASE_VERSION"
     if [[ "$RELEASE_VERSION" == *-rc.* ]]; then CHANNEL_INPUT="rc"; fi
@@ -801,10 +1023,16 @@ resolve_release_version() {
   log "$(msg resolve_latest)"
   local endpoint="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest"
   [[ "$CHANNEL_INPUT" == "rc" ]] && endpoint="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100"
-  release_json="$(curl -fsSL --retry 3 --retry-all-errors \
+  if release_json="$(curl_fetch \
     -H 'Accept: application/vnd.github+json' \
     -H 'X-GitHub-Api-Version: 2022-11-28' \
-    "$endpoint")"
+    "$endpoint")"; then
+    :
+  else
+    status=$?
+    report_network_failure "$status"
+    die "$(msg release_unavailable)"
+  fi
   RELEASE_VERSION="$(printf '%s' "$release_json" | sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
   [[ -n "$RELEASE_VERSION" ]] || die "$(msg release_unavailable)"
   [[ "$CHANNEL_INPUT" == "rc" || "$RELEASE_VERSION" != *-rc.* ]] || die "stable channel returned a release candidate"
@@ -898,21 +1126,21 @@ download_release_files() {
   local release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}"
   TEMP_DIR="$(mktemp -d)"
   log "$(msg download_manifest "$RELEASE_VERSION")"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/update-manifest-v1.json" -o "$TEMP_DIR/update-manifest-v1.json"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/update-manifest-v1.json.sig" -o "$TEMP_DIR/update-manifest-v1.sig"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/SHA256SUMS" -o "$TEMP_DIR/SHA256SUMS"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/SHA256SUMS.sig" -o "$TEMP_DIR/SHA256SUMS.sig"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/docker-compose.install.yml" -o "$TEMP_DIR/compose.yaml"
-  curl -fsSL --retry 3 --retry-all-errors \
-    "$release_base/Caddyfile" -o "$TEMP_DIR/Caddyfile"
+  download_asset "update-manifest-v1.json" \
+    "$release_base/update-manifest-v1.json" "$TEMP_DIR/update-manifest-v1.json"
+  download_asset "update-manifest-v1.json.sig" \
+    "$release_base/update-manifest-v1.json.sig" "$TEMP_DIR/update-manifest-v1.sig"
+  download_asset "SHA256SUMS" \
+    "$release_base/SHA256SUMS" "$TEMP_DIR/SHA256SUMS"
+  download_asset "SHA256SUMS.sig" \
+    "$release_base/SHA256SUMS.sig" "$TEMP_DIR/SHA256SUMS.sig"
+  download_asset "docker-compose.install.yml" \
+    "$release_base/docker-compose.install.yml" "$TEMP_DIR/compose.yaml"
+  download_asset "Caddyfile" \
+    "$release_base/Caddyfile" "$TEMP_DIR/Caddyfile"
   if [[ -n "$(manifest_value configureDomainSha256)" ]]; then
-    curl -fsSL --retry 3 --retry-all-errors \
-      "$release_base/configure-domain.sh" -o "$TEMP_DIR/configure-domain.sh"
+    download_asset "configure-domain.sh" \
+      "$release_base/configure-domain.sh" "$TEMP_DIR/configure-domain.sh"
   fi
   [[ -s "$TEMP_DIR/compose.yaml" && -s "$TEMP_DIR/Caddyfile" ]] || die "$(msg deployment_empty)"
 }
@@ -925,6 +1153,7 @@ write_initial_env() {
   minio_user="crewqual-$(openssl rand -hex 8)"
   minio_password="$(openssl rand -hex 32)"
   updater_secret="$(openssl rand -hex 32)"
+  [[ "$UPDATER_MODE" == "managed" ]] || updater_secret=""
   backup_key="$(openssl rand -hex 32)"
   network_secret="$(openssl rand -hex 32)"
   setup_auth_random="$(openssl rand -hex 4)"
@@ -937,6 +1166,7 @@ write_initial_env() {
   {
     printf "CREWQUAL_VERSION='%s'\n" "$RELEASE_VERSION"
     printf "CREWQUAL_WEB_IMAGE='%s'\nCREWQUAL_RUNTIME_IMAGE='%s'\n" "$MANIFEST_WEB_IMAGE" "$MANIFEST_RUNTIME_IMAGE"
+    printf "CREWQUAL_UPDATER_MODE='%s'\nCREWQUAL_UPDATER_HOST_DIR='%s'\n" "$UPDATER_MODE" "$UPDATER_HOST_DIR"
     printf "CREWQUAL_UPDATER_SOCKET='/run/crewqual-updater/api.sock'\nCREWQUAL_UPDATER_SHARED_SECRET='%s'\nCREWQUAL_UPDATER_BACKUP_KEY='%s'\n" "$updater_secret" "$backup_key"
     printf "INSTALL_LANGUAGE='%s'\n" "$LANGUAGE_INPUT"
     printf '%s\n' "NODE_ENV=production" "SERVICE_MODE=remote" "NEXT_PUBLIC_SERVICE_MODE=remote"
@@ -1075,13 +1305,8 @@ wait_for_completion() {
   return 1
 }
 
-install_updater() {
-  [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" ]] && return 0
-  if ! command -v systemctl >/dev/null 2>&1; then
-    echo "$(msg systemd_missing)" >&2
-    return 1
-  fi
-  local arch asset_url tmp expected actual sums_expected target shared backup trusted
+prepare_updater_verifier() {
+  local arch asset_url tmp expected actual sums_expected
   case "$(uname -m)" in
     x86_64|amd64) arch="amd64" ;;
     aarch64|arm64) arch="arm64" ;;
@@ -1093,7 +1318,11 @@ install_updater() {
     asset_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/crewqual-updater-linux-${arch}"
   fi
   tmp="$TEMP_DIR/crewqual-updater"
-  if ! curl -fsSL --retry 3 --retry-all-errors "$asset_url" -o "$tmp"; then
+  if curl_fetch "$asset_url" -o "$tmp"; then
+    :
+  else
+    local status=$?
+    report_network_failure "$status"
     echo "$(msg updater_download_failed)" >&2
     return 1
   fi
@@ -1104,14 +1333,43 @@ install_updater() {
   [[ "$expected" =~ ^[a-fA-F0-9]{64}$ && "$expected" == "$actual" ]] || { echo "$(msg updater_checksum)" >&2; return 1; }
   sums_expected="$(grep -E "^[a-fA-F0-9]{64}[[:space:]]+crewqual-updater-linux-${arch}$" "$TEMP_DIR/SHA256SUMS" | awk '{print $1}' | head -n 1)"
   [[ "$sums_expected" == "$actual" ]] || { echo "$(msg updater_checksum)" >&2; return 1; }
+  chmod 0755 "$tmp"
   "$tmp" verify-manifest --manifest "$TEMP_DIR/update-manifest-v1.json" \
     --signature "$TEMP_DIR/update-manifest-v1.sig" --tag "$RELEASE_VERSION" >/dev/null 2>&1 || {
     echo "$(msg signature_invalid)" >&2
     return 1
   }
+  UPDATER_VERIFIER="$tmp"
+}
+
+disable_existing_wsl_updater() {
+  local unit_found=0 unit_path
+  for unit_path in \
+    /etc/systemd/system/crewqual-updater.service \
+    /etc/systemd/system/crewqual-updater.socket \
+    /usr/lib/systemd/system/crewqual-updater.service \
+    /usr/lib/systemd/system/crewqual-updater.socket; do
+    [[ -e "$unit_path" ]] && unit_found=1
+  done
+  ((unit_found)) || return 0
+  if ! command -v systemctl >/dev/null 2>&1 || \
+    ! run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl disable --now \
+      crewqual-updater.service crewqual-updater.socket; then
+    echo "$(msg updater_disable_failed)" >&2
+  fi
+}
+
+install_updater_service() {
+  [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" ]] && return 0
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "$(msg systemd_missing)" >&2
+    return 1
+  fi
+  local target shared backup trusted
+  [[ -n "$UPDATER_VERIFIER" && -x "$UPDATER_VERIFIER" ]] || return 1
   target="$UPDATER_BINARY_DIR/crewqual-updater"
-  install -d -m 0755 "$UPDATER_BINARY_DIR" "$UPDATER_CONFIG_DIR" "$UPDATER_DATA_DIR" /run/crewqual-updater
-  install -m 0755 "$tmp" "$target"
+  install -d -m 0755 "$UPDATER_BINARY_DIR" "$UPDATER_CONFIG_DIR" "$UPDATER_DATA_DIR" "$UPDATER_HOST_DIR"
+  install -m 0755 "$UPDATER_VERIFIER" "$target"
   shared="$(env_value CREWQUAL_UPDATER_SHARED_SECRET)"
   backup="$(env_value CREWQUAL_UPDATER_BACKUP_KEY)"
   trusted="$TRUSTED_PUBLIC_KEY_VALUE"
@@ -1135,7 +1393,7 @@ User=root
 UMask=0077
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=$INSTALL_DIR $UPDATER_DATA_DIR /run/crewqual-updater
+ReadWritePaths=$INSTALL_DIR $UPDATER_DATA_DIR $UPDATER_HOST_DIR
 PrivateTmp=true
 
 [Install]
@@ -1156,11 +1414,26 @@ RemoveOnStop=true
 WantedBy=sockets.target
 EOF
   install -m 0644 "$UPDATER_CONFIG_DIR/crewqual-updater.socket" /etc/systemd/system/crewqual-updater.socket
-  systemctl daemon-reload
-  systemctl enable --now crewqual-updater.socket crewqual-updater.service || {
+  log "$(msg updater_start)"
+  run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl daemon-reload || {
     echo "$(msg updater_start_failed)" >&2
     return 1
   }
+  run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl enable --now crewqual-updater.socket crewqual-updater.service || {
+    echo "$(msg updater_start_failed)" >&2
+    return 1
+  }
+}
+
+configure_updater() {
+  prepare_updater_verifier || return 1
+  if [[ "$UPDATER_MODE" == "manual" ]]; then
+    install -d -m 0755 "$UPDATER_HOST_DIR"
+    disable_existing_wsl_updater
+    log "$(msg manual_updater_mode)"
+    return 0
+  fi
+  install_updater_service
 }
 
 while (($# > 0)); do
@@ -1243,11 +1516,16 @@ ENV_FILE="$INSTALL_DIR/.env"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
 select_language
 
+log "$(msg preflight)"
 [[ "$(uname -s)" == "Linux" ]] || die "$(msg linux_only)"
 if [[ "$EUID" -ne 0 && "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
   die "$(msg run_as_root "$INSTALL_DIR")"
 fi
 [[ "$WAIT_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+[[ "$DOCKER_COMMAND_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+[[ "$NETWORK_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+[[ "$NETWORK_RETRY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+[[ "$PACKAGE_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
 [[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
 
 require_command curl
@@ -1261,7 +1539,9 @@ require_command base64
 require_command xxd
 require_command hostname
 require_command grep
+require_command timeout
 
+configure_host_platform
 ensure_docker_engine
 ensure_compose_plugin
 
@@ -1344,8 +1624,14 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   fi
   set_env_key CREWQUAL_WEB_IMAGE "$MANIFEST_WEB_IMAGE"
   set_env_key CREWQUAL_RUNTIME_IMAGE "$MANIFEST_RUNTIME_IMAGE"
+  set_env_key CREWQUAL_UPDATER_MODE "$UPDATER_MODE"
+  set_env_key CREWQUAL_UPDATER_HOST_DIR "$UPDATER_HOST_DIR"
   ensure_env_key CREWQUAL_UPDATER_SOCKET "/run/crewqual-updater/api.sock"
-  [[ -n "$(env_value CREWQUAL_UPDATER_SHARED_SECRET)" ]] || ensure_env_key CREWQUAL_UPDATER_SHARED_SECRET "$(openssl rand -hex 32)"
+  if [[ "$UPDATER_MODE" == "manual" ]]; then
+    set_env_key CREWQUAL_UPDATER_SHARED_SECRET ""
+  elif [[ -z "$(env_value CREWQUAL_UPDATER_SHARED_SECRET)" ]]; then
+    set_env_key CREWQUAL_UPDATER_SHARED_SECRET "$(openssl rand -hex 32)"
+  fi
   [[ -n "$(env_value CREWQUAL_UPDATER_BACKUP_KEY)" ]] || ensure_env_key CREWQUAL_UPDATER_BACKUP_KEY "$(openssl rand -hex 32)"
   ensure_env_key INSTALL_LANGUAGE "$LANGUAGE_INPUT"
   ensure_env_key DEPLOYMENT_NETWORK_MODE "$NETWORK_MODE_INPUT"
@@ -1371,9 +1657,10 @@ if [[ "$EXISTING_INSTALL" == "1" ]]; then
   create_upgrade_database_backup
 fi
 
-# Deliver and strictly verify the updater before changing managed deployment
-# files. Its verify-manifest command is the authoritative JSON parser.
-install_updater
+# Strictly verify the release with the updater's authoritative JSON parser.
+# Managed Linux hosts then install the updater service; WSL keeps only the
+# temporary verifier and uses repeat installer runs for upgrades.
+configure_updater
 atomic_install "$TEMP_DIR/env.updated" "$ENV_FILE" 0600
 atomic_install "$TEMP_DIR/compose.yaml" "$COMPOSE_FILE" 0644
 atomic_install "$TEMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile" 0644
@@ -1422,4 +1709,5 @@ fi
 echo "$(msg welcome "${APP_ORIGIN_VALUE}")"
 echo "$(msg install_dir "$INSTALL_DIR")"
 echo "$(msg view_logs "$INSTALL_DIR")"
+[[ "$UPDATER_MODE" == "manual" ]] && echo "$(msg manual_upgrade_command)"
 echo "$(msg volume_warning)"

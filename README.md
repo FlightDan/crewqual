@@ -81,14 +81,29 @@ CrewQual 更适合将资质合规作为长期、关键业务进行系统化管�
 
 ## 快速开始
 
-适用于 amd64 架构的 Linux 主机。
-
-不保证在 arm64 或者 Windows WLS2下能够正常运行，在后续会加入完整测试。
+支持 amd64 Linux 主机，以及使用 Docker Desktop Linux containers 的 Windows x86_64 + WSL2 Ubuntu 环境。arm64 和 macOS 尚未完成完整测试。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash
 ```
 安装结束后，终端会一次性显示 8 位首次设置授权码；访问提示的 `/setup` 地址即可完成初始化。
+
+### Windows + WSL2
+
+Docker Desktop 安装并运行在 Windows，CrewQual 安装脚本始终在 WSL2 Ubuntu 终端中运行：
+
+1. 在 Docker Desktop 的 `Settings > Resources > WSL Integration` 中启用当前 Ubuntu。
+2. 在 Ubuntu 中确认 `docker info` 和 `docker compose version` 均可正常执行。
+3. 在 Ubuntu 中运行上面的 CrewQual 安装命令，不要传入 `--install-docker`。
+
+WSL2 默认进入手动升级模式并仅绑定 `http://localhost:8080`，Windows 浏览器可直接访问。升级时在 Ubuntu 中重新运行同一条安装命令。需要手机等局域网设备访问时，传入 Windows 网卡的私网 IPv4，例如：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
+  | sudo bash -s -- --network-mode lan --lan-address 192.168.1.20
+```
+
+此时还需要在 Windows 防火墙中允许所选 TCP 端口入站。不要填写 WSL2 内部易变化的 `172.x` NAT 地址。如果 `docker info` 失败，请先启动 Docker Desktop 并重新检查当前 Ubuntu 的 WSL Integration。
 
 安装器默认解析最新的 stable 官方 GitHub Release，不包含 RC 版本。如需安装最新 RC，请显式传入 `--channel rc`。
 
@@ -115,11 +130,12 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
   | sudo bash -s -- --version v1.0.1
 ```
 
-无人值守安装：
+普通 Linux 主机无人值守安装：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh \
-  | sudo bash -s -- --install-docker --non-interactive
+  | sudo bash -s -- --install-docker --non-interactive \
+      --network-mode lan --lan-address 192.168.1.20
 ```
 
 再次运行安装命令会升级现有部署，并保留 `/opt/crewqual/.env` 与 Docker volumes。TLS 邮箱仅用于证书到期、续期或错误通知，不是 CrewQual 登录账号，也不需要提供邮箱密码。
@@ -142,7 +158,7 @@ CrewQual 可自行部署，也提供面向企业和小型团队的托管服务�
 
 - [ ] 从多维表格一键迁移
 - [ ] Node.js 22 → 24
-- [ ] arm架构、windows wsl2、macos完整支持
+- [ ] arm 架构与 macOS 完整支持
 
 ## 隐私与安全
 

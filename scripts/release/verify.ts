@@ -361,6 +361,7 @@ async function bootstrap(evidence: ReleaseEvidence) {
   const project = `crewqual-acceptance-${id}`;
   const port = envOr("ACCEPTANCE_WEB_PORT", String(30_000 + Math.floor(Math.random() * 1_000)));
   const dbPort = envOr("ACCEPTANCE_DB_PORT", "55432");
+  const localAcceptance = process.env.RELEASE_ACCEPTANCE_SCOPE === "local";
   const envPath = join("/tmp", `crewqual-release-${id}.env`);
   const password = randomBytes(24).toString("base64url");
   const initialPassword = randomBytes(18).toString("base64url");
@@ -373,11 +374,16 @@ async function bootstrap(evidence: ReleaseEvidence) {
     `ACCEPTANCE_DB_PORT=${dbPort}`,
     `SESSION_SECRET=${randomBytes(48).toString("hex")}`,
     `SETTINGS_ENCRYPTION_KEY=${randomBytes(32).toString("hex")}`,
-    `S3_ENDPOINT=${required("S3_ENDPOINT")}`,
+    // Local validation only needs a syntactically valid storage configuration;
+    // the destructive-recovery and production E2E gates remain in the full
+    // profile and require real, isolated infrastructure.
+    `STORAGE_MODE=${localAcceptance ? "builtin" : envOr("STORAGE_MODE", "external")}`,
+    `S3_ENDPOINT=${localAcceptance ? "http://minio:9000" : required("S3_ENDPOINT")}`,
     `S3_REGION=${envOr("AWS_REGION", "us-east-1")}`,
-    `S3_BUCKET=${required("EVIDENCE_S3_BUCKET")}`,
-    `S3_ACCESS_KEY_ID=${required("AWS_ACCESS_KEY_ID")}`,
-    `S3_SECRET_ACCESS_KEY=${required("AWS_SECRET_ACCESS_KEY")}`,
+    `S3_BUCKET=${localAcceptance ? envOr("EVIDENCE_S3_BUCKET", "crewqual-local") : required("EVIDENCE_S3_BUCKET")}`,
+    `S3_ACCESS_KEY_ID=${localAcceptance ? envOr("AWS_ACCESS_KEY_ID", "local-access-key") : required("AWS_ACCESS_KEY_ID")}`,
+    `S3_SECRET_ACCESS_KEY=${localAcceptance ? envOr("AWS_SECRET_ACCESS_KEY", "local-secret-key") : required("AWS_SECRET_ACCESS_KEY")}`,
+    `S3_FORCE_PATH_STYLE=${localAcceptance ? "true" : envOr("S3_FORCE_PATH_STYLE", "false")}`,
     `S3_SSE_KMS_KEY_ID=${envOr("S3_KMS_KEY_ARN", "")}`,
     "SMS_ADAPTER=disabled",
     "FEISHU_ADAPTER=disabled",
@@ -1051,9 +1057,11 @@ async function main() {
     (item: ReleaseEvidence) => Promise<{ detail?: string; evidence?: string[] }>
   > = { preflight, bootstrap, "s3-dr": s3Dr, e2e, "supply-chain": supplyChain, artifact };
   const selected =
-    operation === "all" || operation === "checks"
-      ? ["preflight", "bootstrap", "s3-dr", "e2e", "supply-chain"]
-      : [operation];
+    operation === "local"
+      ? ["preflight", "bootstrap", "supply-chain"]
+      : operation === "all" || operation === "checks"
+        ? ["preflight", "bootstrap", "s3-dr", "e2e", "supply-chain"]
+        : [operation];
   if (operation === "all" && process.env.RELEASE_DEFER_ARTIFACT !== "1") selected.push("artifact");
   for (const name of selected) {
     const fn = operations[name];

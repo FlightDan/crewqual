@@ -1,0 +1,386 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly DEFAULT_REPO="/root/crewqual"
+readonly DEFAULT_KEY_DIR="/root/crewqual-release-keys"
+readonly DEFAULT_REPOSITORY="FlightDan/crewqual"
+readonly DEFAULT_ENVIRONMENT="release-sandbox"
+readonly DEFAULT_WORKFLOW=".github/workflows/release-acceptance.yml"
+readonly DEFAULT_WATCH_TIMEOUT_MINUTES="360"
+readonly PACKAGES=(crewqual-web crewqual-runtime)
+
+REPO_DIR="${CREWQUAL_REPO_DIR:-$DEFAULT_REPO}"
+KEY_DIR="${CREWQUAL_RELEASE_KEY_DIR:-$DEFAULT_KEY_DIR}"
+GITHUB_REPOSITORY="${CREWQUAL_GITHUB_REPOSITORY:-$DEFAULT_REPOSITORY}"
+RELEASE_ENVIRONMENT="${CREWQUAL_RELEASE_ENVIRONMENT:-$DEFAULT_ENVIRONMENT}"
+WORKFLOW_FILE="${CREWQUAL_RELEASE_WORKFLOW:-$DEFAULT_WORKFLOW}"
+WATCH_TIMEOUT_MINUTES="${CREWQUAL_RELEASE_WATCH_TIMEOUT_MINUTES:-$DEFAULT_WATCH_TIMEOUT_MINUTES}"
+DRY_RUN=0
+
+die() {
+  printf 'crewqual-release-publish: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  local code="${1:-0}"
+  cat <<'EOF'
+Usage:
+  crewqual-release-publish [--dry-run] status
+  crewqual-release-publish [--dry-run] sync-secrets
+  crewqual-release-publish [--dry-run] make-public
+  crewqual-release-publish [--dry-run] release TAG --upgrade-from BASELINE [options]
+
+Release options:
+  --acceptance-scope local|full   Default: local
+  --strict-clean                  Refuse a dirty worktree
+  --yes                            Do not ask for interactive confirmation
+
+Examples:
+  crewqual-release-publish release v1.0.2-rc.1 \
+    --upgrade-from v1.0.1-rc.1 --acceptance-scope local
+  crewqual-release-publish --dry-run release v1.0.2 \
+    --upgrade-from v1.0.1
+
+Environment:
+  CREWQUAL_REPO_DIR                 Repository (default: /root/crewqual)
+  CREWQUAL_RELEASE_KEY_DIR          Signing directory (default: /root/crewqual-release-keys)
+  CREWQUAL_GITHUB_REPOSITORY        GitHub repository (default: FlightDan/crewqual)
+  CREWQUAL_RELEASE_ENVIRONMENT      Actions environment (default: release-sandbox)
+  CREWQUAL_RELEASE_WORKFLOW         Workflow path/name (default: .github/workflows/release-acceptance.yml)
+  CREWQUAL_RELEASE_WATCH_TIMEOUT_MINUTES  Watch timeout (default: 360)
+EOF
+  exit "$code"
+}
+
+is_true() {
+  [[ "${1:-0}" == 1 ]]
+}
+
+announce() {
+  if is_true "$DRY_RUN"; then
+    printf '[dry-run] %s\n' "$*"
+  else
+    printf '%s\n' "$*"
+  fi
+}
+
+ensure_secure_dir() {
+  [[ -d "$KEY_DIR" ]] || die "签名目录不存在: $KEY_DIR"
+  [[ "$(stat -c '%a' "$KEY_DIR")" == 700 ]] || die "签名目录权限必须是 0700"
+  [[ "$(stat -c '%u' "$KEY_DIR")" == "$(id -u)" ]] || die "签名目录所有者不匹配"
+  [[ -x "$KEY_DIR/crewqual-release-tag" ]] || die "缺少可执行脚本: $KEY_DIR/crewqual-release-tag"
+  [[ -x "$KEY_DIR/crewqual-manifest-key" ]] || die "缺少可执行脚本: $KEY_DIR/crewqual-manifest-key"
+}
+
+ensure_repo() {
+  [[ -d "$REPO_DIR/.git" ]] || die "不是 Git 仓库: $REPO_DIR"
+  git -C "$REPO_DIR" remote get-url origin >/dev/null 2>&1 || die "仓库没有 origin remote"
+  local remote
+  remote="$(git -C "$REPO_DIR" remote get-url origin)"
+  [[ "$remote" == *"github.com/FlightDan/crewqual"* ]] ||
+    die "origin 不是 FlightDan/crewqual: $remote"
+}
+
+current_branch() {
+  git -C "$REPO_DIR" symbolic-ref --quiet --short HEAD ||
+    die "当前 HEAD 处于 detached 状态；请切换到要推送的分支"
+}
+
+version_parts() {
+  [[ "$1" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$ ]] || return 1
+  printf '%d %d %d %d\n' \
+    "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999}"
+}
+
+compare_version() {
+  local left right i
+  read -r -a left <<<"$(version_parts "$1")"
+  read -r -a right <<<"$(version_parts "$2")"
+  for i in 0 1 2 3; do
+    ((left[i] < right[i])) && { printf '%s\n' -1; return; }
+    ((left[i] > right[i])) && { printf '%s\n' 1; return; }
+  done
+  printf '%s\n' 0
+}
+
+validate_release_args() {
+  local tag="$1" baseline="$2" scope="$3"
+  version_parts "$tag" >/dev/null || die "无效 release tag: $tag"
+  version_parts "$baseline" >/dev/null || die "无效 upgrade baseline tag: $baseline"
+  if [[ "$tag" == *-rc.* ]]; then
+    [[ "$baseline" == *-rc.* ]] || die "RC 只能使用 RC baseline"
+  else
+    [[ "$baseline" != *-rc.* ]] || die "稳定版只能使用稳定版 baseline"
+  fi
+  [[ "$(compare_version "$baseline" "$tag")" == -1 ]] ||
+    die "upgrade baseline 必须低于目标 tag"
+  [[ "$scope" == local || "$scope" == full ]] || die "acceptance scope 必须是 local 或 full"
+}
+
+profile_for_tag() {
+  if [[ "$1" == *-rc.* ]]; then
+    printf '%s\n' rc
+  else
+    printf '%s\n' final
+  fi
+}
+
+tag_exists_local_or_remote() {
+  local tag="$1"
+  git -C "$REPO_DIR" rev-parse --verify --quiet "refs/tags/$tag" >/dev/null && return 0
+  git -C "$REPO_DIR" ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
+}
+
+workflow_has_release_inputs() {
+  local commit="$1"
+  local workflow_path="$WORKFLOW_FILE"
+  [[ "$workflow_path" == .github/workflows/* ]] || workflow_path=".github/workflows/$workflow_path"
+  git -C "$REPO_DIR" show "$commit:$workflow_path" 2>/dev/null |
+    grep -Eq '^[[:space:]]+acceptance_scope:'
+}
+
+auth_scopes() {
+  gh auth status --hostname github.com 2>&1 |
+    sed -n "s/.*Token scopes: '\(.*\)'/\1/p" |
+    tr ',' '\n' |
+    tr -d "'" |
+    sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
+
+workflow_name() {
+  printf '%s\n' "${WORKFLOW_FILE##*/}"
+}
+
+ensure_gh_auth() {
+  gh auth status --hostname github.com >/dev/null 2>&1 || die "gh 未登录 GitHub"
+  local require_packages="${1:-0}" scopes
+  is_true "$require_packages" || return 0
+  scopes="$(auth_scopes || true)"
+  if ! grep -qx 'write:packages' <<<"$scopes"; then
+    if is_true "$DRY_RUN"; then
+      announce "缺少 write:packages；非 dry-run 时将执行 gh auth refresh --hostname github.com --scopes write:packages"
+    else
+      announce "当前 gh token 缺少 write:packages，启动交互式授权"
+      gh auth refresh --hostname github.com --scopes write:packages
+      scopes="$(auth_scopes || true)"
+      grep -qx 'write:packages' <<<"$scopes" || die "授权后仍缺少 write:packages"
+    fi
+  fi
+}
+
+sync_secrets() {
+  ensure_secure_dir
+  ensure_gh_auth 0
+  if is_true "$DRY_RUN"; then
+    announce "同步 GPG tag、manifest secrets，以及 $RELEASE_ENVIRONMENT 环境签名者白名单"
+    return
+  fi
+  "$KEY_DIR/crewqual-release-tag" github-sync
+  "$KEY_DIR/crewqual-manifest-key" github-sync
+  # Environment secrets override repository secrets. Keep the allowlist aligned
+  # with the local signing metadata without ever printing key material.
+  local fingerprint
+  fingerprint="$(sed -n "s/^export RELEASE_SIGNER_FINGERPRINTS='\([^']*\)'$/\1/p" "$KEY_DIR/tag-signing.env")"
+  [[ "$fingerprint" =~ ^[A-Fa-f0-9]{40}$ ]] || die "tag-signing.env 中的 signer fingerprint 无效"
+  printf '%s' "$fingerprint" |
+    gh secret set RELEASE_SIGNER_FINGERPRINTS --repo "$GITHUB_REPOSITORY" --env "$RELEASE_ENVIRONMENT"
+  announce "GitHub secrets 已同步"
+}
+
+setup_git_auth() {
+  if is_true "$DRY_RUN"; then
+    announce "配置 gh Git credential helper 以推送 origin"
+  else
+    gh auth setup-git
+  fi
+}
+
+package_endpoint() {
+  printf '/user/packages/container/%s\n' "$1"
+}
+
+package_visibility() {
+  gh api -H 'Accept: application/vnd.github+json' "$(package_endpoint "$1")" --jq '.visibility'
+}
+
+package_metadata() {
+  gh api -H 'Accept: application/vnd.github+json' "$(package_endpoint "$1")"
+}
+
+make_public() {
+  ensure_gh_auth 1
+  local package metadata repository visibility url final
+  for package in "${PACKAGES[@]}"; do
+    metadata="$(package_metadata "$package")" || die "无法读取 GHCR 包状态: $package"
+    repository="$(jq -r '.repository.full_name // empty' <<<"$metadata")"
+    [[ "$repository" == "$GITHUB_REPOSITORY" ]] ||
+      die "$package 未关联到 $GITHUB_REPOSITORY，而是 $repository"
+    visibility="$(jq -r '.visibility // empty' <<<"$metadata")"
+    [[ -n "$visibility" ]] || die "GHCR 包缺少 visibility: $package"
+    if [[ "$visibility" == public ]]; then
+      announce "$package 已经是 public"
+      continue
+    fi
+    url="$(jq -r '.url // empty' <<<"$metadata")"
+    [[ -n "$url" ]] || die "GHCR 包缺少 API URL: $package"
+    if is_true "$DRY_RUN"; then
+      announce "将把 $package 设为 public: $url"
+      continue
+    fi
+    gh api --method PATCH \
+      -H 'Accept: application/vnd.github.package-deletes-preview+json' \
+      -H 'X-GitHub-Api-Version: 2022-11-28' \
+      "$url" -f visibility=public >/dev/null ||
+      die "无法将 $package 设为 public；请确认账号拥有该包的 admin 权限"
+    final="$(package_visibility "$package")"
+    [[ "$final" == public ]] || die "$package 公开后验证失败: $final"
+    announce "$package 已设为 public"
+  done
+}
+
+confirm_release() {
+  local tag="$1" baseline="$2" profile="$3" branch="$4" commit="$5"
+  is_true "$DRY_RUN" && return
+  is_true "$RELEASE_YES" && return
+  [[ -t 0 ]] || die "非交互终端请使用 --yes"
+  printf '\n即将发布:\n  tag=%s\n  profile=%s\n  baseline=%s\n  branch=%s\n  commit=%s\n' \
+    "$tag" "$profile" "$baseline" "$branch" "$commit"
+  if [[ -n "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
+    printf '警告：工作区有未提交改动；它们不会进入这个签名 tag。\n'
+  fi
+  read -r -p '继续推送并触发发布？[y/N] ' answer
+  [[ "$answer" =~ ^[Yy]$ ]] || die "用户取消发布"
+}
+
+dispatch_and_wait() {
+  local tag="$1" profile="$2" scope="$3" baseline="$4" started output run_url run_id
+  if is_true "$DRY_RUN"; then
+    announce "将触发 $WORKFLOW_FILE (tag=$tag, profile=$profile, acceptance_scope=$scope, upgrade_from_tag=$baseline)"
+    return
+  fi
+  started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  output="$(gh workflow run "$(workflow_name)" --repo "$GITHUB_REPOSITORY" --ref "$tag" \
+    -f "tag=$tag" -f "profile=$profile" -f "acceptance_scope=$scope" -f "upgrade_from_tag=$baseline" 2>&1)" || {
+      printf '%s\n' "$output" >&2
+      die "无法触发 release-acceptance workflow"
+    }
+  run_url="$(grep -Eo 'https://github\.com/[^[:space:]]+/actions/runs/[0-9]+' <<<"$output" | tail -n 1 || true)"
+  run_id="${run_url##*/}"
+  if [[ -z "$run_url" || ! "$run_id" =~ ^[0-9]+$ ]]; then
+    for _ in $(seq 1 60); do
+      run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$(workflow_name)" \
+        --event workflow_dispatch --limit 20 \
+        --json databaseId,createdAt,displayTitle \
+        2>/dev/null | jq -r --arg tag "$tag" --arg started "$started" \
+        '[.[] | select(.createdAt >= $started and (.displayTitle | contains($tag)))] | sort_by(.createdAt) | last | .databaseId // empty' 2>/dev/null || true)"
+      [[ "$run_id" =~ ^[0-9]+$ ]] && break
+      sleep 5
+    done
+  fi
+  [[ "$run_id" =~ ^[0-9]+$ ]] || die "已触发 workflow，但无法找到对应 run"
+  announce "Actions run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id"
+  timeout --foreground "${WATCH_TIMEOUT_MINUTES}m" \
+    gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status || {
+      gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed 2>/dev/null || true
+      die "release-acceptance workflow 未通过"
+    }
+}
+
+release() {
+  local tag="$1" baseline="$2" scope="$3" strict_clean="$4" branch commit profile
+  RELEASE_YES="${RELEASE_YES:-0}"
+  ensure_secure_dir
+  ensure_repo
+  branch="$(current_branch)"
+  commit="$(git -C "$REPO_DIR" rev-parse HEAD)"
+  profile="$(profile_for_tag "$tag")"
+  validate_release_args "$tag" "$baseline" "$scope"
+  [[ "$strict_clean" == 0 || -z "$(git -C "$REPO_DIR" status --porcelain)" ]] ||
+    die "工作区有未提交改动；去掉 --strict-clean 或先提交"
+  tag_exists_local_or_remote "$tag" && die "目标 tag 已存在: $tag"
+  workflow_has_release_inputs "$commit" ||
+    die "当前 HEAD 的 $WORKFLOW_FILE 缺少 acceptance_scope 输入；请先提交新版 workflow"
+  ensure_gh_auth 1
+  confirm_release "$tag" "$baseline" "$profile" "$branch" "$commit"
+  sync_secrets
+  setup_git_auth
+
+  if is_true "$DRY_RUN"; then
+    announce "将使用 crewqual-release-tag sign $tag HEAD"
+    announce "将推送当前分支 $branch 和签名 tag $tag"
+  else
+    "$KEY_DIR/crewqual-release-tag" sign "$tag" HEAD "CrewQual release $tag"
+    "$KEY_DIR/crewqual-release-tag" verify "$tag"
+    git -C "$REPO_DIR" push origin "HEAD:$branch"
+    git -C "$REPO_DIR" push origin "refs/tags/$tag"
+  fi
+
+  dispatch_and_wait "$tag" "$profile" "$scope" "$baseline"
+  if is_true "$DRY_RUN"; then
+    announce "Actions 成功后将把 crewqual-web 和 crewqual-runtime 设为 public"
+  else
+    make_public
+  fi
+  announce "发布编排完成: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+}
+
+status() {
+  ensure_secure_dir
+  ensure_repo
+  local branch commit dirty package visibility
+  branch="$(current_branch)"
+  commit="$(git -C "$REPO_DIR" rev-parse HEAD)"
+  dirty="$(git -C "$REPO_DIR" status --porcelain | wc -l | tr -d ' ')"
+  printf 'repository=%s\nbranch=%s\ncommit=%s\ndirtyFiles=%s\n' \
+    "$GITHUB_REPOSITORY" "$branch" "$commit" "$dirty"
+  if gh auth status --hostname github.com >/dev/null 2>&1; then
+    printf 'githubAuth=ok\n'
+    for package in "${PACKAGES[@]}"; do
+      visibility="$(package_visibility "$package" 2>/dev/null || printf unknown)"
+      printf 'package.%s.visibility=%s\n' "$package" "$visibility"
+    done
+  else
+    printf 'githubAuth=missing\n'
+  fi
+}
+
+parse_release() {
+  [[ $# -ge 1 ]] || usage 2
+  local tag="$1" baseline="" scope=local strict_clean=0
+  shift
+  RELEASE_YES=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; shift 2 ;;
+      --acceptance-scope) [[ $# -ge 2 ]] || die "--acceptance-scope 需要参数"; scope="$2"; shift 2 ;;
+      --strict-clean) strict_clean=1; shift ;;
+      --yes) RELEASE_YES=1; shift ;;
+      --dry-run) DRY_RUN=1; shift ;;
+      -h|--help) usage 0 ;;
+      *) die "未知 release 参数: $1" ;;
+    esac
+  done
+  [[ -n "$baseline" ]] || die "必须提供 --upgrade-from"
+  release "$tag" "$baseline" "$scope" "$strict_clean"
+}
+
+main() {
+  [[ $# -gt 0 ]] || usage 2
+  if [[ "$1" == --dry-run ]]; then
+    DRY_RUN=1
+    shift
+  fi
+  local command="${1:-}"
+  shift || true
+  case "$command" in
+    status) [[ $# -eq 0 ]] || die "status 不接受参数"; status ;;
+    sync-secrets) [[ $# -eq 0 ]] || die "sync-secrets 不接受参数"; sync_secrets ;;
+    make-public) [[ $# -eq 0 ]] || die "make-public 不接受参数"; make_public ;;
+    release) parse_release "$@" ;;
+    -h|--help) usage 0 ;;
+    *) usage 2 ;;
+  esac
+}
+
+main "$@"

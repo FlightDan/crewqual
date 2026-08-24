@@ -1,4 +1,5 @@
 name: release-acceptance
+run-name: CrewQual release ${{ inputs.tag }} (${{ inputs.profile }})
 
 on:
   workflow_dispatch:
@@ -13,6 +14,12 @@ on:
         default: rc
         type: choice
         options: [rc, final]
+      acceptance_scope:
+        description: local runs self-contained release gates; full also runs S3 DR and remote E2E
+        required: true
+        default: local
+        type: choice
+        options: [local, full]
       upgrade_from_tag:
         description: Explicit lower compatible release used by upgrade/rollback acceptance
         required: true
@@ -24,6 +31,7 @@ permissions:
 env:
   RELEASE_TAG: ${{ inputs.tag }}
   RELEASE_PROFILE: ${{ inputs.profile }}
+  RELEASE_ACCEPTANCE_SCOPE: ${{ inputs.acceptance_scope }}
   RELEASE_UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
   RELEASE_RUN_ID: ${{ github.run_id }}
   RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
@@ -62,16 +70,110 @@ env:
   VLM_ADAPTER: disabled
 
 jobs:
+  build-images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      web_image: ${{ steps.images.outputs.web_image }}
+      runtime_image: ${{ steps.images.outputs.runtime_image }}
+    steps:
+      - name: Checkout signed release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.tag }}
+      - name: Login to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Install image signing and SBOM tools
+        run: sudo ./scripts/release/install-tools.sh
+      - name: Build, push, sign, and attest release images
+        id: images
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          IMAGE_REPOSITORY: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          RELEASE_COMMIT="$(git rev-parse HEAD)"
+          owner="${IMAGE_OWNER,,}"
+          repository="${IMAGE_REPOSITORY,,}"
+          web="ghcr.io/$owner/${repository}-web"
+          runtime="ghcr.io/$owner/${repository}-runtime"
+          source_url="https://github.com/${GITHUB_REPOSITORY}"
+
+          docker build --pull --platform linux/amd64 \
+            --target web-runner \
+            --build-arg VCS_REF="$RELEASE_COMMIT" \
+            --build-arg VERSION="$RELEASE_TAG" \
+            --build-arg SOURCE_URL="$source_url" \
+            --tag "$web:$RELEASE_TAG" .
+          docker build --pull --platform linux/amd64 \
+            --target runtime-runner \
+            --build-arg VCS_REF="$RELEASE_COMMIT" \
+            --build-arg VERSION="$RELEASE_TAG" \
+            --build-arg SOURCE_URL="$source_url" \
+            --tag "$runtime:$RELEASE_TAG" .
+          docker push "$web:$RELEASE_TAG"
+          docker push "$runtime:$RELEASE_TAG"
+
+          web_digest="$(docker image inspect "$web:$RELEASE_TAG" --format '{{index .RepoDigests 0}}')"
+          runtime_digest="$(docker image inspect "$runtime:$RELEASE_TAG" --format '{{index .RepoDigests 0}}')"
+          [[ "$web_digest" == "$web@sha256:"* ]]
+          [[ "$runtime_digest" == "$runtime@sha256:"* ]]
+
+          syft "$web:$RELEASE_TAG" -o cyclonedx-json=/tmp/crewqual-web-sbom.json
+          syft "$runtime:$RELEASE_TAG" -o cyclonedx-json=/tmp/crewqual-runtime-sbom.json
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg commit "$RELEASE_COMMIT" \
+            --arg tag "$RELEASE_TAG" \
+            --arg workflow "$GITHUB_WORKFLOW_REF" \
+            '{buildType:"https://github.com/FlightDan/crewqual/release-build", invocation:{configSource:{uri:$repo,digest:{sha1:$commit},entryPoint:$workflow},parameters:{tag:$tag}}, metadata:{buildInvocationId:env.GITHUB_RUN_ID}, materials:[{uri:$repo,digest:{sha1:$commit}}]}' \
+            > /tmp/crewqual-provenance.json
+
+          for image_and_sbom in \
+            "$web_digest /tmp/crewqual-web-sbom.json" \
+            "$runtime_digest /tmp/crewqual-runtime-sbom.json"; do
+            image="${image_and_sbom%% *}"
+            sbom="${image_and_sbom#* }"
+            cosign sign --yes "$image"
+            cosign attest --yes --type cyclonedx --predicate "$sbom" "$image"
+            cosign attest --yes --type slsaprovenance --predicate /tmp/crewqual-provenance.json "$image"
+          done
+
+          echo "web_image=$web_digest" >> "$GITHUB_OUTPUT"
+          echo "runtime_image=$runtime_digest" >> "$GITHUB_OUTPUT"
+
   acceptance:
+    needs: build-images
     runs-on: ubuntu-24.04
     timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
     environment: release-sandbox
+    env:
+      RELEASE_WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
+      RELEASE_RUNTIME_IMAGE: ${{ needs.build-images.outputs.runtime_image }}
+      COSIGN_CERT_IDENTITY_REGEXP: ^https://github\.com/FlightDan/crewqual/\.github/workflows/release-acceptance\.yml@.*$
+      COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
     steps:
       - name: Checkout signed release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag }}
+      - name: Login to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Verify annotated tag and signer allowlist
         env:
           GNUPGHOME: ${{ runner.temp }}/release-gnupg
@@ -138,14 +240,25 @@ jobs:
           RELEASE_EVIDENCE_SIGNATURE_B64: ${{ secrets.RELEASE_EVIDENCE_SIGNATURE_B64 }}
         run: |
           set -euo pipefail
-          printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
-          printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
+          if [[ "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
+            printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
+            printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
+          else
+            printf '%s\n' '{"licenses":[]}' > "$LICENSE_APPROVALS_FILE"
+            : > "$RELEASE_EVIDENCE_SIGNATURE"
+          fi
           pnpm release:manifest .artifacts/migration-checksums.json
           echo "MIGRATION_CHECKSUM_MANIFEST=$GITHUB_WORKSPACE/.artifacts/migration-checksums.json" >> "$GITHUB_ENV"
       - name: Run release acceptance gates
         env:
           RELEASE_DEFER_ARTIFACT: "1"
-        run: pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
+            pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+          else
+            node --import tsx scripts/release/verify.ts local --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+          fi
       - name: Assemble evidence and sign every release asset
         run: |
           set -euo pipefail
@@ -210,12 +323,19 @@ jobs:
     needs: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    permissions:
+      contents: read
+      packages: read
     environment: release-sandbox
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 1
+      - name: Login to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Install published release on a clean host and exercise upgrade/rollback
         env:
           TARGET_TAG: ${{ inputs.tag }}

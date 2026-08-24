@@ -16,6 +16,33 @@ services:
       - "127.0.0.1:${ACCEPTANCE_DB_PORT:-55432}:5432"
     networks: [internal]
 
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+    volumes:
+      - minio-data:/data
+    networks: [internal]
+
+  minio-init:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        do sleep 1; done;
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+    depends_on:
+      minio: { condition: service_started }
+    restart: "no"
+    networks: [internal]
+
   migrate:
     image: ${RELEASE_RUNTIME_IMAGE:?RELEASE_RUNTIME_IMAGE is required}
     command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
@@ -52,6 +79,7 @@ services:
       ACCEPTANCE_ENVIRONMENT_ID: "1"
     depends_on:
       postgres: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
     networks: [internal]
 
   ops:
@@ -105,6 +133,7 @@ services:
 
 volumes:
   postgres-data:
+  minio-data:
   backup-data:
 
 networks:
