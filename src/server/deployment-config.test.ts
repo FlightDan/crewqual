@@ -118,7 +118,7 @@ describe("deployment configuration", () => {
   });
 
   it("routes through Caddy with TLS and baseline browser security headers", () => {
-    expect(caddy).toContain("email {$TLS_EMAIL}");
+    expect(caddy).toContain("{$CADDY_EMAIL_CONFIG}");
     expect(caddy).toContain("{$CADDY_SITE_ADDRESS} {");
     expect(caddy).toContain("forward_auth @public web:3000");
     expect(caddy).toContain("@public not remote_ip private_ranges");
