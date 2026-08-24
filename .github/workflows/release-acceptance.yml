@@ -23,7 +23,7 @@ on:
       upgrade_from_tag:
         description: Existing lower release for upgrade/rollback; leave blank for the first deployable release
         required: false
-        default: ''
+        default: ""
         type: string
       replace_existing_assets:
         description: Allow replacing existing assets when the same release tag is intentionally covered
