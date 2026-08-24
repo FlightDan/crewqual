@@ -269,13 +269,12 @@ jobs:
           evidence_dir=".artifacts/release/$RELEASE_RUN_ID"
           asset_dir="${{ steps.release-assets.outputs.asset_dir }}"
           cp "$evidence_dir/evidence.json" "$asset_dir/evidence.json"
-          RELEASE_ASSET_DIR="$asset_dir" RELEASE_EVIDENCE_PATH="$evidence_dir/evidence.json" pnpm release:assemble-assets
           find "$asset_dir" -maxdepth 1 -type f ! -name 'evidence*' ! -name SHA256SUMS ! -name SHA256SUMS.sig -printf '%f\n' | sort | while read -r file; do sha256sum "$asset_dir/$file"; done > "$asset_dir/SHA256SUMS"
           export SIGN_FILE_INPUT="$asset_dir/SHA256SUMS"
           export SIGN_FILE_OUTPUT="$asset_dir/SHA256SUMS.sig"
           pnpm release:sign-file
-          cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
           RELEASE_ASSET_DIR="$asset_dir" RELEASE_EVIDENCE_PATH="$evidence_dir/evidence.json" pnpm release:assemble-assets
+          cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
           export SIGN_FILE_INPUT="$asset_dir/evidence.json"
           export SIGN_FILE_OUTPUT="$asset_dir/evidence.json.sig"
           pnpm release:sign-file
