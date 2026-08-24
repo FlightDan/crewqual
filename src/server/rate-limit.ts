@@ -10,22 +10,24 @@ export async function consumeRateLimit(key: string, limit: number, windowMs: num
   // fresh key through while leaving the stored count at one.
   if (typeof (db as { $queryRaw?: unknown }).$queryRaw === "function") {
     const rows = await db.$queryRaw<Array<{ allowed: boolean }>>(Prisma.sql`
-      INSERT INTO "RateLimitBucket" ("key", "windowStart", "count")
-      VALUES (${key}, ${now}, 1)
+      INSERT INTO "RateLimitBucket" ("key", "windowStart", "count", "updatedAt")
+      VALUES (${key}, ${now}::timestamptz, 1, ${now}::timestamptz)
       ON CONFLICT ("key") DO UPDATE SET
         "windowStart" = CASE
-          WHEN "RateLimitBucket"."windowStart" <= ${now} - (${windowMs}::double precision * interval '1 millisecond')
-            THEN ${now}
+          WHEN "RateLimitBucket"."windowStart" <= EXCLUDED."windowStart" - (${windowMs}::double precision * interval '1 millisecond')
+            THEN EXCLUDED."windowStart"
           ELSE "RateLimitBucket"."windowStart"
         END,
         "count" = CASE
-          WHEN "RateLimitBucket"."windowStart" <= ${now} - (${windowMs}::double precision * interval '1 millisecond')
+          WHEN "RateLimitBucket"."windowStart" <= EXCLUDED."windowStart" - (${windowMs}::double precision * interval '1 millisecond')
             THEN 1
-          WHEN "RateLimitBucket"."count" < ${limit}
+          -- Retain one denied state so RETURNING can distinguish it from the limit.
+          WHEN "RateLimitBucket"."count" <= ${limit}::integer
             THEN "RateLimitBucket"."count" + 1
           ELSE "RateLimitBucket"."count"
-        END
-      RETURNING "count" <= ${limit} AS "allowed"
+        END,
+        "updatedAt" = EXCLUDED."updatedAt"
+      RETURNING "count" <= ${limit}::integer AS "allowed"
     `);
     return rows[0]?.allowed === true;
   }

@@ -16,6 +16,11 @@ DEPLOY_FAILURE_DIR="$TEST_DIR/install-deploy-failure"
 WSL_INSTALL_DIR="$TEST_DIR/install-wsl"
 WSL_LAN_INSTALL_DIR="$TEST_DIR/install-wsl-lan"
 WSL_FAILURE_DIR="$TEST_DIR/install-wsl-failure"
+CUI_INSTALL_DIR="$TEST_DIR/install-cui"
+CUI_PLAIN_DIR="$TEST_DIR/install-cui-plain"
+CUI_FAILURE_DIR="$TEST_DIR/install-cui-failure"
+CUI_NO_COLOR_DIR="$TEST_DIR/install-cui-no-color"
+CUI_HTTP_DIR="$TEST_DIR/install-cui-http"
 FIXTURE_DIR="$TEST_DIR/fixtures"
 TEST_KEY_DIR="$TEST_DIR/signing"
 UPDATER_VERIFY_LOG="$TEST_DIR/updater-verified.log"
@@ -192,6 +197,27 @@ run_installer() {
     bash "$PROJECT_DIR/install.sh" "$@"
 }
 
+run_installer_pty() {
+  local input="$1" target_dir="$2" transcript="$3" rows="$4" cols="$5"
+  shift 5
+  local command=""
+  printf -v command '%q ' bash "$PROJECT_DIR/install.sh" "$@"
+  printf '%b' "$input" | env \
+    PATH="$FAKE_BIN:$PATH" \
+    TERM=xterm-256color \
+    LANG=C.UTF-8 \
+    NO_COLOR="${CREWQUAL_TEST_NO_COLOR:-}" \
+    CREWQUAL_INSTALL_TEST_MODE=1 \
+    CREWQUAL_INSTALL_DIR="$target_dir" \
+    CREWQUAL_TEST_FIXTURES="$FIXTURE_DIR" \
+    CREWQUAL_TEST_TRUSTED_PUBLIC_KEY="$(cat "$TEST_KEY_DIR/public.b64")" \
+    CREWQUAL_TEST_KEY_ID="test-ed25519" \
+    CREWQUAL_INSTALL_TEST_PLATFORM="${CREWQUAL_TEST_PLATFORM:-linux}" \
+    CREWQUAL_TEST_UPDATER_VERIFIED_FILE="$UPDATER_VERIFY_LOG" \
+    CREWQUAL_TEST_DOCKER_FAIL_ACTION="${CREWQUAL_TEST_DOCKER_FAIL_ACTION:-}" \
+    script -qefc "stty rows $rows cols $cols; $command" "$transcript" >/dev/null
+}
+
 run_installer --domain crewqual.example.com --tls-email ops@example.com --non-interactive
 
 [[ -f "$INSTALL_DIR/compose.yaml" && -f "$INSTALL_DIR/Caddyfile" && -f "$INSTALL_DIR/.env" ]]
@@ -357,5 +383,57 @@ grep -q "CREWQUAL_VERSION='v9.8.8'" "$INSTALL_DIR/.env"
 grep -q "已恢复升级前的受管理文件和数据库" "$upgrade_failure_log"
 
 [[ "$(wc -l <"$UPDATER_VERIFY_LOG")" -ge 1 ]]
+
+if command -v script >/dev/null 2>&1; then
+  cui_transcript="$TEST_DIR/cui.typescript"
+  run_installer_pty '\e[B\e[A\r\r\e[B\r\r' "$CUI_INSTALL_DIR" "$cui_transcript" 24 100 \
+    --version v9.8.7 --language zh --lan-address localhost
+  grep -Fq $'\033[?1049h' "$cui_transcript"
+  grep -Fq $'\033[?1049l' "$cui_transcript"
+  grep -q '14 / 14' "$cui_transcript"
+  grep -q '部署完成' "$cui_transcript"
+  cui_log="$(find "$CUI_INSTALL_DIR/logs" -maxdepth 1 -type f -name 'install-*.log' -print -quit)"
+  [[ -n "$cui_log" && "$(stat -c '%a' "$cui_log")" == "600" ]]
+  grep -q '\[14/14\]' "$cui_log"
+  ! grep -q '首次配置授权码' "$cui_log"
+  cui_port="$(sed -n "s/^APP_PORT='\([^']*\)'/\1/p" "$CUI_INSTALL_DIR/.env")"
+  [[ "$cui_port" -ge 10000 && "$cui_port" -le 59999 ]]
+
+  plain_transcript="$TEST_DIR/cui-plain.typescript"
+  run_installer_pty '' "$CUI_PLAIN_DIR" "$plain_transcript" 24 100 \
+    --version v9.8.7 --language zh --network-mode tls --domain plain.example.com \
+    --tls-email plain@example.com --port 8088 --plain
+  ! grep -Fq $'\033[?1049h' "$plain_transcript"
+  grep -q '部署完成' "$plain_transcript"
+
+  no_color_transcript="$TEST_DIR/cui-no-color.typescript"
+  CREWQUAL_TEST_NO_COLOR=1 run_installer_pty '\r\r' "$CUI_NO_COLOR_DIR" "$no_color_transcript" 24 100 \
+    --version v9.8.7 --language zh --network-mode lan --lan-address localhost --port 8087
+  grep -Fq $'\033[?1049h' "$no_color_transcript"
+  ! grep -Fq $'\033[34m' "$no_color_transcript"
+
+  http_cui_transcript="$TEST_DIR/cui-http.typescript"
+  run_installer_pty '\r\e[B\r\e[A\r\r' "$CUI_HTTP_DIR" "$http_cui_transcript" 24 100 \
+    --version v9.8.7 --language zh --public-address 203.0.113.21 --port 8091
+  grep -q '公网 HTTP 不加密' "$http_cui_transcript"
+  grep -q "DEPLOYMENT_NETWORK_MODE='http'" "$CUI_HTTP_DIR/.env"
+
+  cui_failure_transcript="$TEST_DIR/cui-failure.typescript"
+  if CREWQUAL_TEST_DOCKER_FAIL_ACTION=pull \
+    run_installer_pty '\r\r' "$CUI_FAILURE_DIR" "$cui_failure_transcript" 24 100 \
+      --version v9.8.7 --language zh --network-mode lan --lan-address localhost --port 8089; then
+    echo "expected CUI deployment failure" >&2
+    exit 1
+  fi
+  grep -Fq $'\033[?1049l' "$cui_failure_transcript"
+  grep -q '失败步骤' "$cui_failure_transcript"
+  grep -q '完整安装日志' "$cui_failure_transcript"
+
+  narrow_transcript="$TEST_DIR/cui-narrow.typescript"
+  run_installer_pty '' "$TEST_DIR/install-cui-narrow" "$narrow_transcript" 18 60 \
+    --version v9.8.7 --language zh --network-mode tls --domain narrow.example.com \
+    --tls-email narrow@example.com --port 8090
+  ! grep -Fq $'\033[?1049h' "$narrow_transcript"
+fi
 
 echo "install.sh mocked Linux/WSL fresh-install, upgrade, updater-verification, and failure-diagnostic checks passed"

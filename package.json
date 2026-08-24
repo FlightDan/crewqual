@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:remote": "node scripts/run-remote-e2e.mjs",
     "test:integration:recognition": "tsx scripts/recognition-pgboss-e2e.ts",
+    "test:integration:rate-limit": "tsx scripts/rate-limit-pg-e2e.ts",
     "build": "prisma generate && next build",
     "check:runtime-deps": "node scripts/check-runtime-dependencies.mjs",
     "format": "prettier --check .",

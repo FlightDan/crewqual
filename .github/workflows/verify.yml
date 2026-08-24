@@ -40,6 +40,45 @@ jobs:
       - name: Production build
         run: pnpm build
 
+  rate-limit-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+      SERVICE_MODE: remote
+      DATABASE_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+      DIRECT_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+    services:
+      postgres:
+        image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
+        env:
+          POSTGRES_DB: crewqual
+          POSTGRES_USER: crewqual
+          POSTGRES_PASSWORD: crewqual
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crewqual -d crewqual"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout immutable revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply Prisma migrations
+        run: pnpm db:migrate
+      - name: Run PostgreSQL rate-limit integration
+        run: pnpm test:integration:rate-limit
+
   browser:
     needs: verify
     strategy:

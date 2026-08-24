@@ -89,6 +89,10 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
 
 After installation, the terminal displays an 8-digit first-setup authorization code once. Visit the displayed `/setup` URL to complete initialization.
 
+In an interactive terminal with UTF-8 and ANSI support, the installer automatically opens a full-screen CUI. Use Up/Down or number keys to select and Enter to confirm. During installation, the header shows overall progress while the middle pane streams Docker, download, and database logs; Ctrl+C cancels safely. On success or failure, the CUI restores the original terminal and leaves a copyable summary.
+
+Unattended runs, non-TTY output, `TERM=dumb`, and terminals smaller than `64x20` automatically use plain text. Pass `--plain` to disable the CUI explicitly; `NO_COLOR=1` disables colors without disabling the full-screen layout. Complete raw CUI logs are stored with root-only permissions in `/opt/crewqual/logs/install-*.log`; failures show the path and recent output automatically. The initial setup authorization code is never written to this log.
+
 ### Windows with WSL2
 
 Docker Desktop is installed and runs on Windows, while the CrewQual installation script always runs in the WSL2 Ubuntu terminal:

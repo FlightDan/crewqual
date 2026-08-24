@@ -88,6 +88,10 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
 ```
 安装结束后，终端会一次性显示 8 位首次设置授权码；访问提示的 `/setup` 地址即可完成初始化。
 
+在支持 UTF-8 和 ANSI 的交互终端中，安装器会自动进入全屏 CUI：使用 `↑`/`↓` 或数字选择，按 `Enter` 确认；安装期间顶部显示总进度，中间实时滚动 Docker、下载和数据库日志，按 `Ctrl+C` 可安全取消。安装完成或失败后，CUI 会恢复原终端并留下可复制的结果摘要。
+
+无人值守、非 TTY、`TERM=dumb` 或小于 `64×20` 的终端会自动使用纯文本输出。也可以显式传入 `--plain` 关闭 CUI；设置 `NO_COLOR=1` 只关闭颜色、不关闭全屏界面。CUI 的完整原始日志以仅 root 可读的权限保存在 `/opt/crewqual/logs/install-*.log`，失败时会自动显示日志路径和最近输出。首次设置授权码不会写入该日志。
+
 ### Windows + WSL2
 
 Docker Desktop 安装并运行在 Windows，CrewQual 安装脚本始终在 WSL2 Ubuntu 终端中运行：

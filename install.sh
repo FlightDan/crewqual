@@ -11,6 +11,7 @@ readonly WAIT_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_TIMEOUT_SECONDS:-300}"
 readonly DOCKER_COMMAND_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS:-30}"
 readonly NETWORK_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_TIMEOUT_SECONDS:-60}"
 readonly NETWORK_RETRY_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_RETRY_TIMEOUT_SECONDS:-180}"
+readonly NETWORK_PROGRESS_INTERVAL_SECONDS=15
 readonly PACKAGE_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS:-900}"
 readonly UPDATER_BINARY_DIR="/usr/local/libexec"
 readonly UPDATER_CONFIG_DIR="/etc/crewqual-updater"
@@ -41,6 +42,7 @@ TLS_KEY_INPUT=""
 AUTO_TLS_INPUT=0
 SETUP_AUTH_CODE_DISPLAY=""
 NON_INTERACTIVE=0
+PLAIN_OUTPUT=0
 AUTO_INSTALL_DOCKER=0
 PULL_IMAGES=1
 TEMP_DIR=""
@@ -61,6 +63,23 @@ IS_WSL=0
 UPDATER_MODE="managed"
 UPDATER_HOST_DIR="/run/crewqual-updater"
 UPDATER_VERIFIER=""
+UI_ACTIVE=0
+UI_FD=9
+UI_LOG_FILE=""
+UI_RENDER_PID=""
+UI_STTY_STATE=""
+UI_TASK_INDEX=0
+UI_TASK_TOTAL=14
+UI_TASK_RUNNING=0
+UI_TASK_STARTED=0
+UI_CURRENT_TASK=""
+UI_LAST_TASK=""
+UI_COLOR_BLUE=""
+UI_COLOR_GREEN=""
+UI_COLOR_YELLOW=""
+UI_COLOR_RED=""
+UI_COLOR_DIM=""
+UI_COLOR_RESET=""
 
 usage() {
   cat <<'EOF'
@@ -85,6 +104,7 @@ Options:
   --language LANG     Installer language: zh or en (default: zh).
   --install-docker    Install missing Docker Engine/Compose v2 using Docker's official method.
   --non-interactive   Fail instead of prompting for missing first-install values.
+  --plain             Disable the full-screen installer UI and use plain text output.
   --no-pull           Reuse locally cached images when available.
   -h, --help          Show this help.
 
@@ -99,6 +119,7 @@ Environment:
                                     Total retry window for network requests (default: 180).
   CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS
                                     Package/Docker installation timeout (default: 900).
+  NO_COLOR                          Disable CUI colors while keeping the full-screen layout.
   CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY
                                     Legacy compatibility input. It is accepted only when
                                     the value already exists in the built-in keyring.
@@ -110,13 +131,334 @@ EOF
 }
 
 die() {
-  echo "install.sh: $*" >&2
+  if ((UI_ACTIVE)); then
+    printf 'install.sh: %s\n' "$*" >>"$UI_LOG_FILE"
+    ui_shutdown
+    printf 'install.sh: %s\n' "$*" >/dev/tty 2>/dev/null || true
+    [[ -n "$UI_LOG_FILE" ]] && printf '%s\n' "$(msg view_install_log "$UI_LOG_FILE")" >/dev/tty 2>/dev/null || true
+  else
+    echo "install.sh: $*" >&2
+  fi
   exit 1
 }
 
 log() {
-  echo
-  echo "==> $*"
+  if ((UI_ACTIVE)); then
+    printf '\n==> %s\n' "$*" >>"$UI_LOG_FILE"
+  else
+    echo
+    echo "==> $*"
+  fi
+}
+
+ui_terminal_size() {
+  local size=""
+  size="$(stty size </dev/tty 2>/dev/null || true)"
+  UI_ROWS="${size%% *}"
+  UI_COLS="${size##* }"
+  [[ "$UI_ROWS" =~ ^[0-9]+$ ]] || UI_ROWS=24
+  [[ "$UI_COLS" =~ ^[0-9]+$ ]] || UI_COLS=80
+}
+
+ui_repeat() {
+  local character="$1" count="$2" result=""
+  while ((count > 0)); do
+    result+="$character"
+    ((count--)) || true
+  done
+  printf '%s' "$result"
+}
+
+ui_plain_line() {
+  local value="$1" width="$2" output="" character="" character_width=1 used=0 index
+  value="${value//$'\t'/  }"
+  for ((index = 0; index < ${#value}; index++)); do
+    character="${value:index:1}"
+    if [[ "$character" == [[:ascii:]] ]]; then character_width=1; else character_width=2; fi
+    ((used + character_width <= width)) || break
+    output+="$character"
+    used=$((used + character_width))
+  done
+  printf '%s%*s' "$output" "$((width - used))" ""
+}
+
+ui_sanitized_tail() {
+  local lines="$1" width="$2"
+  [[ -s "$UI_LOG_FILE" ]] || return 0
+  tail -c 131072 "$UI_LOG_FILE" |
+    tr '\r' '\n' |
+    sed -E $'s/\x1B\[[0-9;?]*[ -\/]*[@-~]//g; s/[^[:print:]\t]//g' |
+    tail -n "$lines"
+}
+
+ui_platform_label() {
+  if ((IS_WSL)); then
+    printf 'WSL2'
+  else
+    printf 'Linux'
+  fi
+}
+
+ui_draw_dashboard() {
+  local elapsed="$1" rows cols inner log_rows completed_width remaining_width
+  local progress_done progress_left line="" phase_preflight phase_release phase_deploy phase_finish
+  local -a log_lines=()
+  ui_terminal_size
+  rows="$UI_ROWS"
+  cols="$UI_COLS"
+  if ((rows < 20 || cols < 64)); then
+    printf '\033[H\033[2J' >&$UI_FD
+    printf 'CrewQual\n\n%s\n' "$(msg terminal_too_small)" >&$UI_FD
+    printf '%s · %02d:%02d\n' "$UI_CURRENT_TASK" "$((elapsed / 60))" "$((elapsed % 60))" >&$UI_FD
+    return
+  fi
+
+  inner=$((cols - 4))
+  completed_width=$((UI_TASK_INDEX * 28 / UI_TASK_TOTAL))
+  ((completed_width > 28)) && completed_width=28
+  remaining_width=$((28 - completed_width))
+  progress_done="$(ui_repeat '━' "$completed_width")"
+  progress_left="$(ui_repeat '─' "$remaining_width")"
+  ((UI_TASK_INDEX >= 3)) && phase_preflight="✓" || phase_preflight="○"
+  ((UI_TASK_INDEX >= 6)) && phase_release="✓" || phase_release="○"
+  if ((UI_TASK_INDEX >= UI_TASK_TOTAL && UI_TASK_RUNNING == 0)); then
+    phase_deploy="✓"
+    phase_finish="✓"
+  else
+    phase_deploy="●"
+    phase_finish="○"
+  fi
+  log_rows=$((rows - 12))
+  ((log_rows < 6)) && log_rows=6
+
+  printf '\033[H\033[2J' >&$UI_FD
+  printf ' %bCrewQual%b %-*s %s · %s\n' "$UI_COLOR_BLUE" "$UI_COLOR_RESET" "$((cols - 28))" "$(msg installer_title)" "$(ui_platform_label)" "${RELEASE_VERSION:-latest}" >&$UI_FD
+  printf ' %b%s%b%s  %2d / %d\n\n' "$UI_COLOR_BLUE" "$progress_done" "$UI_COLOR_RESET" "$progress_left" "$UI_TASK_INDEX" "$UI_TASK_TOTAL" >&$UI_FD
+  printf ' %b%s%b %s    %b%s%b %s    %b%s%b %s    %b%s%b %s\n\n' \
+    "$UI_COLOR_GREEN" "$phase_preflight" "$UI_COLOR_RESET" "$(msg phase_preflight)" \
+    "$UI_COLOR_GREEN" "$phase_release" "$UI_COLOR_RESET" "$(msg phase_release)" \
+    "$UI_COLOR_YELLOW" "$phase_deploy" "$UI_COLOR_RESET" "$(msg phase_deploy)" \
+    "$UI_COLOR_DIM" "$phase_finish" "$UI_COLOR_RESET" "$(msg phase_finish)" >&$UI_FD
+  printf ' ┌─ %s %s┐\n' "$(msg live_log)" "$(ui_repeat '─' "$((inner - ${#line} - 9))")" >&$UI_FD
+  mapfile -t log_lines < <(ui_sanitized_tail "$log_rows" "$inner")
+  for line in "${log_lines[@]}"; do
+    printf ' │ '
+    ui_plain_line "$line" "$inner"
+    printf ' │\n'
+  done >&$UI_FD
+  local rendered_lines
+  rendered_lines="${#log_lines[@]}"
+  while ((rendered_lines < log_rows)); do
+    printf ' │ '
+    ui_plain_line "" "$inner"
+    printf ' │\n'
+    ((rendered_lines++)) || true
+  done >&$UI_FD
+  printf ' └%s┘\n' "$(ui_repeat '─' "$((cols - 2))")" >&$UI_FD
+  printf ' %b◐%b %s · %02d:%02d%*s%s\n' "$UI_COLOR_BLUE" "$UI_COLOR_RESET" "$UI_CURRENT_TASK" \
+    "$((elapsed / 60))" "$((elapsed % 60))" 2 "" "$(msg cancel_hint)" >&$UI_FD
+}
+
+ui_render_loop() {
+  local started="$UI_TASK_STARTED"
+  while :; do
+    ui_draw_dashboard "$((SECONDS - started))"
+    sleep 0.2
+  done
+}
+
+ui_stop_renderer() {
+  if [[ -n "$UI_RENDER_PID" ]]; then
+    kill "$UI_RENDER_PID" 2>/dev/null || true
+    wait "$UI_RENDER_PID" 2>/dev/null || true
+    UI_RENDER_PID=""
+  fi
+}
+
+ui_task_run() {
+  local index="$1" label="$2" status=0
+  shift 2
+  if ((!UI_ACTIVE)); then
+    "$@"
+    return
+  fi
+  UI_TASK_INDEX="$index"
+  UI_TASK_RUNNING=1
+  UI_CURRENT_TASK="$label"
+  UI_TASK_STARTED="$SECONDS"
+  printf '\n[%02d/%02d] %s\n' "$index" "$UI_TASK_TOTAL" "$label" >>"$UI_LOG_FILE"
+  ui_render_loop &
+  UI_RENDER_PID=$!
+  if "$@" >>"$UI_LOG_FILE" 2>&1; then
+    status=0
+  else
+    status=$?
+  fi
+  ui_stop_renderer
+  UI_TASK_RUNNING=0
+  UI_LAST_TASK="$label"
+  ui_draw_dashboard "$((SECONDS - UI_TASK_STARTED))"
+  return "$status"
+}
+
+ui_shutdown() {
+  ((UI_ACTIVE)) || return 0
+  ui_stop_renderer
+  [[ -n "$UI_STTY_STATE" ]] && stty "$UI_STTY_STATE" </dev/tty 2>/dev/null || true
+  printf '\033[?25h\033[?1049l' >&$UI_FD 2>/dev/null || true
+  exec 9>&- 2>/dev/null || true
+  UI_ACTIVE=0
+}
+
+ui_init() {
+  local size rows cols locale_name
+  ((NON_INTERACTIVE == 0 && PLAIN_OUTPUT == 0)) || return 0
+  [[ -t 1 && -r /dev/tty && -w /dev/tty && "${TERM:-dumb}" != "dumb" ]] || return 0
+  locale_name="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}"
+  [[ "$locale_name" =~ [Uu][Tt][Ff]-?8 ]] || return 0
+  size="$(stty size </dev/tty 2>/dev/null || true)"
+  rows="${size%% *}"
+  cols="${size##* }"
+  [[ "$rows" =~ ^[0-9]+$ && "$cols" =~ ^[0-9]+$ && "$rows" -ge 20 && "$cols" -ge 64 ]] || return 0
+  UI_LOG_FILE="$(mktemp /tmp/crewqual-install.XXXXXX.log)"
+  chmod 0600 "$UI_LOG_FILE"
+  exec 9<>/dev/tty
+  UI_STTY_STATE="$(stty -g </dev/tty 2>/dev/null || true)"
+  if [[ -z "${NO_COLOR:-}" ]]; then
+    UI_COLOR_BLUE=$'\033[34m'
+    UI_COLOR_GREEN=$'\033[32m'
+    UI_COLOR_YELLOW=$'\033[33m'
+    UI_COLOR_RED=$'\033[31m'
+    UI_COLOR_DIM=$'\033[2m'
+    UI_COLOR_RESET=$'\033[0m'
+  fi
+  UI_ACTIVE=1
+  printf '\033[?1049h\033[?25l\033[2J\033[H' >&$UI_FD
+}
+
+ui_read_key() {
+  local key="" rest=""
+  IFS= read -rsn1 key </dev/tty || return 1
+  if [[ "$key" == $'\033' ]]; then
+    IFS= read -rsn2 -t 0.08 rest </dev/tty || true
+    key+="$rest"
+  fi
+  printf '%s' "$key"
+}
+
+ui_select() {
+  local title="$1" description="$2" selected="$3"
+  shift 3
+  local -a options=("$@")
+  local key="" index cols width option
+  while :; do
+    ui_terminal_size
+    cols="$UI_COLS"
+    width=$((cols - 8))
+    printf '\033[H\033[2J' >&$UI_FD
+    printf ' %bCrewQual%b  %s\n' "$UI_COLOR_BLUE" "$UI_COLOR_RESET" "$(msg installer_title)" >&$UI_FD
+    printf ' %s\n\n' "$(ui_repeat '─' "$((cols - 2))")" >&$UI_FD
+    printf ' %b%s%b\n' "$UI_COLOR_BLUE" "$title" "$UI_COLOR_RESET" >&$UI_FD
+    [[ -n "$description" ]] && printf ' %b%s%b\n\n' "$UI_COLOR_DIM" "$description" "$UI_COLOR_RESET" >&$UI_FD || printf '\n' >&$UI_FD
+    for ((index = 0; index < ${#options[@]}; index++)); do
+      option="${options[$index]}"
+      if ((index == selected)); then
+        printf ' %b  › %d. %-*.*s%b\n' "$UI_COLOR_BLUE" "$((index + 1))" "$width" "$width" "$option" "$UI_COLOR_RESET" >&$UI_FD
+      else
+        printf '    %d. %-*.*s\n' "$((index + 1))" "$width" "$width" "$option" >&$UI_FD
+      fi
+    done
+    printf '\n %b%s%b\n' "$UI_COLOR_DIM" "$(msg menu_hint)" "$UI_COLOR_RESET" >&$UI_FD
+    key="$(ui_read_key)" || return 1
+    case "$key" in
+      $'\033[A')
+        if ((selected > 0)); then selected=$((selected - 1)); else selected=$((${#options[@]} - 1)); fi
+        ;;
+      $'\033[B')
+        if ((selected + 1 < ${#options[@]})); then selected=$((selected + 1)); else selected=0; fi
+        ;;
+      ''|$'\n'|$'\r') printf '%s' "$selected"; return 0 ;;
+      [1-9])
+        index=$((10#$key - 1))
+        if ((index < ${#options[@]})); then printf '%s' "$index"; return 0; fi
+        ;;
+    esac
+  done
+}
+
+ui_input() {
+  local prompt="$1" default_value="${2:-}" result=""
+  ui_terminal_size
+  printf '\033[H\033[2J' >&$UI_FD
+  printf ' %bCrewQual%b  %s\n' "$UI_COLOR_BLUE" "$UI_COLOR_RESET" "$(msg installer_title)" >&$UI_FD
+  printf ' %s\n\n' "$(ui_repeat '─' "$((UI_COLS - 2))")" >&$UI_FD
+  printf ' %s\n' "$prompt" >&$UI_FD
+  [[ -n "$default_value" ]] && printf ' %b%s: %s%b\n' "$UI_COLOR_DIM" "$(msg default_value)" "$default_value" "$UI_COLOR_RESET" >&$UI_FD
+  printf '\n › ' >&$UI_FD
+  printf '\033[?25h' >&$UI_FD
+  IFS= read -r result </dev/tty
+  printf '\033[?25l' >&$UI_FD
+  [[ -n "$result" ]] || result="$default_value"
+  printf '%s' "$result"
+}
+
+ui_review_configuration() {
+  local mode_label address_label choice
+  case "$NETWORK_MODE_INPUT" in
+    lan) mode_label="$(msg network_lan)"; address_label="$LAN_ADDRESS_INPUT" ;;
+    http) mode_label="$(msg network_http)"; address_label="$PUBLIC_ADDRESS_INPUT" ;;
+    tls) mode_label="TLS"; address_label="$APP_DOMAIN_INPUT" ;;
+  esac
+  choice="$(ui_select "$(msg review_title)" \
+    "$(msg review_summary "$mode_label" "$address_label" "$APP_PORT_INPUT")" 0 \
+    "$(msg review_start)" "$(msg review_change)" "$(msg review_cancel)")"
+  case "$choice" in
+    0) return 0 ;;
+    1) return 1 ;;
+    *)
+      ui_shutdown
+      printf '%s\n' "$(msg install_cancelled)"
+      exit 0
+      ;;
+  esac
+}
+
+ui_review_upgrade() {
+  local mode_label address_label choice
+  case "$NETWORK_MODE_INPUT" in
+    lan) mode_label="$(msg network_lan)"; address_label="${LAN_ADDRESS_INPUT:-$APP_ORIGIN_VALUE}" ;;
+    http) mode_label="$(msg network_http)"; address_label="${PUBLIC_ADDRESS_INPUT:-$APP_DOMAIN_INPUT}" ;;
+    tls) mode_label="TLS"; address_label="$APP_DOMAIN_INPUT" ;;
+  esac
+  choice="$(ui_select "$(msg review_upgrade_title)" \
+    "$(msg review_summary "$mode_label" "$address_label" "$APP_PORT_INPUT")" 0 \
+    "$(msg review_upgrade_start)" "$(msg review_cancel)")"
+  if [[ "$choice" != "0" ]]; then
+    ui_shutdown
+    printf '%s\n' "$(msg install_cancelled)"
+    exit 0
+  fi
+}
+
+ui_reset_network_answers() {
+  NETWORK_MODE_INPUT=""
+  APP_PORT_INPUT=""
+  PORT_SELECTION=""
+  LAN_ADDRESS_INPUT=""
+  PUBLIC_ADDRESS_INPUT=""
+  APP_DOMAIN_INPUT=""
+  TLS_EMAIL_INPUT=""
+}
+
+ui_promote_log() {
+  local log_dir target
+  ((UI_ACTIVE)) || return 0
+  log_dir="$INSTALL_DIR/logs"
+  install -d -m 0700 "$log_dir"
+  target="$log_dir/install-$(date '+%Y%m%d-%H%M%S').log"
+  mv -- "$UI_LOG_FILE" "$target"
+  chmod 0600 "$target"
+  UI_LOG_FILE="$target"
 }
 
 msg() {
@@ -127,6 +469,110 @@ msg() {
   case "$locale:$key" in
     zh:language_prompt) printf '选择语言 [1=中文, 2=English]: ' ;;
     en:language_prompt) printf 'Select language [1=Chinese, 2=English]: ' ;;
+    zh:installer_title) printf '安装程序' ;;
+    en:installer_title) printf 'Installer' ;;
+    zh:terminal_too_small) printf '终端窗口过小，请调整到至少 64×20；安装仍在继续。' ;;
+    en:terminal_too_small) printf 'The terminal is too small. Resize it to at least 64x20; installation is continuing.' ;;
+    zh:phase_preflight) printf '环境检查' ;;
+    en:phase_preflight) printf 'Preflight' ;;
+    zh:phase_release) printf '发布验证' ;;
+    en:phase_release) printf 'Release' ;;
+    zh:phase_deploy) printf '部署服务' ;;
+    en:phase_deploy) printf 'Deploy' ;;
+    zh:phase_finish) printf '完成' ;;
+    en:phase_finish) printf 'Finish' ;;
+    zh:live_log) printf '实时日志' ;;
+    en:live_log) printf 'Live log' ;;
+    zh:cancel_hint) printf 'Ctrl+C 取消' ;;
+    en:cancel_hint) printf 'Ctrl+C to cancel' ;;
+    zh:menu_hint) printf '↑/↓ 选择 · Enter 确认 · 也可按数字快捷选择' ;;
+    en:menu_hint) printf 'Up/Down to select · Enter to confirm · Number keys also work' ;;
+    zh:default_value) printf '默认值' ;;
+    en:default_value) printf 'Default' ;;
+    zh:language_title) printf '选择安装器语言' ;;
+    en:language_title) printf 'Choose installer language' ;;
+    zh:language_description) printf '安装完成后仍可在系统设置中更改界面语言。' ;;
+    en:language_description) printf 'The application language can still be changed after installation.' ;;
+    zh:network_title) printf '选择网络模式' ;;
+    en:network_title) printf 'Choose a network mode' ;;
+    zh:network_description) printf '局域网适合测试；TLS 适合正式公网部署。' ;;
+    en:network_description) printf 'LAN is suitable for testing; TLS is intended for production access.' ;;
+    zh:network_lan) printf '局域网测试' ;;
+    en:network_lan) printf 'LAN testing' ;;
+    zh:network_http) printf '公网 HTTP（不安全）' ;;
+    en:network_http) printf 'Public HTTP (insecure)' ;;
+    zh:network_tls) printf '立即配置 TLS' ;;
+    en:network_tls) printf 'Configure TLS now' ;;
+    zh:lan_scope_title) printf '选择访问范围' ;;
+    en:lan_scope_title) printf 'Choose access scope' ;;
+    zh:lan_scope_description) printf '建议只允许本机或局域网访问。' ;;
+    en:lan_scope_description) printf 'Local or LAN-only access is recommended.' ;;
+    zh:lan_scope_only) printf '仅本机或局域网' ;;
+    en:lan_scope_only) printf 'Local or LAN only' ;;
+    zh:lan_scope_public) printf '临时公网 HTTP' ;;
+    en:lan_scope_public) printf 'Temporary public HTTP' ;;
+    zh:port_title) printf '选择访问端口' ;;
+    en:port_title) printf 'Choose an access port' ;;
+    zh:port_default_option) printf '默认端口 8080' ;;
+    en:port_default_option) printf 'Default port 8080' ;;
+    zh:port_random_option) printf '随机可用端口' ;;
+    en:port_random_option) printf 'Random available port' ;;
+    zh:port_custom_option) printf '自定义端口' ;;
+    en:port_custom_option) printf 'Custom port' ;;
+    zh:review_title) printf '确认部署配置' ;;
+    en:review_title) printf 'Review deployment configuration' ;;
+    zh:review_upgrade_title) printf '确认升级配置' ;;
+    en:review_upgrade_title) printf 'Review upgrade configuration' ;;
+    zh:review_summary) printf '网络：%s  ·  地址：%s  ·  端口：%s' "$1" "$2" "$3" ;;
+    en:review_summary) printf 'Network: %s  ·  Address: %s  ·  Port: %s' "$1" "$2" "$3" ;;
+    zh:review_start) printf '开始部署' ;;
+    en:review_start) printf 'Start deployment' ;;
+    zh:review_upgrade_start) printf '开始升级' ;;
+    en:review_upgrade_start) printf 'Start upgrade' ;;
+    zh:review_change) printf '返回修改' ;;
+    en:review_change) printf 'Change settings' ;;
+    zh:review_cancel) printf '取消安装' ;;
+    en:review_cancel) printf 'Cancel installation' ;;
+    zh:install_cancelled) printf 'CrewQual 安装已取消，未开始部署。' ;;
+    en:install_cancelled) printf 'CrewQual installation was cancelled before deployment.' ;;
+    zh:yes_option) printf '是' ;;
+    en:yes_option) printf 'Yes' ;;
+    zh:no_option) printf '否' ;;
+    en:no_option) printf 'No' ;;
+    zh:view_install_log) printf '完整安装日志: %s' "$1" ;;
+    en:view_install_log) printf 'Full installation log: %s' "$1" ;;
+    zh:failed_step) printf '失败步骤' ;;
+    en:failed_step) printf 'Failed step' ;;
+    zh:recent_log) printf '最近日志:' ;;
+    en:recent_log) printf 'Recent log:' ;;
+    zh:task_preflight) printf '检查安装环境' ;;
+    en:task_preflight) printf 'Check installation environment' ;;
+    zh:task_docker) printf '检查 Docker Engine' ;;
+    en:task_docker) printf 'Check Docker Engine' ;;
+    zh:task_compose) printf '检查 Docker Compose v2' ;;
+    en:task_compose) printf 'Check Docker Compose v2' ;;
+    zh:task_release) printf '解析 CrewQual Release' ;;
+    en:task_release) printf 'Resolve CrewQual Release' ;;
+    zh:task_download) printf '下载部署清单' ;;
+    en:task_download) printf 'Download deployment manifest' ;;
+    zh:task_verify) printf '验证发布签名与校验和' ;;
+    en:task_verify) printf 'Verify release signatures and checksums' ;;
+    zh:task_config) printf '确认部署配置' ;;
+    en:task_config) printf 'Confirm deployment configuration' ;;
+    zh:task_prepare) printf '准备受管理部署文件' ;;
+    en:task_prepare) printf 'Prepare managed deployment files' ;;
+    zh:task_commit) printf '安装并配置更新器' ;;
+    en:task_commit) printf 'Install files and configure updater' ;;
+    zh:task_pull) printf '拉取 CrewQual 镜像' ;;
+    en:task_pull) printf 'Pull CrewQual images' ;;
+    zh:task_minio) printf '启动内置对象存储' ;;
+    en:task_minio) printf 'Start built-in object storage' ;;
+    zh:task_postgres) printf '启动 PostgreSQL' ;;
+    en:task_postgres) printf 'Start PostgreSQL' ;;
+    zh:task_database) printf '迁移并初始化数据库' ;;
+    en:task_database) printf 'Migrate and initialize the database' ;;
+    zh:task_services) printf '启动 Web、Worker 与访问入口' ;;
+    en:task_services) printf 'Start Web, Worker, and web entrypoint' ;;
     zh:invalid_language) printf '语言必须是 zh 或 en: %s' "$1" ;;
     en:invalid_language) printf 'Language must be zh or en: %s' "$1" ;;
     zh:command_unavailable) printf '命令不可用: %s' "$1" ;;
@@ -261,10 +707,14 @@ msg() {
     en:docker_start) printf 'Start Docker daemon (wait up to %ss)' "$1" ;;
     zh:docker_ready) printf 'Docker Engine 已就绪' ;;
     en:docker_ready) printf 'Docker Engine is ready' ;;
+    zh:docker_wait) printf 'Docker daemon 检查仍在进行（最多 %ss）' "$1" ;;
+    en:docker_wait) printf 'Docker daemon check is still running (up to %ss)' "$1" ;;
     zh:compose_check) printf '检查 Docker Compose v2（最多等待 %ss）' "$1" ;;
     en:compose_check) printf 'Check Docker Compose v2 (wait up to %ss)' "$1" ;;
     zh:compose_ready) printf 'Docker Compose v2 已就绪' ;;
     en:compose_ready) printf 'Docker Compose v2 is ready' ;;
+    zh:compose_wait) printf 'Docker Compose v2 检查仍在进行（最多 %ss）' "$1" ;;
+    en:compose_wait) printf 'Docker Compose v2 check is still running (up to %ss)' "$1" ;;
     zh:wsl_detected) printf '检测到 WSL2；使用 Windows Docker Desktop，并启用当前 Ubuntu 的 WSL Integration' ;;
     en:wsl_detected) printf 'WSL2 detected; use Docker Desktop for Windows with WSL Integration enabled for this Ubuntu distribution' ;;
     zh:wsl_docker_missing) printf 'WSL2 中未找到 Docker CLI。请在 Windows 安装并启动 Docker Desktop，在 Settings > Resources > WSL Integration 中启用当前 Ubuntu，然后重新打开 Ubuntu 终端' ;;
@@ -289,6 +739,8 @@ msg() {
     en:command_timeout) printf 'Command did not finish within %ss and was terminated' "$1" ;;
     zh:network_timeout) printf '网络请求超过 %ss，已自动终止；请检查网络或代理' "$1" ;;
     en:network_timeout) printf 'Network request exceeded %ss and was terminated; check the network or proxy' "$1" ;;
+    zh:network_wait) printf '网络请求仍在进行（单次最多 %ss，重试窗口最多 %ss）' "$1" "$2" ;;
+    en:network_wait) printf 'Network request is still running (up to %ss per request, %ss across retries)' "$1" "$2" ;;
     zh:network_failed) printf '网络请求失败；请检查网络、DNS 或代理' ;;
     en:network_failed) printf 'Network request failed; check the network, DNS, or proxy' ;;
     zh:wait_status) printf '等待 %s: %s' "$1" "$2" ;;
@@ -401,6 +853,12 @@ msg() {
     en:docker_install_compose_failed) printf 'Docker Compose v2 is still unavailable after installation; check the result and retry' ;;
     zh:updater_start) printf '启动 CrewQual 自动更新器' ;;
     en:updater_start) printf 'Start CrewQual updater' ;;
+    zh:updater_download) printf '下载并验证 CrewQual 更新器' ;;
+    en:updater_download) printf 'Download and verify the CrewQual updater' ;;
+    zh:release_verify) printf '验证发布清单签名和文件校验和' ;;
+    en:release_verify) printf 'Verify release manifest signatures and file checksums' ;;
+    zh:database_backup) printf '创建升级前数据库备份' ;;
+    en:database_backup) printf 'Create a pre-upgrade database backup' ;;
     zh:docker_compose_os_unsupported) printf '无法识别支持 Docker Compose v2 软件包的包管理器（需要 apt-get、dnf 或 yum）' ;;
     en:docker_compose_os_unsupported) printf 'Could not find a package manager supported for Docker Compose v2 (apt-get, dnf, or yum required)' ;;
     zh:linux_only) printf '当前安装器仅支持 Linux' ;;
@@ -451,7 +909,14 @@ docker_command_available() {
 
 on_interrupt() {
   trap - INT TERM
-  printf '\n%s\n' "$(msg install_interrupted)" >&2
+  if ((UI_ACTIVE)); then
+    printf '\n%s\n' "$(msg install_interrupted)" >>"$UI_LOG_FILE"
+    ui_shutdown
+    printf '\n%s\n' "$(msg install_interrupted)" >/dev/tty 2>/dev/null || true
+    [[ -n "$UI_LOG_FILE" ]] && printf '%s\n' "$(msg view_install_log "$UI_LOG_FILE")" >/dev/tty 2>/dev/null || true
+  else
+    printf '\n%s\n' "$(msg install_interrupted)" >&2
+  fi
   exit 130
 }
 
@@ -462,18 +927,49 @@ run_with_timeout() {
 }
 
 curl_fetch() {
+  local heartbeat_pid="" status=0
+  if ((!UI_ACTIVE)); then
+    (
+      while :; do
+        sleep "$NETWORK_PROGRESS_INTERVAL_SECONDS"
+        printf '%s\n' "$(msg network_wait "$NETWORK_TIMEOUT_SECONDS" "$NETWORK_RETRY_TIMEOUT_SECONDS")" >&2
+      done
+    ) &
+    heartbeat_pid=$!
+  fi
+
   curl --fail --show-error --location --progress-bar \
     --retry 3 --retry-all-errors --retry-max-time "$NETWORK_RETRY_TIMEOUT_SECONDS" \
-    --connect-timeout 15 --max-time "$NETWORK_TIMEOUT_SECONDS" "$@"
+    --connect-timeout 15 --max-time "$NETWORK_TIMEOUT_SECONDS" "$@" || status=$?
+
+  if [[ -n "$heartbeat_pid" ]]; then
+    kill "$heartbeat_pid" 2>/dev/null || true
+    wait "$heartbeat_pid" 2>/dev/null || true
+  fi
+  return "$status"
 }
 
 check_docker_daemon() {
-  local output="" status=0
+  local output="" status=0 heartbeat_pid=""
+  if ((!UI_ACTIVE)); then
+    (
+      while :; do
+        sleep 10
+        printf '%s\n' "$(msg docker_wait "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
+      done
+    ) &
+    heartbeat_pid=$!
+  fi
   if output="$(run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" docker info 2>&1)"; then
-    return 0
+    status=0
   else
     status=$?
   fi
+  if [[ -n "$heartbeat_pid" ]]; then
+    kill "$heartbeat_pid" 2>/dev/null || true
+    wait "$heartbeat_pid" 2>/dev/null || true
+  fi
+  [[ "$status" == "0" ]] && return 0
   [[ -n "$output" ]] && printf '%s\n' "$output" >&2
   if [[ "$status" == "124" || "$status" == "137" ]]; then
     echo "$(msg command_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
@@ -482,12 +978,26 @@ check_docker_daemon() {
 }
 
 check_compose_plugin() {
-  local output="" status=0
+  local output="" status=0 heartbeat_pid=""
+  if ((!UI_ACTIVE)); then
+    (
+      while :; do
+        sleep 10
+        printf '%s\n' "$(msg compose_wait "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
+      done
+    ) &
+    heartbeat_pid=$!
+  fi
   if output="$(run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" docker compose version 2>&1)"; then
-    return 0
+    status=0
   else
     status=$?
   fi
+  if [[ -n "$heartbeat_pid" ]]; then
+    kill "$heartbeat_pid" 2>/dev/null || true
+    wait "$heartbeat_pid" 2>/dev/null || true
+  fi
+  [[ "$status" == "0" ]] && return 0
   [[ -n "$output" ]] && printf '%s\n' "$output" >&2
   if [[ "$status" == "124" || "$status" == "137" ]]; then
     echo "$(msg command_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS")" >&2
@@ -532,6 +1042,11 @@ prompt_yes_no() {
   local prompt="$1"
   local result=""
   ((NON_INTERACTIVE)) && return 1
+  if ((UI_ACTIVE)); then
+    result="$(ui_select "$prompt" "" 1 "$(msg yes_option)" "$(msg no_option)")"
+    [[ "$result" == "0" ]]
+    return
+  fi
   [[ -r /dev/tty ]] || die "$(msg no_tty)"
   read -r -p "$prompt" result </dev/tty
   case "$result" in
@@ -664,6 +1179,7 @@ compose() {
 }
 
 cleanup() {
+  ui_shutdown || true
   if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
     rm -rf -- "$TEMP_DIR"
   fi
@@ -682,9 +1198,23 @@ show_diagnostics() {
 on_error() {
   local exit_code=$?
   trap - ERR
-  restore_existing_install || true
-  printf '\n%s\n' "$(msg deployment_failed "$exit_code")" >&2
-  show_diagnostics
+  if ((UI_ACTIVE)); then
+    printf '\n%s\n' "$(msg deployment_failed "$exit_code")" >>"$UI_LOG_FILE"
+    restore_existing_install >>"$UI_LOG_FILE" 2>&1 || true
+    show_diagnostics >>"$UI_LOG_FILE" 2>&1 || true
+    ui_shutdown
+    {
+      printf '\n%s\n' "$(msg deployment_failed "$exit_code")"
+      [[ -n "$UI_LAST_TASK" ]] && printf '%s: %s\n' "$(msg failed_step)" "$UI_LAST_TASK"
+      printf '%s\n' "$(msg view_install_log "$UI_LOG_FILE")"
+      printf '%s\n' "$(msg recent_log)"
+      ui_sanitized_tail 20 120
+    } >/dev/tty 2>/dev/null || true
+  else
+    restore_existing_install || true
+    printf '\n%s\n' "$(msg deployment_failed "$exit_code")" >&2
+    show_diagnostics
+  fi
   exit "$exit_code"
 }
 
@@ -717,6 +1247,7 @@ snapshot_existing_install() {
 
 create_upgrade_database_backup() {
   [[ "$EXISTING_INSTALL" == "1" ]] || return 0
+  log "$(msg database_backup)"
   UPGRADE_DB_BACKUP="$ROLLBACK_DIR/database.dump"
   compose exec -T postgres pg_dump -U crewqual -d crewqual --format=custom >"$UPGRADE_DB_BACKUP"
   [[ -s "$UPGRADE_DB_BACKUP" ]] || die "无法创建升级前数据库备份，已停止升级"
@@ -920,6 +1451,14 @@ choose_port() {
     while :; do
       if ((NON_INTERACTIVE)); then
         APP_PORT_INPUT=8080
+      elif ((UI_ACTIVE)); then
+        choice="$(ui_select "$(msg port_title)" "" 0 \
+          "$(msg port_default_option)" "$(msg port_random_option)" "$(msg port_custom_option)")"
+        case "$choice" in
+          1) APP_PORT_INPUT="$(random_free_port)" ;;
+          2) APP_PORT_INPUT="$(prompt_value "$(msg custom_port_prompt)")" ;;
+          *) APP_PORT_INPUT=8080 ;;
+        esac
       else
         choice="$(prompt_value "$(msg port_prompt)")"
         case "$choice" in
@@ -983,10 +1522,18 @@ prepare_network_config() {
         die "$(msg network_required)"
       fi
     else
-      case "$(prompt_value "$(msg network_prompt)")" in
-        2) NETWORK_MODE_INPUT="tls" ;;
-        *) NETWORK_MODE_INPUT="lan" ;;
-      esac
+      if ((UI_ACTIVE)); then
+        case "$(ui_select "$(msg network_title)" "$(msg network_description)" 0 \
+          "$(msg network_lan)" "$(msg network_tls)")" in
+          1) NETWORK_MODE_INPUT="tls" ;;
+          *) NETWORK_MODE_INPUT="lan" ;;
+        esac
+      else
+        case "$(prompt_value "$(msg network_prompt)")" in
+          2) NETWORK_MODE_INPUT="tls" ;;
+          *) NETWORK_MODE_INPUT="lan" ;;
+        esac
+      fi
     fi
   fi
   [[ "$NETWORK_MODE_INPUT" == "lan" || "$NETWORK_MODE_INPUT" == "http" || "$NETWORK_MODE_INPUT" == "tls" ]] ||
@@ -996,12 +1543,28 @@ prepare_network_config() {
   fi
 
   if [[ "$NETWORK_MODE_INPUT" == "lan" && "$NON_INTERACTIVE" == "0" ]]; then
-    lan_only_answer="$(prompt_value "$(msg lan_only_prompt)")"
+    if ((UI_ACTIVE)); then
+      case "$(ui_select "$(msg lan_scope_title)" "$(msg lan_scope_description)" 0 \
+        "$(msg lan_scope_only)" "$(msg lan_scope_public)")" in
+        1) lan_only_answer="n" ;;
+        *) lan_only_answer="y" ;;
+      esac
+    else
+      lan_only_answer="$(prompt_value "$(msg lan_only_prompt)")"
+    fi
     case "$lan_only_answer" in
       n|N|no|NO|No|否)
         NETWORK_MODE_INPUT="http"
-        echo "$(msg public_http_warning)" >&2
-        prompt_yes_no "$(msg public_http_confirm)" || die "$(msg public_http_declined)"
+        if ((UI_ACTIVE)); then
+          case "$(ui_select "$(msg public_http_confirm)" "$(msg public_http_warning)" 1 \
+            "$(msg yes_option)" "$(msg no_option)")" in
+            0) ;;
+            *) die "$(msg public_http_declined)" ;;
+          esac
+        else
+          echo "$(msg public_http_warning)" >&2
+          prompt_yes_no "$(msg public_http_confirm)" || die "$(msg public_http_declined)"
+        fi
         ;;
     esac
   elif [[ "$NETWORK_MODE_INPUT" == "http" ]]; then
@@ -1100,6 +1663,10 @@ prompt_value() {
   local prompt="$1"
   local result=""
   [[ -r /dev/tty ]] || die "$(msg no_tty)"
+  if ((UI_ACTIVE)); then
+    ui_input "$prompt"
+    return
+  fi
   read -r -p "$prompt" result </dev/tty
   printf '%s' "$result"
 }
@@ -1126,6 +1693,12 @@ select_language() {
   if [[ -z "$LANGUAGE_INPUT" ]]; then
     if ((NON_INTERACTIVE)); then
       LANGUAGE_INPUT="zh"
+    elif ((UI_ACTIVE)); then
+      choice="$(ui_select "选择语言 / Choose language" "" 0 "中文" "English")"
+      case "$choice" in
+        1) LANGUAGE_INPUT="en" ;;
+        *) LANGUAGE_INPUT="zh" ;;
+      esac
     else
       choice="$(prompt_value "$(msg language_prompt)")"
       case "$choice" in
@@ -1446,6 +2019,7 @@ prepare_updater_verifier() {
     asset_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_VERSION}/crewqual-updater-linux-${arch}"
   fi
   tmp="$TEMP_DIR/crewqual-updater"
+  log "$(msg updater_download)"
   if curl_fetch "$asset_url" -o "$tmp"; then
     :
   else
@@ -1462,6 +2036,7 @@ prepare_updater_verifier() {
   sums_expected="$(grep -E "^[a-fA-F0-9]{64}[[:space:]]+crewqual-updater-linux-${arch}$" "$TEMP_DIR/SHA256SUMS" | awk '{print $1}' | head -n 1)"
   [[ "$sums_expected" == "$actual" ]] || { echo "$(msg updater_checksum)" >&2; return 1; }
   chmod 0755 "$tmp"
+  log "$(msg release_verify)"
   "$tmp" verify-manifest --manifest "$TEMP_DIR/update-manifest-v1.json" \
     --signature "$TEMP_DIR/update-manifest-v1.sig" --tag "$RELEASE_VERSION" >/dev/null 2>&1 || {
     echo "$(msg signature_invalid)" >&2
@@ -1564,6 +2139,98 @@ configure_updater() {
   install_updater_service
 }
 
+run_preflight_checks() {
+  log "$(msg preflight)"
+  [[ "$(uname -s)" == "Linux" ]] || die "$(msg linux_only)"
+  if [[ "$EUID" -ne 0 && "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
+    die "$(msg run_as_root "$INSTALL_DIR")"
+  fi
+  [[ "$WAIT_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$DOCKER_COMMAND_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$NETWORK_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$NETWORK_RETRY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$PACKAGE_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
+
+  require_command curl
+  require_command openssl
+  require_command awk
+  require_command sed
+  require_command mktemp
+  require_command install
+  require_command sha256sum
+  require_command base64
+  require_command xxd
+  require_command hostname
+  require_command grep
+  require_command timeout
+  configure_host_platform
+}
+
+verify_downloaded_release() {
+  resolve_trusted_public_key
+  log "$(msg release_verify)"
+  verify_release_manifest
+}
+
+prepare_managed_deployment() {
+  if [[ "$EXISTING_INSTALL" == "1" ]]; then
+    snapshot_existing_install
+  fi
+  prepare_custom_tls_files
+  log "$(msg validate_manifest "$RELEASE_VERSION")"
+  docker compose --project-directory "$TEMP_DIR" --env-file "$TEMP_DIR/env.updated" \
+    -f "$TEMP_DIR/compose.yaml" config --quiet
+}
+
+commit_managed_deployment() {
+  if [[ "$EXISTING_INSTALL" == "1" ]]; then
+    create_upgrade_database_backup
+  fi
+  configure_updater
+  atomic_install "$TEMP_DIR/env.updated" "$ENV_FILE" 0600
+  atomic_install "$TEMP_DIR/compose.yaml" "$COMPOSE_FILE" 0644
+  atomic_install "$TEMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile" 0644
+  if [[ -s "$TEMP_DIR/configure-domain.sh" ]]; then
+    atomic_install "$TEMP_DIR/configure-domain.sh" "$INSTALL_DIR/configure-domain.sh" 0755
+  fi
+}
+
+pull_release_images() {
+  ((PULL_IMAGES)) || return 0
+  log "$(msg pull_images "$RELEASE_VERSION")"
+  compose pull
+}
+
+start_object_storage() {
+  log "$(msg start_minio)"
+  compose up -d minio minio-init
+  wait_for_completion minio-init
+}
+
+start_database() {
+  log "$(msg start_postgres)"
+  compose up -d postgres
+  wait_for_status postgres healthy
+}
+
+migrate_and_bootstrap_database() {
+  log "$(msg run_migrations)"
+  compose run --rm --no-deps migrate
+  log "$(msg run_bootstrap)"
+  compose run --rm --no-deps bootstrap
+}
+
+start_application_services() {
+  log "$(msg start_web_worker)"
+  compose up -d --no-deps web worker
+  wait_for_status web healthy
+  wait_for_status worker healthy
+  log "$(msg start_https)"
+  compose up -d --no-deps caddy
+  wait_for_status caddy running
+}
+
 while (($# > 0)); do
   case "$1" in
     --version)
@@ -1639,6 +2306,10 @@ while (($# > 0)); do
       NON_INTERACTIVE=1
       shift
       ;;
+    --plain)
+      PLAIN_OUTPUT=1
+      shift
+      ;;
     --no-pull)
       PULL_IMAGES=0
       shift
@@ -1660,49 +2331,18 @@ fi
 
 ENV_FILE="$INSTALL_DIR/.env"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
-select_language
-
-log "$(msg preflight)"
-[[ "$(uname -s)" == "Linux" ]] || die "$(msg linux_only)"
-if [[ "$EUID" -ne 0 && "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
-  die "$(msg run_as_root "$INSTALL_DIR")"
-fi
-[[ "$WAIT_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
-[[ "$DOCKER_COMMAND_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
-[[ "$NETWORK_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
-[[ "$NETWORK_RETRY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
-[[ "$PACKAGE_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
-[[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
-
-require_command curl
-require_command openssl
-require_command awk
-require_command sed
-require_command mktemp
-require_command install
-require_command sha256sum
-require_command base64
-require_command xxd
-require_command hostname
-require_command grep
-require_command timeout
-
-configure_host_platform
-ensure_docker_engine
-ensure_compose_plugin
-
+ui_init
 trap cleanup EXIT
 trap on_error ERR
+select_language
 
-resolve_release_version
-download_release_files
-resolve_trusted_public_key
-verify_release_manifest
+ui_task_run 1 "$(msg task_preflight)" run_preflight_checks
+ui_task_run 2 "$(msg task_docker)" ensure_docker_engine
+ui_task_run 3 "$(msg task_compose)" ensure_compose_plugin
+ui_task_run 4 "$(msg task_release)" resolve_release_version
+ui_task_run 5 "$(msg task_download)" download_release_files
+ui_task_run 6 "$(msg task_verify)" verify_downloaded_release
 
-mkdir -p -- "$INSTALL_DIR"
-if [[ ! -e "$INSTALL_DIR/.crewqual-official-install" ]]; then
-  install -m 0644 /dev/null "$INSTALL_DIR/.crewqual-official-install"
-fi
 if [[ -f "$ENV_FILE" ]]; then
   EXISTING_INSTALL=1
   [[ ! -L "$ENV_FILE" ]] || die "$(msg env_symlink)"
@@ -1763,11 +2403,31 @@ if [[ -f "$ENV_FILE" ]]; then
   else
     die "$(msg network_invalid)"
   fi
+  if ((UI_ACTIVE)); then
+    UI_TASK_INDEX=6
+    UI_CURRENT_TASK="$(msg task_config)"
+    ui_review_upgrade
+  fi
   update_managed_version
 else
-  prepare_network_config
+  while :; do
+    prepare_network_config
+    ((!UI_ACTIVE)) && break
+    if ui_review_configuration; then
+      break
+    fi
+    ui_reset_network_answers
+  done
   write_initial_env
 fi
+
+UI_TASK_INDEX=7
+UI_LAST_TASK="$(msg task_config)"
+mkdir -p -- "$INSTALL_DIR"
+if [[ ! -e "$INSTALL_DIR/.crewqual-official-install" ]]; then
+  install -m 0644 /dev/null "$INSTALL_DIR/.crewqual-official-install"
+fi
+ui_promote_log
 
 # Older official installs may contain mutable official tags. Replace those with
 # the signed digest, but refuse to silently take ownership of custom images.
@@ -1812,61 +2472,23 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   [[ -n "$(env_value SETUP_AUTH_CODE_HASH)" ]] || generate_setup_auth_code
 fi
 
-if [[ "$EXISTING_INSTALL" == "1" ]]; then
-  snapshot_existing_install
-fi
-prepare_custom_tls_files
-
-log "$(msg validate_manifest "$RELEASE_VERSION")"
-docker compose --project-directory "$TEMP_DIR" --env-file "$TEMP_DIR/env.updated" \
-  -f "$TEMP_DIR/compose.yaml" config --quiet
-
+ui_task_run 8 "$(msg task_prepare)" prepare_managed_deployment
 COMPOSE=(docker compose --project-directory "$INSTALL_DIR" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
-if [[ "$EXISTING_INSTALL" == "1" ]]; then
-  create_upgrade_database_backup
-fi
-
-# Strictly verify the release with the updater's authoritative JSON parser.
-# Managed Linux hosts then install the updater service; WSL keeps only the
-# temporary verifier and uses repeat installer runs for upgrades.
-configure_updater
-atomic_install "$TEMP_DIR/env.updated" "$ENV_FILE" 0600
-atomic_install "$TEMP_DIR/compose.yaml" "$COMPOSE_FILE" 0644
-atomic_install "$TEMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile" 0644
-if [[ -s "$TEMP_DIR/configure-domain.sh" ]]; then
-  atomic_install "$TEMP_DIR/configure-domain.sh" "$INSTALL_DIR/configure-domain.sh" 0755
-fi
-
-if ((PULL_IMAGES)); then
-  log "$(msg pull_images "$RELEASE_VERSION")"
-  compose pull
-fi
-
-log "$(msg start_minio)"
-compose up -d minio minio-init
-wait_for_completion minio-init
-
-log "$(msg start_postgres)"
-compose up -d postgres
-wait_for_status postgres healthy
-
-log "$(msg run_migrations)"
-compose run --rm --no-deps migrate
-
-log "$(msg run_bootstrap)"
-compose run --rm --no-deps bootstrap
-
-log "$(msg start_web_worker)"
-compose up -d --no-deps web worker
-wait_for_status web healthy
-wait_for_status worker healthy
-
-log "$(msg start_https)"
-compose up -d --no-deps caddy
-wait_for_status caddy running
+ui_task_run 9 "$(msg task_commit)" commit_managed_deployment
+ui_task_run 10 "$(msg task_pull)" pull_release_images
+ui_task_run 11 "$(msg task_minio)" start_object_storage
+ui_task_run 12 "$(msg task_postgres)" start_database
+ui_task_run 13 "$(msg task_database)" migrate_and_bootstrap_database
+ui_task_run 14 "$(msg task_services)" start_application_services
 
 log "$(msg deployment_complete "$RELEASE_VERSION")"
-compose ps -a
+if ((UI_ACTIVE)); then
+  compose ps -a >>"$UI_LOG_FILE" 2>&1 || true
+  ui_shutdown
+  echo "$(msg deployment_complete "$RELEASE_VERSION")"
+else
+  compose ps -a
+fi
 echo
 if [[ -n "$SETUP_AUTH_CODE_DISPLAY" ]]; then
   echo "$(msg setup_auth_code "$SETUP_AUTH_CODE_DISPLAY")"
@@ -1877,6 +2499,7 @@ if [[ "$NETWORK_MODE_INPUT" == "http" ]]; then
 fi
 echo "$(msg welcome "${APP_ORIGIN_VALUE}")"
 echo "$(msg install_dir "$INSTALL_DIR")"
+[[ -n "$UI_LOG_FILE" ]] && echo "$(msg view_install_log "$UI_LOG_FILE")"
 echo "$(msg view_logs "$INSTALL_DIR")"
 [[ "$UPDATER_MODE" == "manual" ]] && echo "$(msg manual_upgrade_command)"
 echo "$(msg volume_warning)"

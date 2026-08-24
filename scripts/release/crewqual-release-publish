@@ -246,7 +246,7 @@ make_public() {
       continue
     fi
     gh api --method PATCH \
-      -H 'Accept: application/vnd.github.package-deletes-preview+json' \
+      -H 'Accept: application/vnd.github+json' \
       -H 'X-GitHub-Api-Version: 2022-11-28' \
       "$url" -f visibility=public >/dev/null ||
       die "无法将 $package 设为 public；请确认账号拥有该包的 admin 权限"
