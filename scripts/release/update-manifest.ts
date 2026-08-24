@@ -14,9 +14,23 @@ const repository = process.env.GITHUB_REPOSITORY ?? "FlightDan/crewqual";
 const releaseAsset = (version: string, asset: string) =>
   `https://github.com/${repository}/releases/download/${version}/${asset}`;
 
+function normalizeUtcTimestamp(value: string, source = "publishedAt") {
+  const trimmed = value.trim();
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      trimmed,
+    )
+  ) {
+    throw new Error(`${source} must be an RFC3339 timestamp with a timezone`);
+  }
+  const epoch = Date.parse(trimmed);
+  if (Number.isNaN(epoch)) throw new Error(`${source} is not a valid timestamp`);
+  return new Date(epoch).toISOString();
+}
+
 function tagPublishedAt(version: string) {
   const configured = process.env.RELEASE_PUBLISHED_AT?.trim();
-  if (configured) return configured;
+  if (configured) return normalizeUtcTimestamp(configured, "RELEASE_PUBLISHED_AT");
   const tagResult = spawnSync(
     "git",
     ["for-each-ref", "--format=%(taggerdate:iso8601-strict)", `refs/tags/${version}`],
@@ -29,7 +43,7 @@ function tagPublishedAt(version: string) {
   const value = result.stdout?.trim();
   if (!value || result.status !== 0)
     throw new Error("RELEASE_PUBLISHED_AT is required when the release tag is unavailable locally");
-  return value;
+  return normalizeUtcTimestamp(value, `publishedAt for ${version}`);
 }
 
 async function main() {

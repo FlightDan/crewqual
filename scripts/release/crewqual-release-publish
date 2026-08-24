@@ -34,6 +34,8 @@ Usage:
 Release options:
   --acceptance-scope local|full   Default: local
   --strict-clean                  Refuse a dirty worktree
+  --replace-existing-tag         Explicitly allow replacing an existing local/remote tag (default)
+  --no-replace-existing-tag      Refuse to replace an existing local/remote tag
   --yes                            Do not ask for interactive confirmation
 
 Examples:
@@ -126,9 +128,13 @@ profile_for_tag() {
   fi
 }
 
-tag_exists_local_or_remote() {
+tag_exists_local() {
   local tag="$1"
-  git -C "$REPO_DIR" rev-parse --verify --quiet "refs/tags/$tag" >/dev/null && return 0
+  git -C "$REPO_DIR" rev-parse --verify --quiet "refs/tags/$tag" >/dev/null
+}
+
+tag_exists_remote() {
+  local tag="$1"
   git -C "$REPO_DIR" ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
 }
 
@@ -240,12 +246,16 @@ make_public() {
 }
 
 confirm_release() {
-  local tag="$1" baseline="$2" profile="$3" branch="$4" commit="$5"
+  local tag="$1" baseline="$2" profile="$3" branch="$4" commit="$5" replace_tag="$6" remote_tag="$7"
   is_true "$DRY_RUN" && return
   is_true "$RELEASE_YES" && return
   [[ -t 0 ]] || die "非交互终端请使用 --yes"
   printf '\n即将发布:\n  tag=%s\n  profile=%s\n  baseline=%s\n  branch=%s\n  commit=%s\n' \
     "$tag" "$profile" "$baseline" "$branch" "$commit"
+  [[ "$replace_tag" == 1 && "$remote_tag" == 1 ]] &&
+    printf '警告：将强制覆盖远端同名 tag，远端发布历史将指向当前 HEAD。\n'
+  [[ "$replace_tag" == 1 && "$remote_tag" == 0 ]] &&
+    printf '警告：将删除同名本地旧 tag 并重新签署当前 HEAD。\n'
   if [[ -n "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
     printf '警告：工作区有未提交改动；它们不会进入这个签名 tag。\n'
   fi
@@ -288,7 +298,8 @@ dispatch_and_wait() {
 }
 
 release() {
-  local tag="$1" baseline="$2" scope="$3" strict_clean="$4" branch commit profile
+  local tag="$1" baseline="$2" scope="$3" strict_clean="$4" replace_tag="$5" branch commit profile
+  local existing_local_tag=0 existing_remote_tag=0
   RELEASE_YES="${RELEASE_YES:-0}"
   ensure_secure_dir
   ensure_repo
@@ -298,11 +309,25 @@ release() {
   validate_release_args "$tag" "$baseline" "$scope"
   [[ "$strict_clean" == 0 || -z "$(git -C "$REPO_DIR" status --porcelain)" ]] ||
     die "工作区有未提交改动；去掉 --strict-clean 或先提交"
-  tag_exists_local_or_remote "$tag" && die "目标 tag 已存在: $tag"
+  if tag_exists_remote "$tag"; then
+    existing_remote_tag=1
+    [[ "$replace_tag" == 1 ]] ||
+      die "远端 tag 已存在；如确认要覆盖，请去掉 --no-replace-existing-tag: $tag"
+    if is_true "$DRY_RUN"; then
+      announce "将强制覆盖远端旧 tag $tag，并在当前 HEAD 上重新签署"
+    fi
+  fi
+  if tag_exists_local "$tag"; then
+    [[ "$replace_tag" == 1 ]] || die "本地 tag 已存在；如确认要覆盖，请加 --replace-existing-tag: $tag"
+    existing_local_tag=1
+    if is_true "$DRY_RUN"; then
+      announce "将删除本地旧 tag $tag，并在当前 HEAD 上重新签署"
+    fi
+  fi
   workflow_has_release_inputs "$commit" ||
     die "当前 HEAD 的 $WORKFLOW_FILE 缺少 acceptance_scope 输入；请先提交新版 workflow"
   ensure_gh_auth 1
-  confirm_release "$tag" "$baseline" "$profile" "$branch" "$commit"
+  confirm_release "$tag" "$baseline" "$profile" "$branch" "$commit" "$replace_tag" "$existing_remote_tag"
   sync_secrets
   setup_git_auth
 
@@ -310,10 +335,17 @@ release() {
     announce "将使用 crewqual-release-tag sign $tag HEAD"
     announce "将推送当前分支 $branch 和签名 tag $tag"
   else
+    if [[ "$existing_local_tag" == 1 ]]; then
+      git -C "$REPO_DIR" tag -d "$tag"
+    fi
     "$KEY_DIR/crewqual-release-tag" sign "$tag" HEAD "CrewQual release $tag"
     "$KEY_DIR/crewqual-release-tag" verify "$tag"
     git -C "$REPO_DIR" push origin "HEAD:$branch"
-    git -C "$REPO_DIR" push origin "refs/tags/$tag"
+    if [[ "$existing_remote_tag" == 1 ]]; then
+      git -C "$REPO_DIR" push --force origin "refs/tags/$tag"
+    else
+      git -C "$REPO_DIR" push origin "refs/tags/$tag"
+    fi
   fi
 
   dispatch_and_wait "$tag" "$profile" "$scope" "$baseline"
@@ -347,7 +379,7 @@ status() {
 
 parse_release() {
   [[ $# -ge 1 ]] || usage 2
-  local tag="$1" baseline="" scope=local strict_clean=0
+  local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=1
   shift
   RELEASE_YES=0
   while [[ $# -gt 0 ]]; do
@@ -355,6 +387,8 @@ parse_release() {
       --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; shift 2 ;;
       --acceptance-scope) [[ $# -ge 2 ]] || die "--acceptance-scope 需要参数"; scope="$2"; shift 2 ;;
       --strict-clean) strict_clean=1; shift ;;
+      --replace-existing-tag) replace_tag=1; shift ;;
+      --no-replace-existing-tag) replace_tag=0; shift ;;
       --yes) RELEASE_YES=1; shift ;;
       --dry-run) DRY_RUN=1; shift ;;
       -h|--help) usage 0 ;;
@@ -362,7 +396,7 @@ parse_release() {
     esac
   done
   [[ -n "$baseline" ]] || die "必须提供 --upgrade-from"
-  release "$tag" "$baseline" "$scope" "$strict_clean"
+  release "$tag" "$baseline" "$scope" "$strict_clean" "$replace_tag"
 }
 
 main() {
