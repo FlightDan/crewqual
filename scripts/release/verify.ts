@@ -992,13 +992,13 @@ async function artifact(evidence: ReleaseEvidence) {
     await writeFile(manifestPath, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600 });
   }
   if (evidence.profile === "final") {
-    const signature = required("RELEASE_EVIDENCE_SIGNATURE");
+    const bundle = required("RELEASE_EVIDENCE_BUNDLE");
     const verified = command(
       "cosign",
       [
         "verify-blob",
-        "--signature",
-        signature,
+        "--bundle",
+        bundle,
         ...(process.env.COSIGN_CERT_IDENTITY_REGEXP
           ? ["--certificate-identity-regexp", process.env.COSIGN_CERT_IDENTITY_REGEXP]
           : []),
@@ -1014,7 +1014,7 @@ async function artifact(evidence: ReleaseEvidence) {
   const report = await writeGateEvidence(dir, "artifact", {
     manifestPath,
     sha256: await sha256File(manifestPath),
-    signature: process.env.RELEASE_EVIDENCE_SIGNATURE ?? null,
+    bundle: process.env.RELEASE_EVIDENCE_BUNDLE ?? null,
   });
   return { evidence: [report], detail: `evidence=${manifestPath}` };
 }

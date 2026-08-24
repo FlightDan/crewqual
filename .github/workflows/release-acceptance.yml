@@ -64,7 +64,6 @@ env:
   COSIGN_CERT_IDENTITY_REGEXP: ${{ secrets.COSIGN_CERT_IDENTITY_REGEXP }}
   COSIGN_OIDC_ISSUER: ${{ secrets.COSIGN_OIDC_ISSUER }}
   LICENSE_APPROVALS_FILE: /tmp/license-approvals.json
-  RELEASE_EVIDENCE_SIGNATURE: /tmp/evidence.sig
   SMS_ADAPTER: disabled
   FEISHU_ADAPTER: disabled
   VLM_ADAPTER: disabled
@@ -234,22 +233,19 @@ jobs:
           fi
           cp docker-compose.install.yml Caddyfile scripts/configure-domain.sh "$asset_dir/"
           echo "asset_dir=$asset_dir" >> "$GITHUB_OUTPUT"
-      - name: Prepare signed evidence inputs
+      - name: Prepare evidence inputs
         env:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
-          RELEASE_EVIDENCE_SIGNATURE_B64: ${{ secrets.RELEASE_EVIDENCE_SIGNATURE_B64 }}
         run: |
           set -euo pipefail
           if [[ "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
             printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
-            printf '%s' "$RELEASE_EVIDENCE_SIGNATURE_B64" | base64 --decode > "$RELEASE_EVIDENCE_SIGNATURE"
           else
             if [[ -n "$LICENSE_APPROVALS_JSON" ]]; then
               printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
             else
               printf '%s\n' '{"licenses":[]}' > "$LICENSE_APPROVALS_FILE"
             fi
-            : > "$RELEASE_EVIDENCE_SIGNATURE"
           fi
           pnpm release:manifest .artifacts/migration-checksums.json
           echo "MIGRATION_CHECKSUM_MANIFEST=$GITHUB_WORKSPACE/.artifacts/migration-checksums.json" >> "$GITHUB_ENV"
@@ -278,9 +274,9 @@ jobs:
           export SIGN_FILE_INPUT="$asset_dir/evidence.json"
           export SIGN_FILE_OUTPUT="$asset_dir/evidence.json.sig"
           pnpm release:sign-file
-          cosign sign-blob --yes --output-signature "$asset_dir/evidence.sig" --output-certificate "$asset_dir/evidence.pem" "$asset_dir/evidence.json"
+          cosign sign-blob --yes --bundle "$asset_dir/evidence.bundle.json" "$asset_dir/evidence.json"
           cp "$asset_dir/evidence.json" "$evidence_dir/evidence.json"
-          RELEASE_EVIDENCE_SIGNATURE="$asset_dir/evidence.sig" pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+          RELEASE_EVIDENCE_BUNDLE="$asset_dir/evidence.bundle.json" pnpm release:verify:artifact -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
       - name: Upload complete release bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
