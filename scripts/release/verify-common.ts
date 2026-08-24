@@ -3,6 +3,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
+// Cosign SBOM attestations can exceed Node's 1 MiB spawnSync output buffer.
+// Keep a bounded buffer large enough for signed release metadata.
+const COMMAND_MAX_BUFFER = 64 * 1024 * 1024;
+
 export type GateStatus = "PASS" | "FAIL" | "SKIPPED";
 
 export type GateResult = {
@@ -66,6 +70,7 @@ export function command(
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     env: options.env ?? process.env,
+    maxBuffer: COMMAND_MAX_BUFFER,
   });
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
   if (!options.allowFailure && (result.error || result.status !== 0)) {

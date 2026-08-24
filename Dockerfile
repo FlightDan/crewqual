@@ -38,7 +38,7 @@ LABEL org.opencontainers.image.revision="$VCS_REF" \
 RUN apt-get update \
   && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 WORKDIR /app
 
 FROM node:22.12-bookworm-slim AS data-runtime

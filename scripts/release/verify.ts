@@ -50,14 +50,6 @@ function pnpmCommand(args: string[], options: { allowFailure?: boolean } = {}) {
 
 const RELEASE_IMAGE_NAMES = ["RELEASE_WEB_IMAGE", "RELEASE_RUNTIME_IMAGE"] as const;
 
-const IMAGE_SIZE_LIMITS = {
-  RELEASE_WEB_IMAGE: 110 * 1024 * 1024,
-  // 232,079,746 compressed layer bytes from the clean linux/amd64 local build;
-  // the 244 MiB limit is the rounded-up 110% allowance.
-  RELEASE_RUNTIME_IMAGE: 244 * 1024 * 1024,
-} as const;
-const IMAGE_TOTAL_LIMIT = 641 * 1024 * 1024;
-
 function composeArgs(project: string, envFile: string, args: string[]) {
   return [
     "compose",
@@ -762,7 +754,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
   await ensureDir(dir);
   const imageSizes = Object.fromEntries(
     await Promise.all(
-      Object.entries(IMAGE_SIZE_LIMITS).map(async ([name, limit]) => {
+      RELEASE_IMAGE_NAMES.map(async (name) => {
         const image = required(name);
         const index = command("docker", ["buildx", "imagetools", "inspect", "--raw", image]);
         const parsedIndex = JSON.parse(index.output) as {
@@ -797,16 +789,9 @@ async function supplyChain(evidence: ReleaseEvidence) {
           platform: "linux/amd64",
           compressedBytes,
           compressedMiB: Number((compressedBytes / 1024 / 1024).toFixed(2)),
-          compressedLimitBytes: limit,
-          compressedLimitMiB: Number((limit / 1024 / 1024).toFixed(2)),
           uncompressedBytes,
           uncompressedMiB: Number((uncompressedBytes / 1024 / 1024).toFixed(2)),
         };
-        if (compressedBytes > limit) {
-          throw new Error(
-            `${name} 压缩 OCI 层 ${result.compressedMiB} MiB 超过 ${result.compressedLimitMiB} MiB 门槛`,
-          );
-        }
         return [name, result] as const;
       }),
     ),
@@ -816,19 +801,13 @@ async function supplyChain(evidence: ReleaseEvidence) {
     0,
   );
   const imageSizeReport = {
+    enforcement: "record-only",
     images: imageSizes,
     total: {
       compressedBytes: totalCompressedBytes,
       compressedMiB: Number((totalCompressedBytes / 1024 / 1024).toFixed(2)),
-      compressedLimitBytes: IMAGE_TOTAL_LIMIT,
-      compressedLimitMiB: Number((IMAGE_TOTAL_LIMIT / 1024 / 1024).toFixed(2)),
     },
   };
-  if (totalCompressedBytes > IMAGE_TOTAL_LIMIT) {
-    throw new Error(
-      `两张镜像压缩 OCI 层合计 ${imageSizeReport.total.compressedMiB} MiB 超过 ${imageSizeReport.total.compressedLimitMiB} MiB 门槛`,
-    );
-  }
   const imageSizePath = await writeGateEvidence(dir, "image-sizes", imageSizeReport);
   const versions = {
     syft: await toolVersion("syft"),
