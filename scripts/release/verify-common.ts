@@ -57,11 +57,15 @@ export function required(name: string) {
   return value;
 }
 
-export function command(name: string, args: string[], options: { allowFailure?: boolean } = {}) {
+export function command(
+  name: string,
+  args: string[],
+  options: { allowFailure?: boolean; env?: NodeJS.ProcessEnv } = {},
+) {
   const result = spawnSync(name, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    env: process.env,
+    env: options.env ?? process.env,
   });
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
   if (!options.allowFailure && (result.error || result.status !== 0)) {

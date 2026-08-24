@@ -399,7 +399,21 @@ async function bootstrap(evidence: ReleaseEvidence) {
     "INITIAL_TEMPLATE_PACK_CODE=aviation-china-airline-pilot",
   ];
   await writeFile(envPath, `${lines.join("\n")}\n`, { mode: 0o600 });
-  const compose = (args: string[]) => command("docker", composeArgs(project, envPath, args));
+  // GitHub Actions exports unset S3 secrets as empty environment variables. Docker
+  // Compose gives those inherited variables precedence over --env-file, so an
+  // empty S3_ENDPOINT would override the local MinIO value above. Pass the
+  // generated values explicitly to keep local acceptance self-contained.
+  const composeEnv = {
+    ...process.env,
+    ...Object.fromEntries(
+      lines.map((line) => {
+        const separator = line.indexOf("=");
+        return [line.slice(0, separator), line.slice(separator + 1)];
+      }),
+    ),
+  };
+  const compose = (args: string[]) =>
+    command("docker", composeArgs(project, envPath, args), { env: composeEnv });
   try {
     compose(["run", "--rm", "migrate"]);
     compose(["run", "--rm", "bootstrap"]);
@@ -422,6 +436,7 @@ async function bootstrap(evidence: ReleaseEvidence) {
   } finally {
     command("docker", composeArgs(project, envPath, ["down", "-v", "--remove-orphans"]), {
       allowFailure: true,
+      env: composeEnv,
     });
     try {
       unlinkSync(envPath);
