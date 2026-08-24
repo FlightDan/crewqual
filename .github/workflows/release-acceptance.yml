@@ -320,15 +320,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          wait_for_asset_hash() {
-            local remote_url="$1" expected="$2" actual=""
+          asset_hash() {
+            local asset_api_url="$1" remote_url="$2" digest="" actual=""
+            digest="$(gh api "$asset_api_url" --jq '.digest // empty' 2>/dev/null || true)"
+            if [[ "$digest" =~ ^sha256:[a-fA-F0-9]{64}$ ]]; then
+              printf '%s\n' "${digest#sha256:}"
+              return 0
+            fi
             for _ in $(seq 1 30); do
               if actual="$(curl -fsSL --retry 3 "$remote_url" | sha256sum | awk '{print $1}')"; then
-                [[ "$actual" == "$expected" ]] && return 0
+                printf '%s\n' "$actual"
+                return 0
               fi
               sleep 2
             done
-            echo "asset verification timed out: $remote_url" >&2
+            echo "asset hash unavailable: $remote_url" >&2
             return 1
           }
           for file in release-assets/*; do
@@ -337,26 +343,29 @@ jobs:
             # intermittently omitted by gh when the Release has just been
             # updated, which would make an existing asset look absent and
             # cause a non-clobbering upload to fail with a name collision.
+            remote_api="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .apiUrl" | head -n 1)"
             remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .url" | head -n 1)"
             if [[ -n "$remote" ]]; then
               local_hash="$(sha256sum "$file" | awk '{print $1}')"
-              remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
+              remote_hash="$(asset_hash "$remote_api" "$remote")"
               if [[ "$remote_hash" != "$local_hash" ]]; then
                 [[ "$RELEASE_REPLACE_EXISTING_ASSETS" == true ]] || {
                   echo "asset collision with different bytes: $name"
                   exit 1
                 }
                 gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber "$file"
+                remote_api="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .apiUrl" | head -n 1)"
                 remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .url" | head -n 1)"
-                wait_for_asset_hash "$remote" "$local_hash"
-                remote_hash="$local_hash"
+                remote_hash="$(asset_hash "$remote_api" "$remote")"
               fi
               [[ "$remote_hash" == "$local_hash" ]] || { echo "asset verification failed after upload: $name"; exit 1; }
             else
               gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "$file"
+              remote_api="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .apiUrl" | head -n 1)"
               remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .url" | head -n 1)"
               local_hash="$(sha256sum "$file" | awk '{print $1}')"
-              wait_for_asset_hash "$remote" "$local_hash"
+              remote_hash="$(asset_hash "$remote_api" "$remote")"
+              [[ "$remote_hash" == "$local_hash" ]] || { echo "asset verification failed after upload: $name"; exit 1; }
             fi
           done
   post-publish-host-acceptance:
