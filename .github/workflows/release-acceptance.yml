@@ -24,6 +24,11 @@ on:
         description: Explicit lower compatible release used by upgrade/rollback acceptance
         required: true
         type: string
+      replace_existing_assets:
+        description: Allow replacing existing assets when the same release tag is intentionally covered
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
   id-token: write
@@ -33,6 +38,7 @@ env:
   RELEASE_PROFILE: ${{ inputs.profile }}
   RELEASE_ACCEPTANCE_SCOPE: ${{ inputs.acceptance_scope }}
   RELEASE_UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
+  RELEASE_REPLACE_EXISTING_ASSETS: ${{ inputs.replace_existing_assets }}
   RELEASE_RUN_ID: ${{ github.run_id }}
   RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
   E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
@@ -320,7 +326,16 @@ jobs:
             if [[ -n "$remote" ]]; then
               remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
               local_hash="$(sha256sum "$file" | awk '{print $1}')"
-              [[ "$remote_hash" == "$local_hash" ]] || { echo "asset collision with different bytes: $name"; exit 1; }
+              if [[ "$remote_hash" != "$local_hash" ]]; then
+                [[ "$RELEASE_REPLACE_EXISTING_ASSETS" == true ]] || {
+                  echo "asset collision with different bytes: $name"
+                  exit 1
+                }
+                gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber "$file"
+                remote="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .browserDownloadUrl" | head -n 1)"
+                remote_hash="$(curl -fsSL --retry 3 "$remote" | sha256sum | awk '{print $1}')"
+              fi
+              [[ "$remote_hash" == "$local_hash" ]] || { echo "asset verification failed after upload: $name"; exit 1; }
             else
               gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "$file"
             fi

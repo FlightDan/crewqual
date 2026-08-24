@@ -269,14 +269,15 @@ confirm_release() {
 }
 
 dispatch_and_wait() {
-  local tag="$1" profile="$2" scope="$3" baseline="$4" started output run_url run_id
+  local tag="$1" profile="$2" scope="$3" baseline="$4" replace_tag="$5" started output run_url run_id
   if is_true "$DRY_RUN"; then
     announce "将触发 $WORKFLOW_FILE (tag=$tag, profile=$profile, acceptance_scope=$scope, upgrade_from_tag=$baseline)"
     return
   fi
   started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   output="$(gh workflow run "$(workflow_name)" --repo "$GITHUB_REPOSITORY" --ref "$tag" \
-    -f "tag=$tag" -f "profile=$profile" -f "acceptance_scope=$scope" -f "upgrade_from_tag=$baseline" 2>&1)" || {
+    -f "tag=$tag" -f "profile=$profile" -f "acceptance_scope=$scope" \
+    -f "upgrade_from_tag=$baseline" -f "replace_existing_assets=$([[ "$replace_tag" == 1 ]] && printf true || printf false)" 2>&1)" || {
       printf '%s\n' "$output" >&2
       die "无法触发 release-acceptance workflow"
     }
@@ -354,7 +355,7 @@ release() {
     fi
   fi
 
-  dispatch_and_wait "$tag" "$profile" "$scope" "$baseline"
+  dispatch_and_wait "$tag" "$profile" "$scope" "$baseline" "$replace_tag"
   if is_true "$DRY_RUN"; then
     announce "Actions 成功后将把 crewqual-web 和 crewqual-runtime 设为 public"
   else
