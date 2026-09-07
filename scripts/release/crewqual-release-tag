@@ -22,6 +22,7 @@ usage() {
 Usage:
   crewqual-release-tag setup
   crewqual-release-tag status
+  crewqual-release-tag configure-git
   crewqual-release-tag unlock
   crewqual-release-tag sign [TAG] [TARGET] [MESSAGE] [--strict-clean]
   crewqual-release-tag verify TAG
@@ -72,6 +73,31 @@ ensure_gpg_key() {
   [[ "$GPG_FINGERPRINT" =~ ^[A-Fa-f0-9]{40}$ ]] || die "invalid GPG fingerprint"
   gpg --batch --list-secret-keys "$GPG_FINGERPRINT" >/dev/null 2>&1 || \
     die "GPG secret key is not available: $GPG_FINGERPRINT"
+}
+
+signing_program() {
+  if [[ -x "$KEY_DIR/crewqual-gpg-wrapper" ]]; then
+    printf '%s\n' "$KEY_DIR/crewqual-gpg-wrapper"
+  else
+    command -v gpg
+  fi
+}
+
+configure_git_signing() {
+  ensure_repo
+  ensure_secure_dir
+  ensure_passphrase_file
+  ensure_gpg_key
+  local program
+  program="$(signing_program)"
+  git -C "$REPO_DIR" config --local gpg.format openpgp
+  git -C "$REPO_DIR" config --local gpg.program "$program"
+  git -C "$REPO_DIR" config --local user.signingkey "$GPG_FINGERPRINT"
+  git -C "$REPO_DIR" config --local commit.gpgsign true
+  printf '%s\n' \
+    "Git commit signing configured for $REPO_DIR" \
+    "gpg.program=$program" \
+    "user.signingkey=$GPG_FINGERPRINT"
 }
 
 atomic_install() {
@@ -143,11 +169,15 @@ verify_tag() {
 }
 
 unlock_gpg_agent() {
+  ensure_secure_dir
+  ensure_passphrase_file
   ensure_gpg_key
   export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
-  printf 'CrewQual GPG agent unlock probe\n' | gpg --local-user "$GPG_FINGERPRINT" --armor --sign >/dev/null || \
+  local program
+  program="$(signing_program)"
+  printf 'CrewQual GPG agent unlock probe\n' | "$program" --local-user "$GPG_FINGERPRINT" --armor --sign >/dev/null || \
     die "GPG agent unlock failed"
-  printf '%s\n' "GPG agent unlocked; the passphrase was not written to disk by this script"
+  printf '%s\n' "GPG signing probe succeeded; the passphrase was not printed or copied"
 }
 
 sign_tag() {
@@ -172,10 +202,8 @@ sign_tag() {
   git -C "$REPO_DIR" rev-parse --verify "${target}^{commit}" >/dev/null || \
     die "target is not a commit: $target"
   export GPG_TTY="${GPG_TTY:-$(tty 2>/dev/null || true)}"
-  local gpg_program="$(command -v gpg)"
-  if [[ -x "$KEY_DIR/crewqual-gpg-wrapper" ]]; then
-    gpg_program="$KEY_DIR/crewqual-gpg-wrapper"
-  fi
+  local gpg_program
+  gpg_program="$(signing_program)"
   git -C "$REPO_DIR" -c "gpg.program=$gpg_program" tag --sign --local-user "$GPG_FINGERPRINT" --message "$message" "$tag" "$target"
   verify_tag "$tag"
   export_gpg_metadata >/dev/null
@@ -199,6 +227,7 @@ case "$command" in
     ensure_gpg_key
     ensure_secure_dir
     ensure_passphrase_file
+    configure_git_signing
     export_gpg_metadata
     printf '%s\n' "Optional passphrase file: $KEY_DIR/gpg-passphrase"
     ;;
@@ -207,9 +236,13 @@ case "$command" in
     ensure_gpg_key
     ensure_secure_dir
     ensure_passphrase_file
-    printf '%s\n' "repository=$REPO_DIR" "gpgFingerprint=$GPG_FINGERPRINT"
+    printf '%s\n' \
+      "repository=$REPO_DIR" \
+      "gpgFingerprint=$GPG_FINGERPRINT" \
+      "gitGpgProgram=$(git -C "$REPO_DIR" config --local --get gpg.program || true)"
     export_gpg_metadata >/dev/null
     ;;
+  configure-git) [[ $# -eq 1 ]] || usage; configure_git_signing ;;
   unlock) [[ $# -eq 1 ]] || usage; unlock_gpg_agent ;;
   sign)
     strict_clean=0
