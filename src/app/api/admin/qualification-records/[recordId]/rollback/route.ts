@@ -39,6 +39,9 @@ export async function POST(
       include: { evidence: true, pilot: true },
     });
     if (!current) throw new ApiError("NOT_FOUND", "当前生效资质不存在", 404);
+    if (current.version !== input.expectedVersion) {
+      throw new ApiError("VERSION_CONFLICT", "当前资质版本已变化，请刷新后重试", 409);
+    }
     const target = await db.qualificationRecord.findUnique({
       where: { id: input.targetRevisionId },
       include: { evidence: true },
@@ -76,6 +79,7 @@ export async function POST(
           status: "ACTIVE",
           lineageId: current.lineageId,
           revisionNumber: current.revisionNumber + 1,
+          version: current.version + 1,
           supersedesRecordId: current.id,
           restoresRecordId: target.id,
           action: "ROLLBACK",

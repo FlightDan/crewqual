@@ -59,7 +59,7 @@ RUN apt-get update \
   && apt-get purge -y --auto-remove wget gnupg gnupg-utils dirmngr \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
   && pg_dump --version | grep -E ' 16\.' \
-  && install -d -o node -g node /backups \
+  && install -d -m 0700 -o node -g node /backups \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 
@@ -85,6 +85,6 @@ COPY --chown=node:node --from=builder /app/.next/standalone ./
 COPY --chown=node:node --from=builder /app/.next/static ./.next/static
 COPY --chown=node:node --from=builder /app/public ./public
 EXPOSE 3000
-HEALTHCHECK --interval=15s --timeout=5s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health?probe=readiness',{headers:{'x-crewqual-readiness-secret':process.env.READINESS_PROBE_SECRET||''}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
 USER node
 CMD ["node", "server.js"]

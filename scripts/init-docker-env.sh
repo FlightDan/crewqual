@@ -55,8 +55,12 @@ for value in \
 done
 
 postgres_password=$(openssl rand -hex 32)
+postgres_app_password=$(openssl rand -hex 32)
 session_secret=$(openssl rand -hex 48)
+readiness_probe_secret=$(openssl rand -hex 32)
 settings_encryption_key=$(openssl rand -hex 32)
+s3_authority=${s3_endpoint#*://}
+s3_authority=${s3_authority%%/*}
 
 umask 077
 {
@@ -64,11 +68,14 @@ umask 077
   printf "APP_ORIGIN='https://%s'\nAPP_DOMAIN='%s'\nTLS_EMAIL='%s'\n" \
     "$app_domain" "$app_domain" "$tls_email"
   printf "POSTGRES_PASSWORD='%s'\n" "$postgres_password"
-  printf "DATABASE_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
+  printf "POSTGRES_APP_PASSWORD='%s'\n" "$postgres_app_password"
+  printf "DATABASE_URL='postgresql://crewqual_app:%s@postgres:5432/crewqual'\n" "$postgres_app_password"
   printf "DIRECT_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
-  printf "SESSION_SECRET='%s'\nSETTINGS_ENCRYPTION_KEY='%s'\n" \
-    "$session_secret" "$settings_encryption_key"
+  printf "SESSION_SECRET='%s'\nREADINESS_PROBE_SECRET='%s'\nSETTINGS_ENCRYPTION_KEY='%s'\n" \
+    "$session_secret" "$readiness_probe_secret" "$settings_encryption_key"
   printf '%s\n' "PILOT_SESSION_TTL_MINUTES=60" "ADMIN_SESSION_TTL_HOURS=8"
+  printf "OUTBOUND_ALLOWED_HOSTS='%s,host.docker.internal:8000'\nOUTBOUND_ALLOWED_CIDRS=''\n" \
+    "$s3_authority"
   printf "S3_ENDPOINT='%s'\nS3_REGION='%s'\nS3_BUCKET='%s'\n" \
     "$s3_endpoint" "$s3_region" "$s3_bucket"
   printf "S3_ACCESS_KEY_ID='%s'\nS3_SECRET_ACCESS_KEY='%s'\n" \

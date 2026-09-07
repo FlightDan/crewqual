@@ -32,3 +32,16 @@ describe("notification i18n templates", () => {
     ).toEqual({ summary: "旧标题", message: "旧正文" });
   });
 });
+
+it("renders expiry today without claiming that the qualification has expired", () => {
+  const input = {
+    templateKey: "qualification.expiry.today",
+    templateParams: { qualificationName: "Certificate", pilotName: "Alex", daysRemaining: 0 },
+  };
+  expect(renderNotificationContent({ ...input, locale: "zh-CN" }).summary).toBe(
+    "Certificate今日到期",
+  );
+  expect(renderNotificationContent({ ...input, locale: "en-US" }).summary).toBe(
+    "Certificate expires today",
+  );
+});

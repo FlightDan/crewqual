@@ -1,5 +1,6 @@
 "use client";
 
+import { BUSINESS_TIMEZONES } from "@/lib/date-only";
 import * as React from "react";
 import { Building2, Plus, Search } from "lucide-react";
 import {
@@ -19,8 +20,6 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
 import { localizeError } from "@/lib/error-i18n";
 import type { SettingsUnit } from "@/types/admin-settings";
-
-const timezoneValues = ["Asia/Shanghai", "Asia/Hong_Kong", "UTC"] as const;
 
 const emptyUnit = {
   code: "",
@@ -56,15 +55,18 @@ export function OrganizationSettingsSection({
   notify: SettingsFeedback;
 }) {
   const { t, setLocale } = useI18n();
-  const timezoneOptions = timezoneValues.map((value) => ({
+  const timezoneOptions = [
+    ...new Set([...BUSINESS_TIMEZONES, ...units.map((unit) => unit.timezone)]),
+  ].map((value) => ({
     value,
-    label: t(
+    label:
       value === "Asia/Shanghai"
-        ? "settingsOrg.tzShanghai"
+        ? t("settingsOrg.tzShanghai")
         : value === "Asia/Hong_Kong"
-          ? "settingsOrg.tzHongKong"
-          : "settingsOrg.tzUtc",
-    ),
+          ? t("settingsOrg.tzHongKong")
+          : value === "UTC"
+            ? t("settingsOrg.tzUtc")
+            : value,
   }));
   const [query, setQuery] = React.useState("");
   const [selectedId, setSelectedId] = React.useState(units[0]?.id ?? "");

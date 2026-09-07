@@ -2,8 +2,10 @@ import { ApiError } from "@/server/api";
 import { requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
-
-const activePlanStatuses = ["NOT_STARTED", "ACTIVE", "PAUSED"] as const;
+import {
+  lockPositionAssignment,
+  UPGRADE_PLAN_STATUSES_BLOCKING_ASSIGNMENT_END,
+} from "@/server/upgrade-plan-rules";
 
 function scope(admin: AuthenticatedAdmin) {
   const organizationId = admin.organizationId ?? requireAssignedUnit(admin);
@@ -80,23 +82,38 @@ export async function endPositionAssignment(
   effectiveTo?: string,
 ) {
   const db = getPrisma();
-  const assignment = await db.personPositionAssignment.findFirst({
-    where: { id: assignmentId, personId, person: scope(admin), status: "ACTIVE" },
-    include: { position: true },
-  });
-  if (!assignment) throw new ApiError("NOT_FOUND", "任职记录不存在或已结束", 404);
-  const activePlan = await db.upgradePlan.findFirst({
-    where: { positionAssignmentId: assignmentId, lifecycleStatus: { in: [...activePlanStatuses] } },
-    select: { planNumber: true },
-  });
-  if (activePlan) {
-    throw new ApiError(
-      "ACTIVE_UPGRADE_PLAN",
-      `职位仍有活动升级计划：${activePlan.planNumber}`,
-      409,
-    );
-  }
   return db.$transaction(async (tx) => {
+    // Resolve tenant visibility before taking a row lock so an administrator
+    // cannot use an out-of-scope UUID to contend on another organization's
+    // assignment. Re-read after the lock to preserve race safety.
+    const visibleAssignment = await tx.personPositionAssignment.findFirst({
+      where: { id: assignmentId, personId, person: scope(admin), status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!visibleAssignment) throw new ApiError("NOT_FOUND", "任职记录不存在或已结束", 404);
+    // The start route takes this same lock before re-checking eligibility.
+    // Keeping the plan check inside the locked transaction closes the race
+    // between ending an assignment and starting its linked plan.
+    await lockPositionAssignment(tx, assignmentId);
+    const assignment = await tx.personPositionAssignment.findFirst({
+      where: { id: assignmentId, personId, person: scope(admin), status: "ACTIVE" },
+      include: { position: true },
+    });
+    if (!assignment) throw new ApiError("NOT_FOUND", "任职记录不存在或已结束", 404);
+    const blockingPlan = await tx.upgradePlan.findFirst({
+      where: {
+        positionAssignmentId: assignmentId,
+        lifecycleStatus: { in: UPGRADE_PLAN_STATUSES_BLOCKING_ASSIGNMENT_END },
+      },
+      select: { planNumber: true },
+    });
+    if (blockingPlan) {
+      throw new ApiError(
+        "ACTIVE_UPGRADE_PLAN",
+        `职位仍有未完成的升级计划：${blockingPlan.planNumber}`,
+        409,
+      );
+    }
     const endedAt = effectiveTo ? new Date(`${effectiveTo}T00:00:00.000Z`) : new Date();
     const result = await tx.personPositionAssignment.update({
       where: { id: assignmentId },

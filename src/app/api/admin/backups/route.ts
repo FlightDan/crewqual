@@ -10,17 +10,28 @@ import {
   saveBackupTarget,
 } from "@/server/backup-service";
 import { testBackupTarget } from "@/server/backup-runner";
+import { parseBackupCredentials } from "@/server/backup-credential";
 
 const actionSchema = z.object({
   action: z.string().min(1),
   input: z.record(z.string(), z.unknown()).default({}),
 });
 
+// Endpoint/basePath are interpolated into generated rclone config files and
+// remote paths; control characters would let a saved value inject additional
+// config directives or destinations.
+const rcloneSafeText = (message: string) =>
+  z.string().refine((value) => !/[\u0000-\u001f\u007f]/.test(value), message);
+
 const targetSchema = z.object({
   name: z.string().trim().min(1).max(128),
   type: z.enum(["LOCAL", "SMB", "FTP", "WEBDAV", "S3"]),
-  endpoint: z.string().trim().min(1).max(2048),
-  basePath: z.string().trim().min(1).max(1024),
+  endpoint: rcloneSafeText("备份服务地址不能包含换行或控制字符")
+    .transform((value) => value.trim())
+    .pipe(z.string().trim().min(1).max(2048)),
+  basePath: rcloneSafeText("备份路径不能包含换行或控制字符")
+    .transform((value) => value.trim())
+    .pipe(z.string().trim().min(1).max(1024)),
   secret: z.string().max(8192).optional(),
   encryptionEnabled: z.boolean().default(true),
   active: z.boolean().default(true),
@@ -58,8 +69,11 @@ export async function POST(request: NextRequest) {
       action === "restore" ? "settings.backups.restore" : "settings.backups.write",
       true,
     );
-    if (action === "target.create")
-      return jsonData(await createBackupTarget(admin, targetSchema.parse(input)), requestId, 201);
+    if (action === "target.create") {
+      const target = targetSchema.parse(input);
+      parseBackupCredentials(target.type, target.secret);
+      return jsonData(await createBackupTarget(admin, target), requestId, 201);
+    }
     if (action === "plan.create")
       return jsonData(await createBackupPlan(admin, planSchema.parse(input)), requestId, 201);
     if (action === "run.now")
@@ -92,16 +106,13 @@ export async function PATCH(request: NextRequest) {
   try {
     const admin = await getAdmin(request, "settings.security.write", true);
     const { action, input } = await parseJson(request, actionSchema);
-    if (action === "target.save")
-      return jsonData(
-        await saveBackupTarget(
-          admin,
-          targetSchema
-            .extend({ id: z.string().uuid(), version: z.number().int().positive() })
-            .parse(input),
-        ),
-        requestId,
-      );
+    if (action === "target.save") {
+      const target = targetSchema
+        .extend({ id: z.string().uuid(), version: z.number().int().positive() })
+        .parse(input);
+      parseBackupCredentials(target.type, target.secret);
+      return jsonData(await saveBackupTarget(admin, target), requestId);
+    }
     return jsonError(new Error("Unknown backup action"), requestId);
   } catch (error) {
     return jsonError(error, requestId);

@@ -1,3 +1,4 @@
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
 import { NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -20,6 +21,7 @@ import {
   ACTIVE_UPGRADE_PLAN_STATUSES,
   assertCoreQualificationsEligible,
   assertUpgradePlanEligibility,
+  lockPositionAssignment,
 } from "@/server/upgrade-plan-rules";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -135,9 +137,11 @@ export async function POST(request: NextRequest) {
     const targetPilot = await getPrisma().pilot.findFirst({
       where: { id: input.pilotId, ...pilotUnitWhere(admin) },
       include: {
+        unit: true,
         qualifications: { where: { status: "ACTIVE" }, include: { qualificationType: true } },
         person: {
           include: {
+            unit: true,
             positionAssignments: {
               where: { status: "ACTIVE" },
               include: { position: true },
@@ -188,10 +192,41 @@ export async function POST(request: NextRequest) {
           positionAssignmentId: primaryPositionAssignment.id,
         });
       } else {
-        assertCoreQualificationsEligible(coreTypes, targetPilot.qualifications);
+        assertCoreQualificationsEligible(
+          coreTypes,
+          targetPilot.qualifications,
+          pilotQualificationTimezone(targetPilot),
+        );
       }
     }
     const plan = await getPrisma().$transaction(async (tx) => {
+      if (targetPilot.personId && primaryPositionAssignment?.id) {
+        // Use the same assignment lock as lifecycle starts and assignment
+        // endings. This prevents a draft (or an immediately started plan)
+        // from being linked to an assignment that ends concurrently.
+        await lockPositionAssignment(tx, primaryPositionAssignment.id);
+        const currentAssignment = await tx.personPositionAssignment.findFirst({
+          where: {
+            id: primaryPositionAssignment.id,
+            personId: targetPilot.personId,
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+        if (!currentAssignment) {
+          throw new ApiError(
+            "POSITION_ASSIGNMENT_INACTIVE",
+            "任职记录已结束，不能创建升级计划",
+            409,
+          );
+        }
+        if (input.action === "start") {
+          await assertUpgradePlanEligibility(tx, {
+            personId: targetPilot.personId,
+            positionAssignmentId: primaryPositionAssignment.id,
+          });
+        }
+      }
       if (input.action === "start") {
         const concurrentConflict = await tx.upgradePlan.findFirst({
           where: {
@@ -246,12 +281,6 @@ export async function POST(request: NextRequest) {
         },
         include: { stages: true },
       });
-      if (input.action === "start") {
-        await assertUpgradePlanEligibility(tx, {
-          personId: targetPilot.personId,
-          positionAssignmentId: primaryPositionAssignment?.id,
-        });
-      }
       await tx.upgradePlanInspectionItem.createMany({
         data: input.inspectionItemSelections.map((selection) => {
           const definition = inspectionItems.find(

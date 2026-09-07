@@ -3,7 +3,9 @@ import {
   adminQualificationRecordCreateSchema,
   adminQualificationRecordUpdateSchema,
 } from "@/lib/admin-operations-validation";
-import { deriveQualificationDateState } from "@/lib/qualification-date-status";
+import { evaluateStoredQualification, fixedClock } from "@/lib/qualification-date-status";
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
+import { qualificationUnitSelect } from "@/server/member-qualifications";
 import {
   parseValidityRule,
   qualificationRuleSnapshot,
@@ -18,7 +20,7 @@ import {
   parseJson,
 } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
-import { relatedPilotUnitWhere } from "@/server/admin-permissions";
+import { pilotUnitWhere, relatedPilotUnitWhere } from "@/server/admin-permissions";
 import { getPrisma } from "@/server/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -28,10 +30,11 @@ type QualificationRecordWithType = Prisma.QualificationRecordGetPayload<{
   include: { qualificationType: true };
 }>;
 
-function mapQualificationRecord(record: QualificationRecordWithType) {
+function mapQualificationRecord(record: QualificationRecordWithType, timezone: string | null) {
   const expiryDate = dateOnly(record.expiryDate);
   return {
-    ...deriveQualificationDateState(expiryDate),
+    ...evaluateStoredQualification(record, fixedClock(), timezone),
+    timezone,
     recordId: record.id,
     qualificationId: record.qualificationType.code,
     qualificationName: record.qualificationType.name,
@@ -62,8 +65,16 @@ export async function POST(
     });
     if (!type) throw new ApiError("NOT_FOUND", "资质类型不存在或已停用", 404);
     const pilot = await db.pilot.findFirst({
-      where: { id: pilotId, active: true, ...relatedPilotUnitWhere(admin) },
-      select: { id: true, personId: true, person: { select: { organizationId: true } } },
+      where: { id: pilotId, active: true, ...pilotUnitWhere(admin) },
+      select: {
+        id: true,
+        unitId: true,
+        unit: { select: qualificationUnitSelect },
+        personId: true,
+        person: {
+          select: { organizationId: true, unitId: true, unit: { select: qualificationUnitSelect } },
+        },
+      },
     });
     if (!pilot) throw new ApiError("PILOT_NOT_FOUND", "未找到飞行员", 404);
     const validation = validateQualificationRuleFields(
@@ -89,8 +100,8 @@ export async function POST(
         ? await db.qualificationDefinition.findFirst({
             where: {
               organizationId: pilot.person.organizationId,
-              legacyQualificationTypeId: type.id,
               active: true,
+              OR: [{ legacyQualificationTypeId: type.id }, { code: type.code }],
             },
             select: { id: true },
           })
@@ -147,7 +158,11 @@ export async function POST(
       });
       return record;
     })) as QualificationRecordWithType;
-    return jsonData(mapQualificationRecord(created), requestId, 201);
+    return jsonData(
+      mapQualificationRecord(created, pilotQualificationTimezone(pilot)),
+      requestId,
+      201,
+    );
   } catch (error) {
     return jsonError(error, requestId);
   }
@@ -170,7 +185,21 @@ export async function PATCH(
         qualificationType: { code: qualificationId },
         ...relatedPilotUnitWhere(admin),
       },
-      include: { qualificationType: true },
+      include: {
+        qualificationType: true,
+        pilot: {
+          include: {
+            unit: { select: qualificationUnitSelect },
+            person: {
+              select: {
+                organizationId: true,
+                unitId: true,
+                unit: { select: qualificationUnitSelect },
+              },
+            },
+          },
+        },
+      },
     });
     if (!existing) throw new ApiError("NOT_FOUND", "生效资质记录不存在", 404);
     const validation = validateQualificationRuleFields(
@@ -233,12 +262,14 @@ export async function PATCH(
             : null,
           issuingAuthority: after.issuingAuthority,
           levelOrParameter: after.levelOrParameter,
-          qualificationRuleSnapshot:
-            existing.qualificationRuleSnapshot ??
-            qualificationRuleSnapshot(existing.qualificationType),
+          qualificationRuleSnapshot: {
+            ...qualificationRuleSnapshot(existing.qualificationType),
+            snapshotSource: "reviewer_confirmed",
+          },
           status: "ACTIVE",
           lineageId: existing.lineageId,
           revisionNumber: existing.revisionNumber + 1,
+          version: existing.version + 1,
           supersedesRecordId: existing.id,
           action: "CORRECT_AND_CONFIRM",
           actorId: admin.id,
@@ -273,7 +304,13 @@ export async function PATCH(
       });
       return replacement;
     });
-    return jsonData(mapQualificationRecord(updated), requestId);
+    return jsonData(
+      mapQualificationRecord(
+        updated,
+        existing.pilot ? pilotQualificationTimezone(existing.pilot) : null,
+      ),
+      requestId,
+    );
   } catch (error) {
     return jsonError(error, requestId);
   }

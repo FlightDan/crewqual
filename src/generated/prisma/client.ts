@@ -157,6 +157,11 @@ export type QualificationRecord = Prisma.QualificationRecordModel
  */
 export type EvidenceImage = Prisma.EvidenceImageModel
 /**
+ * Model GalleryObjectTombstone
+ * 
+ */
+export type GalleryObjectTombstone = Prisma.GalleryObjectTombstoneModel
+/**
  * Model ImageOptimizationTask
  * 
  */

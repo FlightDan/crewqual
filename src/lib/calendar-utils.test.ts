@@ -98,4 +98,23 @@ describe("calendar date boundaries", () => {
       missingCount: 1,
     });
   });
+  it("keeps blank incomplete data in review and non-expiring records out of urgency", () => {
+    const qualifications = [
+      {
+        qualificationId: "review",
+        qualificationName: "Review",
+        record: { status: "incomplete", daysRemaining: null },
+      },
+      {
+        qualificationId: "long",
+        qualificationName: "Long",
+        record: { status: "valid", statusReason: "non_expiring", daysRemaining: null },
+      },
+    ] as CalendarDayQualificationSlot[];
+    expect(summarizeDayQualifications(qualifications)).toMatchObject({
+      attention: [{ qualificationId: "review" }],
+      normalCount: 1,
+      missingCount: 0,
+    });
+  });
 });

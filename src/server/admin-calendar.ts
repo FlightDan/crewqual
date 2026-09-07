@@ -1,5 +1,12 @@
 import { shanghaiToday } from "@/lib/calendar-utils";
-import { deriveQualificationDateState } from "@/lib/qualification-date-status";
+import { evaluateStoredQualification, fixedClock } from "@/lib/qualification-date-status";
+import {
+  databaseDateOnly,
+  dateOnlyDay,
+  dateOnlyForTimezone,
+  isValidTimezone,
+} from "@/lib/date-only";
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
 import { requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
@@ -14,10 +21,15 @@ import {
 } from "@/types/services";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const dateOnly = (value: Date | null | undefined) => value?.toISOString().slice(0, 10) ?? "";
+const dateOnly = (value: Date | null | undefined) => databaseDateOnly(value) ?? "";
 
-function selectedDateClock(date: string) {
-  return { now: () => new Date(`${date}T12:00:00+08:00`) };
+export function selectedDateClock(date: string, timezone: string | null) {
+  let instant = new Date(`${date}T12:00:00Z`);
+  if (isValidTimezone(timezone)) {
+    const localDate = dateOnlyForTimezone(instant, timezone);
+    instant = new Date(instant.getTime() + dateOnlyDay(date) - dateOnlyDay(localDate));
+  }
+  return { now: () => instant };
 }
 
 function splitUnits(value?: string) {
@@ -39,6 +51,7 @@ export async function listAdminCalendarEvents(
   query: CalendarQuery,
 ): Promise<AdminCalendarEvent[]> {
   const unitId = requireAssignedUnit(admin);
+  const clock = fixedClock();
   const fromValue = query.from ?? shanghaiToday();
   const toValue =
     query.to ??
@@ -89,7 +102,10 @@ export async function listAdminCalendarEvents(
         expiryDate: { gte: from, lte: to },
         pilot: pilotWhere,
       },
-      include: { pilot: { include: { unit: true } }, qualificationType: true },
+      include: {
+        pilot: { include: { unit: true, person: { include: { unit: true } } } },
+        qualificationType: true,
+      },
     }),
     db.upgradeStage.findMany({
       where: {
@@ -108,7 +124,7 @@ export async function listAdminCalendarEvents(
   ]);
   const events: AdminCalendarEvent[] = [
     ...qualifications.map((item: any) => ({
-      ...deriveQualificationDateState(dateOnly(item.expiryDate)),
+      ...evaluateStoredQualification(item, clock, pilotQualificationTimezone(item.pilot)),
       id: `qualification:${item.id}`,
       type: "qualification_expiry" as const,
       date: dateOnly(item.expiryDate),
@@ -188,14 +204,16 @@ export async function getAdminCalendarDayQualificationRoster(
     }),
     db.qualificationRecord.findMany({
       where: { pilotId: { in: pilotIds }, status: "ACTIVE" },
-      include: { qualificationType: true },
+      include: {
+        qualificationType: true,
+        pilot: { include: { unit: true, person: { include: { unit: true } } } },
+      },
     }),
   ]);
   const order = new Map<string, number>(CORE_QUALIFICATION_IDS.map((id, index) => [id, index]));
   const types = qualificationTypes.sort(
     (a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999),
   );
-  const clock = selectedDateClock(query.date);
   const people = new Map(
     events.map((event) => [
       event.pilotId,
@@ -230,7 +248,11 @@ export async function getAdminCalendarDayQualificationRoster(
             validityRule: type.validityRule as ValidityRule,
             record: record
               ? {
-                  ...deriveQualificationDateState(dateOnly(record.expiryDate), clock),
+                  ...evaluateStoredQualification(
+                    record,
+                    selectedDateClock(query.date, pilotQualificationTimezone(record.pilot)),
+                    pilotQualificationTimezone(record.pilot),
+                  ),
                   recordId: record.id,
                   qualificationId: type.code,
                   qualificationName: type.name,

@@ -1,3 +1,4 @@
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import {
@@ -17,6 +18,8 @@ import {
   assertCoreQualificationsEligible,
   assertUpgradePlanEligibility,
   assertLifecycleAction,
+  lockPositionAssignment,
+  upgradePlanAssociationMode,
 } from "@/server/upgrade-plan-rules";
 import { emitPilotNotification } from "@/server/notifications";
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -51,56 +54,85 @@ export async function POST(
         stages: { orderBy: { order: "asc" } },
         pilot: {
           include: {
+            unit: true,
+            person: { include: { unit: true } },
             qualifications: { where: { status: "ACTIVE" }, include: { qualificationType: true } },
           },
         },
       },
     });
     if (!visiblePlan) throw new ApiError("NOT_FOUND", "升级计划不存在", 404);
-    const lifecycleStatus = visiblePlan.lifecycleStatus.toLowerCase() as any;
-    assertLifecycleAction(
-      lifecycleStatus,
-      action as "start" | "pause" | "resume" | "cancel",
-      input.reason,
-    );
-    if (["start", "resume"].includes(action)) {
-      const conflict = await db.upgradePlan.findFirst({
-        where: {
-          pilotId: visiblePlan.pilotId,
-          id: { not: id },
-          lifecycleStatus: {
-            in: ACTIVE_UPGRADE_PLAN_STATUSES.map((item) => item.toUpperCase()) as any,
+    const result = await db.$transaction(async (tx) => {
+      // Lock the plan first so a concurrent reassignment cannot change which
+      // assignment is being protected between the read and the assignment
+      // lock. The assignment-ending path takes the assignment lock too.
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "UpgradePlan"
+        WHERE "id" = ${id}
+        FOR UPDATE
+      `;
+      const currentPlan = await tx.upgradePlan.findFirst({
+        where: { id, ...relatedPilotUnitWhere(admin) },
+        include: {
+          stages: { orderBy: { order: "asc" } },
+          pilot: {
+            include: {
+              unit: true,
+              person: { include: { unit: true } },
+              qualifications: {
+                where: { status: "ACTIVE" },
+                include: { qualificationType: true },
+              },
+            },
           },
         },
-        select: { planNumber: true },
       });
-      if (conflict)
-        throw new ApiError(
-          "ACTIVE_PLAN_CONFLICT",
-          `该飞行员已有活动计划：${conflict.planNumber}`,
-          409,
-        );
-      if (visiblePlan.personId && visiblePlan.positionAssignmentId) {
-        await assertUpgradePlanEligibility(db, visiblePlan);
-      } else {
-        const coreTypes = await db.qualificationType.findMany({
-          where: { core: true, active: true },
-          select: { id: true, name: true },
-        });
-        assertCoreQualificationsEligible(coreTypes, visiblePlan.pilot.qualifications);
-      }
-    }
-    const result = await db.$transaction(async (tx) => {
+      if (!currentPlan) throw new ApiError("NOT_FOUND", "升级计划不存在", 404);
+      const currentLifecycleStatus = currentPlan.lifecycleStatus.toLowerCase() as any;
+      assertLifecycleAction(
+        currentLifecycleStatus,
+        action as "start" | "pause" | "resume" | "cancel",
+        input.reason,
+      );
       if (["start", "resume"].includes(action)) {
-        // Re-check under the same transaction as the lifecycle transition so
-        // an approval/replacement racing this action cannot invalidate the
-        // eligibility decision after it was made.
-        await assertUpgradePlanEligibility(tx, visiblePlan);
+        if (upgradePlanAssociationMode(currentPlan) === "canonical") {
+          await lockPositionAssignment(tx, currentPlan.positionAssignmentId!);
+          // Re-check under the assignment lock so ending the assignment cannot
+          // race this lifecycle transition.
+          await assertUpgradePlanEligibility(tx, currentPlan);
+        } else {
+          const coreTypes = await tx.qualificationType.findMany({
+            where: { core: true, active: true },
+            select: { id: true, name: true },
+          });
+          assertCoreQualificationsEligible(
+            coreTypes,
+            currentPlan.pilot.qualifications,
+            pilotQualificationTimezone(currentPlan.pilot),
+          );
+        }
+        const conflict = await tx.upgradePlan.findFirst({
+          where: {
+            pilotId: currentPlan.pilotId,
+            id: { not: id },
+            lifecycleStatus: {
+              in: ACTIVE_UPGRADE_PLAN_STATUSES.map((item) => item.toUpperCase()) as any,
+            },
+          },
+          select: { planNumber: true },
+        });
+        if (conflict)
+          throw new ApiError(
+            "ACTIVE_PLAN_CONFLICT",
+            `该飞行员已有活动计划：${conflict.planNumber}`,
+            409,
+          );
       }
       const updated = await tx.upgradePlan.updateMany({
         where: {
           id,
-          lifecycleStatus: visiblePlan.lifecycleStatus,
+          lifecycleStatus: currentPlan.lifecycleStatus,
           ...(input.expectedVersion === undefined ? {} : { version: input.expectedVersion }),
         },
         data: {
@@ -111,7 +143,7 @@ export async function POST(
       });
       if (updated.count !== 1) throw new Error("VERSION_CONFLICT");
       if (action === "start") {
-        const firstStage = visiblePlan.stages[0];
+        const firstStage = currentPlan.stages[0];
         if (firstStage?.status === "NOT_STARTED") {
           await tx.upgradeStage.update({
             where: { id: firstStage.id },
@@ -123,7 +155,7 @@ export async function POST(
         data: {
           actorType: "admin",
           actorId: admin.id,
-          pilotId: visiblePlan.pilotId,
+          pilotId: currentPlan.pilotId,
           action: `upgrade_plan.${action}`,
           entityType: "UpgradePlan",
           entityId: id,
@@ -133,11 +165,11 @@ export async function POST(
       });
       if (["start", "resume"].includes(action)) {
         await emitPilotNotification(tx, {
-          eventKey: `upgrade-${action}:${id}:${visiblePlan.version}`,
-          pilotId: visiblePlan.pilotId,
+          eventKey: `upgrade-${action}:${id}:${currentPlan.version}`,
+          pilotId: currentPlan.pilotId,
           type: action === "start" ? "upgrade_created" : "upgrade_resumed",
           templateKey: action === "start" ? "upgrade.plan.started" : "upgrade.plan.resumed",
-          templateParams: { planTitle: visiblePlan.title },
+          templateParams: { planTitle: currentPlan.title },
         });
       }
       return tx.upgradePlan.findUnique({

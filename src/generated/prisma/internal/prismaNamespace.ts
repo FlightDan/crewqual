@@ -420,6 +420,7 @@ export const ModelName = {
   OrganizationTemplateInstallation: 'OrganizationTemplateInstallation',
   QualificationRecord: 'QualificationRecord',
   EvidenceImage: 'EvidenceImage',
+  GalleryObjectTombstone: 'GalleryObjectTombstone',
   ImageOptimizationTask: 'ImageOptimizationTask',
   MediaOptimizationSetting: 'MediaOptimizationSetting',
   BackupTarget: 'BackupTarget',
@@ -458,7 +459,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "objectStorageSetting" | "securityPolicy" | "workerHeartbeat"
+    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "galleryObjectTombstone" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "objectStorageSetting" | "securityPolicy" | "workerHeartbeat"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2161,6 +2162,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.EvidenceImageCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.EvidenceImageCountAggregateOutputType> | number
+        }
+      }
+    }
+    GalleryObjectTombstone: {
+      payload: Prisma.$GalleryObjectTombstonePayload<ExtArgs>
+      fields: Prisma.GalleryObjectTombstoneFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GalleryObjectTombstoneFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GalleryObjectTombstoneFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        findFirst: {
+          args: Prisma.GalleryObjectTombstoneFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GalleryObjectTombstoneFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        findMany: {
+          args: Prisma.GalleryObjectTombstoneFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>[]
+        }
+        create: {
+          args: Prisma.GalleryObjectTombstoneCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        createMany: {
+          args: Prisma.GalleryObjectTombstoneCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GalleryObjectTombstoneCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>[]
+        }
+        delete: {
+          args: Prisma.GalleryObjectTombstoneDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        update: {
+          args: Prisma.GalleryObjectTombstoneUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        deleteMany: {
+          args: Prisma.GalleryObjectTombstoneDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GalleryObjectTombstoneUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GalleryObjectTombstoneUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>[]
+        }
+        upsert: {
+          args: Prisma.GalleryObjectTombstoneUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GalleryObjectTombstonePayload>
+        }
+        aggregate: {
+          args: Prisma.GalleryObjectTombstoneAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGalleryObjectTombstone>
+        }
+        groupBy: {
+          args: Prisma.GalleryObjectTombstoneGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GalleryObjectTombstoneGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GalleryObjectTombstoneCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GalleryObjectTombstoneCountAggregateOutputType> | number
         }
       }
     }
@@ -4291,6 +4366,16 @@ export const EvidenceImageScalarFieldEnum = {
 export type EvidenceImageScalarFieldEnum = (typeof EvidenceImageScalarFieldEnum)[keyof typeof EvidenceImageScalarFieldEnum]
 
 
+export const GalleryObjectTombstoneScalarFieldEnum = {
+  objectKey: 'objectKey',
+  deletedAt: 'deletedAt',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type GalleryObjectTombstoneScalarFieldEnum = (typeof GalleryObjectTombstoneScalarFieldEnum)[keyof typeof GalleryObjectTombstoneScalarFieldEnum]
+
+
 export const ImageOptimizationTaskScalarFieldEnum = {
   id: 'id',
   evidenceImageId: 'evidenceImageId',
@@ -4405,6 +4490,8 @@ export const QualificationUpdateRequestScalarFieldEnum = {
   submittedFields: 'submittedFields',
   status: 'status',
   expectedVersion: 'expectedVersion',
+  expectedQualificationRecordId: 'expectedQualificationRecordId',
+  baselineCapturedAt: 'baselineCapturedAt',
   version: 'version',
   submittedAt: 'submittedAt',
   decidedAt: 'decidedAt',
@@ -5355,6 +5442,7 @@ export type GlobalOmitConfig = {
   organizationTemplateInstallation?: Prisma.OrganizationTemplateInstallationOmit
   qualificationRecord?: Prisma.QualificationRecordOmit
   evidenceImage?: Prisma.EvidenceImageOmit
+  galleryObjectTombstone?: Prisma.GalleryObjectTombstoneOmit
   imageOptimizationTask?: Prisma.ImageOptimizationTaskOmit
   mediaOptimizationSetting?: Prisma.MediaOptimizationSettingOmit
   backupTarget?: Prisma.BackupTargetOmit

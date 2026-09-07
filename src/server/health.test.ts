@@ -38,6 +38,7 @@ describe("object storage health check", () => {
     await expect(checkObjectStorage(config)).resolves.toBe("ok");
     expect(mocks.send).toHaveBeenCalledOnce();
     expect(mocks.send.mock.calls[0]?.[0].input).toEqual({ Bucket: "crewqual-private" });
+    expect(mocks.send.mock.calls[0]?.[1]?.abortSignal).toBeInstanceOf(AbortSignal);
   });
 
   it("returns unavailable when the bucket probe fails", async () => {

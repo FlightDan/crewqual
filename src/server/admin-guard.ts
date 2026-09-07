@@ -33,3 +33,18 @@ export async function getAdmin(request: NextRequest, permission?: string, mutate
 export function routeFailure(error: unknown, request: NextRequest) {
   return jsonError(error, getRequestId(request));
 }
+
+/**
+ * Read-only auth probe used by disclosure-gated GET endpoints (health,
+ * setup overview). Unlike getAdmin it never writes audit events, so probing
+ * an unprivileged session cannot fill the audit log.
+ */
+export async function hasSettingsReadAccess(request: NextRequest) {
+  try {
+    const admin = await authenticateAdmin(request);
+    requirePermission(admin, "settings.read");
+    return true;
+  } catch {
+    return false;
+  }
+}

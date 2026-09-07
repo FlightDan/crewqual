@@ -16,6 +16,8 @@ describe("pilot mock services", () => {
     const service = createMockQualificationService({ now: () => new Date("2026-08-14T08:00:00Z") });
     const sections = (await service.listForPilot("pilot-mock-01")).data;
     expect(sections.map((section) => section.status)).toEqual([
+      "missing",
+      "incomplete",
       "expired",
       "due_30",
       "due_90",
@@ -67,5 +69,22 @@ describe("pilot mock services", () => {
       notifications: ["system", "feishu", "sms"],
     });
     expect(mockSubmissionService.getReceipt(result.data.id)).toEqual(result.data);
+  });
+
+  it("enforces the same parameter restriction before creating a mock receipt", async () => {
+    const draft = {
+      ...createEmptyDraft("simulator-recurrent-training"),
+      documentName: "credential.jpg",
+      documentType: "image/jpeg",
+      credentialNumber: "MOCK-02",
+      issueDate: "2026-01-09",
+      expiryDate: "2026-10-09",
+      issuingAuthority: "示例签发机构",
+      levelOrParameter: "B737",
+    };
+
+    await expect(mockSubmissionService.submitQualificationUpdate(draft)).rejects.toThrow(
+      "等级/参数必须是：A320",
+    );
   });
 });

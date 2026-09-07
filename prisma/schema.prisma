@@ -629,6 +629,17 @@ model EvidenceImage {
   @@index([status, expiresAt])
 }
 
+// Durable delete facts let incremental gallery backups carry tombstones even
+// after the short-lived orphan EvidenceImage row has been garbage-collected.
+model GalleryObjectTombstone {
+  objectKey String   @id
+  deletedAt DateTime @db.Timestamptz(3)
+  reason    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([deletedAt])
+}
+
 model ImageOptimizationTask {
   id              String                      @id @default(uuid()) @db.Uuid
   evidenceImageId String                      @unique @db.Uuid
@@ -724,40 +735,45 @@ model QualificationEvidence {
   updateRequest         QualificationUpdateRequest? @relation(fields: [updateRequestId], references: [id])
 
   @@unique([evidenceImageId, qualificationRecordId, updateRequestId])
+  @@unique([evidenceImageId, qualificationRecordId], map: "QualificationEvidence_image_record_key")
+  @@unique([evidenceImageId, updateRequestId], map: "QualificationEvidence_image_request_key")
 }
 
 model QualificationUpdateRequest {
-  id                        String                    @id @default(uuid()) @db.Uuid
-  pilotId                   String                    @db.Uuid
-  personId                  String?                   @db.Uuid
-  qualificationTypeId       String                    @db.Uuid
-  qualificationDefinitionId String?                   @db.Uuid
-  qualificationRecordId     String?                   @unique @db.Uuid
-  credentialNumber          String
-  issueDate                 DateTime                  @db.Date
-  trainingDate              DateTime?                 @db.Date
-  expiryDate                DateTime?                 @db.Date
-  issuingAuthority          String
-  levelOrParameter          String
-  qualificationRuleSnapshot Json
+  id                            String                    @id @default(uuid()) @db.Uuid
+  pilotId                       String                    @db.Uuid
+  personId                      String?                   @db.Uuid
+  qualificationTypeId           String                    @db.Uuid
+  qualificationDefinitionId     String?                   @db.Uuid
+  qualificationRecordId         String?                   @unique @db.Uuid
+  credentialNumber              String
+  issueDate                     DateTime                  @db.Date
+  trainingDate                  DateTime?                 @db.Date
+  expiryDate                    DateTime?                 @db.Date
+  issuingAuthority              String
+  levelOrParameter              String
+  qualificationRuleSnapshot     Json
   // Immutable snapshot of the values submitted by the pilot. The mutable
   // columns above hold the latest human-corrected values used for a decision.
-  submittedFields           Json
-  status                    UpdateRequestStatus       @default(PENDING)
-  expectedVersion           Int                       @default(0)
-  version                   Int                       @default(1)
-  submittedAt               DateTime                  @default(now()) @db.Timestamptz(3)
-  decidedAt                 DateTime?                 @db.Timestamptz(3)
-  decisionNote              String?
-  returnReason              String?
-  pilot                     Pilot                     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
-  person                    Person?                   @relation(fields: [personId], references: [id], onDelete: SetNull)
-  qualificationType         QualificationType         @relation(fields: [qualificationTypeId], references: [id])
-  qualificationDefinition   QualificationDefinition?  @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
-  qualificationRecord       QualificationRecord?      @relation(fields: [qualificationRecordId], references: [id])
-  evidence                  QualificationEvidence[]
-  verifications             VerificationResult[]
-  corrections               QualificationCorrection[]
+  submittedFields               Json
+  status                        UpdateRequestStatus       @default(PENDING)
+  expectedVersion               Int                       @default(0)
+  // Immutable submission baseline; null capture time means an unknown legacy baseline.
+  expectedQualificationRecordId String?                   @db.Uuid
+  baselineCapturedAt            DateTime?                 @db.Timestamptz(3)
+  version                       Int                       @default(1)
+  submittedAt                   DateTime                  @default(now()) @db.Timestamptz(3)
+  decidedAt                     DateTime?                 @db.Timestamptz(3)
+  decisionNote                  String?
+  returnReason                  String?
+  pilot                         Pilot                     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  person                        Person?                   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  qualificationType             QualificationType         @relation(fields: [qualificationTypeId], references: [id])
+  qualificationDefinition       QualificationDefinition?  @relation(fields: [qualificationDefinitionId], references: [id], onDelete: SetNull)
+  qualificationRecord           QualificationRecord?      @relation(fields: [qualificationRecordId], references: [id])
+  evidence                      QualificationEvidence[]
+  verifications                 VerificationResult[]
+  corrections                   QualificationCorrection[]
 
   @@index([status, submittedAt])
   @@index([personId, status, submittedAt])

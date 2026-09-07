@@ -99,15 +99,28 @@ export const CORE_QUALIFICATION_CATALOG = [
 
 export const CORE_QUALIFICATION_IDS = CORE_QUALIFICATION_CATALOG.map((item) => item.id);
 
-export type QualificationStatus = "expired" | "due_30" | "due_90" | "valid";
-export type QualificationExpiryWindow = "expired" | "due_7" | "due_30" | "due_90" | "valid";
+export type QualificationStatus =
+  "missing" | "incomplete" | "expired" | "due_30" | "due_90" | "valid";
+export type QualificationExpiryWindow = QualificationStatus | "due_7";
 
 export type QualificationDateState = {
   status: QualificationStatus;
   window: QualificationExpiryWindow;
-  daysRemaining: number;
+  daysRemaining: number | null;
   statusLabel: string;
   remainingLabel: string;
+  statusReason?: string;
+};
+
+export type QualificationParameterRestriction = {
+  enabled: boolean;
+  description: string;
+  version?: 1;
+  enforcement?: {
+    mode: "none" | "allowed_values" | "regex";
+    allowedValues?: string[];
+    pattern?: string;
+  };
 };
 
 export type QualificationSection = {
@@ -127,7 +140,14 @@ export type Qualification = {
   parameter?: string;
   cycleMonths?: number;
   validityRule?: ValidityRule;
+  parameterRestriction?: QualificationParameterRestriction;
   ruleVersion?: number;
+  /** The holder's business timezone, never the viewer's browser timezone. */
+  timezone?: string | null;
+  required?: boolean;
+  recordExists?: boolean;
+  statusReason?: string;
+  submissionSupported?: boolean;
 };
 
 export type QualificationRecord = Omit<Qualification, "status" | "statusLabel" | "remainingLabel">;
@@ -272,6 +292,7 @@ export type QualificationReview = {
   qualificationName: string;
   qualificationTranslations?: Record<string, string>;
   validityRule?: ValidityRule;
+  parameterRestriction?: QualificationParameterRestriction;
   ruleVersion?: number;
   submittedAt: string;
   humanStatus: ReviewHumanStatus;
@@ -431,7 +452,10 @@ export type AdminCalendarEvent = {
   owner?: string;
   notes?: string;
   inspectionItems?: string[];
-  daysRemaining?: number;
+  daysRemaining?: number | null;
+  status?: QualificationStatus;
+  statusReason?: string;
+  statusLabel?: string;
   readonly: boolean;
 };
 
@@ -523,16 +547,7 @@ export type QualificationConfig = {
   locked: boolean;
   active: boolean;
   customFields: QualificationCustomField[];
-  parameterRestriction: {
-    enabled: boolean;
-    description: string;
-    version?: 1;
-    enforcement?: {
-      mode: "none" | "allowed_values" | "regex";
-      allowedValues?: string[];
-      pattern?: string;
-    };
-  };
+  parameterRestriction: QualificationParameterRestriction;
   validityRule: ValidityRule;
   reminders: {
     firstDays: number;
@@ -625,7 +640,8 @@ export type PilotNotificationItem = {
   readAt: string | null;
 };
 
-export type PilotHealth = "unconfigured" | "normal" | "expiring" | "expired";
+export type PilotHealth =
+  "unconfigured" | "missing" | "incomplete" | "normal" | "expiring" | "expired";
 export type PilotUpgradeFilter = "all" | "active" | "none";
 export type PilotStatusFilter = "all" | "active" | "inactive";
 export type PilotRole = "机长" | "副驾驶";
@@ -780,6 +796,8 @@ export type ReviewListQuery = {
 };
 
 export type PaginatedResult<T> = {
+  timezones?: string[];
+  evaluatedAt?: string;
   items: T[];
   total: number;
   page: number;
@@ -804,6 +822,10 @@ export type WeeklyUpgradeItem = {
 };
 
 export type AdminDashboardSummary = {
+  timezones?: string[];
+  evaluatedAt?: string;
+  missingCount?: number;
+  incompleteCount?: number;
   expiredCount: number;
   dueIn7DaysCount: number;
   dueIn30DaysCount: number;

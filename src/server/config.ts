@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  assertExternalEndpointAllowlistConfig,
+  checkExternalEndpoint,
+} from "@/server/external-endpoint-safety";
 
 const booleanFromEnv = z
   .enum(["true", "false"])
@@ -21,13 +25,20 @@ const serverConfigSchema = z.object({
   ACME_PORT: z.coerce.number().int().min(1).max(65535).default(18080),
   NETWORK_ACCESS_SECRET: z.string().default(""),
   SETUP_AUTH_CODE_HASH: z.string().default(""),
+  // Opt-in for the development-only helper endpoints (/api/dev/*). Never set
+  // this outside a developer workstation.
+  DEV_ENDPOINTS: booleanFromEnv,
+  DEV_ENDPOINTS_SECRET: z.string().default(""),
   DATABASE_URL: z.string().default(""),
   DIRECT_URL: z.string().default(""),
   SESSION_SECRET: z.string().min(32).default("development-only-crewqual-session-secret-32"),
   SETTINGS_ENCRYPTION_KEY: z.string().default(""),
+  READINESS_PROBE_SECRET: z.string().default(""),
   PILOT_SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(60),
   ADMIN_SESSION_TTL_HOURS: z.coerce.number().int().positive().default(8),
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  OUTBOUND_ALLOWED_HOSTS: z.string().default(""),
+  OUTBOUND_ALLOWED_CIDRS: z.string().default(""),
   STORAGE_MODE: z.enum(["builtin", "external"]).default("external"),
   S3_ENDPOINT: z.string().url().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
@@ -64,10 +75,34 @@ export function getServerConfig(): ServerConfig {
   if (!parsed.success) {
     throw new Error(`Invalid server configuration: ${parsed.error.message}`);
   }
+  assertExternalEndpointAllowlistConfig(
+    parsed.data.OUTBOUND_ALLOWED_HOSTS,
+    parsed.data.OUTBOUND_ALLOWED_CIDRS,
+  );
+  // The repo-visible fallback secret is only acceptable in mock mode, where
+  // the setup cookie and sessions are never exercised. Any remote-mode run
+  // (staging, e2e against a real stack, misdeployed dev) must provision one.
+  if (
+    parsed.data.SERVICE_MODE === "remote" &&
+    !process.env.SESSION_SECRET &&
+    process.env.NEXT_PHASE !== "phase-production-build"
+  ) {
+    throw new Error(
+      "SESSION_SECRET is required when SERVICE_MODE=remote; the built-in default is restricted to mock mode",
+    );
+  }
+  if (
+    parsed.data.SERVICE_MODE === "remote" &&
+    parsed.data.DEV_ENDPOINTS &&
+    parsed.data.DEV_ENDPOINTS_SECRET.length < 32
+  ) {
+    throw new Error("DEV_ENDPOINTS_SECRET must contain at least 32 characters in remote mode");
+  }
   if (parsed.data.NODE_ENV === "production") {
     const required = [
       ["DATABASE_URL", parsed.data.DATABASE_URL],
       ["SESSION_SECRET", process.env.SESSION_SECRET],
+      ["READINESS_PROBE_SECRET", parsed.data.READINESS_PROBE_SECRET],
       ["S3_ACCESS_KEY_ID", parsed.data.S3_ACCESS_KEY_ID],
       ["S3_SECRET_ACCESS_KEY", parsed.data.S3_SECRET_ACCESS_KEY],
       ...(process.env.NEXT_PHASE === "phase-production-build"
@@ -100,6 +135,9 @@ export function getServerConfig(): ServerConfig {
     if (parsed.data.SESSION_SECRET.length < 48) {
       throw new Error("Production SESSION_SECRET must contain at least 48 characters");
     }
+    if (parsed.data.READINESS_PROBE_SECRET.length < 32) {
+      throw new Error("Production READINESS_PROBE_SECRET must contain at least 32 characters");
+    }
     if (
       parsed.data.SETTINGS_ENCRYPTION_KEY.length < 32 ||
       parsed.data.SETTINGS_ENCRYPTION_KEY === parsed.data.SESSION_SECRET
@@ -123,11 +161,32 @@ export function getServerConfig(): ServerConfig {
     if (storageEndpoint.protocol !== "https:" && !trustedBuiltinEndpoint) {
       throw new Error("Production S3_ENDPOINT must use HTTPS");
     }
+    if (process.env.NEXT_PHASE !== "phase-production-build") {
+      const storageEndpointCheck = checkExternalEndpoint(parsed.data.S3_ENDPOINT, true, {
+        allowedHosts: parsed.data.OUTBOUND_ALLOWED_HOSTS,
+        allowedCidrs: parsed.data.OUTBOUND_ALLOWED_CIDRS,
+        requireHostAllowlist: parsed.data.STORAGE_MODE === "external",
+      });
+      if (!storageEndpointCheck.ok) {
+        throw new Error(`Production S3_ENDPOINT is not authorized: ${storageEndpointCheck.reason}`);
+      }
+    }
     if (parsed.data.SERVICE_MODE === "mock") {
       throw new Error("Mock service mode is not allowed in production");
     }
     if (parsed.data.SMS_ADAPTER === "webhook" && !parsed.data.SMS_WEBHOOK_URL) {
       throw new Error("SMS_WEBHOOK_URL is required for the webhook SMS adapter");
+    }
+    // TRUSTED_PROXY_HOPS=0 collapses every client into one shared rate-limit
+    // bucket, so a production deployment must state the value explicitly
+    // (shipped compose files and installer always set it, defaulting to 1).
+    if (
+      (process.env.TRUSTED_PROXY_HOPS === undefined || process.env.TRUSTED_PROXY_HOPS === "") &&
+      process.env.NEXT_PHASE !== "phase-production-build"
+    ) {
+      throw new Error(
+        "TRUSTED_PROXY_HOPS must be set explicitly in production (use 1 behind Caddy)",
+      );
     }
   }
   cachedConfig = parsed.data;

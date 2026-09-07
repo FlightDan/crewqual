@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
 import { ApiError, getRequestId, jsonData, jsonError } from "@/server/api";
 import { authenticatePilot } from "@/server/auth";
-import { deriveQualification } from "@/lib/qualification-date-status";
-import { getPrisma } from "@/server/prisma";
-import { parseValidityRule } from "@/lib/qualification-rules";
+import { listPilotQualifications } from "@/server/pilot-qualifications";
 
 export async function GET(
   request: NextRequest,
@@ -13,33 +11,10 @@ export async function GET(
   try {
     const pilot = await authenticatePilot(request);
     const { qualificationId } = await context.params;
-    const record = await getPrisma().qualificationRecord.findFirst({
-      where: { pilotId: pilot.id, status: "ACTIVE", qualificationType: { code: qualificationId } },
-      include: { qualificationType: true },
-    });
-    if (!record) throw new ApiError("NOT_FOUND", "资质记录不存在", 404);
-    return jsonData(
-      {
-        ...deriveQualification(
-          {
-            id: record.qualificationType.code,
-            name: record.qualificationType.name,
-            translations:
-              record.qualificationType.translations &&
-              typeof record.qualificationType.translations === "object"
-                ? (record.qualificationType.translations as Record<string, string>)
-                : {},
-            expiresOn: record.expiryDate?.toISOString().slice(0, 10) ?? "",
-            parameter: record.levelOrParameter,
-            cycleMonths: undefined,
-          },
-          { now: () => new Date() },
-        ),
-        validityRule: parseValidityRule(record.qualificationType.validityRule),
-        ruleVersion: record.qualificationType.version,
-      },
-      requestId,
-    );
+    const qualifications = await listPilotQualifications(pilot.id);
+    const qualification = qualifications.find((item) => item.id === qualificationId);
+    if (!qualification) throw new ApiError("NOT_FOUND", "资质项目不存在或未分配给当前成员", 404);
+    return jsonData(qualification, requestId);
   } catch (error) {
     return jsonError(error, requestId);
   }

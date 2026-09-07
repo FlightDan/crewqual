@@ -1,1 +1,7 @@
-openpyxl>=3.1,<4
+# Hash-pinned for the offline Windows converter (installed with pip
+# --require-hashes by setup_windows.bat). Both wheels are pure-Python and
+# universal, so a single hash per package covers the offline target.
+openpyxl==3.1.5 \
+    --hash=sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2
+et-xmlfile==2.0.0 \
+    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa

@@ -3,7 +3,14 @@ import { requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
 import { pilotRoleLabel } from "@/lib/domain-i18n";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Prisma } from "@/generated/prisma/client";
+import type { Clock } from "@/types/services";
+import { fixedClock, systemClock } from "@/lib/qualification-date-status";
+import {
+  qualificationPersonInclude,
+  qualificationAssignmentSource,
+  resolveMemberQualifications,
+} from "@/server/member-qualifications";
 
 const DUE_WINDOW_DAYS = 90;
 
@@ -18,136 +25,69 @@ function positionCodes(value?: string) {
     .filter(Boolean);
 }
 
-function statusFor(expiryDate: Date | null) {
-  if (!expiryDate) return "valid" as const;
-  const now = Date.now();
-  const expiry = expiryDate.getTime();
-  if (expiry < now) return "expired" as const;
-  if (expiry <= now + DUE_WINDOW_DAYS * 24 * 60 * 60 * 1000) return "due" as const;
-  return "valid" as const;
-}
-
-function organizationWhere(admin: AuthenticatedAdmin) {
-  const organizationId = admin.organizationId ?? requireAssignedUnit(admin);
-  return organizationId ? { organizationId } : {};
+export function memberScopeWhere(admin: AuthenticatedAdmin): Prisma.PersonWhereInput {
+  const unitId = requireAssignedUnit(admin);
+  return {
+    ...(admin.organizationId ? { organizationId: admin.organizationId } : {}),
+    ...(unitId ? { unitId } : {}),
+  };
 }
 
 const memberInclude = {
+  ...qualificationPersonInclude,
   pilotProfile: true,
   positionAssignments: {
     include: { position: true },
-    orderBy: { status: "asc" as const },
+    orderBy: { status: "asc" },
   },
-  qualificationAssignments: {
-    where: { active: true },
-    include: {
-      qualificationDefinition: true,
-      requirement: { include: { position: true } },
-      positionAssignment: { include: { position: true } },
-    },
-    orderBy: { createdAt: "asc" as const },
-  },
-  qualificationRecords: {
-    where: { status: "ACTIVE" as const },
-    orderBy: { updatedAt: "desc" as const },
-  },
-  legacyPilot: {
-    include: {
-      qualifications: {
-        where: { status: "ACTIVE" as const },
-        include: { qualificationType: true },
-        orderBy: { updatedAt: "desc" as const },
-      },
-    },
-  },
-} as const;
+} as const satisfies Prisma.PersonInclude;
 
-type IncludedMember = Awaited<ReturnType<typeof getPrisma>>["person"] extends never ? never : any;
+type IncludedMember = Prisma.PersonGetPayload<{ include: typeof memberInclude }>;
 
-function serializeMember(person: IncludedMember) {
-  const records = new Map<string, any>();
-  for (const record of person.qualificationRecords ?? []) {
-    if (record.qualificationDefinitionId && !records.has(record.qualificationDefinitionId)) {
-      records.set(record.qualificationDefinitionId, record);
-    }
-  }
-  const legacyRecords = person.legacyPilot?.qualifications ?? [];
-  const assignments = person.qualificationAssignments ?? [];
-  for (const assignment of assignments) {
-    if (records.has(assignment.qualificationDefinitionId)) continue;
-    const legacy = legacyRecords.find(
-      (record: any) =>
-        record.qualificationTypeId ===
-          assignment.qualificationDefinition.legacyQualificationTypeId ||
-        record.qualificationType.code === assignment.qualificationDefinition.code,
-    );
-    if (legacy) records.set(assignment.qualificationDefinitionId, legacy);
-  }
-  const seen = new Set<string>();
-  const qualifications = assignments
-    .filter((assignment: any) => {
-      if (seen.has(assignment.qualificationDefinitionId)) return false;
-      seen.add(assignment.qualificationDefinitionId);
-      return true;
-    })
-    .map((assignment: any) => {
-      const record = records.get(assignment.qualificationDefinitionId);
-      return {
-        assignmentId: assignment.id,
-        requirementId: assignment.requirementId,
-        definitionId: assignment.qualificationDefinitionId,
-        code: assignment.qualificationDefinition.code,
-        name: assignment.qualificationDefinition.name,
-        translations: assignment.qualificationDefinition.translations,
-        description: assignment.qualificationDefinition.description,
-        positionCode:
-          assignment.positionAssignment?.position?.code ??
-          assignment.positionAssignment?.positionCodeSnapshot ??
-          assignment.requirement?.position?.code ??
-          null,
-        positionName:
-          assignment.positionAssignment?.position?.name ??
-          assignment.positionAssignment?.positionNameSnapshot ??
-          assignment.requirement?.position?.name ??
-          "已删除职位",
-        source: assignment.source,
-        required: assignment.requirement?.required ?? true,
-        upgradePrerequisite: assignment.requirement?.upgradePrerequisite ?? false,
-        status: statusFor(record?.expiryDate ?? null),
-        record: record
-          ? {
-              id: record.id,
-              credentialNumber: record.credentialNumber,
-              issueDate: dateOnly(record.issueDate),
-              trainingDate: dateOnly(record.trainingDate),
-              expiryDate: dateOnly(record.expiryDate),
-              issuingAuthority: record.issuingAuthority,
-              levelOrParameter: record.levelOrParameter,
-              version: record.version,
-            }
-          : null,
-      };
-    });
-  const counts = qualifications.reduce(
-    (result: { missing: number; expired: number; due: number; valid: number }, item: any) => {
-      const key = item.status as keyof typeof result;
-      result[key] += 1;
-      return result;
-    },
-    { missing: 0, expired: 0, due: 0, valid: 0 },
-  );
+function serializeMember(person: IncludedMember, clock: Clock) {
+  const resolved = resolveMemberQualifications(person, clock);
+  const qualifications = resolved.items.map((item) => {
+    const sources = item.assignments.map(qualificationAssignmentSource);
+    const first = sources[0]!;
+    const record = item.record;
+    return {
+      ...first,
+      definitionId: item.definition.id,
+      code: item.definition.code,
+      name: item.definition.name,
+      translations: item.definition.translations,
+      description: item.definition.description,
+      sources,
+      required: item.required,
+      upgradePrerequisite: item.upgradePrerequisite,
+      ...item.state,
+      status: item.status,
+      recordSource: item.recordSource,
+      record: record
+        ? {
+            id: record.id,
+            credentialNumber: record.credentialNumber,
+            issueDate: dateOnly(record.issueDate),
+            trainingDate: dateOnly(record.trainingDate),
+            expiryDate: dateOnly(record.expiryDate),
+            issuingAuthority: record.issuingAuthority,
+            levelOrParameter: record.levelOrParameter,
+            version: record.version,
+          }
+        : null,
+    };
+  });
   const primary =
-    person.positionAssignments?.find(
-      (assignment: any) => assignment.status === "ACTIVE" && assignment.isPrimary,
+    person.positionAssignments.find(
+      (assignment) => assignment.status === "ACTIVE" && assignment.isPrimary,
     ) ??
-    person.positionAssignments?.find((assignment: any) => assignment.status === "ACTIVE") ??
-    person.positionAssignments?.find((assignment: any) => assignment.isPrimary) ??
-    person.positionAssignments?.[0];
-  const positionLabel = (assignment: any) => ({
+    person.positionAssignments.find((assignment) => assignment.status === "ACTIVE") ??
+    person.positionAssignments.find((assignment) => assignment.isPrimary) ??
+    person.positionAssignments[0];
+  const positionLabel = (assignment: IncludedMember["positionAssignments"][number]) => ({
     code: assignment.position?.code ?? assignment.positionCodeSnapshot ?? null,
     name: assignment.position?.name ?? assignment.positionNameSnapshot ?? "已删除职位",
   });
-  const primaryLabel = primary ? positionLabel(primary) : null;
   return {
     id: person.id,
     employeeNumber: person.employeeNumber,
@@ -158,8 +98,10 @@ function serializeMember(person: IncludedMember) {
     version: person.version,
     organizationId: person.organizationId,
     unitId: person.unitId,
-    primaryPosition: primary ? { ...primaryLabel, assignmentId: primary.id } : null,
-    positions: (person.positionAssignments ?? []).map((assignment: any) => ({
+    timezone: resolved.timezone,
+    evaluatedAt: resolved.evaluatedAt,
+    primaryPosition: primary ? { ...positionLabel(primary), assignmentId: primary.id } : null,
+    positions: person.positionAssignments.map((assignment) => ({
       ...positionLabel(assignment),
       assignmentId: assignment.id,
       status: assignment.status,
@@ -176,15 +118,9 @@ function serializeMember(person: IncludedMember) {
         }
       : null,
     qualifications,
-    health:
-      counts.missing > 0
-        ? "missing"
-        : counts.expired > 0
-          ? "expired"
-          : counts.due > 0
-            ? "due"
-            : "valid",
-    qualificationCounts: counts,
+    health: resolved.health,
+    qualificationCounts: resolved.qualificationCounts,
+    requiredQualificationCounts: resolved.requiredQualificationCounts,
   };
 }
 
@@ -197,12 +133,14 @@ export async function listMembers(
     page?: number;
     pageSize?: number;
   },
+  clock: Clock = systemClock,
 ) {
+  const capturedClock = fixedClock(clock);
   const db = getPrisma();
   const codes = positionCodes(query.positions);
   const search = query.q?.trim();
   const where = {
-    ...organizationWhere(admin),
+    ...memberScopeWhere(admin),
     ...(search
       ? {
           OR: [
@@ -233,7 +171,7 @@ export async function listMembers(
     }),
   ]);
   return {
-    items: people.map(serializeMember),
+    items: people.map((person) => serializeMember(person, capturedClock)),
     total,
     page,
     pageSize,
@@ -242,12 +180,17 @@ export async function listMembers(
   };
 }
 
-export async function getMember(admin: AuthenticatedAdmin, memberId: string) {
+export async function getMember(
+  admin: AuthenticatedAdmin,
+  memberId: string,
+  clock: Clock = systemClock,
+) {
+  const capturedClock = fixedClock(clock);
   const db = getPrisma();
   const person = await db.person.findFirst({
-    where: { id: memberId, ...organizationWhere(admin) },
+    where: { id: memberId, ...memberScopeWhere(admin) },
     include: memberInclude,
   });
   if (!person) throw new ApiError("NOT_FOUND", "成员不存在或不属于当前组织", 404);
-  return serializeMember(person);
+  return serializeMember(person, capturedClock);
 }

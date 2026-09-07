@@ -137,15 +137,19 @@ export async function persistVerificationForEvidence(
   evidenceImageId: string,
   extraction: unknown,
 ) {
-  const relation = await tx.qualificationEvidence.findUnique({
-    where: { evidenceImageId: evidenceImageId },
+  const relations = await tx.qualificationEvidence.findMany({
+    where: { evidenceImageId, updateRequestId: { not: null } },
     select: {
       updateRequest: {
         include: { pilot: true },
       },
     },
+    take: 2,
   });
-  const request = relation?.updateRequest;
+  if (relations.length > 1) {
+    throw new Error("Evidence image is linked to multiple qualification update requests");
+  }
+  const request = relations[0]?.updateRequest;
   if (!request) return null;
   const verification = determineVerification(request, extraction);
   return tx.verificationResult.upsert({

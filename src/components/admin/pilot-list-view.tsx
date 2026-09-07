@@ -1,5 +1,6 @@
 "use client";
 
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -41,6 +42,7 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
   const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
   const [searchValue, setSearchValue] = React.useState(q);
   const [result, setResult] = React.useState<PaginatedResult<AdminPilotListItem> | null>(null);
+  const businessDayRevision = useBusinessDayRefresh(result?.timezones ?? ["Asia/Shanghai"]);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [interactive, setInteractive] = React.useState(false);
   const [revision, setRevision] = React.useState(0);
@@ -56,7 +58,7 @@ export function PilotListView({ positionCode }: { positionCode?: string } = {}) 
     return () => {
       active = false;
     };
-  }, [health, page, pilotDirectory, q, revision, state, status, upgrade]);
+  }, [health, page, pilotDirectory, q, revision, businessDayRevision, state, status, upgrade]);
 
   const updateQuery = (patch: Record<string, string | number>) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -203,6 +205,9 @@ function PilotFilters({
   const healthOptions = [
     { label: t("adminPilot.allHealth"), value: "all" },
     { label: t("members.health.valid"), value: "normal" },
+    { label: t("members.health.unconfigured"), value: "unconfigured" },
+    { label: t("members.health.missing"), value: "missing" },
+    { label: t("members.health.incomplete"), value: "incomplete" },
     { label: t("adminPilot.expiring"), value: "expiring" },
     { label: t("adminPilot.hasExpired"), value: "expired" },
   ];

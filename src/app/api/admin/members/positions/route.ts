@@ -2,73 +2,67 @@ import { NextRequest } from "next/server";
 import { getRequestId, jsonData, jsonError } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
+import { fixedClock } from "@/lib/qualification-date-status";
+import { dateOnlyForTimezone, databaseDateOnly } from "@/lib/date-only";
+import { memberScopeWhere } from "@/server/member-repository";
+import {
+  qualificationPersonInclude,
+  resolveMemberQualifications,
+} from "@/server/member-qualifications";
 
 const DUE_WINDOW_DAYS = 90;
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
+    const clock = fixedClock();
     const admin = await getAdmin(request, "pilots.read");
-    const organizationId = admin.organizationId ?? admin.unitId;
-    const db = getPrisma();
-    const positions = await db.position.findMany({
-      where: { active: true, ...(organizationId ? { organizationId } : {}) },
+    const personWhere = memberScopeWhere(admin);
+    const positions = await getPrisma().position.findMany({
+      where: {
+        active: true,
+        ...(admin.organizationId ? { organizationId: admin.organizationId } : {}),
+      },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       include: {
         assignments: {
-          where: { status: "ACTIVE", ...(organizationId ? { person: { organizationId } } : {}) },
-          select: { personId: true },
+          where: { status: "ACTIVE", person: personWhere },
+          include: { person: { include: qualificationPersonInclude } },
         },
         requirements: {
-          where: { active: true, required: true },
+          where: { active: true, required: true, qualificationDefinition: { active: true } },
           select: { qualificationDefinitionId: true },
         },
       },
     });
-    const personIds = [
-      ...new Set(
-        positions.flatMap((position) => position.assignments.map((item) => item.personId)),
-      ),
-    ];
-    const definitionIds = [
-      ...new Set(
-        positions.flatMap((position) =>
-          position.requirements.map((item) => item.qualificationDefinitionId),
-        ),
-      ),
-    ];
-    const records =
-      personIds.length && definitionIds.length
-        ? await db.qualificationRecord.findMany({
-            where: {
-              personId: { in: personIds },
-              qualificationDefinitionId: { in: definitionIds },
-              status: "ACTIVE",
-            },
-            select: { personId: true, qualificationDefinitionId: true, expiryDate: true },
-          })
-        : [];
-    const recordByKey = new Map(
-      records.map((record) => [`${record.personId}:${record.qualificationDefinitionId}`, record]),
-    );
-    const dueAt = new Date(Date.now() + DUE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
     const result = positions.map((position) => {
-      const required = position.requirements;
       let missing = 0;
+      let incomplete = 0;
       let expired = 0;
       let due = 0;
+      const timezones = new Set<string>();
+      const members = new Map<string, ReturnType<typeof resolveMemberQualifications>>();
       for (const assignment of position.assignments) {
-        for (const requirement of required) {
-          const record = recordByKey.get(
-            `${assignment.personId}:${requirement.qualificationDefinitionId}`,
+        const resolved = resolveMemberQualifications(assignment.person, clock);
+        if (resolved.timezone) {
+          const today = dateOnlyForTimezone(clock.now(), resolved.timezone);
+          const from = databaseDateOnly(assignment.effectiveFrom);
+          const to = databaseDateOnly(assignment.effectiveTo);
+          if ((from && from > today) || (to && to < today)) continue;
+          timezones.add(resolved.timezone);
+        }
+        members.set(assignment.personId, resolved);
+      }
+      for (const member of members.values()) {
+        for (const requirement of position.requirements) {
+          const item = member.items.find(
+            (entry) => entry.definition.id === requirement.qualificationDefinitionId,
           );
-          if (!record) {
-            missing += 1;
-          } else if (record.expiryDate && record.expiryDate < new Date()) {
-            expired += 1;
-          } else if (record.expiryDate && record.expiryDate <= dueAt) {
-            due += 1;
-          }
+          const status = item?.status ?? "missing";
+          if (status === "missing") missing += 1;
+          else if (status === "incomplete") incomplete += 1;
+          else if (status === "expired") expired += 1;
+          else if (status === "due") due += 1;
         }
       }
       return {
@@ -79,11 +73,14 @@ export async function GET(request: NextRequest) {
         description: position.description,
         active: position.active,
         sortOrder: position.sortOrder,
-        memberCount: position.assignments.length,
-        requiredQualificationCount: required.length,
+        memberCount: members.size,
+        requiredQualificationCount: position.requirements.length,
         missingCount: missing,
+        incompleteCount: incomplete,
         expiredCount: expired,
         dueCount: due,
+        timezones: [...timezones],
+        evaluatedAt: clock.now().toISOString(),
         sourcePackCode: position.sourcePackCode,
         sourcePackVersion: position.sourcePackVersion,
       };

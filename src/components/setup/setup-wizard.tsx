@@ -1,5 +1,6 @@
 "use client";
 
+import { BUSINESS_TIMEZONES } from "@/lib/date-only";
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -50,15 +51,7 @@ type SetupErrorMap = Partial<Record<"name" | "email" | "password" | "confirm" | 
 type BackupTargetType = SetupCompleteInput["backup"]["targetType"];
 type NotificationChannelKey = "inApp" | "feishu" | "sms";
 
-const timezones = [
-  "Asia/Shanghai",
-  "Asia/Hong_Kong",
-  "Asia/Singapore",
-  "Asia/Tokyo",
-  "Europe/London",
-  "America/Los_Angeles",
-  "UTC",
-];
+const timezones = BUSINESS_TIMEZONES;
 
 const routeKeys = [
   "qualification_expiry",
@@ -346,7 +339,7 @@ function WelcomeStep({
           <Select
             label={copy.welcome.timezone}
             value={timezone}
-            options={timezones.map((value) => ({
+            options={[...new Set([...timezones, timezone])].map((value) => ({
               label: value === "Asia/Shanghai" ? `${value} (UTC+8)` : value,
               value,
             }))}
@@ -1464,7 +1457,7 @@ function SetupAuthorizationGate({
   onAuthorized,
 }: {
   locale: SetupLocale;
-  onAuthorized: () => void;
+  onAuthorized: () => Promise<void>;
 }) {
   const copy = setupCopy[locale].authorization;
   const [code, setCode] = React.useState("");
@@ -1480,7 +1473,7 @@ function SetupAuthorizationGate({
     setError("");
     try {
       await apiRequest<{ authorized: true }>("/api/setup/authorize", "POST", { code });
-      onAuthorized();
+      await onAuthorized();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Authorization failed");
     } finally {
@@ -1581,7 +1574,19 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
   }, [locale]);
 
   if (!authorized) {
-    return <SetupAuthorizationGate locale={locale} onAuthorized={() => setAuthorized(true)} />;
+    return (
+      <SetupAuthorizationGate
+        locale={locale}
+        onAuthorized={async () => {
+          const nextOverview = await apiRequest<SetupOverview>("/api/setup");
+          setOverview(nextOverview);
+          setLocale(nextOverview.defaults.locale);
+          setTimezone(nextOverview.defaults.timezone);
+          setOrganizationName(nextOverview.defaults.organizationName);
+          setAuthorized(true);
+        }}
+      />
+    );
   }
 
   const updateAdmin = (patch: Partial<typeof admin>) => {

@@ -66,12 +66,15 @@ export async function authorizeSetup(request: Request, code: string) {
   }
 }
 
-export async function assertSetupAuthorized() {
-  if (getServerConfig().SERVICE_MODE === "mock") return;
+export async function isSetupAuthorized() {
+  if (getServerConfig().SERVICE_MODE === "mock") return true;
   const requestCookies = await cookies();
-  if (!validSetupCookie(requestCookies.get(SETUP_AUTH_COOKIE)?.value)) {
-    throw new ApiError("SETUP_AUTH_REQUIRED", "请输入安装完成后显示的首次配置授权码", 401);
-  }
+  return validSetupCookie(requestCookies.get(SETUP_AUTH_COOKIE)?.value);
+}
+
+export async function assertSetupAuthorized() {
+  if (await isSetupAuthorized()) return;
+  throw new ApiError("SETUP_AUTH_REQUIRED", "请输入安装完成后显示的首次配置授权码", 401);
 }
 
 export async function guardSetupMutation(

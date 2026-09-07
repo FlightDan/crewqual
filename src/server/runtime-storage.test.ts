@@ -21,6 +21,7 @@ describe("runtime object storage configuration", () => {
       ...originalEnv,
       NODE_ENV: "test",
       SESSION_SECRET: "test-session-secret-that-is-long-enough",
+      READINESS_PROBE_SECRET: "test-readiness-probe-secret-0123456789",
       SETTINGS_ENCRYPTION_KEY: "test-storage-settings-encryption-key",
     };
     prismaFindUnique.mockReset();
@@ -80,10 +81,12 @@ describe("runtime object storage configuration", () => {
       DATABASE_URL: "postgresql://crewqual:test@postgres/crewqual",
       SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
       SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      TRUSTED_PROXY_HOPS: "1",
       STORAGE_MODE: "builtin",
       S3_ENDPOINT: "http://minio:9000",
       S3_ACCESS_KEY_ID: "access",
       S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      OUTBOUND_ALLOWED_HOSTS: "external-s3.example.test",
     });
     resetServerConfigForTests();
 
@@ -97,7 +100,37 @@ describe("runtime object storage configuration", () => {
         secretAccessKey: "secret-key-value",
         forcePathStyle: false,
       }),
-    ).toThrow("must use HTTPS");
+    ).toThrow("必须使用 HTTPS");
+  });
+
+  it("requires a deployment-owned host entry for production external S3", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@postgres/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      TRUSTED_PROXY_HOPS: "1",
+      STORAGE_MODE: "builtin",
+      S3_ENDPOINT: "http://minio:9000",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      OUTBOUND_ALLOWED_HOSTS: "minio:9000",
+    });
+    resetServerConfigForTests();
+
+    expect(() =>
+      resolveSetupStorage({
+        mode: "s3",
+        endpoint: "https://unapproved-s3.example.test",
+        region: "us-east-1",
+        bucket: "evidence",
+        accessKeyId: "access-key",
+        secretAccessKey: "secret-key-value",
+        forcePathStyle: false,
+      }),
+    ).toThrow("主机白名单");
   });
 
   it("falls back to environment storage until a database setting exists", async () => {

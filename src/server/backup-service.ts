@@ -1,10 +1,17 @@
 import { getPrisma } from "@/server/prisma";
-import { createOpaqueToken, encryptSettingSecret } from "@/server/crypto";
+import { createOpaqueToken, decryptSettingSecret, encryptSettingSecret } from "@/server/crypto";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ApiError } from "@/server/api";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { isSuperAdmin } from "@/server/admin-permissions";
 import { normalizeLocalBackupLocation } from "@/server/backup-path";
+import { checkBackupEndpoint, type RemoteBackupTargetType } from "@/server/backup-endpoint-safety";
+import { getServerConfig } from "@/server/config";
+import {
+  backupArtifactEncryptionSecret,
+  parseBackupCredentials,
+  serializeRemoteCredentialsWithEncryptionKey,
+} from "@/server/backup-credential";
 
 export const BACKUP_TARGET_TYPES = ["LOCAL", "SMB", "FTP", "WEBDAV", "S3"] as const;
 export const BACKUP_SOURCES = ["GALLERY", "DATABASE"] as const;
@@ -84,23 +91,26 @@ export async function createBackupTarget(admin: AuthenticatedAdmin, input: any) 
   requireBackupAdmin(admin);
   const localLocation =
     input.type === "LOCAL" ? normalizeLocalBackupLocation(input.endpoint, input.basePath) : null;
-  if (input.type === "S3") {
-    let endpoint: URL;
-    try {
-      endpoint = new URL(input.endpoint);
-    } catch {
-      throw new ApiError("INVALID_BACKUP_ENDPOINT", "S3 目标地址无效", 422);
-    }
-    if (endpoint.protocol !== "https:" && process.env.NODE_ENV === "production") {
-      throw new ApiError("INSECURE_BACKUP_ENDPOINT", "生产 S3 目标必须使用 HTTPS", 422);
+  if (input.type !== "LOCAL") {
+    const endpointCheck = checkBackupEndpoint(
+      input.type as RemoteBackupTargetType,
+      input.endpoint,
+      getServerConfig(),
+    );
+    if (!endpointCheck.ok) {
+      throw new ApiError("INVALID_BACKUP_ENDPOINT", endpointCheck.reason, 422);
     }
   }
-  const secret =
+  let secret =
     typeof input.secret === "string" && input.secret
       ? input.secret
       : input.type === "LOCAL" && (input.encryptionEnabled ?? true)
         ? createOpaqueToken(32)
         : "";
+  const parsedCredentials = parseBackupCredentials(input.type, secret);
+  if (parsedCredentials.type !== "LOCAL" && input.encryptionEnabled !== false) {
+    secret = serializeRemoteCredentialsWithEncryptionKey(parsedCredentials, createOpaqueToken(32));
+  }
   const target = await getPrisma().backupTarget.create({
     data: {
       name: input.name,
@@ -116,12 +126,86 @@ export async function createBackupTarget(admin: AuthenticatedAdmin, input: any) 
 
 export async function saveBackupTarget(admin: AuthenticatedAdmin, input: any) {
   requireBackupAdmin(admin);
+  const current = await getPrisma().backupTarget.findUnique({ where: { id: input.id } });
+  if (!current) throw new ApiError("BACKUP_TARGET_NOT_FOUND", "备份目标不存在", 404);
+  if (input.type !== current.type) {
+    throw new ApiError(
+      "BACKUP_TARGET_TYPE_IMMUTABLE",
+      "备份目标协议创建后不可修改；请新建目标以避免凭据被错误解释",
+      409,
+    );
+  }
   const localLocation =
     input.type === "LOCAL"
       ? normalizeLocalBackupLocation(String(input.endpoint), String(input.basePath))
       : null;
-  const current = await getPrisma().backupTarget.findUnique({ where: { id: input.id } });
-  if (!current) throw new ApiError("BACKUP_TARGET_NOT_FOUND", "备份目标不存在", 404);
+  if (input.type !== "LOCAL") {
+    const endpointCheck = checkBackupEndpoint(
+      input.type as RemoteBackupTargetType,
+      input.endpoint,
+      getServerConfig(),
+    );
+    if (!endpointCheck.ok) {
+      throw new ApiError("INVALID_BACKUP_ENDPOINT", endpointCheck.reason, 422);
+    }
+  }
+  let replacementSecret: string | undefined;
+  if (input.secret) {
+    if (input.type === "LOCAL") {
+      const currentSecret = current.secretCiphertext
+        ? decryptSettingSecret(current.secretCiphertext)
+        : "";
+      if (currentSecret && input.secret !== currentSecret) {
+        throw new ApiError(
+          "BACKUP_ENCRYPTION_KEY_IMMUTABLE",
+          "已有加密备份的密钥不可修改；请新建备份目标",
+          409,
+        );
+      }
+      replacementSecret = input.secret;
+    } else {
+      const nextCredentials = parseBackupCredentials(input.type, input.secret);
+      if (nextCredentials.type === "LOCAL") throw new Error("远端备份凭据类型无效");
+      const currentSecret = current.secretCiphertext
+        ? decryptSettingSecret(current.secretCiphertext)
+        : "";
+      const currentCredentials = parseBackupCredentials(input.type, currentSecret);
+      const currentEncryptionKey = currentSecret
+        ? backupArtifactEncryptionSecret(currentCredentials, currentSecret)
+        : "";
+      const stableEncryptionKey =
+        currentEncryptionKey || nextCredentials.values.encryptionKey || createOpaqueToken(32);
+      if (
+        currentEncryptionKey &&
+        nextCredentials.values.encryptionKey &&
+        nextCredentials.values.encryptionKey !== stableEncryptionKey
+      ) {
+        throw new ApiError(
+          "BACKUP_ENCRYPTION_KEY_IMMUTABLE",
+          "已有加密备份的密钥不可修改；请新建备份目标",
+          409,
+        );
+      }
+      replacementSecret = serializeRemoteCredentialsWithEncryptionKey(
+        nextCredentials,
+        stableEncryptionKey,
+      );
+    }
+  } else if (input.encryptionEnabled && !current.encryptionEnabled) {
+    const currentSecret = current.secretCiphertext
+      ? decryptSettingSecret(current.secretCiphertext)
+      : "";
+    const currentCredentials = parseBackupCredentials(input.type, currentSecret);
+    replacementSecret =
+      currentCredentials.type === "LOCAL"
+        ? currentSecret || createOpaqueToken(32)
+        : serializeRemoteCredentialsWithEncryptionKey(
+            currentCredentials,
+            currentSecret
+              ? backupArtifactEncryptionSecret(currentCredentials, currentSecret)
+              : createOpaqueToken(32),
+          );
+  }
   const updated = await getPrisma().backupTarget.updateMany({
     where: { id: input.id, version: input.version },
     data: {
@@ -130,7 +214,7 @@ export async function saveBackupTarget(admin: AuthenticatedAdmin, input: any) {
       basePath: localLocation?.basePath ?? input.basePath,
       active: input.active,
       encryptionEnabled: input.encryptionEnabled,
-      ...(input.secret ? { secretCiphertext: encryptSettingSecret(input.secret) } : {}),
+      ...(replacementSecret ? { secretCiphertext: encryptSettingSecret(replacementSecret) } : {}),
       version: { increment: 1 },
     },
   });

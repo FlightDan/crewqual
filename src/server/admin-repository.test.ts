@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { approveReview, correctReview } from "@/server/admin-repository";
+import { approveReview, correctReview, returnReview } from "@/server/admin-repository";
 
 const mocks = vi.hoisted(() => ({
   getPrisma: vi.fn(),
@@ -61,6 +61,8 @@ function pendingRequest(overrides: Record<string, unknown> = {}) {
     submittedFields: {},
     status: "PENDING",
     expectedVersion: 2,
+    expectedQualificationRecordId: "record-current",
+    baselineCapturedAt: new Date("2026-08-16T00:00:00Z"),
     version: 1,
     submittedAt: new Date("2026-08-16T00:00:00.000Z"),
     decidedAt: null,
@@ -138,6 +140,79 @@ describe("admin review qualification consistency", () => {
         data: expect.objectContaining({ action: "qualification.approval_conflict" }),
       }),
     );
+  });
+
+  it("rejects a different record identity even when its numeric version is unchanged", async () => {
+    const request = pendingRequest();
+    const db = approvalDb(request, { id: "rolled-back-record", version: 2, status: "ACTIVE" });
+    mocks.getPrisma.mockReturnValue(db);
+    await expect(
+      approveReview(admin, request.id, { expectedVersion: 1, requestId: "identity" }),
+    ).rejects.toMatchObject({ code: "QUALIFICATION_CHANGED_SINCE_SUBMISSION", status: 409 });
+    expect(db.tx.qualificationUpdateRequest.updateMany).not.toHaveBeenCalled();
+    expect(db.tx.qualificationRecord.create).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 2])(
+    "rejects an unknown historical baseline at version %i without changing the request",
+    async (expectedVersion) => {
+      const request = pendingRequest({
+        baselineCapturedAt: null,
+        expectedQualificationRecordId: null,
+        expectedVersion,
+      });
+      const db = approvalDb(request, null);
+      mocks.getPrisma.mockReturnValue(db);
+      await expect(
+        approveReview(admin, request.id, { expectedVersion: 1, requestId: "unknown" }),
+      ).rejects.toMatchObject({
+        code: "QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION",
+        status: 409,
+      });
+      expect(db.tx.qualificationUpdateRequest.updateMany).not.toHaveBeenCalled();
+      expect(db.tx.qualificationEvidence.update).not.toHaveBeenCalled();
+      expect(db.tx.qualificationRecord.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows a legacy request to be returned with an audit trail for resubmission", async () => {
+    const request = pendingRequest({ baselineCapturedAt: null });
+    const db = approvalDb(request, null);
+    mocks.getPrisma.mockReturnValue(db);
+    await returnReview(admin, request.id, "请核对当前资质后重新提交", 1, "return-legacy");
+    expect(db.tx.qualificationUpdateRequest.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "RETURNED" }),
+      }),
+    );
+    expect(db.tx.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "qualification.returned", entityId: request.id }),
+      }),
+    );
+    expect(db.tx.qualificationEvidence.update).not.toHaveBeenCalled();
+  });
+
+  it("approves a captured absence as a first record", async () => {
+    const request = pendingRequest({ expectedVersion: 0, expectedQualificationRecordId: null });
+    const db = approvalDb(request, null);
+    mocks.getPrisma.mockReturnValue(db);
+    await approveReview(admin, request.id, { expectedVersion: 1, requestId: "first" });
+    expect(db.tx.qualificationRecord.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ version: 1, revisionNumber: 1 }),
+      }),
+    );
+  });
+
+  it("rejects a first submission if a record has since been added", async () => {
+    const request = pendingRequest({ expectedVersion: 0, expectedQualificationRecordId: null });
+    const db = approvalDb(request, { id: "record-current", version: 1, status: "ACTIVE" });
+    mocks.getPrisma.mockReturnValue(db);
+    await expect(
+      approveReview(admin, request.id, { expectedVersion: 1, requestId: "first-race" }),
+    ).rejects.toMatchObject({ code: "QUALIFICATION_CHANGED_SINCE_SUBMISSION" });
+    expect(db.tx.qualificationRecord.create).not.toHaveBeenCalled();
   });
 
   it("uses the submitted rule snapshot instead of the current qualification config", async () => {

@@ -229,9 +229,9 @@ grep -Eq "CREWQUAL_UPDATER_SHARED_SECRET='[a-f0-9]{64}'" "$INSTALL_DIR/.env"
 ! grep -q '^CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY=' "$INSTALL_DIR/.env"
 grep -q 'CREWQUAL_RUNTIME_IMAGE: ${CREWQUAL_RUNTIME_IMAGE' "$INSTALL_DIR/compose.yaml"
 
-before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
+before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
 run_installer --version v9.8.8 --non-interactive
-after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
+after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
 
 [[ "$before_secrets" == "$after_secrets" ]]
 grep -q "CREWQUAL_VERSION='v9.8.8'" "$INSTALL_DIR/.env"
@@ -257,7 +257,7 @@ grep -q "deployment complete" "$english_upgrade_log"
 CREWQUAL_TEST_INSTALL_DIR="$SECOND_INSTALL_DIR" \
   run_installer --version v9.8.7 --domain second.example.com \
   --tls-email second@example.com --non-interactive >/dev/null
-second_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$SECOND_INSTALL_DIR/.env")"
+second_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$SECOND_INSTALL_DIR/.env")"
 [[ "$before_secrets" != "$second_secrets" ]]
 
 CREWQUAL_TEST_INSTALL_DIR="$CUSTOM_INSTALL_DIR" \
@@ -295,10 +295,10 @@ grep -q '手动升级模式' "$WSL_INSTALL_LOG"
 grep -q '重新运行 CrewQual 安装命令' "$WSL_INSTALL_LOG"
 [[ -d "$WSL_INSTALL_DIR/.updater-runtime" ]]
 
-wsl_before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$WSL_INSTALL_DIR/.env")"
+wsl_before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$WSL_INSTALL_DIR/.env")"
 CREWQUAL_TEST_PLATFORM=wsl CREWQUAL_TEST_INSTALL_DIR="$WSL_INSTALL_DIR" \
   run_installer --version v9.8.8 --non-interactive >/dev/null
-wsl_after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$WSL_INSTALL_DIR/.env")"
+wsl_after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$WSL_INSTALL_DIR/.env")"
 [[ "$wsl_before_secrets" == "$wsl_after_secrets" ]]
 grep -q "CREWQUAL_VERSION='v9.8.8'" "$WSL_INSTALL_DIR/.env"
 grep -q "CREWQUAL_UPDATER_MODE='manual'" "$WSL_INSTALL_DIR/.env"

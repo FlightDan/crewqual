@@ -287,7 +287,7 @@ describe("fourth-batch operation services", () => {
     const expiredPilotDraft = (await services.upgradePlans.saveDraft(planDraft("pilot-demo-03")))
       .data;
     await expect(services.upgradePlans.start(expiredPilotDraft.id)).rejects.toThrow(
-      "核心资质已过期",
+      "核心资质缺失、数据不完整或已过期",
     );
     await expect(
       services.upgradePlans.cancel(expiredPilotDraft.id, { reason: "草稿不应通过取消流转" }),
@@ -388,5 +388,26 @@ describe("fourth-batch operation services", () => {
     expect(retried.attempts).toHaveLength(before.attempts.length + 2);
     expect(retried.attempts.at(-2)?.status).toBe("queued");
     expect(retried.attempts.at(-1)?.status).toBe("sent");
+  });
+  it("does not create expiry events for incomplete or explicitly non-expiring records", async () => {
+    const state = createInitialAdminState();
+    const pilot = state.pilots[0]!;
+    pilot.qualifications[0]!.expiryDate = "";
+    pilot.qualifications[0]!.expiresOn = "";
+    pilot.qualifications[1]!.expiryDate = "";
+    pilot.qualifications[1]!.expiresOn = "";
+    pilot.qualifications[1]!.validityRule = { kind: "non_expiring" };
+    const services = createMockAdminOperationsServices(createAdminStateStore(state), clock);
+    const events = (await services.calendar.listEvents({ type: "qualification_expiry" })).data;
+    expect(
+      events
+        .filter((event) => event.pilotId === pilot.id)
+        .some((event) =>
+          [pilot.qualifications[0]!.id, pilot.qualifications[1]!.id].includes(
+            event.qualificationId!,
+          ),
+        ),
+    ).toBe(false);
+    expect(events.every((event) => typeof event.daysRemaining === "number")).toBe(true);
   });
 });

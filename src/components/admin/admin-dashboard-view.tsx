@@ -20,6 +20,7 @@ import { useAdminSession } from "@/services/admin-session-provider";
 import { useI18n } from "@/components/i18n-provider";
 import { localizedQualificationText } from "@/lib/messages";
 import { localizedQualificationName } from "@/lib/i18n";
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
 
 type DashboardMetricKey =
   "expired" | "due-7" | "due-30" | "pending-review" | "weekly-upgrade" | "delayed-upgrade";
@@ -31,6 +32,7 @@ export function AdminDashboardView() {
   const { locale, t } = useI18n();
   const canDecide = hasPermission("reviews.decide");
   const [summary, setSummary] = React.useState<AdminDashboardSummary | null>(null);
+  const businessDayRevision = useBusinessDayRefresh(summary?.timezones ?? ["Asia/Shanghai"]);
   const [quickApproval, setQuickApproval] = React.useState<QualificationReview | null>(null);
   const [selectedMetric, setSelectedMetric] = React.useState<DashboardMetricKey | null>(null);
 
@@ -42,7 +44,7 @@ export function AdminDashboardView() {
     return () => {
       active = false;
     };
-  }, [adminDashboard, state]);
+  }, [adminDashboard, state, businessDayRevision]);
 
   if (!summary) {
     return (
@@ -106,6 +108,24 @@ export function AdminDashboardView() {
   return (
     <PageContainer className="space-y-6">
       <AdminPageHeader title={t("dashboard.title")} description={t("dashboard.description")} />
+      {((summary.missingCount ?? 0) > 0 || (summary.incompleteCount ?? 0) > 0) && (
+        <div
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
+          role="status"
+        >
+          <p>
+            {locale === "en-US"
+              ? `Required qualifications: ${summary.missingCount ?? 0} missing, ${summary.incompleteCount ?? 0} need manual review.`
+              : `必需资质：缺失 ${summary.missingCount ?? 0} 项，待人工核查 ${summary.incompleteCount ?? 0} 项。`}
+          </p>
+          <Link
+            href="/admin/members"
+            className="mt-2 inline-block font-semibold underline underline-offset-4"
+          >
+            {locale === "en-US" ? "Review member qualifications" : "查看成员资质"}
+          </Link>
+        </div>
+      )}
       <section
         aria-label={t("dashboard.stats")}
         className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"

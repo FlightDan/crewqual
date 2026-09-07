@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { databaseDateOnly, qualificationDaysRemaining } from "@/lib/date-only";
 import type { Prisma } from "@/generated/prisma/client";
+import { canEvaluateLinearRegex, compileLinearRegex, testLinearRegex } from "@/lib/regex-safety";
 
 const dateOnlySchema = z
   .string()
@@ -73,14 +75,20 @@ export const parameterRestrictionSchema = z
           message: "正则表达式不能为空",
         });
       } else {
-        try {
-          new RegExp(value.enforcement.pattern, "u");
-        } catch {
-          context.addIssue({
-            code: "custom",
-            path: ["enforcement", "pattern"],
-            message: "正则表达式无效",
-          });
+        // This shared schema is also used by the client form. The server is
+        // authoritative for regex compilation; the browser mapping excludes
+        // the RE2 WASM engine from the client bundle, while server saves and matches
+        // both use compileLinearRegex/testLinearRegex below.
+        if (typeof window === "undefined" || process.env.NODE_ENV === "test") {
+          try {
+            compileLinearRegex(value.enforcement.pattern);
+          } catch (error) {
+            context.addIssue({
+              code: "custom",
+              path: ["enforcement", "pattern"],
+              message: error instanceof Error ? error.message : "正则表达式无效",
+            });
+          }
         }
       }
     }
@@ -113,6 +121,11 @@ export type QualificationValidityRule = z.infer<typeof validityRuleSchema>;
 export type QualificationReminderRule = z.infer<typeof reminderRuleSchema>;
 export type QualificationParameterRestriction = z.infer<typeof parameterRestrictionSchema>;
 export type QualificationRuleSnapshot = z.infer<typeof qualificationRuleSnapshotSchema>;
+
+/** Expiry interpretation depends on captured validity evidence, not mutable notification/OCR settings. */
+export const qualificationValiditySnapshotSchema = qualificationRuleSnapshotSchema
+  .pick({ snapshotSource: true, version: true, validityRule: true })
+  .passthrough();
 
 export function qualificationRuleSnapshot(type: {
   version: number;
@@ -222,8 +235,14 @@ export function validateQualificationRuleFields(
           message: `等级/参数必须是：${enforcement.allowedValues.join("、")}`,
         });
       }
-      if (enforcement.mode === "regex" && !new RegExp(enforcement.pattern, "u").test(value)) {
-        errors.push({ field: "levelOrParameter", message: "等级/参数格式不符合规则" });
+      if (enforcement.mode === "regex" && canEvaluateLinearRegex()) {
+        try {
+          if (!testLinearRegex(enforcement.pattern, value)) {
+            errors.push({ field: "levelOrParameter", message: "等级/参数格式不符合规则" });
+          }
+        } catch {
+          errors.push({ field: "levelOrParameter", message: "等级/参数规则配置无效" });
+        }
       }
     }
   }
@@ -272,22 +291,9 @@ export function reminderWindow(
   timezone = "Asia/Shanghai",
 ) {
   const configured = parseReminderRule(reminders);
-  const dateParts = (value: Date) => {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(value);
-    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
-  };
-  const daysRemaining = Math.round((dateParts(expiryDate) - dateParts(now)) / 86_400_000);
-  // The expiry date is valid for the entire local calendar day.  Expired
-  // escalation starts on the following calendar boundary for eligibility,
-  // while reminder routing treats the configured "expired" window as a
-  // same-day operational alert when daysRemaining is zero.
-  if (daysRemaining <= 0) return { daysRemaining, kind: "expired" as const };
+  const daysRemaining = qualificationDaysRemaining(databaseDateOnly(expiryDate)!, now, timezone);
+  if (daysRemaining < 0) return { daysRemaining, kind: "expired" as const };
+  if (daysRemaining === 0) return { daysRemaining, kind: "today" as const };
   if (daysRemaining <= configured.secondDays) return { daysRemaining, kind: "second" as const };
   if (daysRemaining <= configured.firstDays) return { daysRemaining, kind: "first" as const };
   return null;

@@ -18,7 +18,7 @@ import {
   upgradeStageCompletionSchema,
   upgradeStageRescheduleSchema,
 } from "@/lib/admin-operations-validation";
-import { deriveQualificationDateState, systemClock } from "@/lib/qualification-date-status";
+import { daysOverdue, getMockNow } from "@/mocks/test-clock";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { UpgradePlanRecord, UpgradePlanStageRecord } from "@/types/services";
@@ -84,7 +84,17 @@ export function UpgradePlanDetailView({ planId }: { planId: string }) {
   const next = plan.stages
     .slice(Math.max(currentIndex + 1, 0))
     .find((stage) => stage.status !== "completed");
-  const delayDays = plan.stages.reduce((sum, stage) => sum + (stage.delayDays ?? 0), 0);
+  const delayDays = plan.stages.reduce(
+    (sum, stage) =>
+      sum +
+      Math.max(
+        stage.delayDays ?? 0,
+        stage.status === "in_progress" || stage.status === "delayed"
+          ? daysOverdue(stage.plannedEnd, getMockNow())
+          : 0,
+      ),
+    0,
+  );
   const readonly =
     !canWrite || plan.lifecycleStatus === "completed" || plan.lifecycleStatus === "cancelled";
   const runLifecycleAction = async () => {
@@ -349,13 +359,13 @@ export function UpgradePlanDetailView({ planId }: { planId: string }) {
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted">{t("upgradeDetail.prerequisite")}</dt>
                   <dd className="text-right font-semibold">
-                    {pilot?.qualifications.some(
-                      (item) =>
-                        deriveQualificationDateState(item.expiresOn, systemClock).status ===
-                        "expired",
-                    )
-                      ? t("upgradeDetail.qualificationExpired")
-                      : t("upgradeDetail.qualificationNormal")}
+                    <p>{t("upgradeDetail.qualificationCheckOnAction")}</p>
+                    <Link
+                      href={`/admin/pilots/${plan.pilotId}`}
+                      className="mt-1 inline-block text-brand underline underline-offset-4"
+                    >
+                      {t("upgradeDetail.viewQualifications")}
+                    </Link>
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">

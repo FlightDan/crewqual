@@ -15,7 +15,7 @@ on:
         type: choice
         options: [rc, final]
       acceptance_scope:
-        description: local runs self-contained release gates; full also runs S3 DR and remote E2E
+        description: local runs static/bootstrap gates; full also runs S3 DR and isolated candidate-image E2E
         required: true
         default: local
         type: choice
@@ -34,40 +34,19 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: crewqual-release-acceptance-sandbox
+  cancel-in-progress: false
+
 env:
+  # Non-secret run parameters only. All secrets are scoped to the acceptance
+  # job (the only consumer) so other jobs and any added steps cannot read them.
   RELEASE_TAG: ${{ inputs.tag }}
   RELEASE_PROFILE: ${{ inputs.profile }}
   RELEASE_ACCEPTANCE_SCOPE: ${{ inputs.acceptance_scope }}
   RELEASE_UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
   RELEASE_REPLACE_EXISTING_ASSETS: ${{ inputs.replace_existing_assets }}
   RELEASE_RUN_ID: ${{ github.run_id }}
-  RELEASE_BASE_URL: ${{ secrets.RELEASE_BASE_URL }}
-  E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-  E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-  E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
-  RELEASE_WEB_IMAGE: ${{ secrets.RELEASE_WEB_IMAGE }}
-  RELEASE_RUNTIME_IMAGE: ${{ secrets.RELEASE_RUNTIME_IMAGE }}
-  UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
-  UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
-  RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64 }}
-  RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
-  RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-  EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
-  BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
-  RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
-  S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
-  S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
-  BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
-  BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
-  BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
-  BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
-  BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
-  RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
   LICENSE_APPROVALS_FILE: /tmp/license-approvals.json
   SMS_ADAPTER: disabled
   FEISHU_ADAPTER: disabled
@@ -85,6 +64,11 @@ jobs:
       web_image: ${{ steps.images.outputs.web_image }}
       runtime_image: ${{ steps.images.outputs.runtime_image }}
     steps:
+      - name: Require full acceptance for final releases
+        if: inputs.profile == 'final' && inputs.acceptance_scope != 'full'
+        run: |
+          echo 'final releases require acceptance_scope=full'
+          exit 1
       - name: Checkout signed release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,6 +107,11 @@ jobs:
             --build-arg VERSION="$RELEASE_TAG" \
             --build-arg SOURCE_URL="$source_url" \
             --tag "$runtime:$RELEASE_TAG" .
+          docker run --rm --network none \
+            --env NODE_ENV=development \
+            --env SERVICE_MODE=mock \
+            --env NEXT_PUBLIC_SERVICE_MODE=mock \
+            "$runtime:$RELEASE_TAG" | grep -q '"event":"worker_disabled"'
           docker push "$web:$RELEASE_TAG"
           docker push "$runtime:$RELEASE_TAG"
 
@@ -168,6 +157,27 @@ jobs:
       RELEASE_RUNTIME_IMAGE: ${{ needs.build-images.outputs.runtime_image }}
       COSIGN_CERT_IDENTITY_REGEXP: ^https://github\.com/FlightDan/crewqual/\.github/workflows/release-acceptance\.yml@.*$
       COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
+      UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+      UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+      RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64 }}
+      RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+      RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+      EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
+      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
+      S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
+      S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
+      BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
+      BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
+      BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
+      BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
+      BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
+      RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout signed release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -300,6 +310,7 @@ jobs:
 
   publish:
     needs: acceptance
+    if: inputs.acceptance_scope == 'full'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -394,7 +405,7 @@ jobs:
 
   promote-final:
     needs: post-publish-host-acceptance
-    if: inputs.profile == 'final'
+    if: inputs.profile == 'final' && inputs.acceptance_scope == 'full'
     runs-on: ubuntu-24.04
     permissions:
       contents: write

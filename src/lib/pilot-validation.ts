@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { isMatch, isValid, parseISO } from "date-fns";
-import type { DateFieldName, DateFieldSource, QualificationUpdateDraft } from "@/types/services";
+import type {
+  DateFieldName,
+  DateFieldSource,
+  QualificationParameterRestriction,
+  QualificationUpdateDraft,
+} from "@/types/services";
 import type { ValidityRule } from "@/types/services";
 import { validateQualificationRuleFields } from "@/lib/qualification-rules";
 
@@ -27,6 +32,7 @@ const qualificationFieldsSchema = z.object({
 
 export function createQualificationUpdateSchema(
   validityRule: ValidityRule = { kind: "manual_expiry" },
+  parameterRestriction?: QualificationParameterRestriction,
 ) {
   return qualificationFieldsSchema.superRefine((value, context) => {
     const validation = validateQualificationRuleFields(
@@ -34,8 +40,10 @@ export function createQualificationUpdateSchema(
         issueDate: value.issueDate,
         trainingDate: value.trainingDate || null,
         expiryDate: value.expiryDate || null,
+        levelOrParameter: value.levelOrParameter,
       },
       validityRule,
+      parameterRestriction,
     );
     validation.errors.forEach((error) =>
       context.addIssue({ code: "custom", path: [error.field], message: error.message }),
@@ -94,9 +102,10 @@ export function sourceAfterDateChange(
 export function isDraftSubmittable(
   draft: QualificationUpdateDraft,
   validityRule: ValidityRule = { kind: "manual_expiry" },
+  parameterRestriction?: QualificationParameterRestriction,
 ): boolean {
   return (
     Boolean(draft.evidenceId || draft.documentName) &&
-    createQualificationUpdateSchema(validityRule).safeParse(draft).success
+    createQualificationUpdateSchema(validityRule, parameterRestriction).safeParse(draft).success
   );
 }

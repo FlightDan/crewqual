@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateExpectedExpiry,
   reminderWindow,
@@ -6,6 +6,8 @@ import {
 } from "@/lib/qualification-rules";
 
 describe("qualification business rules", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("calculates fixed-month expiry with end-of-month clamping", () => {
     expect(
       calculateExpectedExpiry(
@@ -93,11 +95,79 @@ describe("qualification business rules", () => {
     ).toContainEqual({ field: "levelOrParameter", message: "等级/参数格式不符合规则" });
   });
 
+  it("rejects unsupported regex syntax at rule validation time", () => {
+    const result = validateQualificationRuleFields(
+      {
+        issueDate: "2026-01-01",
+        expiryDate: "2027-01-01",
+        levelOrParameter: "aa",
+      },
+      { kind: "manual_expiry" },
+      {
+        enabled: true,
+        description: "不支持的语法",
+        version: 1,
+        enforcement: { mode: "regex", allowedValues: [], pattern: "(?=a)a" },
+      },
+    );
+
+    expect(result.errors).toContainEqual({
+      field: "levelOrParameter",
+      message: "等级/参数规则配置无效",
+    });
+  });
+
+  it("defers regex matching to the API in a production browser", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const result = validateQualificationRuleFields(
+      {
+        issueDate: "2026-01-01",
+        expiryDate: "2027-01-01",
+        levelOrParameter: "A320-III",
+      },
+      { kind: "manual_expiry" },
+      {
+        enabled: true,
+        description: "A320 等级",
+        version: 1,
+        enforcement: { mode: "regex", allowedValues: [], pattern: "^A320-(I|II)$" },
+      },
+    );
+
+    expect(result.errors).not.toContainEqual(
+      expect.objectContaining({ field: "levelOrParameter" }),
+    );
+  });
+
   it("uses the unit timezone and emits one configured reminder window", () => {
     const expiry = new Date("2026-08-20T00:00:00.000Z");
     const now = new Date("2026-08-15T16:00:00.000Z");
     expect(reminderWindow(expiry, now, { firstDays: 90, secondDays: 30 }, "Asia/Shanghai")).toEqual(
       { daysRemaining: 4, kind: "second" },
     );
+  });
+});
+
+describe("reminder calendar boundaries", () => {
+  it.each([
+    ["America/Los_Angeles", "2026-08-21T06:59:59Z", 0, "today"],
+    ["America/Los_Angeles", "2026-08-21T07:00:00Z", -1, "expired"],
+    ["Asia/Shanghai", "2026-08-20T15:59:59Z", 0, "today"],
+    ["Asia/Shanghai", "2026-08-20T16:00:00Z", -1, "expired"],
+  ])("keeps DATE fixed in %s at %s", (zone, now, daysRemaining, kind) => {
+    expect(reminderWindow(new Date("2026-08-20T00:00:00Z"), new Date(now), {}, zone)).toEqual({
+      daysRemaining,
+      kind,
+    });
+  });
+  it("counts calendar days across DST rather than elapsed hours", () => {
+    expect(
+      reminderWindow(
+        new Date("2026-03-09T00:00:00Z"),
+        new Date("2026-03-08T07:30:00Z"),
+        {},
+        "America/New_York",
+      ),
+    ).toEqual({ daysRemaining: 1, kind: "second" });
   });
 });

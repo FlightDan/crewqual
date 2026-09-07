@@ -12,6 +12,9 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { useI18n } from "@/components/i18n-provider";
 
+import { projectMockMemberQualifications, captureMockMemberClock } from "@/services/member-status";
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
+
 type PositionCard = {
   id: string;
   code: string;
@@ -19,6 +22,8 @@ type PositionCard = {
   description: string;
   memberCount: number;
   missingCount: number;
+  incompleteCount: number;
+  timezones?: string[];
   expiredCount: number;
   dueCount: number;
 };
@@ -29,8 +34,15 @@ export function MemberHubView() {
   const [positions, setPositions] = React.useState<PositionCard[] | null>(null);
   const { t } = useI18n();
 
+  const refreshRevision = useBusinessDayRefresh(
+    positions?.flatMap((item) => item.timezones ?? []) ?? [],
+  );
   React.useEffect(() => {
     if (!remoteMode) {
+      const clock = captureMockMemberClock();
+      const members = state.pilots.map((pilot) =>
+        projectMockMemberQualifications(pilot, state.qualificationConfigs, clock),
+      );
       setPositions([
         {
           id: "pilot-preview",
@@ -38,24 +50,21 @@ export function MemberHubView() {
           name: t("portal.pilot"),
           description: t("members.pilotDescription"),
           memberCount: state.pilots.length,
-          missingCount: 0,
-          expiredCount: state.pilots.reduce(
-            (count, pilot) =>
-              count +
-              pilot.qualifications.filter(
-                (qualification) =>
-                  qualification.expiryDate && new Date(qualification.expiryDate) < new Date(),
-              ).length,
+          timezones: members.map((member) => member.timezone),
+          missingCount: members.reduce(
+            (count, member) => count + member.requiredQualificationCounts.missing,
             0,
           ),
-          dueCount: state.pilots.reduce(
-            (count, pilot) =>
-              count +
-              pilot.qualifications.filter((qualification) => {
-                if (!qualification.expiryDate) return false;
-                const expiry = new Date(qualification.expiryDate).getTime();
-                return expiry >= Date.now() && expiry <= Date.now() + 90 * 24 * 60 * 60 * 1000;
-              }).length,
+          incompleteCount: members.reduce(
+            (count, member) => count + member.requiredQualificationCounts.incomplete,
+            0,
+          ),
+          expiredCount: members.reduce(
+            (count, member) => count + member.requiredQualificationCounts.expired,
+            0,
+          ),
+          dueCount: members.reduce(
+            (count, member) => count + member.requiredQualificationCounts.due,
             0,
           ),
         },
@@ -77,7 +86,7 @@ export function MemberHubView() {
     return () => {
       active = false;
     };
-  }, [remoteMode, state.pilots, t]);
+  }, [remoteMode, state, t, refreshRevision]);
 
   return (
     <PageContainer className="space-y-5">
@@ -112,6 +121,11 @@ export function MemberHubView() {
                   {position.missingCount ? (
                     <Badge tone="danger">
                       {t("members.missing", { count: position.missingCount })}
+                    </Badge>
+                  ) : null}
+                  {position.incompleteCount ? (
+                    <Badge tone="warning">
+                      {t("members.incomplete", { count: position.incompleteCount })}
                     </Badge>
                   ) : null}
                   {position.expiredCount ? (

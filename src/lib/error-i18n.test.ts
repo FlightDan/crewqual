@@ -20,4 +20,19 @@ describe("localizeError", () => {
     expect(localizeError(new Error("请求失败"), t)).toBe("Service unavailable");
     warn.mockRestore();
   });
+  it("preserves actionable approval errors before generic conflict status", () => {
+    const t = (key: string) => key;
+    for (const [code, key] of [
+      [
+        "QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION",
+        "errors.QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION",
+      ],
+      ["QUALIFICATION_CHANGED_SINCE_SUBMISSION", "errors.qualificationChanged"],
+      ["QUALIFICATION_RULE_SNAPSHOT_REQUIRES_REVIEW", "errors.qualificationRuleReview"],
+    ]) {
+      expect(localizeError(Object.assign(new Error("Conflict"), { code, status: 409 }), t)).toBe(
+        key,
+      );
+    }
+  });
 });

@@ -30,3 +30,6 @@ test-results
 
 # OS metadata
 .DS_Store
+
+# Security review working artifacts (repo-security-review skill)
+.security-review/

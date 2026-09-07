@@ -1,5 +1,6 @@
 import { getRuntimeIntegration } from "@/server/runtime-settings";
 import { getServerConfig } from "@/server/config";
+import { fetchExternalEndpoint } from "@/server/external-endpoint-safety";
 import { z } from "zod";
 
 const strictProviderResponseSchema = z
@@ -62,12 +63,21 @@ function webhookHeaders(token: string, idempotencyKey?: string) {
 function webhookSmsAdapter(url: string, token: string, timeoutSeconds = 10): SmsAdapter {
   return {
     async send(input) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: webhookHeaders(token, input.idempotencyKey),
-        body: JSON.stringify(input),
-        signal: AbortSignal.timeout(timeoutSeconds * 1000),
-      });
+      const config = getServerConfig();
+      const response = await fetchExternalEndpoint(
+        url,
+        {
+          method: "POST",
+          headers: webhookHeaders(token, input.idempotencyKey),
+          body: JSON.stringify(input),
+          signal: AbortSignal.timeout(timeoutSeconds * 1000),
+        },
+        config.NODE_ENV === "production",
+        {
+          allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+          allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+        },
+      );
       if (!response.ok) throw new Error(`SMS webhook HTTP ${response.status}`);
       let body: unknown;
       try {
@@ -83,12 +93,21 @@ function webhookSmsAdapter(url: string, token: string, timeoutSeconds = 10): Sms
 function webhookFeishuAdapter(url: string, token: string, timeoutSeconds = 10): FeishuAdapter {
   return {
     async send(input) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: webhookHeaders(token, input.idempotencyKey),
-        body: JSON.stringify(input),
-        signal: AbortSignal.timeout(timeoutSeconds * 1000),
-      });
+      const config = getServerConfig();
+      const response = await fetchExternalEndpoint(
+        url,
+        {
+          method: "POST",
+          headers: webhookHeaders(token, input.idempotencyKey),
+          body: JSON.stringify(input),
+          signal: AbortSignal.timeout(timeoutSeconds * 1000),
+        },
+        config.NODE_ENV === "production",
+        {
+          allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+          allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+        },
+      );
       if (!response.ok) throw new Error(`Feishu webhook HTTP ${response.status}`);
       let body: unknown;
       try {

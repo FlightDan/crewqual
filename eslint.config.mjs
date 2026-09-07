@@ -17,6 +17,7 @@ const eslintConfig = [
       "test-results/**",
       "coverage/**",
       "src/generated/**",
+      ".security-review/**",
     ],
   },
 ];

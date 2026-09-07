@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { emitDeliveryFailureAlert, emitPilotNotification } from "@/server/notifications";
+import {
+  emitDeliveryFailureAlert,
+  emitPilotNotification,
+  emitQualificationReminder,
+} from "@/server/notifications";
 import {
   processCleanupJob,
   processNotificationJob,
@@ -7,11 +11,16 @@ import {
   processReminderJob,
 } from "@/server/worker-handlers";
 
+vi.mock("@/server/runtime-settings", () => ({
+  getRuntimeIntegration: vi.fn().mockResolvedValue({ retryLimit: 3 }),
+}));
+
 vi.mock("@/server/jobs", () => ({
   QUEUES: { notifications: "crewqual.notifications" },
   enqueueInTransaction: vi.fn().mockResolvedValue("job-1"),
 }));
 vi.mock("@/server/notifications", () => ({
+  emitQualificationReminder: vi.fn().mockResolvedValue({ created: 1, queued: 0 }),
   emitPilotNotification: vi.fn().mockResolvedValue({ created: 1, queued: 0 }),
   emitDeliveryFailureAlert: vi.fn().mockResolvedValue({ created: 1, alertId: "alert-1" }),
 }));
@@ -282,10 +291,12 @@ describe("worker handlers", () => {
             id: "record-1",
             pilotId: "pilot-1",
             expiryDate: new Date("2026-08-20T00:00:00.000Z"),
+            qualificationRuleSnapshot: reminderSnapshot,
             pilot: {
               displayName: "张三",
               mobile: "13800000000",
-              unit: { timezone: "Asia/Shanghai" },
+              unitId: "unit-1",
+              unit: { id: "unit-1", timezone: "Asia/Shanghai" },
             },
             qualificationType: {
               name: "危险品运输培训合格证",
@@ -300,6 +311,8 @@ describe("worker handlers", () => {
     await expect(processReminderJob(db, new Date("2026-08-15T00:00:00.000Z"))).resolves.toEqual({
       scannedAt: "2026-08-15T00:00:00.000Z",
       scanned: 1,
+      scannedCount: 1,
+      manualReviewCount: 0,
       created: 1,
     });
     expect(emitPilotNotification).toHaveBeenCalledWith(
@@ -354,4 +367,166 @@ describe("worker handlers", () => {
     ).resolves.toEqual({ status: "sent" });
     expect(send).toHaveBeenCalledTimes(3);
   });
+});
+
+const reminderSnapshot = {
+  version: 1,
+  validityRule: { kind: "manual_expiry" },
+  reminders: {
+    firstDays: 90,
+    secondDays: 30,
+    dueRecipients: ["PERSON"],
+    expiredRecipients: ["PERSON"],
+  },
+  parameterRestriction: { enabled: false, description: "" },
+  ocrChecks: {
+    enabled: false,
+    credentialNumber: false,
+    holderMatch: false,
+    expiryDate: false,
+    issuingAuthoritySeal: false,
+  },
+};
+
+function reminderRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "record-date",
+    pilotId: "pilot-1",
+    expiryDate: new Date("2026-08-20T00:00:00Z"),
+    qualificationRuleSnapshot: reminderSnapshot,
+    pilot: {
+      displayName: "Alex",
+      unitId: "unit-1",
+      unit: { id: "unit-1", timezone: "America/Los_Angeles" },
+    },
+    qualificationType: { name: "Certificate", reminders: reminderSnapshot.reminders },
+    ...overrides,
+  };
+}
+
+function reminderDb(records: unknown[]) {
+  return {
+    qualificationRecord: { findMany: vi.fn().mockResolvedValue(records) },
+    $transaction: vi.fn((callback: (tx: object) => unknown) => callback({})),
+  };
+}
+
+describe("qualification reminder date semantics", () => {
+  it("uses a today key and current due recipients until local midnight, then an expired key", async () => {
+    vi.mocked(emitQualificationReminder).mockClear();
+    const record = reminderRecord({
+      qualificationDefinition: {
+        reminders: {
+          firstDays: 15,
+          secondDays: 5,
+          dueRecipients: ["ADMIN"],
+          expiredRecipients: ["PERSON"],
+        },
+      },
+    });
+    const db = reminderDb([record]);
+    await processReminderJob(db, new Date("2026-08-21T06:59:59Z"));
+    expect(emitQualificationReminder).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventKey: "qualification-expiry:record-date:today",
+        templateKey: "qualification.expiry.today",
+        recipients: ["ADMIN"],
+        templateParams: expect.objectContaining({ daysRemaining: 0 }),
+      }),
+    );
+    await processReminderJob(db, new Date("2026-08-21T07:00:00Z"));
+    expect(emitPilotNotification).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventKey: "qualification-expiry:record-date:expired",
+        templateKey: "qualification.expiry.expired",
+        templateParams: expect.objectContaining({ daysRemaining: -1 }),
+      }),
+    );
+  });
+
+  it("counts incomplete existing records without treating blank expiry or invalid ownership as overdue", async () => {
+    vi.mocked(emitPilotNotification).mockClear();
+    const db = reminderDb([
+      reminderRecord({ expiryDate: null }),
+      reminderRecord({ qualificationRuleSnapshot: null }),
+      reminderRecord({
+        pilot: { unitId: "wrong", unit: { id: "unit-1", timezone: "Asia/Shanghai" } },
+      }),
+      reminderRecord({ pilot: { unitId: "unit-1", unit: { id: "unit-1", timezone: "Bad/Zone" } } }),
+      reminderRecord({
+        expiryDate: null,
+        qualificationRuleSnapshot: { ...reminderSnapshot, validityRule: { kind: "non_expiring" } },
+      }),
+    ]);
+    expect(await processReminderJob(db, new Date("2026-08-22T00:00:00Z"))).toMatchObject({
+      scannedCount: 5,
+      manualReviewCount: 4,
+      created: 0,
+    });
+    expect(db.qualificationRecord.findMany.mock.calls[0][0].where).not.toHaveProperty("expiryDate");
+    expect(emitPilotNotification).not.toHaveBeenCalled();
+  });
+});
+
+it("retains migrated today dedupe across deployments, two workers and retries while allowing actual expiry", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/server/notifications")>("@/server/notifications");
+  const deliveries = new Map<string, unknown>([
+    [
+      "qualification-expiry:record-date:today:pilot-1:in_app",
+      { status: "SENT", templateKey: "qualification.expiry.expired" },
+    ],
+    [
+      "qualification-expiry:record-date:today:pilot-1:sms",
+      { status: "QUEUED", templateKey: "qualification.expiry.today" },
+    ],
+  ]);
+  const tx = {
+    pilot: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: "pilot-1",
+        active: true,
+        mobile: "13800138000",
+        employeeNumber: "CQ1",
+        unit: {
+          notificationRouting: [{ key: "qualification_expiry", channels: ["inApp", "sms"] }],
+          notificationChannelState: { inApp: true, sms: true, feishu: false },
+          organization: { defaultLocale: "zh-CN" },
+        },
+      }),
+    },
+    notificationDelivery: {
+      createMany: vi.fn().mockImplementation(({ data, skipDuplicates }) => {
+        expect(skipDuplicates).toBe(true);
+        if (deliveries.has(data[0].dedupeKey)) return { count: 0 };
+        deliveries.set(data[0].dedupeKey, data[0]);
+        return { count: 1 };
+      }),
+    },
+  };
+  vi.mocked(emitPilotNotification).mockImplementation(actual.emitPilotNotification);
+  try {
+    const db = {
+      ...reminderDb([reminderRecord()]),
+      $transaction: (callback: (client: typeof tx) => unknown) => callback(tx),
+    };
+    const today = new Date("2026-08-21T06:59:59Z");
+    expect((await processReminderJob(db, today)).created).toBe(0);
+    const tomorrow = new Date("2026-08-21T07:00:00Z");
+    const results = await Promise.all([
+      processReminderJob(db, tomorrow),
+      processReminderJob(db, tomorrow),
+    ]);
+    expect(results.reduce((count, result) => count + result.created!, 0)).toBe(2);
+    expect((await processReminderJob(db, tomorrow)).created).toBe(0);
+    expect(deliveries.size).toBe(4);
+    expect(deliveries.get("qualification-expiry:record-date:expired:pilot-1:sms")).toMatchObject({
+      templateKey: "qualification.expiry.expired",
+      templateParams: { daysRemaining: -1 },
+    });
+  } finally {
+    vi.mocked(emitPilotNotification).mockResolvedValue({ created: 1, queued: 0, deliveryIds: [] });
+  }
 });

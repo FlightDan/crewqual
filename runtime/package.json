@@ -6,7 +6,9 @@
     "overrides": {
       "deepmerge-ts": "8.0.1",
       "postcss": "8.5.26",
-      "sharp": "0.35.3"
+      "sharp": "0.35.3",
+      "mysql2@<3.22.0": ">=3.22.0 <4",
+      "fast-uri@<3.1.6": ">=3.1.6 <4"
     },
     "onlyBuiltDependencies": [
       "@prisma/engines",
@@ -23,12 +25,14 @@
     "@next/env": "^15.5.2",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
+    "@smithy/node-http-handler": "4.10.0",
     "argon2": "^0.44.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.6.1",
     "pg": "^8.22.0",
     "pg-boss": "^12.26.3",
     "prisma": "^7.9.0",
+    "re2-wasm": "1.0.2",
     "sharp": "^0.35.3",
     "tsx": "^4.20.3",
     "zod": "^4.0.17"

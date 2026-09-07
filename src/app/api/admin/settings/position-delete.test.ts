@@ -59,7 +59,10 @@ vi.mock("@/server/crypto", () => ({
   decryptSettingSecret: vi.fn(),
   encryptSettingSecret: vi.fn(),
 }));
-vi.mock("@/server/external-endpoint-safety", () => ({ isLocalTestEndpoint: () => true }));
+vi.mock("@/server/external-endpoint-safety", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/external-endpoint-safety")>()),
+  isLocalTestEndpoint: () => true,
+}));
 
 import { POST } from "@/app/api/admin/settings/route";
 

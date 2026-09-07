@@ -51,6 +51,8 @@ export type QualificationUpdateRequestMinAggregateOutputType = {
   levelOrParameter: string | null
   status: $Enums.UpdateRequestStatus | null
   expectedVersion: number | null
+  expectedQualificationRecordId: string | null
+  baselineCapturedAt: Date | null
   version: number | null
   submittedAt: Date | null
   decidedAt: Date | null
@@ -73,6 +75,8 @@ export type QualificationUpdateRequestMaxAggregateOutputType = {
   levelOrParameter: string | null
   status: $Enums.UpdateRequestStatus | null
   expectedVersion: number | null
+  expectedQualificationRecordId: string | null
+  baselineCapturedAt: Date | null
   version: number | null
   submittedAt: Date | null
   decidedAt: Date | null
@@ -97,6 +101,8 @@ export type QualificationUpdateRequestCountAggregateOutputType = {
   submittedFields: number
   status: number
   expectedVersion: number
+  expectedQualificationRecordId: number
+  baselineCapturedAt: number
   version: number
   submittedAt: number
   decidedAt: number
@@ -131,6 +137,8 @@ export type QualificationUpdateRequestMinAggregateInputType = {
   levelOrParameter?: true
   status?: true
   expectedVersion?: true
+  expectedQualificationRecordId?: true
+  baselineCapturedAt?: true
   version?: true
   submittedAt?: true
   decidedAt?: true
@@ -153,6 +161,8 @@ export type QualificationUpdateRequestMaxAggregateInputType = {
   levelOrParameter?: true
   status?: true
   expectedVersion?: true
+  expectedQualificationRecordId?: true
+  baselineCapturedAt?: true
   version?: true
   submittedAt?: true
   decidedAt?: true
@@ -177,6 +187,8 @@ export type QualificationUpdateRequestCountAggregateInputType = {
   submittedFields?: true
   status?: true
   expectedVersion?: true
+  expectedQualificationRecordId?: true
+  baselineCapturedAt?: true
   version?: true
   submittedAt?: true
   decidedAt?: true
@@ -288,6 +300,8 @@ export type QualificationUpdateRequestGroupByOutputType = {
   submittedFields: runtime.JsonValue
   status: $Enums.UpdateRequestStatus
   expectedVersion: number
+  expectedQualificationRecordId: string | null
+  baselineCapturedAt: Date | null
   version: number
   submittedAt: Date
   decidedAt: Date | null
@@ -335,6 +349,8 @@ export type QualificationUpdateRequestWhereInput = {
   submittedFields?: Prisma.JsonFilter<"QualificationUpdateRequest">
   status?: Prisma.EnumUpdateRequestStatusFilter<"QualificationUpdateRequest"> | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
+  expectedQualificationRecordId?: Prisma.UuidNullableFilter<"QualificationUpdateRequest"> | string | null
+  baselineCapturedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
   submittedAt?: Prisma.DateTimeFilter<"QualificationUpdateRequest"> | Date | string
   decidedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
@@ -367,6 +383,8 @@ export type QualificationUpdateRequestOrderByWithRelationInput = {
   submittedFields?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expectedVersion?: Prisma.SortOrder
+  expectedQualificationRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  baselineCapturedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
   decidedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -402,6 +420,8 @@ export type QualificationUpdateRequestWhereUniqueInput = Prisma.AtLeast<{
   submittedFields?: Prisma.JsonFilter<"QualificationUpdateRequest">
   status?: Prisma.EnumUpdateRequestStatusFilter<"QualificationUpdateRequest"> | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
+  expectedQualificationRecordId?: Prisma.UuidNullableFilter<"QualificationUpdateRequest"> | string | null
+  baselineCapturedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
   submittedAt?: Prisma.DateTimeFilter<"QualificationUpdateRequest"> | Date | string
   decidedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
@@ -434,6 +454,8 @@ export type QualificationUpdateRequestOrderByWithAggregationInput = {
   submittedFields?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expectedVersion?: Prisma.SortOrder
+  expectedQualificationRecordId?: Prisma.SortOrderInput | Prisma.SortOrder
+  baselineCapturedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
   decidedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -466,6 +488,8 @@ export type QualificationUpdateRequestScalarWhereWithAggregatesInput = {
   submittedFields?: Prisma.JsonWithAggregatesFilter<"QualificationUpdateRequest">
   status?: Prisma.EnumUpdateRequestStatusWithAggregatesFilter<"QualificationUpdateRequest"> | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntWithAggregatesFilter<"QualificationUpdateRequest"> | number
+  expectedQualificationRecordId?: Prisma.UuidNullableWithAggregatesFilter<"QualificationUpdateRequest"> | string | null
+  baselineCapturedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"QualificationUpdateRequest"> | Date | string | null
   version?: Prisma.IntWithAggregatesFilter<"QualificationUpdateRequest"> | number
   submittedAt?: Prisma.DateTimeWithAggregatesFilter<"QualificationUpdateRequest"> | Date | string
   decidedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"QualificationUpdateRequest"> | Date | string | null
@@ -485,6 +509,8 @@ export type QualificationUpdateRequestCreateInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -517,6 +543,8 @@ export type QualificationUpdateRequestUncheckedCreateInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -539,6 +567,8 @@ export type QualificationUpdateRequestUpdateInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -571,6 +601,8 @@ export type QualificationUpdateRequestUncheckedUpdateInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -598,6 +630,8 @@ export type QualificationUpdateRequestCreateManyInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -617,6 +651,8 @@ export type QualificationUpdateRequestUpdateManyMutationInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -641,6 +677,8 @@ export type QualificationUpdateRequestUncheckedUpdateManyInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -680,6 +718,8 @@ export type QualificationUpdateRequestCountOrderByAggregateInput = {
   submittedFields?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expectedVersion?: Prisma.SortOrder
+  expectedQualificationRecordId?: Prisma.SortOrder
+  baselineCapturedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
   decidedAt?: Prisma.SortOrder
@@ -707,6 +747,8 @@ export type QualificationUpdateRequestMaxOrderByAggregateInput = {
   levelOrParameter?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expectedVersion?: Prisma.SortOrder
+  expectedQualificationRecordId?: Prisma.SortOrder
+  baselineCapturedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
   decidedAt?: Prisma.SortOrder
@@ -729,6 +771,8 @@ export type QualificationUpdateRequestMinOrderByAggregateInput = {
   levelOrParameter?: Prisma.SortOrder
   status?: Prisma.SortOrder
   expectedVersion?: Prisma.SortOrder
+  expectedQualificationRecordId?: Prisma.SortOrder
+  baselineCapturedAt?: Prisma.SortOrder
   version?: Prisma.SortOrder
   submittedAt?: Prisma.SortOrder
   decidedAt?: Prisma.SortOrder
@@ -1008,6 +1052,8 @@ export type QualificationUpdateRequestCreateWithoutPersonInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1038,6 +1084,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutPersonInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1094,6 +1142,8 @@ export type QualificationUpdateRequestScalarWhereInput = {
   submittedFields?: Prisma.JsonFilter<"QualificationUpdateRequest">
   status?: Prisma.EnumUpdateRequestStatusFilter<"QualificationUpdateRequest"> | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
+  expectedQualificationRecordId?: Prisma.UuidNullableFilter<"QualificationUpdateRequest"> | string | null
+  baselineCapturedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
   version?: Prisma.IntFilter<"QualificationUpdateRequest"> | number
   submittedAt?: Prisma.DateTimeFilter<"QualificationUpdateRequest"> | Date | string
   decidedAt?: Prisma.DateTimeNullableFilter<"QualificationUpdateRequest"> | Date | string | null
@@ -1113,6 +1163,8 @@ export type QualificationUpdateRequestCreateWithoutPilotInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1143,6 +1195,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutPilotInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1191,6 +1245,8 @@ export type QualificationUpdateRequestCreateWithoutQualificationTypeInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1221,6 +1277,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutQualificationTypeInp
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1269,6 +1327,8 @@ export type QualificationUpdateRequestCreateWithoutQualificationDefinitionInput 
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1299,6 +1359,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutQualificationDefinit
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1347,6 +1409,8 @@ export type QualificationUpdateRequestCreateWithoutQualificationRecordInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1377,6 +1441,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutQualificationRecordI
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1415,6 +1481,8 @@ export type QualificationUpdateRequestUpdateWithoutQualificationRecordInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1445,6 +1513,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutQualificationRecordI
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1467,6 +1537,8 @@ export type QualificationUpdateRequestCreateWithoutEvidenceInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1498,6 +1570,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutEvidenceInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1535,6 +1609,8 @@ export type QualificationUpdateRequestUpdateWithoutEvidenceInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1566,6 +1642,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutEvidenceInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1587,6 +1665,8 @@ export type QualificationUpdateRequestCreateWithoutVerificationsInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1618,6 +1698,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutVerificationsInput =
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1655,6 +1737,8 @@ export type QualificationUpdateRequestUpdateWithoutVerificationsInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1686,6 +1770,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutVerificationsInput =
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1707,6 +1793,8 @@ export type QualificationUpdateRequestCreateWithoutCorrectionsInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1738,6 +1826,8 @@ export type QualificationUpdateRequestUncheckedCreateWithoutCorrectionsInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1775,6 +1865,8 @@ export type QualificationUpdateRequestUpdateWithoutCorrectionsInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1806,6 +1898,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutCorrectionsInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1831,6 +1925,8 @@ export type QualificationUpdateRequestCreateManyPersonInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1850,6 +1946,8 @@ export type QualificationUpdateRequestUpdateWithoutPersonInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1880,6 +1978,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutPersonInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1906,6 +2006,8 @@ export type QualificationUpdateRequestUncheckedUpdateManyWithoutPersonInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1929,6 +2031,8 @@ export type QualificationUpdateRequestCreateManyPilotInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -1948,6 +2052,8 @@ export type QualificationUpdateRequestUpdateWithoutPilotInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1978,6 +2084,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutPilotInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2004,6 +2112,8 @@ export type QualificationUpdateRequestUncheckedUpdateManyWithoutPilotInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2027,6 +2137,8 @@ export type QualificationUpdateRequestCreateManyQualificationTypeInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -2046,6 +2158,8 @@ export type QualificationUpdateRequestUpdateWithoutQualificationTypeInput = {
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2076,6 +2190,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutQualificationTypeInp
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2102,6 +2218,8 @@ export type QualificationUpdateRequestUncheckedUpdateManyWithoutQualificationTyp
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2125,6 +2243,8 @@ export type QualificationUpdateRequestCreateManyQualificationDefinitionInput = {
   submittedFields: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: $Enums.UpdateRequestStatus
   expectedVersion?: number
+  expectedQualificationRecordId?: string | null
+  baselineCapturedAt?: Date | string | null
   version?: number
   submittedAt?: Date | string
   decidedAt?: Date | string | null
@@ -2144,6 +2264,8 @@ export type QualificationUpdateRequestUpdateWithoutQualificationDefinitionInput 
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2174,6 +2296,8 @@ export type QualificationUpdateRequestUncheckedUpdateWithoutQualificationDefinit
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2200,6 +2324,8 @@ export type QualificationUpdateRequestUncheckedUpdateManyWithoutQualificationDef
   submittedFields?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumUpdateRequestStatusFieldUpdateOperationsInput | $Enums.UpdateRequestStatus
   expectedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  expectedQualificationRecordId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  baselineCapturedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   submittedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   decidedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2273,6 +2399,8 @@ export type QualificationUpdateRequestSelect<ExtArgs extends runtime.Types.Exten
   submittedFields?: boolean
   status?: boolean
   expectedVersion?: boolean
+  expectedQualificationRecordId?: boolean
+  baselineCapturedAt?: boolean
   version?: boolean
   submittedAt?: boolean
   decidedAt?: boolean
@@ -2306,6 +2434,8 @@ export type QualificationUpdateRequestSelectCreateManyAndReturn<ExtArgs extends 
   submittedFields?: boolean
   status?: boolean
   expectedVersion?: boolean
+  expectedQualificationRecordId?: boolean
+  baselineCapturedAt?: boolean
   version?: boolean
   submittedAt?: boolean
   decidedAt?: boolean
@@ -2335,6 +2465,8 @@ export type QualificationUpdateRequestSelectUpdateManyAndReturn<ExtArgs extends 
   submittedFields?: boolean
   status?: boolean
   expectedVersion?: boolean
+  expectedQualificationRecordId?: boolean
+  baselineCapturedAt?: boolean
   version?: boolean
   submittedAt?: boolean
   decidedAt?: boolean
@@ -2364,6 +2496,8 @@ export type QualificationUpdateRequestSelectScalar = {
   submittedFields?: boolean
   status?: boolean
   expectedVersion?: boolean
+  expectedQualificationRecordId?: boolean
+  baselineCapturedAt?: boolean
   version?: boolean
   submittedAt?: boolean
   decidedAt?: boolean
@@ -2371,7 +2505,7 @@ export type QualificationUpdateRequestSelectScalar = {
   returnReason?: boolean
 }
 
-export type QualificationUpdateRequestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "qualificationTypeId" | "qualificationDefinitionId" | "qualificationRecordId" | "credentialNumber" | "issueDate" | "trainingDate" | "expiryDate" | "issuingAuthority" | "levelOrParameter" | "qualificationRuleSnapshot" | "submittedFields" | "status" | "expectedVersion" | "version" | "submittedAt" | "decidedAt" | "decisionNote" | "returnReason", ExtArgs["result"]["qualificationUpdateRequest"]>
+export type QualificationUpdateRequestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "qualificationTypeId" | "qualificationDefinitionId" | "qualificationRecordId" | "credentialNumber" | "issueDate" | "trainingDate" | "expiryDate" | "issuingAuthority" | "levelOrParameter" | "qualificationRuleSnapshot" | "submittedFields" | "status" | "expectedVersion" | "expectedQualificationRecordId" | "baselineCapturedAt" | "version" | "submittedAt" | "decidedAt" | "decisionNote" | "returnReason", ExtArgs["result"]["qualificationUpdateRequest"]>
 export type QualificationUpdateRequestInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
   person?: boolean | Prisma.QualificationUpdateRequest$personArgs<ExtArgs>
@@ -2427,6 +2561,8 @@ export type $QualificationUpdateRequestPayload<ExtArgs extends runtime.Types.Ext
     submittedFields: runtime.JsonValue
     status: $Enums.UpdateRequestStatus
     expectedVersion: number
+    expectedQualificationRecordId: string | null
+    baselineCapturedAt: Date | null
     version: number
     submittedAt: Date
     decidedAt: Date | null
@@ -2879,6 +3015,8 @@ export interface QualificationUpdateRequestFieldRefs {
   readonly submittedFields: Prisma.FieldRef<"QualificationUpdateRequest", 'Json'>
   readonly status: Prisma.FieldRef<"QualificationUpdateRequest", 'UpdateRequestStatus'>
   readonly expectedVersion: Prisma.FieldRef<"QualificationUpdateRequest", 'Int'>
+  readonly expectedQualificationRecordId: Prisma.FieldRef<"QualificationUpdateRequest", 'String'>
+  readonly baselineCapturedAt: Prisma.FieldRef<"QualificationUpdateRequest", 'DateTime'>
   readonly version: Prisma.FieldRef<"QualificationUpdateRequest", 'Int'>
   readonly submittedAt: Prisma.FieldRef<"QualificationUpdateRequest", 'DateTime'>
   readonly decidedAt: Prisma.FieldRef<"QualificationUpdateRequest", 'DateTime'>

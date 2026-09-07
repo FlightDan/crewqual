@@ -1,3 +1,5 @@
+import { evaluateStoredQualification } from "@/lib/qualification-date-status";
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
 import type { FeishuAdapter, SmsAdapter } from "@/server/providers";
 import { reminderWindow as calculateReminderWindow } from "@/lib/qualification-rules";
 import {
@@ -299,17 +301,28 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
   const db = dbOrNow;
   const now = requestedNow;
   const records = await db.qualificationRecord.findMany({
-    where: { status: "ACTIVE", expiryDate: { not: null }, pilot: { active: true } },
+    where: { status: "ACTIVE", pilot: { active: true } },
     select: {
       id: true,
       pilotId: true,
       expiryDate: true,
+      qualificationRuleSnapshot: true,
       pilot: {
         select: {
           displayName: true,
           mobile: true,
           employeeNumber: true,
-          unit: { select: { timezone: true, notificationRouting: true } },
+          unitId: true,
+          unit: {
+            select: { id: true, organizationId: true, timezone: true, notificationRouting: true },
+          },
+          person: {
+            select: {
+              organizationId: true,
+              unitId: true,
+              unit: { select: { id: true, organizationId: true, timezone: true } },
+            },
+          },
         },
       },
       qualificationType: { select: { name: true, reminders: true } },
@@ -317,17 +330,19 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
     },
   });
   let created = 0;
+  let manualReviewCount = 0;
   for (const record of records) {
-    if (!record.expiryDate) continue;
+    const timezone = pilotQualificationTimezone(record.pilot);
+    const state = evaluateStoredQualification(record, { now: () => now }, timezone);
+    if (state.status === "incomplete") {
+      manualReviewCount += 1;
+      continue;
+    }
+    if (state.daysRemaining === null) continue;
     const rule = parseReminderRule(
       record.qualificationDefinition?.reminders ?? record.qualificationType.reminders,
     );
-    const window = calculateReminderWindow(
-      record.expiryDate,
-      now,
-      rule,
-      record.pilot.unit.timezone,
-    );
+    const window = calculateReminderWindow(record.expiryDate, now, rule, timezone!);
     if (!window) continue;
     const recipients = window.kind === "expired" ? rule.expiredRecipients : rule.dueRecipients;
     if (recipients.length === 0) continue;
@@ -339,7 +354,9 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
         templateKey:
           window.kind === "expired"
             ? ("qualification.expiry.expired" as const)
-            : ("qualification.expiry.due" as const),
+            : window.kind === "today"
+              ? ("qualification.expiry.today" as const)
+              : ("qualification.expiry.due" as const),
         templateParams: {
           qualificationName: record.qualificationType.name,
           qualificationTranslations: record.qualificationType.translations,
@@ -409,6 +426,8 @@ export async function processReminderJob(dbOrNow: any = new Date(), requestedNow
   return {
     scannedAt: now.toISOString(),
     scanned: records.length,
+    scannedCount: records.length,
+    manualReviewCount,
     created: created + upgradeCreated,
   };
 }

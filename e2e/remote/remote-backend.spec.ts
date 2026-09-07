@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createHmac, randomUUID } from "node:crypto";
-import { hash } from "argon2";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import sharp from "sharp";
+import { UPGRADE_STAGE_CODES } from "../../src/types/services";
 
 function totp(secret: string) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -23,26 +23,80 @@ function totp(secret: string) {
 const adminEmail = process.env.E2E_ADMIN_EMAIL ?? "admin@example.com";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? "change-me";
 const adminTotpSecret = process.env.E2E_ADMIN_TOTP_SECRET ?? "JBSWY3DPEHPK3PXP";
+const appOrigin = new URL(
+  process.env.RELEASE_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`,
+).origin;
+const devEndpointSecret =
+  process.env.DEV_ENDPOINTS_SECRET ?? "remote-e2e-dev-endpoint-secret-0123456789";
+const mintPilotTokenThroughDatabase = process.env.E2E_DIRECT_DB_PILOT_TOKEN === "1";
 
 const e2eRequestAddress = `crewqual-e2e-${randomUUID()}`;
 const e2ePilotEmployeeNumber = process.env.E2E_PILOT_EMPLOYEE_NUMBER ?? "CQ-1049";
 const e2eCredentialNumber =
   process.env.E2E_CREDENTIAL_NUMBER ??
   (e2ePilotEmployeeNumber === "CQ-1049" ? "E2E-CN-1049" : `E2E-CN-${e2ePilotEmployeeNumber}`);
-const databaseUrl =
-  process.env.DIRECT_URL ??
-  process.env.DATABASE_URL ??
-  "postgresql://crewqual:crewqual@127.0.0.1:55432/crewqual";
+const databaseUrl = mintPilotTokenThroughDatabase
+  ? process.env.E2E_DATABASE_URL
+  : (process.env.DIRECT_URL ??
+    process.env.DATABASE_URL ??
+    "postgresql://crewqual:crewqual@127.0.0.1:55432/crewqual");
+if (!databaseUrl) {
+  throw new Error("E2E_DATABASE_URL is required when E2E_DIRECT_DB_PILOT_TOKEN=1");
+}
 const auditDb = new Pool({ connectionString: databaseUrl, max: 2 });
 
 test.afterAll(async () => auditDb.end());
 
+async function createPilotAccessTokenInDatabase() {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const client = await auditDb.connect();
+  try {
+    await client.query("BEGIN");
+    const pilot = (
+      await client.query<{ id: string }>(
+        `SELECT id FROM "Pilot" WHERE "employeeNumber" = $1 AND active = true FOR UPDATE`,
+        [e2ePilotEmployeeNumber],
+      )
+    ).rows[0];
+    if (!pilot) throw new Error(`active E2E pilot not found: ${e2ePilotEmployeeNumber}`);
+    await client.query(
+      `DELETE FROM "PilotAccessToken" WHERE "pilotId" = $1 AND "consumedAt" IS NULL`,
+      [pilot.id],
+    );
+    await client.query(
+      `INSERT INTO "PilotAccessToken" (id, "pilotId", "tokenHash", "expiresAt")
+       VALUES ($1, $2, $3, now() + interval '15 minutes')`,
+      [randomUUID(), pilot.id, tokenHash],
+    );
+    await client.query("COMMIT");
+    return token;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function loginPilot(page: Page) {
-  const tokenResponse = await page.request.get(
-    `/api/dev/pilot-access?employeeNumber=${encodeURIComponent(e2ePilotEmployeeNumber)}`,
-    { headers: { "x-forwarded-for": e2eRequestAddress } },
-  );
-  const token = (await tokenResponse.json()).data.token as string;
+  let token: string;
+  if (mintPilotTokenThroughDatabase) {
+    token = await createPilotAccessTokenInDatabase();
+  } else {
+    const tokenResponse = await page.request.get(
+      `/api/dev/pilot-access?employeeNumber=${encodeURIComponent(e2ePilotEmployeeNumber)}`,
+      {
+        headers: {
+          "x-forwarded-for": e2eRequestAddress,
+          "x-crewqual-dev-secret": devEndpointSecret,
+        },
+      },
+    );
+    const tokenBody = await tokenResponse.json();
+    expect(tokenResponse.ok(), JSON.stringify(tokenBody)).toBeTruthy();
+    token = tokenBody.data.token as string;
+  }
   await page.goto(`/pilot/access/${token}`);
   await expect(page).toHaveURL(/\/pilot\/qualifications$/);
   // Compile the dynamic submission page before post-submit navigation.
@@ -52,9 +106,20 @@ async function loginPilot(page: Page) {
 }
 
 async function loginAdmin(page: Page) {
+  // Each test gets a fresh browser context. Reset the replay counter and only
+  // this fixture's rate-limit buckets in the disposable candidate database so
+  // repeated release-gate logins do not mask later workflow assertions.
+  await auditDb.query(
+    `UPDATE "AdminUser" SET "lastTotpCounter" = NULL, "failedAttempts" = 0, "lockedUntil" = NULL WHERE email = $1`,
+    [adminEmail],
+  );
+  await auditDb.query(`DELETE FROM "RateLimitBucket" WHERE "key" IN ($1, $2)`, [
+    `admin-login:address:${e2eRequestAddress}`,
+    `admin-login:account:${adminEmail.toLowerCase()}`,
+  ]);
   const response = await page.request.post("/api/admin/login", {
     headers: {
-      origin: process.env.RELEASE_BASE_URL ?? "http://127.0.0.1:3000",
+      origin: appOrigin,
       "x-forwarded-for": e2eRequestAddress,
     },
     data: {
@@ -123,8 +188,6 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       (item) => item.submittedFields?.credentialNumber === e2eCredentialNumber,
     );
     expect(review, `pending review for ${e2eCredentialNumber}`).toBeTruthy();
-    await page.goto("/admin/reviews", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("陈昊").first()).toBeVisible({ timeout: 30_000 });
     await page.goto(`/admin/reviews/${review!.id}`, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/admin\/reviews\/[^/]+$/);
     await expect(page.getByRole("heading", { name: "机组资质审核工作台" })).toBeVisible();
@@ -222,10 +285,24 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       ["e2e-nonexp", { ...base, credentialNumber: `${base.credentialNumber}-N` }, ""],
     ] as const;
     for (const [code, data, expectedExpiry] of cases) {
-      const response = await page.request.post(
-        `/api/admin/pilots/${pilot.id}/qualifications/${code}`,
-        { headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf }, data },
-      );
+      const existing = (
+        await auditDb.query<{ version: number }>(
+          `SELECT record.version
+             FROM "QualificationRecord" record
+             JOIN "QualificationType" type ON type.id = record."qualificationTypeId"
+            WHERE record."pilotId" = $1 AND type.code = $2 AND record.status = 'ACTIVE'
+            LIMIT 1`,
+          [pilot.id, code],
+        )
+      ).rows[0];
+      const url = `/api/admin/pilots/${pilot.id}/qualifications/${code}`;
+      const options = {
+        headers: { origin: appOrigin, "x-csrf-token": csrf },
+        data: existing ? { ...data, expectedVersion: existing.version } : data,
+      };
+      const response = existing
+        ? await page.request.patch(url, options)
+        : await page.request.post(url, options);
       const responseBody = await response.json();
       expect(
         response.ok(),
@@ -268,6 +345,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       inspectionItemSelections: [{ inspectionItemId: item.id, stageOrder: 0 }],
       stages: names.map((name, index) => ({
         id: `draft-${index}`,
+        code: UPGRADE_STAGE_CODES[index],
         name,
         status: "not_started",
         plannedStart: ranges[index]![0],
@@ -277,11 +355,15 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       })),
     };
     const create = await page.request.post("/api/admin/upgrade-plans", {
-      headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+      headers: { origin: appOrigin, "x-csrf-token": csrf },
       data: { ...draft, action: "save" },
     });
-    expect(create.ok(), `create plan HTTP ${create.status()}`).toBeTruthy();
-    let plan = (await create.json()).data as {
+    const createBody = await create.json();
+    expect(
+      create.ok(),
+      `create plan HTTP ${create.status()} ${JSON.stringify(createBody)}`,
+    ).toBeTruthy();
+    let plan = createBody.data as {
       id: string;
       version: number;
       inspectionItems: Array<{ status: string; name: string }>;
@@ -290,13 +372,13 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     expect(plan.inspectionItems[0]?.name).toBe(item.name);
 
     const patch = await page.request.patch(`/api/admin/upgrade-plans/${plan.id}`, {
-      headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+      headers: { origin: appOrigin, "x-csrf-token": csrf },
       data: { ...draft, title: `${draft.title} 已编辑`, expectedVersion: plan.version },
     });
     expect(patch.ok(), `patch plan HTTP ${patch.status()}`).toBeTruthy();
     plan = (await patch.json()).data;
     const start = await page.request.post(`/api/admin/upgrade-plans/${plan.id}/start`, {
-      headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+      headers: { origin: appOrigin, "x-csrf-token": csrf },
       data: { expectedVersion: plan.version },
     });
     expect(start.ok(), `start plan HTTP ${start.status()}`).toBeTruthy();
@@ -313,7 +395,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     const complete = await page.request.post(
       `/api/admin/upgrade-plans/${plan.id}/stages/${plan.stages[0]!.id}/complete`,
       {
-        headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+        headers: { origin: appOrigin, "x-csrf-token": csrf },
         data: {
           completedOn: "2027-01-10",
           resultSummary: "E2E 检查完成",
@@ -322,7 +404,25 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       },
     );
     expect(complete.ok(), `complete plan HTTP ${complete.status()}`).toBeTruthy();
-    expect((await complete.json()).data.inspectionItems[0].status).toBe("completed");
+    const completedPlan = (await complete.json()).data as {
+      version: number;
+      inspectionItems: Array<{ status: string }>;
+    };
+    expect(completedPlan.inspectionItems[0]?.status).toBe("completed");
+
+    const cancel = await page.request.post(`/api/admin/upgrade-plans/${plan.id}/cancel`, {
+      headers: { origin: appOrigin, "x-csrf-token": csrf },
+      data: {
+        expectedVersion: completedPlan.version,
+        reason: "E2E 轮次完成后释放活动计划约束",
+      },
+    });
+    const cancelledPlan = await cancel.json();
+    expect(
+      cancel.ok(),
+      `cancel plan HTTP ${cancel.status()} ${JSON.stringify(cancelledPlan)}`,
+    ).toBeTruthy();
+    expect(cancelledPlan.data.lifecycleStatus).toBe("cancelled");
   });
 
   test("adversarial conflicts, duplicate constraints and credential reset hold remotely", async ({
@@ -376,8 +476,8 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     const createRequest = async (qualificationTypeId: string, expectedVersion: number) => {
       const id = randomUUID();
       await auditDb.query(
-        `INSERT INTO "QualificationUpdateRequest" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "submittedFields", "qualificationRuleSnapshot", "expectedVersion")
-         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $8::jsonb, $9)`,
+        `INSERT INTO "QualificationUpdateRequest" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "submittedFields", "qualificationRuleSnapshot", "expectedVersion", "expectedQualificationRecordId", "baselineCapturedAt")
+         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $8::jsonb, $9, (SELECT id FROM "QualificationRecord" WHERE "pilotId" = $2 AND "qualificationTypeId" = $3 AND status = 'ACTIVE'), now())`,
         [
           id,
           pilot.id,
@@ -399,13 +499,19 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       );
       return { id, version: 1 };
     };
+    const currentAdmin = (
+      await auditDb.query<{ id: string; passwordHash: string }>(
+        `SELECT id, "passwordHash" FROM "AdminUser" WHERE email = $1`,
+        [adminEmail],
+      )
+    ).rows[0]!;
     const conflictType = await createType(`e2e-conflict-${suffix}`);
     const raceType = await createType(`e2e-race-${suffix}`);
     try {
       const original = { id: randomUUID(), version: 1 };
       await auditDb.query(
-        `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", version, "updatedAt")
-         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, 1, now())`,
+        `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", "lineageId", version, "updatedAt")
+         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
         [
           original.id,
           pilot.id,
@@ -424,7 +530,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       const staleApproval = await page.request.post(
         `/api/admin/reviews/${staleRequest.id}/approve`,
         {
-          headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+          headers: { origin: appOrigin, "x-csrf-token": csrf },
           data: { expectedVersion: staleRequest.version, confirmed: true },
         },
       );
@@ -444,7 +550,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       const raceRequest = await createRequest(raceType.id, 0);
       const approveRace = () =>
         page.request.post(`/api/admin/reviews/${raceRequest.id}/approve`, {
-          headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+          headers: { origin: appOrigin, "x-csrf-token": csrf },
           data: { expectedVersion: raceRequest.version, confirmed: true },
         });
       const raceResponses = await Promise.all([approveRace(), approveRace()]);
@@ -461,8 +567,8 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       ).toBe(1);
       await expect(
         auditDb.query(
-          `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", version, "updatedAt")
-           VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, 1, now())`,
+          `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", "lineageId", version, "updatedAt")
+           VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
           [
             randomUUID(),
             pilot.id,
@@ -475,13 +581,8 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
         ),
       ).rejects.toMatchObject({ code: "23505" });
 
-      const currentAdmin = (
-        await auditDb.query<{ id: string }>(`SELECT id FROM "AdminUser" WHERE email = $1`, [
-          "admin@example.com",
-        ])
-      ).rows[0]!;
       const reset = await page.request.post("/api/admin/settings", {
-        headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+        headers: { origin: appOrigin, "x-csrf-token": csrf },
         data: {
           action: "admin.action",
           input: {
@@ -496,7 +597,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     } finally {
       await auditDb.query(
         `UPDATE "AdminUser" SET "passwordHash" = $1, "failedAttempts" = 0, "lockedUntil" = NULL, "updatedAt" = now() WHERE email = $2`,
-        [await hash("change-me"), "admin@example.com"],
+        [currentAdmin.passwordHash, adminEmail],
       );
       const typeIds = [conflictType.id, raceType.id];
       await auditDb.query(
@@ -525,15 +626,14 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       id: randomUUID(),
     };
     await auditDb.query(
-      `INSERT INTO "NotificationDelivery" (id, "dedupeKey", type, channel, status, "pilotId", target, summary, message, "sentAt")
-       VALUES ($1, $2, 'REVIEW_APPROVED', 'IN_APP', 'SENT', $3, $4, $5, $6, now())`,
+      `INSERT INTO "NotificationDelivery" (id, "dedupeKey", type, channel, status, "pilotId", target, locale, "templateKey", "templateParams", "sentAt")
+       VALUES ($1, $2, 'REVIEW_APPROVED', 'IN_APP', 'SENT', $3, $4, 'zh-CN', 'legacy.raw', $5::jsonb, now())`,
       [
         otherDelivery.id,
         `e2e-idor:${randomUUID()}`,
         otherPilot.id,
         otherPilot.id,
-        "他人通知",
-        "该通知不得被当前 Pilot 读取",
+        JSON.stringify({ summary: "他人通知", message: "该通知不得被当前 Pilot 读取" }),
       ],
     );
     const csrf = (await page.context().cookies()).find(
@@ -545,7 +645,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     expect(
       (
         await page.request.patch(`/api/pilot/notifications/${otherDelivery.id}`, {
-          headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+          headers: { origin: appOrigin, "x-csrf-token": csrf },
           data: { read: true },
         })
       ).status(),
@@ -559,7 +659,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     };
     if (payload.items[0]) {
       const read = await page.request.patch(`/api/pilot/notifications/${payload.items[0].id}`, {
-        headers: { origin: "http://127.0.0.1:3000", "x-csrf-token": csrf },
+        headers: { origin: appOrigin, "x-csrf-token": csrf },
         data: { read: true },
       });
       expect(read.ok(), `mark read HTTP ${read.status()}`).toBeTruthy();

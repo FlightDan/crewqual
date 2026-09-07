@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { Prisma, UpdateRequestStatus, VerificationStatus } from "@/generated/prisma/client";
+import { listAdminPilotDirectory } from "@/server/admin-pilot-directory";
 import { ApiError, assertExpectedVersion } from "@/server/api";
 import { getPrisma } from "@/server/prisma";
 import { getPrivateEvidenceUrl } from "@/server/storage";
@@ -5,7 +8,13 @@ import {
   parseQualificationRuleSnapshot,
   validateQualificationRuleFields,
 } from "@/lib/qualification-rules";
-import { deriveQualificationDateState } from "@/lib/qualification-date-status";
+import { fixedClock } from "@/lib/qualification-date-status";
+import {
+  pilotQualificationInclude,
+  pilotQualificationStates,
+  qualificationTranslations,
+  pilotOwnsLegacyQualification,
+} from "@/server/pilot-qualifications";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { pilotUnitWhere, relatedPilotUnitWhere } from "@/server/admin-permissions";
 import {
@@ -19,7 +28,34 @@ import {
   pilotRoleLabel,
   upgradeStageLabel,
 } from "@/lib/domain-i18n";
-/* eslint-disable @typescript-eslint/no-explicit-any */
+type ReviewProjection = Prisma.QualificationUpdateRequestGetPayload<{
+  include: { pilot: true; qualificationType: true; verifications: true };
+}> & {
+  evidence?: { evidenceImageId: string }[];
+  qualificationRecord?: Prisma.QualificationRecordGetPayload<{
+    include: { qualificationType: true };
+  }> | null;
+};
+const verificationDisplaySchema = z.object({
+  summary: z.string().optional(),
+  extraction: z
+    .object({
+      fields: z.record(z.string(), z.string().nullable()).optional(),
+      confidence: z.number().optional(),
+    })
+    .optional(),
+  checks: z
+    .record(
+      z.string(),
+      z.object({
+        status: z.string().optional(),
+        reason: z.string().optional(),
+        confidence: z.number().optional(),
+        extracted: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
 
 const dateOnly = (date: Date | null) => date?.toISOString().slice(0, 10) ?? "";
 
@@ -75,91 +111,16 @@ export async function listAdminPilots(
     pageSize?: number;
   },
 ) {
-  const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20));
-  const where: any = {
-    ...pilotUnitWhere(admin),
-    ...(query.q
-      ? {
-          OR: [
-            { displayName: { contains: query.q, mode: "insensitive" } },
-            { employeeNumber: { contains: query.q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
-  const db = getPrisma();
-  const pilots = await db.pilot.findMany({
-    where,
-    include: {
-      qualifications: { where: { status: "ACTIVE" }, include: { qualificationType: true } },
-      unit: true,
-      upgradePlans: {
-        where: { lifecycleStatus: { in: ["ACTIVE", "PAUSED", "NOT_STARTED"] } },
-        take: 1,
-      },
-    },
-    orderBy: { displayName: "asc" },
-  });
-  const filtered = pilots
-    .map((pilot: any) => {
-      const states = pilot.qualifications.map((record: any) => {
-        const status = deriveQualificationDateState(dateOnly(record.expiryDate)).status;
-        return status === "expired" ? "expired" : status === "valid" ? "normal" : "expiring";
-      });
-      const health = !states.length
-        ? "unconfigured"
-        : states.includes("expired")
-          ? "expired"
-          : states.includes("expiring")
-            ? "expiring"
-            : "normal";
-      return {
-        id: pilot.id,
-        employeeNumber: pilot.employeeNumber,
-        displayName: pilot.displayName,
-        initials: pilot.initials,
-        mobile: pilot.mobile,
-        roleCode: normalizePilotRoleCode(pilot.roleCode),
-        role: pilotRoleLabel(pilot.roleCode),
-        aircraftType: pilot.aircraftType,
-        unit: pilot.unit.name,
-        unitCode: pilot.unit.code,
-        rankCode: pilot.rankLabel,
-        active: pilot.active,
-        version: pilot.version,
-        health,
-        expiredCount: states.filter((state: string) => state === "expired").length,
-        expiringCount: states.filter((state: string) => state === "expiring").length,
-        activeUpgradeTitle: pilot.upgradePlans[0]?.title ?? null,
-      };
-    })
-    .filter(
-      (pilot: any) =>
-        (!query.health || query.health === "all" || pilot.health === query.health) &&
-        (!query.status ||
-          query.status === "all" ||
-          (query.status === "active" ? pilot.active : !pilot.active)) &&
-        (!query.upgrade ||
-          query.upgrade === "all" ||
-          (query.upgrade === "none"
-            ? !pilot.activeUpgradeTitle
-            : Boolean(pilot.activeUpgradeTitle))),
-    );
-  return {
-    items: filtered.slice((page - 1) * pageSize, page * pageSize),
-    total: filtered.length,
-    page,
-    pageSize,
-    totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
-  };
+  return listAdminPilotDirectory(admin, query);
 }
 
 export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
+  const clock = fixedClock();
   const db = getPrisma();
   const pilot = await db.pilot.findFirst({
     where: { id, ...pilotUnitWhere(admin) },
     include: {
+      ...pilotQualificationInclude,
       qualifications: { where: { status: "ACTIVE" }, include: { qualificationType: true } },
       unit: true,
       upgradePlans: { include: { stages: true }, orderBy: { updatedAt: "desc" }, take: 1 },
@@ -176,17 +137,9 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
     },
   });
   if (!pilot) return null;
-  const qualificationStates = pilot.qualifications.map((record: any) => {
-    const status = deriveQualificationDateState(dateOnly(record.expiryDate)).status;
-    return status === "expired" ? "expired" : status === "valid" ? "normal" : "expiring";
-  });
-  const health = !qualificationStates.length
-    ? "unconfigured"
-    : qualificationStates.includes("expired")
-      ? "expired"
-      : qualificationStates.includes("expiring")
-        ? "expiring"
-        : "normal";
+  const overview = pilotQualificationStates(pilot, clock);
+  const qualificationStates = overview.items.map((item) => item.state.status);
+  const health = overview.health;
   return {
     id: pilot.id,
     employeeNumber: pilot.employeeNumber,
@@ -203,46 +156,54 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
     version: pilot.version,
     health,
     expiredCount: qualificationStates.filter((state) => state === "expired").length,
-    expiringCount: qualificationStates.filter((state) => state === "expiring").length,
+    expiringCount: qualificationStates.filter((state) => state === "due_30" || state === "due_90")
+      .length,
+    missingCount: overview.requiredQualificationCounts.missing,
+    incompleteCount: overview.requiredQualificationCounts.incomplete,
+    timezone: overview.timezone,
+    evaluatedAt: overview.evaluatedAt,
     activeUpgradeTitle:
-      pilot.upgradePlans.find((plan: any) =>
+      pilot.upgradePlans.find((plan) =>
         ["ACTIVE", "PAUSED", "NOT_STARTED"].includes(plan.lifecycleStatus),
       )?.title ?? null,
     rankLabel: pilot.rankLabel,
-    qualifications: pilot.qualifications.map((record: any) => {
-      const expiresOn = dateOnly(record.expiryDate);
-      const state = deriveQualificationDateState(expiresOn);
+    qualifications: overview.items.map((item) => {
+      const record = item.record;
+      const expiresOn = record ? dateOnly(record.expiryDate) : "";
       return {
+        id: item.code,
+        name: item.name,
+        translations: qualificationTranslations(item.translations),
+        parameter: record?.levelOrParameter,
+        expiresOn,
+        credentialNumber: record?.credentialNumber ?? "",
+        issueDate: record ? dateOnly(record.issueDate) : "",
+        expiryDate: expiresOn,
+        issuingAuthority: record?.issuingAuthority ?? "",
+        levelOrParameter: record?.levelOrParameter ?? "",
+        lastVerifiedOn: record ? dateOnly(record.lastVerifiedAt) : "",
+        ...item.state,
+        required: item.required,
+        recordExists: Boolean(record),
+        timezone: overview.timezone,
+      };
+    }),
+    qualificationRecords: pilot.qualifications
+      .filter((record) => pilotOwnsLegacyQualification(pilot, record))
+      .map((record) => ({
         id: record.qualificationType.code,
         name: record.qualificationType.name,
         translations: record.qualificationType.translations,
         parameter: record.levelOrParameter,
-        expiresOn,
+        expiresOn: dateOnly(record.expiryDate),
         credentialNumber: record.credentialNumber,
         issueDate: dateOnly(record.issueDate),
-        expiryDate: expiresOn,
+        expiryDate: dateOnly(record.expiryDate),
         issuingAuthority: record.issuingAuthority,
         levelOrParameter: record.levelOrParameter,
         lastVerifiedOn: dateOnly(record.lastVerifiedAt),
-        status: state.status,
-        statusLabel: state.statusLabel,
-        remainingLabel: state.remainingLabel,
-      };
-    }),
-    qualificationRecords: pilot.qualifications.map((record: any) => ({
-      id: record.qualificationType.code,
-      name: record.qualificationType.name,
-      translations: record.qualificationType.translations,
-      parameter: record.levelOrParameter,
-      expiresOn: dateOnly(record.expiryDate),
-      credentialNumber: record.credentialNumber,
-      issueDate: dateOnly(record.issueDate),
-      expiryDate: dateOnly(record.expiryDate),
-      issuingAuthority: record.issuingAuthority,
-      levelOrParameter: record.levelOrParameter,
-      lastVerifiedOn: dateOnly(record.lastVerifiedAt),
-      version: record.version,
-    })),
+        version: record.version,
+      })),
     upgradePlan: pilot.upgradePlans[0]
       ? {
           id: pilot.upgradePlans[0].id,
@@ -255,7 +216,7 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
           endDate: dateOnly(pilot.upgradePlans[0].endDate),
           overallOwner: pilot.upgradePlans[0].overallOwner,
           leadDepartment: pilot.upgradePlans[0].leadDepartment,
-          stages: pilot.upgradePlans[0].stages.map((stage: any) => ({
+          stages: pilot.upgradePlans[0].stages.map((stage) => ({
             id: stage.id,
             code: normalizeUpgradeStageCode(stage.code, stage.order),
             name: upgradeStageLabel(stage.code, "zh-CN", stage.order),
@@ -277,7 +238,7 @@ export async function getAdminPilot(admin: AuthenticatedAdmin, id: string) {
       : null,
     reviews: pilot.updateRequests.map(mapReview),
     electronicFiles: [],
-    systemAudit: pilot.auditEvents.map((event: any) => ({
+    systemAudit: pilot.auditEvents.map((event) => ({
       id: event.id,
       action: event.action,
       actor: event.actorType === "admin" ? "管理员" : event.actorType,
@@ -305,8 +266,10 @@ async function reviewWithRelations(admin: AuthenticatedAdmin, id: string) {
   });
 }
 
-export function mapReview(request: any) {
+export function mapReview(request: ReviewProjection) {
   const verification = request.verifications?.[0];
+  const parsedResult = verificationDisplaySchema.safeParse(verification?.result);
+  const result = parsedResult.success ? parsedResult.data : {};
   const aiStatus =
     verification?.status?.toLowerCase() === "matched"
       ? "matched"
@@ -335,15 +298,9 @@ export function mapReview(request: any) {
       )
       .map((field) => [field, currentFields[field as keyof typeof currentFields]]),
   );
-  const extraction = (verification?.result?.extraction ?? {}) as {
-    fields?: Record<string, string | null>;
-    confidence?: number;
-  };
-  const recognizedFields = (extraction.fields ?? {}) as Record<string, string | null>;
-  const verificationChecks = (verification?.result?.checks ?? {}) as Record<
-    string,
-    { status?: string; reason?: string; confidence?: number; extracted?: string }
-  >;
+  const extraction = result.extraction ?? {};
+  const recognizedFields = extraction.fields ?? {};
+  const verificationChecks = result.checks ?? {};
   const fieldLabels: Record<string, string> = {
     credentialNumber: "证照编号",
     issueDate: "签发日期",
@@ -368,6 +325,14 @@ export function mapReview(request: any) {
         return undefined;
       }
     })(),
+    parameterRestriction: (() => {
+      try {
+        return parseQualificationRuleSnapshot(request.qualificationRuleSnapshot)
+          .parameterRestriction;
+      } catch {
+        return undefined;
+      }
+    })(),
     ruleVersion: (() => {
       try {
         return parseQualificationRuleSnapshot(request.qualificationRuleSnapshot).version;
@@ -378,7 +343,7 @@ export function mapReview(request: any) {
     submittedAt: request.submittedAt.toISOString(),
     humanStatus: request.status.toLowerCase(),
     aiStatus,
-    aiConclusion: verification?.result?.summary ?? "等待核验",
+    aiConclusion: result.summary ?? "等待核验",
     aiConfidence: extraction.confidence,
     aiReviewedAt: verification?.createdAt?.toISOString(),
     documentName: "证照 JPEG",
@@ -433,11 +398,12 @@ export function mapReview(request: any) {
 }
 
 function normalizeSubmittedFields(
-  request: any,
+  request: { submittedFields: unknown },
   fallback: Record<string, string>,
 ): Record<string, string> {
-  const candidate = request.submittedFields;
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return fallback;
+  const parsed = z.record(z.string(), z.unknown()).safeParse(request.submittedFields);
+  if (!parsed.success) return fallback;
+  const candidate = parsed.data;
   return {
     credentialNumber:
       typeof candidate.credentialNumber === "string"
@@ -472,9 +438,11 @@ export async function listAdminReviews(
   const db = getPrisma();
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 20));
-  const where: any = {
+  const where: Prisma.QualificationUpdateRequestWhereInput = {
     ...relatedPilotUnitWhere(admin),
-    ...(query.status && query.status !== "all" ? { status: query.status.toUpperCase() } : {}),
+    ...(query.status && query.status !== "all"
+      ? { status: query.status.toUpperCase() as UpdateRequestStatus }
+      : {}),
     ...(query.ai && query.ai !== "all"
       ? {
           verifications: {
@@ -484,7 +452,7 @@ export async function listAdminReviews(
                 question: "UNCERTAIN",
                 mismatch: "MISMATCH",
                 unavailable: "UNAVAILABLE",
-              }[query.ai],
+              }[query.ai] as VerificationStatus,
             },
           },
         }
@@ -524,12 +492,12 @@ export async function listAdminReviews(
 export async function getAdminReview(admin: AuthenticatedAdmin, id: string) {
   const review = await reviewWithRelations(admin, id);
   if (!review) return null;
-  const mapped: any = mapReview(review);
+  const mapped = mapReview(review);
   const auditEvents = await getPrisma().auditEvent.findMany({
     where: { entityType: "QualificationUpdateRequest", entityId: id },
     orderBy: { createdAt: "asc" },
   });
-  mapped.audit = auditEvents.map((event: any) => ({
+  const audit = auditEvents.map((event) => ({
     id: event.id,
     action: event.action,
     actor: event.actorType === "admin" ? "管理员" : event.actorType,
@@ -537,11 +505,11 @@ export async function getAdminReview(admin: AuthenticatedAdmin, id: string) {
     detail: formatAuditDetail(event.action, event.detail),
   }));
   const evidence = review.evidence?.[0]?.evidenceImage;
-  if (evidence) {
-    mapped.documentUrl = await getPrivateEvidenceUrl(evidence.objectKey, 300);
-    mapped.documentKind = "sanitized-sample";
-  }
-  return mapped;
+  return {
+    ...mapped,
+    audit,
+    ...(evidence ? { documentUrl: await getPrivateEvidenceUrl(evidence.objectKey, 300) } : {}),
+  };
 }
 
 export async function approveReview(
@@ -560,6 +528,13 @@ export async function approveReview(
       if (request.status !== "PENDING")
         throw new ApiError("VERSION_CONFLICT", "该申请已经处理", 409);
       assertExpectedVersion(request.version, input.expectedVersion);
+      if (!request.baselineCapturedAt) {
+        throw new ApiError(
+          "QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION",
+          "该历史申请未记录提交时的正式资质基准，请人工核对当前正式记录后退回申请，并由成员重新提交",
+          409,
+        );
+      }
       const snapshot = requestSnapshot(request.qualificationRuleSnapshot);
       if (snapshot.snapshotSource === "inferred_backfill") {
         throw new ApiError(
@@ -588,8 +563,9 @@ export async function approveReview(
         },
       });
       if (
-        (request.expectedVersion === 0 && current) ||
-        (request.expectedVersion > 0 && (!current || current.version !== request.expectedVersion))
+        (current?.id ?? null) !== request.expectedQualificationRecordId ||
+        (current?.version ?? 0) !== request.expectedVersion ||
+        (current !== null && current.status !== "ACTIVE")
       ) {
         throw qualificationChangedSinceSubmission();
       }
@@ -817,7 +793,7 @@ export async function correctReview(
     (field) => current[field] !== next[field],
   );
   if (changedFields.length === 0) return getAdminReview(admin, id);
-  await db.$transaction(async (tx: any) => {
+  await db.$transaction(async (tx) => {
     const updated = await tx.qualificationUpdateRequest.updateMany({
       where: { id, status: "PENDING", version: request.version },
       data: {

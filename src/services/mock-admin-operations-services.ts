@@ -1,4 +1,9 @@
-import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { mockE2EClock } from "@/mocks/test-clock";
+import {
+  mockMemberQualificationRecords,
+  projectMockMemberQualifications,
+} from "@/services/member-status";
+import { format } from "date-fns";
 import {
   firstValidationMessage,
   qualificationConfigInputSchema,
@@ -6,7 +11,11 @@ import {
   upgradeStageCompletionSchema,
   upgradeStageRescheduleSchema,
 } from "@/lib/admin-operations-validation";
-import { deriveQualificationDateState, systemClock } from "@/lib/qualification-date-status";
+import {
+  deriveQualification,
+  evaluateQualification,
+  fixedClock,
+} from "@/lib/qualification-date-status";
 import {
   ocrChecksSchema,
   parameterRestrictionSchema,
@@ -91,26 +100,40 @@ function notification(
 
 function deriveCalendarEvents(state: AdminStateV4, clock: Clock): AdminCalendarEvent[] {
   const qualificationEvents = state.pilots.flatMap((pilot) =>
-    pilot.qualifications.map((item) => {
-      const dateState = deriveQualificationDateState(item.expiresOn, clock);
-      return {
-        id: `qualification:${pilot.id}:${item.id}`,
-        type: "qualification_expiry" as const,
-        date: item.expiresOn,
-        endDate: item.expiresOn,
-        title: `${item.name}${dateState.daysRemaining < 0 ? "已过期" : "到期"}`,
-        pilotId: pilot.id,
-        pilotName: pilot.displayName,
-        employeeNumber: pilot.employeeNumber,
-        unit: pilot.unit,
-        positionCode: "PILOT",
-        positionName: "飞行员",
-        qualificationId: item.id,
-        qualificationName: item.name,
-        qualificationTranslations: item.translations,
-        daysRemaining: dateState.daysRemaining,
-        readonly: true,
-      };
+    mockMemberQualificationRecords(pilot, state.qualificationConfigs, clock).flatMap((item) => {
+      const dateState = deriveQualification(item, clock);
+      const evaluated = evaluateQualification({
+        record:
+          item.recordExists === false
+            ? null
+            : { expiryDate: item.expiresOn, validityRule: item.validityRule },
+        timezone: item.timezone,
+        clock,
+      });
+      if (typeof evaluated.daysRemaining !== "number") return [];
+      return [
+        {
+          id: `qualification:${pilot.id}:${item.id}`,
+          type: "qualification_expiry" as const,
+          date: item.expiresOn,
+          endDate: item.expiresOn,
+          title: `${item.name}${dateState.status === "expired" ? "已过期" : "到期"}`,
+          pilotId: pilot.id,
+          pilotName: pilot.displayName,
+          employeeNumber: pilot.employeeNumber,
+          unit: pilot.unit,
+          positionCode: "PILOT",
+          positionName: "飞行员",
+          qualificationId: item.id,
+          qualificationName: item.name,
+          qualificationTranslations: item.translations,
+          daysRemaining: evaluated.daysRemaining,
+          status: dateState.status,
+          statusReason: dateState.statusReason,
+          statusLabel: dateState.statusLabel,
+          readonly: true,
+        },
+      ];
     }),
   );
   const planEvents = state.upgradePlans
@@ -174,12 +197,18 @@ function assertCanActivate(
       conflictStatuses.includes(plan.lifecycleStatus),
   );
   if (conflict) throw new Error(`该飞行员已有活动计划：${conflict.planNumber}`);
-  const expired = pilot.qualifications.filter(
+  const blocked = projectMockMemberQualifications(
+    pilot,
+    state.qualificationConfigs,
+    clock,
+  ).qualifications.filter(
     (qualification) =>
-      deriveQualificationDateState(qualification.expiresOn, clock).status === "expired",
+      qualification.required && ["missing", "incomplete", "expired"].includes(qualification.status),
   );
-  if (expired.length)
-    throw new Error(`核心资质已过期，无法启动：${expired.map((item) => item.name).join("、")}`);
+  if (blocked.length)
+    throw new Error(
+      `核心资质缺失、数据不完整或已过期，无法启动：${blocked.map((item) => item.name).join("、")}`,
+    );
   return pilot;
 }
 
@@ -198,8 +227,16 @@ function derivedQualificationReminders(state: AdminStateV4, clock: Clock): Notif
         (item) => item.qualificationId === qualification.id && item.active,
       );
       if (!config) return [];
-      const days = differenceInCalendarDays(parseISO(qualification.expiresOn), now);
-      if (days > config.reminders.firstDays) return [];
+      const projected = evaluateQualification({
+        record: {
+          expiryDate: qualification.expiryDate,
+          validityRule: qualification.validityRule ?? config.validityRule,
+        },
+        timezone: "Asia/Shanghai",
+        clock: { now: () => now },
+      });
+      const days = projected.daysRemaining;
+      if (typeof days !== "number" || days > config.reminders.firstDays) return [];
       return [
         {
           id: `REM-${pilot.id}-${qualification.id}`,
@@ -223,7 +260,7 @@ function derivedQualificationReminders(state: AdminStateV4, clock: Clock): Notif
 
 export function createMockAdminOperationsServices(
   store: AdminStateStore = adminStateStore,
-  clock: Clock = systemClock,
+  clock: Clock = mockE2EClock,
   ids: IdGenerator = runtimeIds,
 ): {
   calendar: CalendarService;
@@ -246,7 +283,7 @@ export function createMockAdminOperationsServices(
           .map((position) => position.trim())
           .filter(Boolean) ?? [],
       );
-      const data = deriveCalendarEvents(store.getSnapshot(), clock).filter(
+      const data = deriveCalendarEvents(store.getSnapshot(), fixedClock(clock)).filter(
         (event) =>
           (!query.type || query.type === "all" || event.type === query.type) &&
           (!query.qualification ||
@@ -264,7 +301,7 @@ export function createMockAdminOperationsServices(
     },
     async getEvent(id) {
       const state = store.getSnapshot();
-      const event = deriveCalendarEvents(state, clock).find((item) => item.id === id);
+      const event = deriveCalendarEvents(state, fixedClock(clock)).find((item) => item.id === id);
       if (!event || event.type !== "qualification_expiry") {
         return { data: event ? copy(event) : null, source: "mock" };
       }
@@ -280,7 +317,14 @@ export function createMockAdminOperationsServices(
                 ...event,
                 qualificationValidityRule: config.validityRule,
                 qualificationRecord: {
-                  ...deriveQualificationDateState(record.expiryDate, clock),
+                  ...evaluateQualification({
+                    record: {
+                      expiryDate: record.expiryDate,
+                      validityRule: record.validityRule ?? config.validityRule,
+                    },
+                    timezone: "Asia/Shanghai",
+                    clock,
+                  }),
                   recordId: event.id,
                   qualificationId: record.id,
                   qualificationName: record.name,
@@ -307,14 +351,7 @@ export function createMockAdminOperationsServices(
       const state = store.getSnapshot();
       const order = new Map(CORE_QUALIFICATION_IDS.map((id, index) => [id, index]));
       const configs = state.qualificationConfigs
-        .filter(
-          (config) =>
-            config.core &&
-            config.qualificationId &&
-            CORE_QUALIFICATION_IDS.includes(
-              config.qualificationId as (typeof CORE_QUALIFICATION_IDS)[number],
-            ),
-        )
+        .filter((config) => config.active && config.positionCode === "PILOT")
         .sort(
           (a, b) =>
             (order.get(a.qualificationId as (typeof CORE_QUALIFICATION_IDS)[number]) ?? 999) -
@@ -350,7 +387,14 @@ export function createMockAdminOperationsServices(
               validityRule: config.validityRule,
               record: record
                 ? {
-                    ...deriveQualificationDateState(record.expiryDate, selectedClock),
+                    ...evaluateQualification({
+                      record: {
+                        expiryDate: record.expiryDate,
+                        validityRule: record.validityRule ?? config.validityRule,
+                      },
+                      timezone: "Asia/Shanghai",
+                      clock: selectedClock,
+                    }),
                     recordId: `qualification:${pilot.id}:${qualificationId}`,
                     qualificationId,
                     qualificationName: config.name,

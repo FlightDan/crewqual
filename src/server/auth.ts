@@ -1,3 +1,4 @@
+import { observeCompatibilityPath } from "@/server/compatibility-observability";
 import argon2 from "argon2";
 import { createHash, randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
@@ -183,10 +184,9 @@ export async function authenticateAdmin(request?: NextRequest): Promise<Authenti
 
 export async function authenticatePilot(request?: NextRequest): Promise<AuthenticatedPilot> {
   const db = getPrisma();
-  const token =
-    request?.cookies.get(COOKIE_NAMES.member)?.value ??
-    request?.cookies.get(COOKIE_NAMES.pilot)?.value ??
-    (await cookies()).get(COOKIE_NAMES.pilot)?.value;
+  const cookieStore = request?.cookies ?? (await cookies());
+  const memberToken = cookieStore.get(COOKIE_NAMES.member)?.value;
+  const token = memberToken ?? cookieStore.get(COOKIE_NAMES.pilot)?.value;
   if (!token) throw new ApiError("UNAUTHENTICATED", "请先通过访问链接登录", 401);
   const session = await db.pilotSession.findFirst({
     where: {
@@ -197,6 +197,9 @@ export async function authenticatePilot(request?: NextRequest): Promise<Authenti
     include: { pilot: true },
   });
   if (!session) throw new ApiError("UNAUTHENTICATED", "访问链接已失效，请重新获取", 401);
+  if (!memberToken) observeCompatibilityPath("legacy_cookie");
+  if (request && new URL(request.url).pathname.startsWith("/api/pilot/"))
+    observeCompatibilityPath("legacy_api");
   const now = new Date();
   const lastSeen = (session as typeof session & { lastSeenAt: Date }).lastSeenAt;
   if (now.getTime() - lastSeen.getTime() >= 5 * 60 * 1000) {

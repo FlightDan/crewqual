@@ -22,8 +22,8 @@ if not exist "%VENV_DIR%\Scripts\python.exe" (
   if errorlevel 1 exit /b 1
 )
 
-echo [SETUP] Installing the XLSX dependency...
-"%VENV_DIR%\Scripts\python.exe" -m pip install --disable-pip-version-check -r "%TOOL_DIR%requirements.txt"
+echo [SETUP] Installing the hash-pinned XLSX dependency...
+"%VENV_DIR%\Scripts\python.exe" -m pip install --disable-pip-version-check --require-hashes -r "%TOOL_DIR%requirements.txt"
 if errorlevel 1 exit /b 1
 
 echo [DONE] Windows conversion environment is ready.

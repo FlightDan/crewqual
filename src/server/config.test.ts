@@ -6,6 +6,14 @@ const originalEnv = { ...process.env };
 describe("server configuration safety", () => {
   beforeEach(() => {
     process.env = { ...originalEnv };
+    // Production assertions run after every other production check, so give
+    // the default the value the shipped compose files always provide; tests
+    // that exercise the assertion itself delete it explicitly.
+    process.env.TRUSTED_PROXY_HOPS = process.env.TRUSTED_PROXY_HOPS ?? "1";
+    process.env.READINESS_PROBE_SECRET =
+      process.env.READINESS_PROBE_SECRET ?? "readiness-probe-test-secret-0123456789";
+    process.env.OUTBOUND_ALLOWED_HOSTS =
+      process.env.OUTBOUND_ALLOWED_HOSTS ?? "s3.example.test,minio:9000";
     resetServerConfigForTests();
   });
 
@@ -19,6 +27,91 @@ describe("server configuration safety", () => {
     process.env.NEXT_PUBLIC_SERVICE_MODE = "mock";
 
     expect(getServerConfig()).toMatchObject({ SERVICE_MODE: "mock" });
+  });
+
+  it("accepts deployment-owned outbound host and CIDR allowlists", () => {
+    process.env.OUTBOUND_ALLOWED_HOSTS = "minio:9000,qwen.internal:8000";
+    process.env.OUTBOUND_ALLOWED_CIDRS = "10.0.0.0/8,fd00::/8";
+
+    expect(getServerConfig()).toMatchObject({
+      OUTBOUND_ALLOWED_HOSTS: "minio:9000,qwen.internal:8000",
+      OUTBOUND_ALLOWED_CIDRS: "10.0.0.0/8,fd00::/8",
+    });
+  });
+
+  it("fails closed when an outbound allowlist entry is malformed", () => {
+    process.env.OUTBOUND_ALLOWED_HOSTS = "https://not-a-host-rule.example";
+    expect(() => getServerConfig()).toThrow("OUTBOUND_ALLOWED_HOSTS");
+
+    resetServerConfigForTests();
+    process.env.OUTBOUND_ALLOWED_HOSTS = "";
+    process.env.OUTBOUND_ALLOWED_CIDRS = "10.0.0.0/99";
+    expect(() => getServerConfig()).toThrow("OUTBOUND_ALLOWED_CIDRS");
+  });
+
+  it("requires the production external S3 host in the deployment allowlist", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://unapproved-s3.example.test",
+      STORAGE_MODE: "external",
+      OUTBOUND_ALLOWED_HOSTS: "s3.example.test",
+      SMS_ADAPTER: "disabled",
+    });
+
+    expect(() => getServerConfig()).toThrow("Production S3_ENDPOINT is not authorized");
+  });
+
+  it("rejects production without an explicit TRUSTED_PROXY_HOPS", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "disabled",
+    });
+    delete process.env.TRUSTED_PROXY_HOPS;
+
+    expect(() => getServerConfig()).toThrow("TRUSTED_PROXY_HOPS must be set explicitly");
+  });
+
+  it("rejects production without a dedicated readiness probe secret", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "production",
+      SERVICE_MODE: "remote",
+      APP_ORIGIN: "https://crewqual.example.test",
+      DATABASE_URL: "postgresql://crewqual:test@db/crewqual",
+      SESSION_SECRET: "production-session-secret-that-is-long-enough-1234567890",
+      SETTINGS_ENCRYPTION_KEY: "production-settings-key-that-is-distinct",
+      S3_ACCESS_KEY_ID: "access",
+      S3_SECRET_ACCESS_KEY: "production-storage-secret",
+      S3_ENDPOINT: "https://s3.example.test",
+      SMS_ADAPTER: "disabled",
+    });
+    delete process.env.READINESS_PROBE_SECRET;
+
+    expect(() => getServerConfig()).toThrow("READINESS_PROBE_SECRET");
+  });
+
+  it("rejects remote mode without an explicit SESSION_SECRET outside production", () => {
+    Object.assign(process.env, {
+      NODE_ENV: "development",
+      SERVICE_MODE: "remote",
+    });
+    delete process.env.SESSION_SECRET;
+
+    expect(() => getServerConfig()).toThrow("SESSION_SECRET is required when SERVICE_MODE=remote");
   });
 
   it("rejects mock mode in production after required secrets are present", () => {

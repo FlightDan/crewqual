@@ -14,19 +14,21 @@
     "test:e2e:remote": "node scripts/run-remote-e2e.mjs",
     "test:integration:recognition": "tsx scripts/recognition-pgboss-e2e.ts",
     "test:integration:rate-limit": "tsx scripts/rate-limit-pg-e2e.ts",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build && node scripts/copy-re2-wasm.mjs",
     "check:runtime-deps": "node scripts/check-runtime-dependencies.mjs",
+    "check:runtime-worker": "node scripts/check-runtime-worker.mjs",
     "format": "prettier --check .",
     "verify": "corepack pnpm format && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm typecheck:scripts && corepack pnpm test && corepack pnpm build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate:queue": "tsx scripts/migrate-pg-boss.ts",
     "db:bootstrap": "tsx scripts/migrate-member-architecture.ts && tsx scripts/bootstrap-production.ts",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:members": "tsx scripts/migrate-member-architecture.ts",
     "db:reconcile:members": "tsx scripts/reconcile-member-architecture.ts",
     "db:restore:offline": "tsx scripts/restore-backup.ts",
     "db:seed": "tsx prisma/seed.ts && tsx scripts/migrate-member-architecture.ts",
-    "db:e2e:prepare": "tsx scripts/remote-e2e-prepare.ts",
+    "db:e2e:prepare": "tsx scripts/remote-e2e-prepare.ts && tsx scripts/migrate-member-architecture.ts",
     "db:studio": "prisma studio",
     "admin:create": "tsx scripts/admin.ts create",
     "admin:reset": "tsx scripts/admin.ts reset",
@@ -52,7 +54,9 @@
     "overrides": {
       "deepmerge-ts": "8.0.1",
       "postcss": "8.5.26",
-      "sharp": "0.35.3"
+      "sharp": "0.35.3",
+      "mysql2@<3.22.0": ">=3.22.0 <4",
+      "fast-uri@<3.1.6": ">=3.1.6 <4"
     },
     "onlyBuiltDependencies": [
       "@prisma/engines",
@@ -74,6 +78,7 @@
     "argon2": "^0.44.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@smithy/node-http-handler": "4.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -83,6 +88,7 @@
     "pg": "^8.22.0",
     "pg-boss": "^12.26.3",
     "react-image-crop": "^11.0.10",
+    "re2-wasm": "1.0.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",
@@ -90,6 +96,9 @@
     "tsx": "^4.20.3",
     "sharp": "^0.35.3",
     "zod": "^4.0.17"
+  },
+  "browser": {
+    "re2-wasm": false
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

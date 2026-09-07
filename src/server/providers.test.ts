@@ -1,24 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { fetchExternalEndpoint } = vi.hoisted(() => ({ fetchExternalEndpoint: vi.fn() }));
+vi.mock("@/server/external-endpoint-safety", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/server/external-endpoint-safety")>()),
+  fetchExternalEndpoint,
+}));
+
 import { resetServerConfigForTests } from "@/server/config";
 import { getFeishuAdapter, getSmsAdapter } from "@/server/providers";
 
 describe("notification provider adapters", () => {
   beforeEach(() => {
     process.env.SERVICE_MODE = "remote";
+    process.env.SESSION_SECRET = "providers-test-session-secret-0123456789abcdef";
     process.env.SMS_ADAPTER = "webhook";
     process.env.SMS_WEBHOOK_URL = "http://sms.test/send";
     process.env.SMS_WEBHOOK_AUTH_TOKEN = "secret";
     resetServerConfigForTests();
     vi.restoreAllMocks();
+    fetchExternalEndpoint.mockReset();
   });
 
   it("sends the stable SMS contract through a webhook adapter", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ accepted: true, providerId: "sms-42" }), { status: 200 }),
-      );
-    vi.stubGlobal("fetch", fetchMock);
+    fetchExternalEndpoint.mockResolvedValue(
+      new Response(JSON.stringify({ accepted: true, providerId: "sms-42" }), { status: 200 }),
+    );
 
     const result = await getSmsAdapter().send({
       mobile: "13800138000",
@@ -27,7 +33,7 @@ describe("notification provider adapters", () => {
     });
 
     expect(result).toEqual({ accepted: true, providerId: "sms-42" });
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchExternalEndpoint).toHaveBeenCalledWith(
       "http://sms.test/send",
       expect.objectContaining({
         method: "POST",
@@ -42,6 +48,8 @@ describe("notification provider adapters", () => {
           idempotencyKey: "event:pilot:sms",
         }),
       }),
+      false,
+      expect.objectContaining({ allowedCidrs: "", allowedHosts: "" }),
     );
   });
 
@@ -60,16 +68,13 @@ describe("notification provider adapters", () => {
     process.env.FEISHU_WEBHOOK_URL = "https://feishu.example.test/send";
     process.env.CREWQUAL_TEST_NO_EXTERNAL = "1";
     resetServerConfigForTests();
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     await expect(
       getSmsAdapter().send({ mobile: "13800138000", message: "测试消息" }),
     ).resolves.toEqual({ accepted: false });
     await expect(
       getFeishuAdapter().send({ target: "pilot@example.test", message: "测试消息" }),
     ).resolves.toEqual({ accepted: false });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchExternalEndpoint).not.toHaveBeenCalled();
   });
 
   it("never calls configured notification providers in mock mode", async () => {
@@ -79,15 +84,12 @@ describe("notification provider adapters", () => {
     process.env.FEISHU_ADAPTER = "webhook";
     process.env.FEISHU_WEBHOOK_URL = "https://feishu.example.test/send";
     resetServerConfigForTests();
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     await expect(
       getSmsAdapter().send({ mobile: "13800138000", message: "测试消息" }),
     ).resolves.toEqual({ accepted: false });
     await expect(
       getFeishuAdapter().send({ target: "pilot@example.test", message: "测试消息" }),
     ).resolves.toEqual({ accepted: false });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchExternalEndpoint).not.toHaveBeenCalled();
   });
 });

@@ -21,7 +21,9 @@ export function createBoss() {
     connectionString: config.DATABASE_URL,
     schema: "pgboss",
     supervise: true,
-    migrate: true,
+    // Queue DDL is applied by the privileged migration container. The
+    // long-running Web/Worker role must never need database CREATE rights.
+    migrate: false,
     monitorIntervalSeconds: 30,
   });
 }

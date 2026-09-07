@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { ApiError, getRequestId, jsonData, jsonError } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
-import { deriveQualificationDateState } from "@/lib/qualification-date-status";
+import { evaluateStoredQualification, fixedClock } from "@/lib/qualification-date-status";
+import { pilotQualificationTimezone } from "@/lib/qualification-timezone";
 import { requireAssignedUnit } from "@/server/admin-permissions";
 import { upgradeStageLabel } from "@/lib/domain-i18n";
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
               unit: true,
               person: {
                 include: {
+                  unit: true,
                   positionAssignments: {
                     include: { position: true },
                     orderBy: { status: "asc" },
@@ -38,9 +40,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         },
       });
       if (!record?.expiryDate) throw new ApiError("NOT_FOUND", "日历事件不存在", 404);
+      const state = evaluateStoredQualification(
+        record,
+        fixedClock(),
+        pilotQualificationTimezone(record.pilot),
+      );
       return jsonData(
         {
-          ...deriveQualificationDateState(record.expiryDate?.toISOString().slice(0, 10) ?? ""),
+          ...state,
           id,
           type: "qualification_expiry",
           date: record.expiryDate?.toISOString().slice(0, 10),
@@ -63,7 +70,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
           qualificationTranslations: record.qualificationType.translations,
           qualificationValidityRule: record.qualificationType.validityRule,
           qualificationRecord: {
-            ...deriveQualificationDateState(record.expiryDate.toISOString().slice(0, 10)),
+            ...state,
             recordId: record.id,
             qualificationId: record.qualificationType.code,
             qualificationName: record.qualificationType.name,

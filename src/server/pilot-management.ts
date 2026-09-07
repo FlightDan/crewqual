@@ -552,9 +552,11 @@ export async function importPilotCsv(
       if (existing) updatedCount += 1;
       const projection = await ensurePersonProjection(tx, pilot, unit);
       for (const qualification of row.qualifications) {
+        const qualificationType = qualificationTypeMap.get(qualification.qualificationId)!;
         const definitionId = projection?.definitions?.find(
           (definition: any) =>
-            definition.legacyQualificationTypeId === qualification.qualificationId,
+            definition.legacyQualificationTypeId === qualification.qualificationId ||
+            definition.code === qualificationType.code,
         )?.id as string | undefined;
         if (definitionId) {
           const definition = await tx.qualificationDefinition.findUnique({
@@ -573,15 +575,20 @@ export async function importPilotCsv(
             );
           }
         }
-        if (existing) {
-          await tx.qualificationRecord.updateMany({
-            where: {
-              pilotId: pilot.id,
-              qualificationTypeId: qualification.qualificationId,
-              status: "ACTIVE",
-            },
+        const currentRecord = await tx.qualificationRecord.findFirst({
+          where: {
+            pilotId: pilot.id,
+            qualificationTypeId: qualification.qualificationId,
+            status: "ACTIVE",
+          },
+        });
+        if (currentRecord) {
+          const replaced = await tx.qualificationRecord.updateMany({
+            where: { id: currentRecord.id, version: currentRecord.version, status: "ACTIVE" },
             data: { status: "REPLACED", version: { increment: 1 } },
           });
+          if (replaced.count !== 1)
+            throw new ApiError("VERSION_CONFLICT", "正式资质已更新，请重新核对后导入", 409);
         }
         await tx.qualificationRecord.create({
           data: {
@@ -595,9 +602,11 @@ export async function importPilotCsv(
             expiryDate: qualification.expiryDate ? csvDate(qualification.expiryDate) : null,
             issuingAuthority: "CSV 批量导入",
             levelOrParameter: qualification.levelOrParameter,
-            qualificationRuleSnapshot: qualificationRuleSnapshot(
-              qualificationTypeMap.get(qualification.qualificationId)!,
-            ),
+            qualificationRuleSnapshot: qualificationRuleSnapshot(qualificationType),
+            lineageId: currentRecord?.lineageId,
+            revisionNumber: currentRecord ? currentRecord.revisionNumber + 1 : 1,
+            supersedesRecordId: currentRecord?.id,
+            version: (currentRecord?.version ?? 0) + 1,
             action: "ADMIN_IMPORT",
             actorId: admin.id,
             reason: "CSV 导入并确认",

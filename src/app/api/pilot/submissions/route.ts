@@ -56,8 +56,11 @@ export async function POST(request: NextRequest) {
         const definition = await db.qualificationDefinition.findFirst({
           where: {
             organizationId: profile.person.organizationId,
-            legacyQualificationTypeId: qualificationType.id,
             active: true,
+            OR: [
+              { legacyQualificationTypeId: qualificationType.id },
+              { code: qualificationType.code },
+            ],
           },
           select: { id: true },
         });
@@ -90,14 +93,18 @@ export async function POST(request: NextRequest) {
     if (image.status !== "orphaned") {
       throw new ApiError("EVIDENCE_UNAVAILABLE", "该凭证已提交或不可用", 409);
     }
-    const existing = await db.qualificationRecord.findFirst({
-      where: { pilotId: pilot.id, qualificationTypeId: qualificationType.id, status: "ACTIVE" },
-    });
-    if (input.expectedVersion !== undefined && (existing?.version ?? 0) !== input.expectedVersion) {
-      throw new ApiError("VERSION_CONFLICT", "数据已被其他操作更新，请刷新后重试", 409);
-    }
     const vlm = await getRuntimeIntegration("vlm");
     const submission = await db.$transaction(async (tx) => {
+      const existing = await tx.qualificationRecord.findFirst({
+        where: { pilotId: pilot.id, qualificationTypeId: qualificationType.id, status: "ACTIVE" },
+      });
+      if (
+        input.expectedVersion !== undefined &&
+        (existing?.version ?? 0) !== input.expectedVersion
+      ) {
+        throw new ApiError("VERSION_CONFLICT", "数据已被其他操作更新，请刷新后重试", 409);
+      }
+      const baselineCapturedAt = new Date();
       const duplicate = await tx.qualificationUpdateRequest.findFirst({
         where: {
           pilotId: pilot.id,
@@ -141,6 +148,8 @@ export async function POST(request: NextRequest) {
             levelOrParameter: input.levelOrParameter,
           },
           expectedVersion: existing?.version ?? 0,
+          expectedQualificationRecordId: existing?.id ?? null,
+          baselineCapturedAt,
         },
       });
       await tx.qualificationEvidence.create({

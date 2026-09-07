@@ -36,9 +36,9 @@ describe("admin Mock service state", () => {
       createAdminStateStore(createInitialAdminState()),
       clock,
     );
-    const before = (await services.reviews.getById("REV-1002")).data!;
+    const before = (await services.reviews.getById("REV-1004")).data!;
     const corrected = (
-      await services.reviews.correct("REV-1002", {
+      await services.reviews.correct("REV-1004", {
         ...before.submittedFields,
         expiryDate: "2027-09-01",
         issuingAuthority: "人工核验后的示例机构",
@@ -58,16 +58,16 @@ describe("admin Mock service state", () => {
       createAdminStateStore(createInitialAdminState()),
       clock,
     );
-    const original = (await services.reviews.getById("REV-1002")).data!;
+    const original = (await services.reviews.getById("REV-1004")).data!;
     const first = (
-      await services.reviews.correct("REV-1002", {
+      await services.reviews.correct("REV-1004", {
         ...original.submittedFields,
         expiryDate: "2027-09-01",
         issuingAuthority: "人工核验后的示例机构",
       })
     ).data;
     const reverted = (
-      await services.reviews.correct("REV-1002", {
+      await services.reviews.correct("REV-1004", {
         ...original.submittedFields,
         issuingAuthority: "人工核验后的示例机构",
       })
@@ -78,7 +78,7 @@ describe("admin Mock service state", () => {
       reverted.fieldComparisons.find((field) => field.field === "expiryDate")?.correctedValue,
     ).toBeUndefined();
     const noOp = (
-      await services.reviews.correct("REV-1002", {
+      await services.reviews.correct("REV-1004", {
         ...original.submittedFields,
         issuingAuthority: "人工核验后的示例机构",
       })
@@ -284,7 +284,68 @@ describe("admin Mock service state", () => {
     ).rejects.toThrow("VERSION_CONFLICT");
   });
 
-  it("creates, edits and soft-deactivates pilots with an unconfigured health state", async () => {
+  it("enforces parameter restrictions on Mock update, create, and review corrections", async () => {
+    const state = createInitialAdminState();
+    const qualificationId = "dangerous-goods-training";
+    const config = state.qualificationConfigs.find(
+      (item) => item.qualificationId === qualificationId,
+    )!;
+    config.parameterRestriction = {
+      enabled: true,
+      description: "仅允许标准结论",
+      version: 1,
+      enforcement: {
+        mode: "allowed_values",
+        allowedValues: ["合格（两年期）"],
+        pattern: "",
+      },
+    };
+    const store = createAdminStateStore(state);
+    const services = createMockAdminServices(store, clock);
+    const pilot = state.pilots.find((item) => item.id === "pilot-demo-04")!;
+    const original = pilot.qualifications.find((item) => item.id === qualificationId)!;
+    const invalidFields = {
+      credentialNumber: original.credentialNumber,
+      issueDate: original.issueDate,
+      expiryDate: original.expiryDate,
+      issuingAuthority: original.issuingAuthority,
+      levelOrParameter: "任意输入",
+    };
+
+    await expect(
+      services.pilots.updateQualificationRecord(pilot.id, qualificationId, {
+        ...invalidFields,
+        expectedVersion: original.version ?? 1,
+      }),
+    ).rejects.toThrow("等级/参数必须是");
+
+    store.update((current) => ({
+      ...current,
+      pilots: current.pilots.map((item) =>
+        item.id === pilot.id
+          ? {
+              ...item,
+              qualifications: item.qualifications.filter(
+                (qualification) => qualification.id !== qualificationId,
+              ),
+            }
+          : item,
+      ),
+    }));
+    await expect(
+      services.pilots.createQualificationRecord(pilot.id, qualificationId, invalidFields),
+    ).rejects.toThrow("等级/参数必须是");
+
+    const review = (await services.reviews.getById("REV-1004")).data!;
+    await expect(
+      services.reviews.correct(review.id, {
+        ...review.submittedFields,
+        levelOrParameter: "任意输入",
+      }),
+    ).rejects.toThrow("等级/参数必须是");
+  });
+
+  it("creates, edits and soft-deactivates pilots with missing assigned qualifications", async () => {
     const services = createMockAdminServices(
       createAdminStateStore(createInitialAdminState()),
       clock,
@@ -300,7 +361,9 @@ describe("admin Mock service state", () => {
         rankCode: "FO-1",
       })
     ).data;
-    expect(created).toMatchObject({ health: "unconfigured", active: true, version: 1 });
+    expect(created).toMatchObject({ health: "missing", active: true, version: 1 });
+    expect(created.qualifications).toHaveLength(6);
+    expect(created.qualifications.every((item) => item.status === "missing")).toBe(true);
 
     const updated = (
       await services.pilots.update(created.id, {
@@ -353,6 +416,17 @@ describe("admin Mock service state", () => {
     const imported = (await services.pilots.importCsv(csv)).data;
     expect(imported).toMatchObject({ createdCount: 1, skippedCount: 1, qualificationCount: 1 });
     const pilot = (await services.pilots.list({ q: "CQ-CSV-01" })).data.items[0];
-    expect(pilot).toMatchObject({ employeeNumber: "CQ-CSV-01", health: "normal" });
+    expect(pilot).toMatchObject({ employeeNumber: "CQ-CSV-01", health: "missing" });
+  });
+  it("preserves optional risk counts without failing member health", async () => {
+    const state = createInitialAdminState();
+    const pilot = state.pilots[0]!;
+    state.qualificationConfigs = [{ ...state.qualificationConfigs[0]!, core: false }];
+    pilot.qualifications = [];
+    const services = createMockAdminServices(createAdminStateStore(state), clock);
+    const detail = (await services.pilots.getById(pilot.id)).data!;
+    expect(detail.health).toBe("normal");
+    expect(detail.qualifications[0]).toMatchObject({ status: "missing", required: false });
+    expect((await services.dashboard.getSummary()).data.missingCount).toBe(0);
   });
 });

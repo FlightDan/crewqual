@@ -1,3 +1,4 @@
+import { mockE2EClock } from "@/mocks/test-clock";
 import type {
   DateCandidate,
   Clock,
@@ -13,13 +14,9 @@ import type {
   SubmissionService,
 } from "@/types/services";
 import { pilotProfileFixture, pilotQualificationFixtures } from "@/mocks/fixtures";
-import {
-  deriveQualification,
-  deriveQualificationDateState,
-  groupQualificationsByStatus,
-  systemClock,
-} from "@/lib/qualification-date-status";
+import { deriveQualification, groupQualificationsByStatus } from "@/lib/qualification-date-status";
 import { pilotProfileRepository, submissionReceiptRepository } from "@/services/session-repository";
+import { validateQualificationRuleFields } from "@/lib/qualification-rules";
 
 const mockDelay = (milliseconds = 180) =>
   new Promise<void>((resolve) => globalThis.setTimeout(resolve, milliseconds));
@@ -68,7 +65,7 @@ export const mockPilotIdentityService: PilotIdentityService = {
   },
 };
 
-export function createMockQualificationService(clock: Clock = systemClock): QualificationService {
+export function createMockQualificationService(clock: Clock = mockE2EClock): QualificationService {
   return {
     async listForPilot() {
       return {
@@ -83,7 +80,7 @@ export function createMockQualificationService(clock: Clock = systemClock): Qual
     async listForPreview() {
       return {
         data: pilotQualificationFixtures.map((item) => {
-          const state = deriveQualificationDateState(item.expiresOn, clock);
+          const state = deriveQualification(item, clock);
           return {
             id: item.id,
             title: item.name,
@@ -92,7 +89,9 @@ export function createMockQualificationService(clock: Clock = systemClock): Qual
                 ? "expired"
                 : state.status === "valid"
                   ? "valid"
-                  : "expiring",
+                  : state.status === "missing" || state.status === "incomplete"
+                    ? "review"
+                    : "expiring",
             expiresOn: item.expiresOn,
           };
         }),
@@ -172,6 +171,17 @@ export const mockSubmissionService: SubmissionService = {
     const qualification = pilotQualificationFixtures.find(
       (item) => item.id === draft.qualificationId,
     );
+    const validation = validateQualificationRuleFields(
+      {
+        issueDate: draft.issueDate,
+        trainingDate: draft.trainingDate || null,
+        expiryDate: draft.expiryDate || null,
+        levelOrParameter: draft.levelOrParameter,
+      },
+      qualification?.validityRule ?? { kind: "manual_expiry" },
+      qualification?.parameterRestriction,
+    );
+    if (validation.errors[0]) throw new Error(validation.errors[0].message);
     const id = `SUB-${Date.now().toString(36).toUpperCase()}`;
     const receipt: SubmissionReceipt = {
       id,

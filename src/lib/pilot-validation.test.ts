@@ -63,6 +63,33 @@ describe("pilot validation and date rules", () => {
     ).toBe(true);
   });
 
+  it("enforces configured level/parameter restrictions in draft validation", () => {
+    const draft = {
+      ...createEmptyDraft("simulator-recurrent-training"),
+      documentName: "credential.jpg",
+      credentialNumber: "MOCK-01",
+      issueDate: "2026-01-09",
+      expiryDate: "2026-10-09",
+      issuingAuthority: "示例签发机构",
+      levelOrParameter: "B737",
+    };
+    const restriction = {
+      enabled: true,
+      description: "A320 系列",
+      version: 1 as const,
+      enforcement: { mode: "regex" as const, allowedValues: [], pattern: "^A320-(I|II)$" },
+    };
+
+    expect(isDraftSubmittable(draft, { kind: "manual_expiry" }, restriction)).toBe(false);
+    expect(
+      isDraftSubmittable(
+        { ...draft, levelOrParameter: "A320-II" },
+        { kind: "manual_expiry" },
+        restriction,
+      ),
+    ).toBe(true);
+  });
+
   it("AI fills only blank dates and never overwrites manual values", () => {
     const draft = {
       ...createEmptyDraft("medical-certificate"),

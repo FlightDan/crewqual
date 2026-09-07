@@ -15,6 +15,9 @@ export function getPrisma(): PrismaClient {
     connectionString: config.DATABASE_URL,
     max: config.NODE_ENV === "test" ? 2 : 10,
     connectionTimeoutMillis: 5_000,
+    query_timeout: 4_000,
+    statement_timeout: 4_000,
+    idle_in_transaction_session_timeout: 10_000,
     // Prisma's query interpreter can schedule independent statements from an
     // interactive transaction concurrently. pg 8.22 deprecates its legacy
     // client-side query queue; protocol pipelining preserves statement order
@@ -23,7 +26,10 @@ export function getPrisma(): PrismaClient {
   };
   const adapter = new PrismaPg(poolConfig);
   const client = new PrismaClient({ adapter });
-  if (config.NODE_ENV !== "production") globalForPrisma.crewqualPrisma = client;
+  // `getPrisma` is called by every repository/guard, including several times
+  // during one request. Keep one client per process in production too;
+  // otherwise each call creates a new pg pool and quickly exhausts the server.
+  globalForPrisma.crewqualPrisma = client;
   return client;
 }
 

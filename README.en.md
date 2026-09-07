@@ -9,7 +9,7 @@
     <img alt="Chinese and English" src="https://img.shields.io/badge/i18n-中文%20%7C%20English-7c3aed.svg">
   </p>
   <p><a href="./README.md"><kbd>简体中文</kbd></a> · <kbd><strong>English</strong></kbd></p>
-  <p><a href="#quick-start">Quick Start</a> · <a href="#saas-and-enterprise-services">SaaS and Enterprise Services</a></p>
+  <p><a href="#quick-start">Quick Start</a> · <a href="./wiki/README.md">Wiki</a> · <a href="./docs/en/README.md">Technical docs</a> · <a href="#saas-and-enterprise-services">SaaS and Enterprise Services</a></p>
 </div>
 
 <p align="center">
@@ -32,6 +32,10 @@ It brings personnel qualifications, expiration alerts, document submissions, ass
 | Expiration alerts and unified calendar     | Credential capture or upload                      | PostgreSQL and private object storage |
 | AI-assisted verification and manual review | Expiration-date recognition and manual correction | Access control and audit logging      |
 | Personnel records and progression plans    | Progress and upcoming-expiration reminders        | Health checks, backup, and recovery   |
+
+## Docs and Wiki
+
+The [Wiki](./wiki/README.md) covers product concepts, member workflows, administrator workflows, and common questions. The [technical docs](./docs/en/README.md) cover installation, configuration, updates, backups and recovery, local development, and architecture. Every topic has Chinese and English pages with a language link at the top.
 
 ## Product tour
 

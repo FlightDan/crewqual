@@ -1,7 +1,9 @@
 # Legal and contributor documents retain their authored Markdown layout.
 CLA.md
+CLAUDE.md
 CONTRIBUTING.md
 README.md
 SECURITY.md
 pnpm-lock.yaml
 src/generated/prisma/**
+.security-review/

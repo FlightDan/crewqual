@@ -1,5 +1,6 @@
 "use client";
 
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -47,6 +48,7 @@ import {
 } from "@/lib/admin-operations-validation";
 import { calculateExpectedExpiry } from "@/lib/qualification-rules";
 import { localizeError } from "@/lib/error-i18n";
+import { localizedQualificationText } from "@/lib/messages";
 import { localizedQualificationName } from "@/lib/i18n";
 import { useAdminState } from "@/services/admin-state-provider";
 import { useApplicationServices } from "@/services/application-services-provider";
@@ -80,7 +82,10 @@ function eventTypeLabel(
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
   if (event.type === "upgrade_stage") return t("calendar.event.upgrade");
-  return (event.daysRemaining ?? 0) < 0 ? t("calendar.event.expired") : t("calendar.event.due");
+  if (event.status === "missing") return t("qualifications.status.missing");
+  if (event.status === "incomplete" || event.daysRemaining == null)
+    return t("qualifications.status.incomplete");
+  return event.daysRemaining < 0 ? t("calendar.event.expired") : t("calendar.event.due");
 }
 
 function useMobile() {
@@ -244,6 +249,8 @@ export function CalendarViewPage() {
     : "all";
   const rawUnits = searchParams.get("units") ?? "";
   const rawPositions = searchParams.get("positions") ?? "";
+  const [businessTimezones, setBusinessTimezones] = React.useState<string[]>(["Asia/Shanghai"]);
+  const businessDayRevision = useBusinessDayRefresh(businessTimezones);
   const [positionOptions, setPositionOptions] = React.useState(defaultCalendarPositionOptions);
   React.useEffect(() => {
     if (!isRemoteServiceMode()) return;
@@ -251,11 +258,15 @@ export function CalendarViewPage() {
     void fetch("/api/admin/members/positions", { credentials: "include", cache: "no-store" })
       .then(async (response) => {
         const body = (await response.json().catch(() => ({}))) as {
-          data?: { items?: Array<{ code: string }> };
+          data?: { items?: Array<{ code: string; timezones?: string[] }> };
         };
         if (active && response.ok) {
           const codes = body.data?.items?.map((item) => item.code.toUpperCase()) ?? [];
           setPositionOptions(codes.length ? codes : defaultCalendarPositionOptions);
+          setBusinessTimezones([
+            "Asia/Shanghai",
+            ...(body.data?.items?.flatMap((item) => item.timezones ?? []) ?? []),
+          ]);
         }
       })
       .catch(() => undefined);
@@ -390,6 +401,7 @@ export function CalendarViewPage() {
     q,
     range,
     refreshRevision,
+    businessDayRevision,
     squadrons,
     state,
     t,
@@ -424,7 +436,19 @@ export function CalendarViewPage() {
     return () => {
       active = false;
     };
-  }, [anchor, calendar, qualification, positions, q, refreshRevision, squadrons, state, t, type]);
+  }, [
+    anchor,
+    calendar,
+    qualification,
+    positions,
+    q,
+    refreshRevision,
+    businessDayRevision,
+    squadrons,
+    state,
+    t,
+    type,
+  ]);
 
   React.useEffect(() => {
     let active = true;
@@ -445,7 +469,7 @@ export function CalendarViewPage() {
     return () => {
       active = false;
     };
-  }, [calendar, refreshRevision, selectedId, state, t, updateParams]);
+  }, [calendar, refreshRevision, businessDayRevision, selectedId, state, t, updateParams]);
 
   const selectDate = (date: string) => {
     setDayDrawerOpen(mobile);
@@ -1078,7 +1102,8 @@ function EventCard({
 }
 
 function qualificationTone(record: NonNullable<CalendarDayQualificationSlot["record"]>) {
-  if (record.status === "expired") return "danger" as const;
+  if (record.status === "expired" || record.status === "missing") return "danger" as const;
+  if (record.status === "incomplete") return "warning" as const;
   if (record.status === "due_30" || record.status === "due_90") return "warning" as const;
   return "success" as const;
 }
@@ -1173,7 +1198,9 @@ function DayQualificationPanel({
                           const statusLabel =
                             record?.daysRemaining === 0
                               ? t("calendar.expiryToday")
-                              : record?.statusLabel;
+                              : record
+                                ? localizedQualificationText(record.statusLabel, t)
+                                : undefined;
                           return (
                             <div
                               key={qualification.qualificationId}
@@ -1190,7 +1217,10 @@ function DayQualificationPanel({
                                 {record ? (
                                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                                     <span className="text-[11px] text-muted">
-                                      {record.expiryDate || t("calendar.expiryLong")}
+                                      {record.expiryDate ||
+                                        (record.statusReason === "non_expiring"
+                                          ? t("calendar.expiryLong")
+                                          : t("qualifications.status.incomplete"))}
                                     </span>
                                     <Badge
                                       tone={qualificationTone(record)}
@@ -1588,9 +1618,17 @@ function EventDetail({
             <dd>{event.date}</dd>
             <dt className="text-muted">{t("calendar.remainingLabel")}</dt>
             <dd>
-              {(event.daysRemaining ?? 0) < 0
-                ? t("calendar.expiredDays", { days: Math.abs(event.daysRemaining!) })
-                : t("calendar.remainingDays", { days: event.daysRemaining ?? 0 })}
+              {typeof event.daysRemaining !== "number"
+                ? t(
+                    event.statusReason === "non_expiring"
+                      ? "qualifications.status.longTerm"
+                      : "qualifications.reviewRequired",
+                  )
+                : event.daysRemaining < 0
+                  ? t("calendar.expiredDays", { days: Math.abs(event.daysRemaining) })
+                  : event.daysRemaining === 0
+                    ? t("calendar.expiryToday")
+                    : t("calendar.remainingDays", { days: event.daysRemaining })}
             </dd>
           </>
         ) : (

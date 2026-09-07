@@ -74,6 +74,7 @@ export const ModelName = {
   OrganizationTemplateInstallation: 'OrganizationTemplateInstallation',
   QualificationRecord: 'QualificationRecord',
   EvidenceImage: 'EvidenceImage',
+  GalleryObjectTombstone: 'GalleryObjectTombstone',
   ImageOptimizationTask: 'ImageOptimizationTask',
   MediaOptimizationSetting: 'MediaOptimizationSetting',
   BackupTarget: 'BackupTarget',
@@ -501,6 +502,16 @@ export const EvidenceImageScalarFieldEnum = {
 export type EvidenceImageScalarFieldEnum = (typeof EvidenceImageScalarFieldEnum)[keyof typeof EvidenceImageScalarFieldEnum]
 
 
+export const GalleryObjectTombstoneScalarFieldEnum = {
+  objectKey: 'objectKey',
+  deletedAt: 'deletedAt',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type GalleryObjectTombstoneScalarFieldEnum = (typeof GalleryObjectTombstoneScalarFieldEnum)[keyof typeof GalleryObjectTombstoneScalarFieldEnum]
+
+
 export const ImageOptimizationTaskScalarFieldEnum = {
   id: 'id',
   evidenceImageId: 'evidenceImageId',
@@ -615,6 +626,8 @@ export const QualificationUpdateRequestScalarFieldEnum = {
   submittedFields: 'submittedFields',
   status: 'status',
   expectedVersion: 'expectedVersion',
+  expectedQualificationRecordId: 'expectedQualificationRecordId',
+  baselineCapturedAt: 'baselineCapturedAt',
   version: 'version',
   submittedAt: 'submittedAt',
   decidedAt: 'decidedAt',

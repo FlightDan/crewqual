@@ -12,6 +12,9 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { pilotRoleLabel } from "@/lib/domain-i18n";
 import { useI18n } from "@/components/i18n-provider";
+import { projectMockMemberQualifications } from "@/services/member-status";
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
+import { localizedQualificationText } from "@/lib/messages";
 import { localizedQualificationName } from "@/lib/i18n";
 
 type Member = {
@@ -29,13 +32,17 @@ type Member = {
     effectiveFrom: string | null;
   }>;
   pilotProfile: { aircraftType: string; dutyLabel: string; rankLabel: string } | null;
+  timezone: string | null;
   qualifications: Array<{
     code: string;
     name: string;
     translations?: Record<string, string>;
     positionCode: string | null;
     source: string;
-    status: "missing" | "expired" | "due" | "valid";
+    status: "missing" | "incomplete" | "expired" | "due" | "valid";
+    statusLabel: string;
+    remainingLabel: string;
+    required: boolean;
     record: { expiryDate: string | null } | null;
   }>;
 };
@@ -61,30 +68,13 @@ function mockMember(
       dutyLabel: pilotRoleLabel(pilot.roleCode),
       rankLabel: pilot.rankLabel,
     },
-    qualifications: pilot.qualifications.map((item) => {
-      const expiry = item.expiryDate ? new Date(item.expiryDate).getTime() : null;
-      const status = !expiry
-        ? "valid"
-        : expiry < Date.now()
-          ? "expired"
-          : expiry <= Date.now() + 90 * 24 * 60 * 60 * 1000
-            ? "due"
-            : "valid";
-      return {
-        code: item.id,
-        name: item.name,
-        translations: item.translations,
-        positionCode: "PILOT",
-        source: "LEGACY_RECORD",
-        status,
-        record: { expiryDate: item.expiryDate },
-      };
-    }),
+    ...projectMockMemberQualifications(pilot, state.qualificationConfigs),
   };
 }
 
 const statusTones = {
   missing: "danger",
+  incomplete: "warning",
   expired: "danger",
   due: "warning",
   valid: "success",
@@ -95,6 +85,7 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
   const { locale, t } = useI18n();
   const remoteMode = isRemoteServiceMode();
   const [member, setMember] = React.useState<Member | null | undefined>(undefined);
+  const refreshRevision = useBusinessDayRefresh([member?.timezone]);
   React.useEffect(() => {
     if (!remoteMode) {
       setMember(mockMember(memberId, state, t("portal.pilot")));
@@ -112,7 +103,7 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
     return () => {
       active = false;
     };
-  }, [memberId, remoteMode, state, t]);
+  }, [memberId, remoteMode, state, t, refreshRevision]);
 
   if (member === undefined)
     return (
@@ -203,16 +194,22 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   {qualification.positionCode ?? t("memberDetail.orgLevel")} ·{" "}
-                  {t("memberDetail.source", { value: qualification.source })}
+                  {t("memberDetail.source", { value: qualification.source })} ·{" "}
+                  {t(qualification.required ? "memberDetail.required" : "memberDetail.optional")}
                 </p>
+                {qualification.status === "incomplete" ? (
+                  <p className="mt-1 text-xs text-warning">{t("qualifications.reviewRequired")}</p>
+                ) : null}
               </div>
               <Badge tone={statusTones[qualification.status]}>
-                {t(`members.health.${qualification.status}`)}
+                {localizedQualificationText(qualification.statusLabel, t)}
               </Badge>
               <span className="text-xs text-secondary">
                 {qualification.record?.expiryDate
                   ? t("memberDetail.expiry", { date: qualification.record.expiryDate })
-                  : t("memberDetail.noRecord")}
+                  : qualification.record
+                    ? localizedQualificationText(qualification.remainingLabel, t)
+                    : t("memberDetail.noRecord")}
               </span>
             </div>
           ))}

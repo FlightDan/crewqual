@@ -20,13 +20,15 @@ x-app-environment: &app-environment
   ACME_PORT: ${ACME_PORT:-18080}
   NETWORK_ACCESS_SECRET: ${NETWORK_ACCESS_SECRET:?NETWORK_ACCESS_SECRET is required}
   SETUP_AUTH_CODE_HASH: ${SETUP_AUTH_CODE_HASH:?SETUP_AUTH_CODE_HASH is required}
-  DATABASE_URL: postgresql://crewqual:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/crewqual
-  DIRECT_URL: postgresql://crewqual:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/crewqual
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
   SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+  READINESS_PROBE_SECRET: ${READINESS_PROBE_SECRET:?READINESS_PROBE_SECRET is required}
   SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY is required}
   PILOT_SESSION_TTL_MINUTES: ${PILOT_SESSION_TTL_MINUTES:-60}
   ADMIN_SESSION_TTL_HOURS: ${ADMIN_SESSION_TTL_HOURS:-8}
   TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+  OUTBOUND_ALLOWED_HOSTS: ${OUTBOUND_ALLOWED_HOSTS:-minio:9000}
+  OUTBOUND_ALLOWED_CIDRS: ${OUTBOUND_ALLOWED_CIDRS:-}
   STORAGE_MODE: ${STORAGE_MODE:-builtin}
   S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
   S3_REGION: ${S3_REGION:-us-east-1}
@@ -94,7 +96,10 @@ services:
   migrate:
     image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
     command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
-    environment: *app-environment
+    environment:
+      <<: *app-environment
+      DIRECT_URL: ${DIRECT_URL:?DIRECT_URL is required}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
     depends_on:
       postgres: { condition: service_healthy }
       minio-init: { condition: service_completed_successfully }
@@ -140,7 +145,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/api/health?probe=readiness',{headers:{'x-crewqual-readiness-secret':process.env.READINESS_PROBE_SECRET||''}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 15s
       timeout: 5s

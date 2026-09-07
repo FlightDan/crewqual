@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { decryptSettingSecret, encryptSettingSecret } from "@/server/crypto";
 import { getServerConfig, type ServerConfig } from "@/server/config";
+import { assertSendEndpoint, checkExternalEndpoint } from "@/server/external-endpoint-safety";
 import { getPrisma } from "@/server/prisma";
 
 export type RuntimeStorageConfig = Pick<
@@ -32,9 +33,33 @@ export type SetupStorageInput = z.infer<typeof setupStorageSchema>;
 
 type EncryptedCredentials = { accessKeyId: string; secretAccessKey: string };
 
+function assertStorageEndpoint(config: RuntimeStorageConfig) {
+  const serverConfig = getServerConfig();
+  const check = checkExternalEndpoint(config.S3_ENDPOINT, serverConfig.NODE_ENV === "production", {
+    allowedHosts: serverConfig.OUTBOUND_ALLOWED_HOSTS,
+    allowedCidrs: serverConfig.OUTBOUND_ALLOWED_CIDRS,
+    requireHostAllowlist: config.mode !== "builtin",
+  });
+  if (!check.ok) throw new Error(`对象存储地址被拒绝：${check.reason}`);
+  return config;
+}
+
+export async function assertRuntimeStorageEndpoint(
+  config: Pick<RuntimeStorageConfig, "S3_ENDPOINT"> & Partial<Pick<RuntimeStorageConfig, "mode">>,
+  signal?: AbortSignal,
+) {
+  const serverConfig = getServerConfig();
+  return assertSendEndpoint(config.S3_ENDPOINT, serverConfig.NODE_ENV === "production", {
+    allowedHosts: serverConfig.OUTBOUND_ALLOWED_HOSTS,
+    allowedCidrs: serverConfig.OUTBOUND_ALLOWED_CIDRS,
+    requireHostAllowlist: config.mode !== "builtin",
+    signal,
+  });
+}
+
 function environmentStorageConfig(): RuntimeStorageConfig {
   const config = getServerConfig();
-  return {
+  return assertStorageEndpoint({
     mode: config.STORAGE_MODE === "builtin" ? "builtin" : "environment",
     S3_ENDPOINT: config.S3_ENDPOINT,
     S3_REGION: config.S3_REGION,
@@ -43,7 +68,7 @@ function environmentStorageConfig(): RuntimeStorageConfig {
     S3_SECRET_ACCESS_KEY: config.S3_SECRET_ACCESS_KEY,
     S3_SSE_KMS_KEY_ID: config.S3_SSE_KMS_KEY_ID,
     S3_FORCE_PATH_STYLE: config.S3_FORCE_PATH_STYLE,
-  };
+  });
 }
 
 function decodeCredentials(ciphertext: string | null): EncryptedCredentials {
@@ -63,7 +88,7 @@ export async function getRuntimeStorageConfig(): Promise<RuntimeStorageConfig> {
   const setting = await getPrisma().objectStorageSetting.findUnique({ where: { id: "global" } });
   if (!setting || setting.provider === "BUILTIN") return fallback;
   const credentials = decodeCredentials(setting.credentialsCiphertext);
-  return {
+  return assertStorageEndpoint({
     mode: "s3",
     S3_ENDPOINT: setting.endpoint,
     S3_REGION: setting.region,
@@ -72,20 +97,17 @@ export async function getRuntimeStorageConfig(): Promise<RuntimeStorageConfig> {
     S3_SECRET_ACCESS_KEY: credentials.secretAccessKey,
     S3_SSE_KMS_KEY_ID: setting.sseKmsKeyId,
     S3_FORCE_PATH_STYLE: setting.forcePathStyle,
-  };
+  });
 }
 
 export function resolveSetupStorage(input: SetupStorageInput): RuntimeStorageConfig {
   const parsed = setupStorageSchema.parse(input);
   if (parsed.mode === "builtin") return environmentStorageConfig();
   const endpoint = new URL(parsed.endpoint);
-  if (getServerConfig().NODE_ENV === "production" && endpoint.protocol !== "https:") {
-    throw new Error("Production external S3 endpoint must use HTTPS");
-  }
   if (endpoint.username || endpoint.password) {
     throw new Error("S3 endpoint must not contain embedded credentials");
   }
-  return {
+  return assertStorageEndpoint({
     mode: "s3",
     S3_ENDPOINT: endpoint.toString().replace(/\/$/, ""),
     S3_REGION: parsed.region,
@@ -94,7 +116,7 @@ export function resolveSetupStorage(input: SetupStorageInput): RuntimeStorageCon
     S3_SECRET_ACCESS_KEY: parsed.secretAccessKey,
     S3_SSE_KMS_KEY_ID: parsed.sseKmsKeyId ?? "",
     S3_FORCE_PATH_STYLE: parsed.forcePathStyle,
-  };
+  });
 }
 
 export function storageSettingData(input: SetupStorageInput) {

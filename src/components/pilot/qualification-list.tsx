@@ -12,6 +12,18 @@ const statusStyles: Record<
   QualificationStatus,
   { marker: string; title: string; card: string; badge: "danger" | "warning" | "success" }
 > = {
+  missing: {
+    marker: "bg-danger",
+    title: "text-danger",
+    card: "border-danger bg-red-50/70",
+    badge: "danger",
+  },
+  incomplete: {
+    marker: "bg-warning",
+    title: "text-warning",
+    card: "border-warning bg-orange-50/70",
+    badge: "warning",
+  },
   expired: {
     marker: "bg-danger",
     title: "text-danger",
@@ -49,7 +61,7 @@ export function QualificationCard({
   const { locale, t } = useI18n();
   const statusLabel = localizedQualificationText(qualification.statusLabel, t);
   const remainingLabel = localizedQualificationText(qualification.remainingLabel, t);
-  const urgent = qualification.status === "expired";
+  const urgent = qualification.status === "expired" || qualification.status === "missing";
   const showAction = urgent || qualification.status === "due_30";
   return (
     <Card
@@ -98,7 +110,11 @@ export function QualificationCard({
           </p>
         </div>
       </div>
-      {showAction ? (
+      {qualification.submissionSupported === false ? (
+        <p className="text-sm text-warning">{t("qualifications.configureSubmission")}</p>
+      ) : qualification.status === "incomplete" ? (
+        <p className="text-sm text-warning">{t("qualifications.reviewRequired")}</p>
+      ) : showAction ? (
         <Link
           href={`${portalPath}/qualifications/${qualification.id}/update`}
           className={cn(
@@ -106,7 +122,11 @@ export function QualificationCard({
             urgent ? "bg-danger" : "bg-nav",
           )}
         >
-          {urgent ? t("qualifications.updateNow") : t("qualifications.update")}
+          {qualification.status === "missing"
+            ? t("qualifications.submitMissing")
+            : urgent
+              ? t("qualifications.updateNow")
+              : t("qualifications.update")}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
       ) : (

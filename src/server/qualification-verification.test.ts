@@ -59,7 +59,7 @@ describe("server-side OCR business verification", () => {
     const upsert = vi.fn().mockResolvedValue({ id: "verification-1" });
     const tx = {
       qualificationEvidence: {
-        findUnique: vi.fn().mockResolvedValue({ updateRequest: request() }),
+        findMany: vi.fn().mockResolvedValue([{ updateRequest: request() }]),
       },
       verificationResult: { upsert },
     };
@@ -74,5 +74,24 @@ describe("server-side OCR business verification", () => {
         update: expect.objectContaining({ status: "MATCHED" }),
       }),
     );
+  });
+
+  it("fails closed when one image is linked to multiple update requests", async () => {
+    const tx = {
+      qualificationEvidence: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { updateRequest: request() },
+            { updateRequest: { ...request(), id: "request-2" } },
+          ]),
+      },
+      verificationResult: { upsert: vi.fn() },
+    };
+
+    await expect(persistVerificationForEvidence(tx, "image-1", matchingExtraction)).rejects.toThrow(
+      "linked to multiple qualification update requests",
+    );
+    expect(tx.verificationResult.upsert).not.toHaveBeenCalled();
   });
 });

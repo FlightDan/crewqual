@@ -1,3 +1,4 @@
+import { isValidTimezone } from "@/lib/date-only";
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -17,7 +18,12 @@ import {
   resolveTotpSecret,
   verifyTotp,
 } from "@/server/crypto";
-import { isLocalTestEndpoint } from "@/server/external-endpoint-safety";
+import {
+  assertSendEndpoint,
+  checkExternalEndpoint,
+  fetchExternalEndpoint,
+  isLocalTestEndpoint,
+} from "@/server/external-endpoint-safety";
 import { getPrisma } from "@/server/prisma";
 import { requestNetworkApply } from "@/server/system-updates";
 import type { AuthenticatedAdmin } from "@/server/auth";
@@ -46,7 +52,7 @@ const unitSchema = z.object({
     .trim()
     .regex(/^[A-Z0-9-]{2,32}$/),
   name: z.string().trim().min(1).max(128),
-  timezone: z.string().trim().min(1).max(64),
+  timezone: z.string().trim().min(1).max(64).refine(isValidTimezone, "时区无效"),
   contactName: z.string().trim().max(128),
   contactEmail: z.union([z.string().email(), z.literal("")]),
   contactPhone: z.string().trim().max(32),
@@ -1132,6 +1138,34 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       requirePermission(admin, "settings.security.write");
       requireSuperAdmin(admin);
       const input = integrationSchema.parse(envelope.input);
+      if (input.enabled && !input.endpoint.trim()) {
+        throw new ApiError("INVALID_EXTERNAL_ENDPOINT", "启用外部集成前必须填写服务地址", 422);
+      }
+      const endpointCheck = checkExternalEndpoint(
+        input.endpoint,
+        config.NODE_ENV === "production",
+        {
+          allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+          allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+        },
+      );
+      if (!endpointCheck.ok) {
+        throw new ApiError("INVALID_EXTERNAL_ENDPOINT", endpointCheck.reason, 422);
+      }
+      if (input.enabled && input.endpoint && config.NODE_ENV === "production") {
+        try {
+          await assertSendEndpoint(input.endpoint, true, {
+            allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+            allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+          });
+        } catch (error) {
+          throw new ApiError(
+            "INVALID_EXTERNAL_ENDPOINT",
+            error instanceof Error ? error.message : "外部服务地址解析失败",
+            422,
+          );
+        }
+      }
       const current = await db.systemIntegrationSetting.findUnique({ where: { key: input.key } });
       if (current && current.version !== input.version) throw new Error("VERSION_CONFLICT");
       const record = await db.systemIntegrationSetting.upsert({
@@ -1184,7 +1218,7 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
             const secret = record.secretCiphertext
               ? decryptSettingSecret(record.secretCiphertext)
               : "";
-            const response = await fetch(
+            const response = await fetchExternalEndpoint(
               key === "vlm" ? `${record.endpoint.replace(/\/$/, "")}/models` : record.endpoint,
               {
                 method: key === "vlm" ? "GET" : "POST",
@@ -1201,6 +1235,11 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
                     }
                   : {}),
                 signal: AbortSignal.timeout(record.timeoutSeconds * 1000),
+              },
+              config.NODE_ENV === "production",
+              {
+                allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+                allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
               },
             );
             ok = response.ok;

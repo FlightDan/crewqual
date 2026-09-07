@@ -224,7 +224,7 @@ done
 log "等待 HTTPS 证书和健康检查"
 healthy=0
 for _ in $(seq 1 120); do
-  if curl -kfsS --resolve "${DOMAIN}:${PORT}:127.0.0.1" "${origin}/api/health" >/dev/null 2>&1; then healthy=1; break; fi
+  if curl -kfsS --resolve "${DOMAIN}:${PORT}:127.0.0.1" "${origin}/api/health?probe=liveness" >/dev/null 2>&1; then healthy=1; break; fi
   sleep 3
 done
 ((healthy)) || die "TLS 入口未在超时时间内可用；请检查 DNS、80 端口和 Caddy 日志"

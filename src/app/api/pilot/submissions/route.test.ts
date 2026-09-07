@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   authenticatePilot: vi.fn(),
   assertCsrf: vi.fn(),
   findQualification: vi.fn(),
+  findPilot: vi.fn(),
+  findDefinition: vi.fn(),
   findImage: vi.fn(),
   findRecord: vi.fn(),
   transaction: vi.fn(),
@@ -32,6 +34,8 @@ vi.mock("@/server/qualification-verification", () => ({
 vi.mock("@/server/prisma", () => ({
   getPrisma: () => ({
     qualificationType: { findFirst: mocks.findQualification },
+    pilot: { findUnique: mocks.findPilot },
+    qualificationDefinition: { findFirst: mocks.findDefinition },
     evidenceImage: { findFirst: mocks.findImage },
     qualificationRecord: { findFirst: mocks.findRecord },
     $transaction: mocks.transaction,
@@ -88,6 +92,7 @@ function request(expectedVersion?: number, overrides: Record<string, unknown> = 
 
 function transactionClient(overrides: Record<string, unknown> = {}) {
   return {
+    qualificationRecord: { findFirst: mocks.findRecord },
     qualificationUpdateRequest: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi
@@ -113,6 +118,11 @@ describe("pilot submission create route error contract", () => {
     mocks.authenticatePilot.mockResolvedValue({ id: "pilot-1", csrfToken: "csrf-hash" });
     mocks.assertCsrf.mockResolvedValue(undefined);
     mocks.findQualification.mockResolvedValue(qualification);
+    mocks.findPilot.mockResolvedValue({
+      personId: "person-1",
+      person: { organizationId: "organization-1" },
+    });
+    mocks.findDefinition.mockResolvedValue({ id: "definition-1" });
     mocks.findImage.mockResolvedValue(image);
     mocks.findRecord.mockResolvedValue(null);
     mocks.transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
@@ -140,6 +150,54 @@ describe("pilot submission create route error contract", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: { code: "NOT_FOUND", requestId: "submission-create-request" },
     });
+  });
+
+  it("persists the canonical links and can resolve a bootstrap-installed definition by code", async () => {
+    const tx = transactionClient();
+    mocks.transaction.mockImplementationOnce(async (callback: (tx: unknown) => unknown) =>
+      callback(tx),
+    );
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(201);
+    expect(mocks.findDefinition).toHaveBeenCalledWith({
+      where: {
+        organizationId: "organization-1",
+        active: true,
+        OR: [{ legacyQualificationTypeId: "qualification-type-1" }, { code: "medical" }],
+      },
+      select: { id: true },
+    });
+    expect(tx.qualificationUpdateRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          personId: "person-1",
+          qualificationDefinitionId: "definition-1",
+          expectedQualificationRecordId: null,
+          expectedVersion: 0,
+          baselineCapturedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it("captures the current record identity and version in the submission transaction", async () => {
+    mocks.findRecord.mockResolvedValue({ id: "active-record", version: 7 });
+    const tx = transactionClient();
+    mocks.transaction.mockImplementationOnce(async (callback: (tx: unknown) => unknown) =>
+      callback(tx),
+    );
+    expect((await POST(request(7))).status).toBe(201);
+    expect(tx.qualificationUpdateRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          expectedQualificationRecordId: "active-record",
+          expectedVersion: 7,
+          baselineCapturedAt: expect.any(Date),
+        }),
+      }),
+    );
   });
 
   it("rejects already-linked evidence and optimistic version conflicts", async () => {

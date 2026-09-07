@@ -39,6 +39,10 @@ jobs:
         run: pnpm test
       - name: Production build
         run: pnpm build
+      - name: Install isolated runtime dependencies
+        run: pnpm --dir runtime install --prod --frozen-lockfile --ignore-workspace --config.auto-install-peers=false
+      - name: Verify runtime dependency closure and Worker startup
+        run: pnpm check:runtime-deps && pnpm check:runtime-worker
 
   rate-limit-postgres:
     runs-on: ubuntu-24.04
@@ -46,8 +50,9 @@ jobs:
     env:
       NODE_ENV: test
       SERVICE_MODE: remote
-      DATABASE_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+      DATABASE_URL: postgresql://crewqual_app:crewqual-app@127.0.0.1:5432/crewqual
       DIRECT_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+      POSTGRES_APP_PASSWORD: crewqual-app
     services:
       postgres:
         image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
@@ -74,10 +79,28 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Apply Prisma migrations
-        run: pnpm db:migrate
+      - name: Provision runtime role and apply Prisma migrations
+        run: |
+          sh scripts/ensure-postgres-runtime-role.sh provision
+          pnpm db:migrate
+          sh scripts/ensure-postgres-runtime-role.sh verify
       - name: Run PostgreSQL rate-limit integration
         run: pnpm test:integration:rate-limit
+      - name: Verify qualification state, revisions and incremental migrations on PostgreSQL
+        env:
+          DIRECTORY_TEST_DATABASE_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+          CREWQUAL_AUDIT_TEST_DATABASE_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+          QUALIFICATION_TEST_DIRECT_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+          QUALIFICATION_TEST_DATABASE_URL: postgresql://crewqual_app:crewqual-app@127.0.0.1:5432/crewqual
+          MIGRATION_TEST_DATABASE_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
+        run: pnpm exec vitest run src/server/admin-pilot-directory.pg.test.ts src/server/qualification-revision.pg.test.ts src/server/qualification-state-audit.pg.test.ts src/server/qualification-reminder-migration.pg.test.ts src/server/migrate-member-architecture.pg.test.ts
+      - name: Produce read-only qualification reconciliation evidence
+        run: pnpm exec tsx scripts/audit-qualification-state.ts --dry-run > qualification-state-audit.json
+      - name: Retain qualification reconciliation evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: qualification-state-audit
+          path: qualification-state-audit.json
 
   browser:
     needs: verify
@@ -112,12 +135,18 @@ jobs:
       - name: Run browser E2E
         env:
           PLAYWRIGHT_WORKERS: ${{ matrix.workers }}
+          PLAYWRIGHT_PORT: 3100
         run: |
           if [ "${{ matrix.dev_only }}" = "true" ]; then
             pnpm test:e2e --project="${{ matrix.browser }}"
           else
             pnpm test:e2e --project="${{ matrix.browser }}" --grep-invert "@dev"
           fi
+      - name: Run production standalone smoke
+        env:
+          PLAYWRIGHT_PRODUCTION: "1"
+          PLAYWRIGHT_PORT: 3101
+        run: pnpm test:e2e --project="${{ matrix.browser }}" --grep "@standalone"
       - name: Upload Playwright reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

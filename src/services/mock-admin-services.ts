@@ -1,14 +1,20 @@
+import { mockE2EClock } from "@/mocks/test-clock";
+import {
+  projectMockMemberQualifications,
+  mockMemberQualificationRecords,
+} from "@/services/member-status";
 import { endOfWeek, format, isWithinInterval, parseISO, startOfWeek } from "date-fns";
 import {
   deriveQualification,
-  deriveQualificationDateState,
-  systemClock,
+  evaluateQualification,
+  fixedClock,
 } from "@/lib/qualification-date-status";
 import {
   adminQualificationRecordCreateSchema,
   adminQualificationRecordUpdateSchema,
 } from "@/lib/admin-operations-validation";
 import { qualificationUpdateSchema } from "@/lib/pilot-validation";
+import { validateQualificationRuleFields } from "@/lib/qualification-rules";
 import {
   createPilotCsvTemplate,
   parsePilotCsv,
@@ -75,14 +81,11 @@ function toListItem(
   pilot: AdminPilotEntity,
   plans: UpgradePlanRecord[],
   clock: Clock,
+  configs: AdminMockState["qualificationConfigs"],
 ): AdminPilotListItem {
-  const states = pilot.qualifications.map((item) =>
-    deriveQualificationDateState(item.expiresOn, clock),
-  );
-  const expiredCount = states.filter((state) => state.status === "expired").length;
-  const expiringCount = states.filter(
-    (state) => state.status === "due_30" || state.status === "due_90",
-  ).length;
+  const projection = projectMockMemberQualifications(pilot, configs, clock);
+  const expiredCount = projection.qualificationCounts.expired;
+  const expiringCount = projection.qualificationCounts.due;
   return {
     id: pilot.id,
     employeeNumber: pilot.employeeNumber,
@@ -97,13 +100,12 @@ function toListItem(
     rankCode: pilot.rankLabel,
     active: pilot.active,
     version: pilot.version,
-    health: !states.length
-      ? "unconfigured"
-      : expiredCount > 0
-        ? "expired"
-        : expiringCount > 0
+    health:
+      projection.health === "valid"
+        ? "normal"
+        : projection.health === "due"
           ? "expiring"
-          : "normal",
+          : projection.health,
     expiredCount,
     expiringCount,
     activeUpgradeTitle: activePlanFor(pilot, plans)?.title ?? null,
@@ -115,11 +117,14 @@ function toDetail(
   reviews: QualificationReview[],
   plans: UpgradePlanRecord[],
   clock: Clock,
+  configs: AdminMockState["qualificationConfigs"],
 ): AdminPilotDetail {
   return {
-    ...toListItem(pilot, plans, clock),
+    ...toListItem(pilot, plans, clock, configs),
     rankLabel: pilot.rankLabel,
-    qualifications: pilot.qualifications.map((item) => deriveQualification(item, clock)),
+    qualifications: mockMemberQualificationRecords(pilot, configs, clock).map((item) =>
+      deriveQualification(item, clock),
+    ),
     qualificationRecords: copy(pilot.qualifications),
     upgradePlan: copy(activePlanFor(pilot, plans)),
     reviews: copy(reviews.filter((review) => review.pilotId === pilot.id)),
@@ -148,7 +153,7 @@ function mutationTime(clock: Clock): string {
 
 export function createMockAdminServices(
   store: AdminStateStore = adminStateStore,
-  clock: Clock = systemClock,
+  clock: Clock = mockE2EClock,
   idGenerator: IdGenerator = runtimeIdGenerator,
 ): {
   dashboard: AdminDashboardService;
@@ -158,9 +163,17 @@ export function createMockAdminServices(
   const pilots: PilotDirectoryService = {
     async list(query: PilotDirectoryQuery) {
       const q = query.q?.trim().toLocaleLowerCase() ?? "";
+      const capturedClock = fixedClock(clock);
       const items = store
         .getSnapshot()
-        .pilots.map((pilot) => toListItem(pilot, store.getSnapshot().upgradePlans, clock))
+        .pilots.map((pilot) =>
+          toListItem(
+            pilot,
+            store.getSnapshot().upgradePlans,
+            capturedClock,
+            store.getSnapshot().qualificationConfigs,
+          ),
+        )
         .filter(
           (pilot) =>
             (!q ||
@@ -182,7 +195,15 @@ export function createMockAdminServices(
       const state = store.getSnapshot();
       const pilot = state.pilots.find((item) => item.id === id);
       return {
-        data: pilot ? toDetail(pilot, state.reviews, state.upgradePlans, clock) : null,
+        data: pilot
+          ? toDetail(
+              pilot,
+              state.reviews,
+              state.upgradePlans,
+              fixedClock(clock),
+              state.qualificationConfigs,
+            )
+          : null,
         source: "mock",
       };
     },
@@ -291,7 +312,13 @@ export function createMockAdminServices(
       };
       store.update((current) => ({ ...current, pilots: [...current.pilots, pilot] }));
       return {
-        data: toDetail(pilot, store.getSnapshot().reviews, store.getSnapshot().upgradePlans, clock),
+        data: toDetail(
+          pilot,
+          store.getSnapshot().reviews,
+          store.getSnapshot().upgradePlans,
+          fixedClock(clock),
+          store.getSnapshot().qualificationConfigs,
+        ),
         source: "mock",
       };
     },
@@ -331,7 +358,8 @@ export function createMockAdminServices(
           updated!,
           store.getSnapshot().reviews,
           store.getSnapshot().upgradePlans,
-          clock,
+          fixedClock(clock),
+          store.getSnapshot().qualificationConfigs,
         ),
         source: "mock",
       };
@@ -411,7 +439,13 @@ export function createMockAdminServices(
               ? state.pilots.find((pilot) => pilot.employeeNumber === row.input.employeeNumber)
               : undefined;
           const qualifications = row.qualifications.map((qualification) => ({
-            id: qualification.qualificationCode,
+            id:
+              state.qualificationConfigs.find(
+                (config) => config.code === qualification.qualificationCode,
+              )?.qualificationId ?? qualification.qualificationCode,
+            validityRule: state.qualificationConfigs.find(
+              (config) => config.code === qualification.qualificationCode,
+            )?.validityRule,
             name: qualification.qualificationName,
             translations: qualification.qualificationTranslations,
             parameter: qualification.levelOrParameter,
@@ -485,9 +519,17 @@ export function createMockAdminServices(
           (item) => item.core && item.qualificationId === qualificationId,
         );
         if (!config) throw new Error("未找到核心资质配置");
-        if (config.validityRule.kind !== "non_expiring" && !input.expiryDate) {
-          throw new Error("请填写到期日期");
-        }
+        const ruleValidation = validateQualificationRuleFields(
+          {
+            issueDate: input.issueDate,
+            trainingDate: input.trainingDate ?? null,
+            expiryDate: input.expiryDate || null,
+            levelOrParameter: input.levelOrParameter,
+          },
+          config.validityRule,
+          config.parameterRestriction,
+        );
+        if (ruleValidation.errors.length) throw new Error(ruleValidation.errors[0]!.message);
         const record = pilot.qualifications.find((item) => item.id === qualificationId);
         if (!record) throw new Error("生效资质记录不存在");
         const currentVersion = record.version ?? 1;
@@ -504,7 +546,7 @@ export function createMockAdminServices(
         const after = {
           credentialNumber: input.credentialNumber,
           issueDate: input.issueDate,
-          expiryDate: input.expiryDate,
+          expiryDate: ruleValidation.expiryDate ?? "",
           issuingAuthority: input.issuingAuthority,
           levelOrParameter: input.levelOrParameter,
         };
@@ -516,8 +558,9 @@ export function createMockAdminServices(
           ...record,
           credentialNumber: input.credentialNumber,
           issueDate: input.issueDate,
-          expiryDate: input.expiryDate,
-          expiresOn: input.expiryDate,
+          expiryDate: ruleValidation.expiryDate ?? "",
+          expiresOn: ruleValidation.expiryDate ?? "",
+          validityRule: config.validityRule,
           issuingAuthority: input.issuingAuthority,
           levelOrParameter: input.levelOrParameter,
           parameter: input.levelOrParameter,
@@ -535,7 +578,11 @@ export function createMockAdminServices(
           ],
         };
         result = {
-          ...deriveQualificationDateState(updated.expiresOn, clock),
+          ...evaluateQualification({
+            record: { expiryDate: updated.expiresOn, validityRule: config.validityRule },
+            clock,
+            timezone: "Asia/Shanghai",
+          }),
           recordId: `qualification:${pilotId}:${qualificationId}`,
           qualificationId,
           qualificationName: updated.name,
@@ -584,16 +631,25 @@ export function createMockAdminServices(
           (item) => item.core && item.qualificationId === qualificationId,
         );
         if (!config) throw new Error("未找到核心资质配置");
-        if (config.validityRule.kind !== "non_expiring" && !validation.data.expiryDate) {
-          throw new Error("请填写到期日期");
-        }
+        const ruleValidation = validateQualificationRuleFields(
+          {
+            issueDate: validation.data.issueDate,
+            trainingDate: validation.data.trainingDate ?? null,
+            expiryDate: validation.data.expiryDate || null,
+            levelOrParameter: validation.data.levelOrParameter,
+          },
+          config.validityRule,
+          config.parameterRestriction,
+        );
+        if (ruleValidation.errors.length) throw new Error(ruleValidation.errors[0]!.message);
         const created = {
           id: qualificationId,
           name: config.name,
           credentialNumber: validation.data.credentialNumber,
           issueDate: validation.data.issueDate,
-          expiryDate: validation.data.expiryDate,
-          expiresOn: validation.data.expiryDate,
+          expiryDate: ruleValidation.expiryDate ?? "",
+          expiresOn: ruleValidation.expiryDate ?? "",
+          validityRule: config.validityRule,
           issuingAuthority: validation.data.issuingAuthority,
           levelOrParameter: validation.data.levelOrParameter,
           parameter: validation.data.levelOrParameter,
@@ -610,7 +666,11 @@ export function createMockAdminServices(
           ],
         };
         result = {
-          ...deriveQualificationDateState(created.expiresOn, clock),
+          ...evaluateQualification({
+            record: { expiryDate: created.expiresOn, validityRule: config.validityRule },
+            clock,
+            timezone: "Asia/Shanghai",
+          }),
           recordId: `qualification:${pilotId}:${qualificationId}`,
           qualificationId,
           qualificationName: created.name,
@@ -665,10 +725,29 @@ export function createMockAdminServices(
       let result: QualificationReview | null = null;
       store.update((state) => {
         const review = findPendingReview(state, id);
+        const config = state.qualificationConfigs.find(
+          (item) => (item.qualificationId ?? item.id) === review.qualificationId,
+        );
+        if (!config) throw new Error("未找到资质配置");
+        const ruleValidation = validateQualificationRuleFields(
+          {
+            issueDate: validation.data.issueDate,
+            trainingDate: validation.data.trainingDate ?? null,
+            expiryDate: validation.data.expiryDate || null,
+            levelOrParameter: validation.data.levelOrParameter,
+          },
+          config.validityRule,
+          config.parameterRestriction,
+        );
+        if (ruleValidation.errors.length) throw new Error(ruleValidation.errors[0]!.message);
+        const validatedData = {
+          ...validation.data,
+          expiryDate: ruleValidation.expiryDate ?? "",
+        };
         const fields = Object.keys(review.submittedFields) as ReviewCredentialFieldName[];
         const corrections = fields.reduce<QualificationReview["corrections"]>((next, field) => {
-          if (validation.data[field] !== review.submittedFields[field]) {
-            next[field] = validation.data[field];
+          if (validatedData[field] !== review.submittedFields[field]) {
+            next[field] = validatedData[field];
           }
           return next;
         }, {});
@@ -845,12 +924,22 @@ export function createMockAdminServices(
   const dashboard: AdminDashboardService = {
     async getSummary() {
       const state = store.getSnapshot();
+      const capturedClock = fixedClock(clock);
       const qualifications = state.pilots.flatMap((pilot) =>
-        pilot.qualifications.map((record) => ({
-          pilot,
-          qualification: deriveQualification(record, clock),
-          dateState: deriveQualificationDateState(record.expiresOn, clock),
-        })),
+        mockMemberQualificationRecords(pilot, state.qualificationConfigs, capturedClock).map(
+          (record) => ({
+            pilot,
+            qualification: deriveQualification(record, capturedClock),
+            dateState: evaluateQualification({
+              record:
+                record.recordExists === false
+                  ? null
+                  : { expiryDate: record.expiresOn, validityRule: record.validityRule },
+              timezone: record.timezone,
+              clock: capturedClock,
+            }),
+          }),
+        ),
       );
       const week = {
         start: startOfWeek(clock.now(), { weekStartsOn: 1 }),
@@ -884,6 +973,14 @@ export function createMockAdminServices(
           }));
       });
       const summary: AdminDashboardSummary = {
+        timezones: ["Asia/Shanghai"],
+        evaluatedAt: capturedClock.now().toISOString(),
+        missingCount: qualifications.filter(
+          (item) => item.qualification.required && item.dateState.status === "missing",
+        ).length,
+        incompleteCount: qualifications.filter(
+          (item) => item.qualification.required && item.dateState.status === "incomplete",
+        ).length,
         expiredCount: qualifications.filter((item) => item.dateState.status === "expired").length,
         dueIn7DaysCount: qualifications.filter((item) => item.dateState.window === "due_7").length,
         dueIn30DaysCount: qualifications.filter(
@@ -902,12 +999,17 @@ export function createMockAdminServices(
           .filter(
             (item) => item.dateState.status === "expired" || item.dateState.status === "due_30",
           )
-          .sort((a, b) => a.dateState.daysRemaining - b.dateState.daysRemaining)
+          .flatMap((item) =>
+            typeof item.dateState.daysRemaining === "number"
+              ? [{ ...item, daysRemaining: item.dateState.daysRemaining }]
+              : [],
+          )
+          .sort((a, b) => a.daysRemaining - b.daysRemaining)
           .map((item) => ({
             pilotId: item.pilot.id,
             pilotName: item.pilot.displayName,
             qualification: item.qualification,
-            daysRemaining: item.dateState.daysRemaining,
+            daysRemaining: item.daysRemaining,
           })),
         weeklyUpgrades: copy(weeklyUpgrades),
         delayedUpgrades: copy(delayedUpgrades),

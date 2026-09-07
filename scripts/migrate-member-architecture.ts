@@ -3,6 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { CORE_QUALIFICATION_CATALOG } from "../src/types/services";
 import { PILOT_TEMPLATE_PACK, templatePackChecksum } from "../src/server/template-packs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 loadEnvConfig(process.cwd());
 
@@ -168,7 +170,132 @@ async function installPilotPack(
   return { position, definitions, requirements };
 }
 
-async function migrate() {
+/**
+ * Link mutable legacy projections to their new Person owner.
+ *
+ * AuditEvent is deliberately excluded: production installs protect it with a
+ * database append-only trigger, so historical rows must retain their original
+ * immutable shape. They remain addressable through pilotId; new events should
+ * set personId when they are created.
+ */
+export async function linkMutablePilotProjections(
+  tx: Prisma.TransactionClient,
+  pilotId: string,
+  personId: string,
+) {
+  await tx.evidenceImage.updateMany({
+    where: { pilotId },
+    data: { personId },
+  });
+  await tx.notificationDelivery.updateMany({
+    where: { pilotId },
+    data: { personId },
+  });
+}
+
+export async function ensureLegacyQualificationDefinitionLink(
+  tx: Prisma.TransactionClient,
+  definition: { id: string; legacyQualificationTypeId: string | null },
+  legacyQualificationTypeId: string,
+) {
+  if (definition.legacyQualificationTypeId === legacyQualificationTypeId) return definition;
+  return tx.qualificationDefinition.update({
+    where: { id: definition.id },
+    data: { legacyQualificationTypeId },
+    select: { id: true, legacyQualificationTypeId: true },
+  });
+}
+
+type MigrationPilot = Pick<
+  Prisma.PilotGetPayload<Record<string, never>>,
+  | "id"
+  | "personId"
+  | "unitId"
+  | "employeeNumber"
+  | "mobile"
+  | "displayName"
+  | "initials"
+  | "active"
+  | "version"
+>;
+
+/** Preserve explicit canonical identity; employee-number equality is not authority to relink a person. */
+export async function ensureMigrationPerson(
+  tx: Prisma.TransactionClient,
+  pilot: MigrationPilot,
+  organizationId: string,
+) {
+  const identityConflict = (reason: string): never => {
+    throw new Error(`MIGRATION_PERSON_IDENTITY_CONFLICT: pilot ${pilot.id}: ${reason}`);
+  };
+  // Keep the legacy snapshot stable until the surrounding unit transaction
+  // finishes writing PilotProfile and other projections. Admin edits lock this
+  // same row and increment version, so stale snapshots cannot overwrite them.
+  const [locked] = await tx.$queryRaw<
+    Array<Pick<MigrationPilot, "id" | "personId" | "unitId" | "employeeNumber" | "version">>
+  >`SELECT id, "personId", "unitId", "employeeNumber", version
+      FROM "Pilot" WHERE id = ${pilot.id}::uuid FOR UPDATE`;
+  if (
+    !locked ||
+    locked.personId !== pilot.personId ||
+    locked.unitId !== pilot.unitId ||
+    locked.employeeNumber !== pilot.employeeNumber ||
+    locked.version !== pilot.version
+  ) {
+    identityConflict("pilot snapshot changed during migration");
+  }
+  const existing = await tx.person.findUnique({
+    where: { id: pilot.personId ?? pilot.id },
+    include: { legacyPilot: { select: { id: true } } },
+  });
+  if (pilot.personId && !existing) identityConflict("linked canonical person is missing");
+  if (existing) {
+    if (existing.organizationId !== organizationId)
+      identityConflict("canonical organization differs from pilot unit organization");
+    if (existing.unitId !== pilot.unitId)
+      identityConflict("canonical unit differs from pilot unit");
+    if (existing.employeeNumber !== pilot.employeeNumber)
+      identityConflict("canonical employee number differs from pilot");
+    if (existing.legacyPilot && existing.legacyPilot.id !== pilot.id)
+      identityConflict("person is already linked to another pilot");
+  } else {
+    const employeeMatch = await tx.person.findUnique({
+      where: { employeeNumber: pilot.employeeNumber },
+      select: { id: true },
+    });
+    if (employeeMatch)
+      identityConflict(
+        "employee number belongs to a different canonical identity; explicit reconciliation is required",
+      );
+  }
+  // Existing canonical names, contact details, lifecycle and version are not
+  // overwritten by a legacy migration rerun.
+  const person =
+    existing ??
+    (await tx.person.create({
+      data: {
+        id: pilot.id,
+        organizationId,
+        unitId: pilot.unitId,
+        employeeNumber: pilot.employeeNumber,
+        mobile: pilot.mobile,
+        displayName: pilot.displayName,
+        initials: pilot.initials,
+        active: pilot.active,
+        version: pilot.version,
+      },
+    }));
+  if (!pilot.personId) {
+    const linked = await tx.pilot.updateMany({
+      where: { id: pilot.id, personId: null },
+      data: { personId: person.id },
+    });
+    if (linked.count !== 1) identityConflict("pilot canonical link changed during migration");
+  }
+  return person;
+}
+
+export async function migrate() {
   const summary = emptySummary();
   const dryRun = process.argv.includes("--dry-run");
   const units = await prisma.organizationUnit.findMany({ orderBy: { code: "asc" } });
@@ -269,62 +396,38 @@ async function migrate() {
       for (const type of qualificationTypes) {
         const existing = await tx.qualificationDefinition.findUnique({
           where: { organizationId_code: { organizationId: organization.id, code: type.code } },
-          select: { id: true },
+          select: { id: true, legacyQualificationTypeId: true },
         });
-        const definition =
-          existing ??
-          (await tx.qualificationDefinition.create({
-            data: {
-              organizationId: organization.id,
-              code: type.code,
-              name: type.name,
-              translations: type.translations as Prisma.InputJsonValue,
-              category: "aviation",
-              active: type.active,
-              requiresEvidence: true,
-              requiresHumanReview: true,
-              allowAutoApproval: false,
-              fieldSchema: { fields: [] },
-              validityRule: type.validityRule as never,
-              reminders: type.reminders as never,
-              ocrChecks: type.ocrChecks as never,
-              parameterRestriction: type.parameterRestriction as never,
-              sortOrder: type.core ? 0 : 100,
-              legacyQualificationTypeId: type.id,
-            },
-            select: { id: true },
-          }));
+        const definition = existing
+          ? await ensureLegacyQualificationDefinitionLink(tx, existing, type.id)
+          : await tx.qualificationDefinition.create({
+              data: {
+                organizationId: organization.id,
+                code: type.code,
+                name: type.name,
+                translations: type.translations as Prisma.InputJsonValue,
+                category: "aviation",
+                active: type.active,
+                requiresEvidence: true,
+                requiresHumanReview: true,
+                allowAutoApproval: false,
+                fieldSchema: { fields: [] },
+                validityRule: type.validityRule as never,
+                reminders: type.reminders as never,
+                ocrChecks: type.ocrChecks as never,
+                parameterRestriction: type.parameterRestriction as never,
+                sortOrder: type.core ? 0 : 100,
+                legacyQualificationTypeId: type.id,
+              },
+              select: { id: true, legacyQualificationTypeId: true },
+            });
         if (!existing) summary.definitions += 1;
         typeMap.set(type.id, definition);
       }
 
       for (const pilot of pilots.filter((item) => item.unitId === unit.id)) {
-        const person = await tx.person.upsert({
-          where: { id: pilot.id },
-          update: {
-            organizationId: organization.id,
-            unitId: pilot.unitId,
-            employeeNumber: pilot.employeeNumber,
-            mobile: pilot.mobile,
-            displayName: pilot.displayName,
-            initials: pilot.initials,
-            active: pilot.active,
-            version: pilot.version,
-          },
-          create: {
-            id: pilot.id,
-            organizationId: organization.id,
-            unitId: pilot.unitId,
-            employeeNumber: pilot.employeeNumber,
-            mobile: pilot.mobile,
-            displayName: pilot.displayName,
-            initials: pilot.initials,
-            active: pilot.active,
-            version: pilot.version,
-          },
-        });
+        const person = await ensureMigrationPerson(tx, pilot, organization.id);
         summary.people += 1;
-        await tx.pilot.update({ where: { id: pilot.id }, data: { personId: person.id } });
         await tx.pilotProfile.upsert({
           where: { personId: person.id },
           update: {
@@ -425,18 +528,7 @@ async function migrate() {
           });
           summary.requestsLinked += 1;
         }
-        await tx.evidenceImage.updateMany({
-          where: { pilotId: pilot.id },
-          data: { personId: person.id },
-        });
-        await tx.notificationDelivery.updateMany({
-          where: { pilotId: pilot.id },
-          data: { personId: person.id },
-        });
-        await tx.auditEvent.updateMany({
-          where: { pilotId: pilot.id },
-          data: { personId: person.id },
-        });
+        await linkMutablePilotProjections(tx, pilot.id, person.id);
         const plans = await tx.upgradePlan.findMany({
           where: { pilotId: pilot.id },
           select: { id: true },
@@ -475,9 +567,11 @@ async function migrate() {
   console.log(JSON.stringify({ dryRun: false, ...summary }, null, 2));
 }
 
-migrate()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  migrate()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}

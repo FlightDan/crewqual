@@ -762,6 +762,21 @@ const zhCN: MessageDictionary = {
   "qualifications.updateNow": "立即更新资质",
   "qualifications.update": "更新资质",
   "qualifications.viewOrUpdate": "查看或更新",
+  "qualifications.section.missing": "需要补充（缺少资质）",
+  "qualifications.section.incomplete": "需要人工核查（数据不完整）",
+  "qualifications.status.missing": "缺少资质记录",
+  "qualifications.status.incomplete": "数据不完整",
+  "qualifications.submitMissing": "提交资质材料",
+  "qualifications.reviewRequired": "请联系管理员核查",
+  "qualifications.configureSubmission": "请联系管理员配置该资质的提交入口",
+  "members.health.incomplete": "数据不完整",
+  "members.health.unconfigured": "未配置资质要求",
+  "members.incompleteShort": "待核查",
+  "members.incomplete": "待核查 {count} 项",
+  "memberDetail.required": "必需",
+  "memberDetail.optional": "可选",
+  "errors.QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION":
+    "历史申请缺少提交基准，请人工核对后退回并重新提交",
   "qualifications.section.expired": "需要紧急处理（已过期）",
   "qualifications.section.due_30": "即将到期（30天内）",
   "qualifications.section.due_90": "正常跟进（90天内）",
@@ -1046,6 +1061,8 @@ const zhCN: MessageDictionary = {
   "upgradeDetail.prerequisite": "前置核心资质",
   "upgradeDetail.qualificationExpired": "存在过期（启动阻断）",
   "upgradeDetail.qualificationNormal": "六项正常/合规",
+  "upgradeDetail.qualificationCheckOnAction": "启动或恢复时核查",
+  "upgradeDetail.viewQualifications": "查看成员资质",
   "upgradeDetail.completedStages": "已完成节点",
   "upgradeDetail.totalDelay": "累计延期",
   "upgradeDetail.days": "天",
@@ -1466,6 +1483,10 @@ const zhCN: MessageDictionary = {
   "status.ai.mismatch": "信息不一致",
   "status.ai.unavailable": "不可用",
   "status.health.unconfigured": "未建档",
+  "errors.qualificationChanged": "正式资质在提交后已变更，请核对最新记录后退回并重新提交。",
+  "errors.qualificationRuleReview": "申请规则快照需要人工核查，请核对后退回并重新提交。",
+  "status.health.missing": "缺少资质",
+  "status.health.incomplete": "数据不完整",
   "status.health.normal": "正常",
   "status.health.expiring": "临期",
   "status.health.expired": "存在过期",
@@ -2411,6 +2432,22 @@ const enUS: MessageDictionary = {
   "qualifications.updateNow": "Update qualification now",
   "qualifications.update": "Update qualification",
   "qualifications.viewOrUpdate": "View or update",
+  "qualifications.section.missing": "Missing qualifications",
+  "qualifications.section.incomplete": "Manual review required (incomplete data)",
+  "qualifications.status.missing": "Missing qualification record",
+  "qualifications.status.incomplete": "Incomplete data",
+  "qualifications.submitMissing": "Submit qualification evidence",
+  "qualifications.reviewRequired": "Contact an administrator for review",
+  "qualifications.configureSubmission":
+    "Contact an administrator to configure submissions for this qualification",
+  "members.health.incomplete": "Incomplete data",
+  "members.health.unconfigured": "Requirements not configured",
+  "members.incompleteShort": "To review",
+  "members.incomplete": "{count} items to review",
+  "memberDetail.required": "Required",
+  "memberDetail.optional": "Optional",
+  "errors.QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION":
+    "This historical application has no submission baseline. Review it manually, return it, and submit again.",
   "qualifications.section.expired": "Urgent action required (expired)",
   "qualifications.section.due_30": "Expiring soon (within 30 days)",
   "qualifications.section.due_90": "Follow up normally (within 90 days)",
@@ -2718,6 +2755,8 @@ const enUS: MessageDictionary = {
   "upgradeDetail.prerequisite": "Prerequisite qualifications",
   "upgradeDetail.qualificationExpired": "Expired qualification found (start blocked)",
   "upgradeDetail.qualificationNormal": "All six compliant",
+  "upgradeDetail.qualificationCheckOnAction": "Checked when starting or resuming",
+  "upgradeDetail.viewQualifications": "View member qualifications",
   "upgradeDetail.completedStages": "Completed stages",
   "upgradeDetail.totalDelay": "Total delay",
   "upgradeDetail.days": "days",
@@ -3165,6 +3204,12 @@ const enUS: MessageDictionary = {
   "status.ai.mismatch": "Mismatch",
   "status.ai.unavailable": "Unavailable",
   "status.health.unconfigured": "No record",
+  "errors.qualificationChanged":
+    "The qualification changed after submission. Review the latest record, return the application, and submit again.",
+  "errors.qualificationRuleReview":
+    "The application rule snapshot needs manual review. Review it, return the application, and submit again.",
+  "status.health.missing": "Missing qualifications",
+  "status.health.incomplete": "Incomplete data",
   "status.health.normal": "Normal",
   "status.health.expiring": "Expiring",
   "status.health.expired": "Has expired items",
@@ -3338,6 +3383,10 @@ export function localizedQualificationText(
   value: string,
   t: (key: string, values?: Record<string, string | number>) => string,
 ): string {
+  if (value === "缺少资质记录") return t("qualifications.status.missing");
+  if (value === "数据不完整") return t("qualifications.status.incomplete");
+  if (value === "请提交资质材料") return t("qualifications.submitMissing");
+  if (value === "请联系管理员核查") return t("qualifications.reviewRequired");
   if (value === "长期有效") return t("qualifications.status.longTerm");
   if (value === "有效") return t("qualifications.status.valid");
   if (value === "今日到期") return t("qualifications.status.today");

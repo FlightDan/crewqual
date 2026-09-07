@@ -8,7 +8,9 @@ import { pilotManagementInputSchema } from "@/lib/pilot-management-validation";
 
 const querySchema = z.object({
   q: z.string().trim().max(256).optional(),
-  health: z.enum(["all", "normal", "expiring", "expired", "unconfigured"]).optional(),
+  health: z
+    .enum(["all", "normal", "expiring", "expired", "missing", "incomplete", "unconfigured"])
+    .optional(),
   upgrade: z.enum(["all", "active", "none"]).optional(),
   status: z.enum(["all", "active", "inactive"]).optional(),
   page: z.coerce.number().int().positive().max(10_000).default(1),

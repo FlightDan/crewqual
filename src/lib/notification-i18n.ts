@@ -5,6 +5,7 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   "legacy.raw",
   "qualification.expiry.expired",
   "qualification.expiry.due",
+  "qualification.expiry.today",
   "qualification.review.approved",
   "qualification.review.returned",
   "qualification.rollback",
@@ -66,6 +67,13 @@ export function renderNotificationContent(input: {
   const stageName = upgradeStageLabel(value.stageCode, locale, number(value.stageOrder));
 
   switch (key) {
+    case "qualification.expiry.today":
+      return {
+        summary: zh ? `${qualificationName}今日到期` : `${qualificationName} expires today`,
+        message: zh
+          ? `${pilotName} 的${qualificationName}今日到期，请及时处理。`
+          : `${pilotName}'s ${qualificationName} expires today. Please take action.`,
+      };
     case "qualification.expiry.expired":
       return {
         summary: zh ? `${qualificationName}已过期` : `${qualificationName} has expired`,

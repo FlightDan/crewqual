@@ -18,6 +18,30 @@ const releaseWorkflow = readFileSync(
 const caddy = readFileSync(path.resolve(process.cwd(), "Caddyfile"), "utf8");
 const dockerfile = readFileSync(path.resolve(process.cwd(), "Dockerfile"), "utf8");
 const installer = readFileSync(path.resolve(process.cwd(), "install.sh"), "utf8");
+const runtimeRoleScript = readFileSync(
+  path.resolve(process.cwd(), "scripts/ensure-postgres-runtime-role.sh"),
+  "utf8",
+);
+const containerEntrypoint = readFileSync(
+  path.resolve(process.cwd(), "scripts/container-entrypoint.mjs"),
+  "utf8",
+);
+const jobsSource = readFileSync(path.resolve(process.cwd(), "src/server/jobs.ts"), "utf8");
+const psqlUrlWrapper = readFileSync(
+  path.resolve(process.cwd(), "scripts/psql-from-url.ts"),
+  "utf8",
+);
+const postgresClientEnvironment = readFileSync(
+  path.resolve(process.cwd(), "src/server/postgres-client-environment.ts"),
+  "utf8",
+);
+const auditIntegrityMigration = readFileSync(
+  path.resolve(
+    process.cwd(),
+    "prisma/migrations/20260904010000_database_roles_audit_integrity/migration.sql",
+  ),
+  "utf8",
+);
 
 describe("deployment configuration", () => {
   it("declares isolated application, worker, database, queue and object-storage services", () => {
@@ -73,6 +97,61 @@ describe("deployment configuration", () => {
     expect(releaseWorkflow).toContain("RELEASE_RUNTIME_IMAGE");
     expect(releaseWorkflow).not.toContain("RELEASE_WORKER_IMAGE");
     expect(releaseWorkflow).not.toContain("RELEASE_OPS_IMAGE");
+  });
+
+  it("keeps readiness private while wiring authenticated container probes", () => {
+    for (const text of [compose, releaseCompose, installCompose]) {
+      expect(text).toContain(
+        "READINESS_PROBE_SECRET: ${READINESS_PROBE_SECRET:?READINESS_PROBE_SECRET is required}",
+      );
+    }
+    for (const text of [compose, installCompose, dockerfile]) {
+      expect(text).toContain("x-crewqual-readiness-secret");
+      expect(text).toContain("process.env.READINESS_PROBE_SECRET");
+    }
+    expect(installer).toContain('readiness_probe_secret="$(openssl rand -hex 32)"');
+    expect(installer).toContain("READINESS_PROBE_SECRET='%s'");
+  });
+
+  it("keeps the owner database credential out of runtime services and makes audit rows append-only", () => {
+    for (const text of [compose, releaseCompose, installCompose]) {
+      expect(text.match(/^\s+DIRECT_URL:/gm)).toHaveLength(1);
+      expect(text.match(/^\s+POSTGRES_APP_PASSWORD:/gm)).toHaveLength(1);
+      expect(text).toContain('command: ["node", "scripts/container-entrypoint.mjs", "migrate"]');
+    }
+    expect(installer).toContain("DATABASE_URL='postgresql://crewqual_app:");
+    expect(installer).toContain("DIRECT_URL='postgresql://crewqual:");
+    expect(runtimeRoleScript).toContain("psql-from-url.ts DIRECT_URL --no-psqlrc");
+    expect(runtimeRoleScript).toContain("psql-from-url.ts DATABASE_URL --no-psqlrc");
+    expect(runtimeRoleScript).not.toContain('psql "$DIRECT_URL"');
+    expect(runtimeRoleScript).not.toContain("--set=app_password");
+    expect(runtimeRoleScript).toContain("\\getenv app_password POSTGRES_APP_PASSWORD");
+    expect(runtimeRoleScript).toContain("pg_catalog.pg_auth_members");
+    expect(runtimeRoleScript).toContain("REVOKE %I FROM %I");
+    expect(runtimeRoleScript).toContain("ALL TABLES IN SCHEMA pgboss FROM PUBLIC, crewqual_app");
+    expect(runtimeRoleScript).toContain(
+      "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pgboss TO crewqual_app",
+    );
+    expect(runtimeRoleScript).toContain(
+      "GRANT EXECUTE ON FUNCTION pgboss.create_queue(text, jsonb) TO crewqual_app",
+    );
+    expect(runtimeRoleScript).toContain(
+      "procedure.oid <> 'pgboss.create_queue(text,jsonb)'::regprocedure",
+    );
+    expect(containerEntrypoint).toContain("scripts/migrate-pg-boss.ts");
+    expect(containerEntrypoint.indexOf("scripts/migrate-pg-boss.ts")).toBeLessThan(
+      containerEntrypoint.indexOf('ensure-postgres-runtime-role.sh", "grant'),
+    );
+    expect(jobsSource).toContain("migrate: false");
+    expect(jobsSource).not.toContain("migrate: true");
+    expect(psqlUrlWrapper).toContain('spawnSync("psql", psqlArguments');
+    expect(psqlUrlWrapper).toContain("minimalSubprocessEnvironment");
+    expect(postgresClientEnvironment).toContain("delete environment.DIRECT_URL");
+    expect(postgresClientEnvironment).not.toContain("...process.env");
+    expect(auditIntegrityMigration).toContain('GRANT SELECT, INSERT ON TABLE "AuditEvent"');
+    expect(auditIntegrityMigration).toContain('BEFORE TRUNCATE ON "AuditEvent"');
+    expect(auditIntegrityMigration).toContain("REVOKE CREATE ON SCHEMA public");
+    expect(auditIntegrityMigration).toContain("REVOKE CREATE, TEMP ON DATABASE %I FROM PUBLIC, %I");
   });
 
   it("ships the public installer with one Web and one shared Runtime image", () => {

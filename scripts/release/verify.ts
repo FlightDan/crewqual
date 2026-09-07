@@ -18,6 +18,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
+import { collectQualificationAudit } from "../audit-qualification-state";
 import { PILOT_TEMPLATE_PACK } from "../../src/server/template-packs";
 import {
   artifactDir,
@@ -38,7 +39,10 @@ function envOr(name: string, fallback: string) {
 
 let pnpmRunner: "pnpm" | "corepack" | undefined;
 
-function pnpmCommand(args: string[], options: { allowFailure?: boolean } = {}) {
+function pnpmCommand(
+  args: string[],
+  options: { allowFailure?: boolean; env?: NodeJS.ProcessEnv } = {},
+) {
   if (!pnpmRunner) {
     pnpmRunner =
       command("pnpm", ["--version"], { allowFailure: true }).status === 0 ? "pnpm" : "corepack";
@@ -63,12 +67,17 @@ function composeArgs(project: string, envFile: string, args: string[]) {
   ];
 }
 
-async function waitFor(url: string, expected = 200, timeoutMs = 180_000) {
+async function waitFor(
+  url: string,
+  expected = 200,
+  timeoutMs = 180_000,
+  headers: Record<string, string> = {},
+) {
   const started = Date.now();
   let last = "";
   while (Date.now() - started < timeoutMs) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(5_000) });
       if (response.status === expected) return;
       last = `${response.status} ${await response.text()}`;
     } catch (error) {
@@ -345,6 +354,231 @@ async function dbSnapshot(databaseUrl: string) {
   }
 }
 
+async function databaseRoleSnapshot(runtimeDatabaseUrl: string, ownerDatabaseUrl: string) {
+  const runtime = new PrismaClient({ adapter: new PrismaPg(runtimeDatabaseUrl) });
+  const owner = new PrismaClient({ adapter: new PrismaPg(ownerDatabaseUrl) });
+  const expectRuntimeDenied = async (label: string, sql: string) => {
+    try {
+      await runtime.$executeRawUnsafe(sql);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/permission denied|append-only|must be owner/i.test(message)) return;
+      throw new Error(`${label} 以非预期方式失败：${message}`);
+    }
+    throw new Error(`${label} 未被数据库权限边界拒绝`);
+  };
+  try {
+    const [runtimeIdentity] = await runtime.$queryRaw<Array<{ currentUser: string }>>`
+      SELECT current_user AS "currentUser"
+    `;
+    const [security] = await owner.$queryRaw<
+      Array<{
+        auditOwner: string;
+        queueOwner: string;
+        runtimeRoleRestricted: boolean;
+        runtimeHasRoleMemberships: boolean;
+        runtimeOwnsObjects: boolean;
+        runtimeOwnsFunctions: boolean;
+        updateAllowed: boolean;
+        deleteAllowed: boolean;
+        truncateAllowed: boolean;
+        schemaCreateAllowed: boolean;
+        queueSchemaUsage: boolean;
+        queueSchemaCreateAllowed: boolean;
+        queueTablesCrud: boolean;
+        queueDangerousPrivileges: boolean;
+        queueCreateFunctionAllowed: boolean;
+        queueOtherFunctionsAllowed: boolean;
+        databaseCreateAllowed: boolean;
+        databaseTempAllowed: boolean;
+        appendTrigger: boolean;
+        truncateTrigger: boolean;
+      }>
+    >`
+      SELECT owner_role.rolname AS "auditOwner",
+             (
+               SELECT queue_owner.rolname
+               FROM pg_catalog.pg_namespace queue_namespace
+               JOIN pg_catalog.pg_roles queue_owner ON queue_owner.oid = queue_namespace.nspowner
+               WHERE queue_namespace.nspname = 'pgboss'
+             ) AS "queueOwner",
+             (
+               SELECT runtime_role.rolcanlogin
+                 AND NOT runtime_role.rolsuper
+                 AND NOT runtime_role.rolinherit
+                 AND NOT runtime_role.rolcreaterole
+                 AND NOT runtime_role.rolcreatedb
+                 AND NOT runtime_role.rolreplication
+                 AND NOT runtime_role.rolbypassrls
+               FROM pg_catalog.pg_roles runtime_role
+               WHERE runtime_role.rolname = 'crewqual_app'
+             ) AS "runtimeRoleRestricted",
+             EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_auth_members membership
+               JOIN pg_catalog.pg_roles member_role ON member_role.oid = membership.member
+               WHERE member_role.rolname = 'crewqual_app'
+             ) AS "runtimeHasRoleMemberships",
+             EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_class owned_relation
+               JOIN pg_catalog.pg_namespace owned_namespace
+                 ON owned_namespace.oid = owned_relation.relnamespace
+               JOIN pg_catalog.pg_roles owned_role ON owned_role.oid = owned_relation.relowner
+               WHERE owned_namespace.nspname IN ('public', 'pgboss')
+                 AND owned_role.rolname = 'crewqual_app'
+                 AND owned_relation.relkind IN ('r', 'p', 'S', 'v', 'm', 'f')
+             ) AS "runtimeOwnsObjects",
+             EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_proc owned_procedure
+               JOIN pg_catalog.pg_namespace owned_namespace
+                 ON owned_namespace.oid = owned_procedure.pronamespace
+               JOIN pg_catalog.pg_roles owned_role ON owned_role.oid = owned_procedure.proowner
+               WHERE owned_namespace.nspname IN ('public', 'pgboss')
+                 AND owned_role.rolname = 'crewqual_app'
+             ) AS "runtimeOwnsFunctions",
+             has_table_privilege('crewqual_app', '"AuditEvent"', 'UPDATE') AS "updateAllowed",
+             has_table_privilege('crewqual_app', '"AuditEvent"', 'DELETE') AS "deleteAllowed",
+             has_table_privilege('crewqual_app', '"AuditEvent"', 'TRUNCATE') AS "truncateAllowed",
+             has_schema_privilege('crewqual_app', 'public', 'CREATE') AS "schemaCreateAllowed",
+             has_schema_privilege('crewqual_app', 'pgboss', 'USAGE') AS "queueSchemaUsage",
+             has_schema_privilege('crewqual_app', 'pgboss', 'CREATE') AS "queueSchemaCreateAllowed",
+             COALESCE((
+               SELECT bool_and(
+                 has_table_privilege('crewqual_app', queue_relation.oid, 'SELECT')
+                 AND has_table_privilege('crewqual_app', queue_relation.oid, 'INSERT')
+                 AND has_table_privilege('crewqual_app', queue_relation.oid, 'UPDATE')
+                 AND has_table_privilege('crewqual_app', queue_relation.oid, 'DELETE')
+               )
+               FROM pg_catalog.pg_class queue_relation
+               JOIN pg_catalog.pg_namespace queue_namespace
+                 ON queue_namespace.oid = queue_relation.relnamespace
+               WHERE queue_namespace.nspname = 'pgboss'
+                 AND queue_relation.relkind IN ('r', 'p')
+             ), false) AS "queueTablesCrud",
+             EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_class queue_relation
+               JOIN pg_catalog.pg_namespace queue_namespace
+                 ON queue_namespace.oid = queue_relation.relnamespace
+               WHERE queue_namespace.nspname = 'pgboss'
+                 AND queue_relation.relkind IN ('r', 'p')
+                 AND (
+                   has_table_privilege('crewqual_app', queue_relation.oid, 'TRUNCATE')
+                   OR has_table_privilege('crewqual_app', queue_relation.oid, 'REFERENCES')
+                   OR has_table_privilege('crewqual_app', queue_relation.oid, 'TRIGGER')
+                 )
+             ) AS "queueDangerousPrivileges",
+             has_function_privilege(
+               'crewqual_app',
+               'pgboss.create_queue(text,jsonb)'::regprocedure,
+               'EXECUTE'
+             ) AS "queueCreateFunctionAllowed",
+             EXISTS (
+               SELECT 1
+               FROM pg_catalog.pg_proc queue_procedure
+               JOIN pg_catalog.pg_namespace queue_namespace
+                 ON queue_namespace.oid = queue_procedure.pronamespace
+               WHERE queue_namespace.nspname = 'pgboss'
+                 AND queue_procedure.oid <> 'pgboss.create_queue(text,jsonb)'::regprocedure
+                 AND has_function_privilege('crewqual_app', queue_procedure.oid, 'EXECUTE')
+             ) AS "queueOtherFunctionsAllowed",
+             has_database_privilege('crewqual_app', current_database(), 'CREATE') AS "databaseCreateAllowed",
+             has_database_privilege('crewqual_app', current_database(), 'TEMP') AS "databaseTempAllowed",
+             EXISTS (
+               SELECT 1 FROM pg_catalog.pg_trigger
+               WHERE tgrelid = '"AuditEvent"'::regclass
+                 AND tgname = 'audit_event_append_only'
+                 AND tgenabled <> 'D'
+             ) AS "appendTrigger",
+             EXISTS (
+               SELECT 1 FROM pg_catalog.pg_trigger
+               WHERE tgrelid = '"AuditEvent"'::regclass
+                 AND tgname = 'audit_event_truncate_block'
+                 AND tgenabled <> 'D'
+             ) AS "truncateTrigger"
+      FROM pg_catalog.pg_class audit_relation
+      JOIN pg_catalog.pg_roles owner_role ON owner_role.oid = audit_relation.relowner
+      WHERE audit_relation.oid = '"AuditEvent"'::regclass
+    `;
+    if (
+      runtimeIdentity?.currentUser !== "crewqual_app" ||
+      !security ||
+      security.auditOwner === "crewqual_app" ||
+      !security.queueOwner ||
+      security.queueOwner === "crewqual_app" ||
+      !security.runtimeRoleRestricted ||
+      security.runtimeHasRoleMemberships ||
+      security.runtimeOwnsObjects ||
+      security.runtimeOwnsFunctions ||
+      security.updateAllowed ||
+      security.deleteAllowed ||
+      security.truncateAllowed ||
+      security.schemaCreateAllowed ||
+      !security.queueSchemaUsage ||
+      security.queueSchemaCreateAllowed ||
+      !security.queueTablesCrud ||
+      security.queueDangerousPrivileges ||
+      !security.queueCreateFunctionAllowed ||
+      security.queueOtherFunctionsAllowed ||
+      security.databaseCreateAllowed ||
+      security.databaseTempAllowed ||
+      !security.appendTrigger ||
+      !security.truncateTrigger
+    ) {
+      throw new Error(
+        `数据库运行时角色隔离不符合要求：${JSON.stringify({ runtimeIdentity, security })}`,
+      );
+    }
+    await expectRuntimeDenied(
+      "AuditEvent UPDATE",
+      'UPDATE "AuditEvent" SET "action" = "action" WHERE false',
+    );
+    await expectRuntimeDenied("AuditEvent DELETE", 'DELETE FROM "AuditEvent" WHERE false');
+    await expectRuntimeDenied("AuditEvent TRUNCATE", 'TRUNCATE TABLE "AuditEvent"');
+    await expectRuntimeDenied(
+      "AuditEvent trigger disable",
+      'ALTER TABLE "AuditEvent" DISABLE TRIGGER audit_event_append_only',
+    );
+    await expectRuntimeDenied(
+      "PgBoss schema DDL",
+      "CREATE TABLE pgboss.crewqual_runtime_forbidden_probe (id integer)",
+    );
+    return {
+      runtimeUser: runtimeIdentity.currentUser,
+      auditOwner: security.auditOwner,
+      queueOwner: security.queueOwner,
+      runtimeRoleRestricted: security.runtimeRoleRestricted,
+      runtimeHasRoleMemberships: security.runtimeHasRoleMemberships,
+      runtimeOwnsObjects: security.runtimeOwnsObjects,
+      runtimeOwnsFunctions: security.runtimeOwnsFunctions,
+      auditMutationPrivileges: {
+        update: security.updateAllowed,
+        delete: security.deleteAllowed,
+        truncate: security.truncateAllowed,
+      },
+      createPrivileges: {
+        schema: security.schemaCreateAllowed,
+        queueSchema: security.queueSchemaCreateAllowed,
+        database: security.databaseCreateAllowed,
+        temporary: security.databaseTempAllowed,
+      },
+      queuePrivileges: {
+        schemaUsage: security.queueSchemaUsage,
+        tablesCrud: security.queueTablesCrud,
+        dangerousTablePrivileges: security.queueDangerousPrivileges,
+        createQueueFunction: security.queueCreateFunctionAllowed,
+        otherFunctions: security.queueOtherFunctionsAllowed,
+      },
+      triggers: { appendOnly: security.appendTrigger, truncateBlocked: security.truncateTrigger },
+      mutationAttempts: "denied",
+    };
+  } finally {
+    await Promise.all([runtime.$disconnect(), owner.$disconnect()]);
+  }
+}
+
 async function bootstrap(evidence: ReleaseEvidence) {
   const docker = command("docker", ["version"], { allowFailure: true });
   if (docker.status !== 0) throw new Error("Docker daemon 不可用");
@@ -357,21 +591,31 @@ async function bootstrap(evidence: ReleaseEvidence) {
   const localAcceptance = process.env.RELEASE_ACCEPTANCE_SCOPE === "local";
   const envPath = join("/tmp", `crewqual-release-${id}.env`);
   const password = randomBytes(24).toString("base64url");
+  const appPassword = randomBytes(24).toString("base64url");
   const initialPassword = randomBytes(18).toString("base64url");
+  const readinessProbeSecret = randomBytes(32).toString("hex");
+  const storageEndpoint = localAcceptance ? "http://minio:9000" : required("S3_ENDPOINT");
+  const storageAuthority = new URL(storageEndpoint).host;
   const lines = [
     `RELEASE_WEB_IMAGE=${required("RELEASE_WEB_IMAGE")}`,
     `RELEASE_RUNTIME_IMAGE=${required("RELEASE_RUNTIME_IMAGE")}`,
     `POSTGRES_PASSWORD=${password}`,
+    `POSTGRES_APP_PASSWORD=${appPassword}`,
+    `DATABASE_URL=postgresql://crewqual_app:${appPassword}@postgres:5432/crewqual`,
+    `DIRECT_URL=postgresql://crewqual:${password}@postgres:5432/crewqual`,
     `APP_ORIGIN=https://acceptance-${id}.invalid`,
     `ACCEPTANCE_WEB_PORT=${port}`,
     `ACCEPTANCE_DB_PORT=${dbPort}`,
     `SESSION_SECRET=${randomBytes(48).toString("hex")}`,
+    `READINESS_PROBE_SECRET=${readinessProbeSecret}`,
     `SETTINGS_ENCRYPTION_KEY=${randomBytes(32).toString("hex")}`,
     // Local validation only needs a syntactically valid storage configuration;
     // the destructive-recovery and production E2E gates remain in the full
     // profile and require real, isolated infrastructure.
     `STORAGE_MODE=${localAcceptance ? "builtin" : envOr("STORAGE_MODE", "external")}`,
-    `S3_ENDPOINT=${localAcceptance ? "http://minio:9000" : required("S3_ENDPOINT")}`,
+    `OUTBOUND_ALLOWED_HOSTS=${storageAuthority}`,
+    "OUTBOUND_ALLOWED_CIDRS=",
+    `S3_ENDPOINT=${storageEndpoint}`,
     `S3_REGION=${envOr("AWS_REGION", "us-east-1")}`,
     `S3_BUCKET=${localAcceptance ? envOr("EVIDENCE_S3_BUCKET", "crewqual-local") : required("EVIDENCE_S3_BUCKET")}`,
     `S3_ACCESS_KEY_ID=${localAcceptance ? envOr("AWS_ACCESS_KEY_ID", "local-access-key") : required("AWS_ACCESS_KEY_ID")}`,
@@ -409,19 +653,23 @@ async function bootstrap(evidence: ReleaseEvidence) {
   try {
     compose(["run", "--rm", "migrate"]);
     compose(["run", "--rm", "bootstrap"]);
-    const databaseUrl = `postgresql://crewqual:${password}@127.0.0.1:${dbPort}/crewqual`;
-    const first = await dbSnapshot(databaseUrl);
+    const ownerDatabaseUrl = `postgresql://crewqual:${password}@127.0.0.1:${dbPort}/crewqual`;
+    const runtimeDatabaseUrl = `postgresql://crewqual_app:${appPassword}@127.0.0.1:${dbPort}/crewqual`;
+    const first = await dbSnapshot(runtimeDatabaseUrl);
     compose(["run", "--rm", "bootstrap"]);
-    const second = await dbSnapshot(databaseUrl);
+    const second = await dbSnapshot(runtimeDatabaseUrl);
     if (JSON.stringify(first) !== JSON.stringify(second)) {
       throw new Error("第二次 bootstrap 修改了既有管理员或权限基线");
     }
     compose(["up", "-d", "web", "worker"]);
-    await waitFor(`http://127.0.0.1:${port}/api/health`);
+    await waitFor(`http://127.0.0.1:${port}/api/health?probe=readiness`, 200, 180_000, {
+      "x-crewqual-readiness-secret": readinessProbeSecret,
+    });
     const report = await writeGateEvidence(artifactDir(evidence.runId), "bootstrap", {
       project,
       port,
       secondBootstrapSnapshot: second,
+      databaseRoleSeparation: await databaseRoleSnapshot(runtimeDatabaseUrl, ownerDatabaseUrl),
       externalIntegrations: "disabled",
     });
     return { evidence: [report], detail: `compose=${project}` };
@@ -625,7 +873,6 @@ async function s3Dr(evidence: ReleaseEvidence) {
     allowFailure: true,
   });
   if (restoreDatabase.status !== 0) throw new Error(`数据库恢复失败：${restoreDatabase.output}`);
-  process.env.RESTORE_DATABASE_EMPTY_CHECK = "0";
   const restoreGallery = pnpmCommand(["db:restore:offline", galleryRunId, "恢复"], {
     allowFailure: true,
   });
@@ -671,60 +918,225 @@ async function s3Dr(evidence: ReleaseEvidence) {
 }
 
 async function e2e(evidence: ReleaseEvidence) {
-  const baseUrl = required("RELEASE_BASE_URL");
-  const result = pnpmCommand(
-    [
-      "exec",
-      "playwright",
-      "test",
-      "--config",
-      "playwright.release.config.ts",
-      "--project=chromium",
-      "--project=firefox",
-      "--project=webkit",
-      "--repeat-each=3",
-    ],
-    { allowFailure: true },
+  const normalizedId = evidence.runId.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const fixtureId = normalizedId.toUpperCase().slice(-16);
+  const project = `crewqual-e2e-${normalizedId}`;
+  const webPort = envOr(
+    "ACCEPTANCE_E2E_WEB_PORT",
+    String(31_000 + Math.floor(Math.random() * 1_000)),
   );
-  if (result.status !== 0) throw new Error(`production E2E 失败：${result.output}`);
-  const webkit = pnpmCommand(
-    [
-      "exec",
-      "playwright",
-      "test",
-      "--config",
-      "playwright.release.config.ts",
-      "--project=webkit",
-      "--grep",
-      "admin navigation",
-      "--repeat-each=10",
-    ],
-    { allowFailure: true },
+  const dbPort = envOr(
+    "ACCEPTANCE_E2E_DB_PORT",
+    String(56_000 + Math.floor(Math.random() * 1_000)),
   );
-  if (webkit.status !== 0) throw new Error(`WebKit 管理导航专项失败：${webkit.output}`);
-  const remote = pnpmCommand(
-    [
-      "exec",
-      "playwright",
-      "test",
-      "--config",
-      "playwright.release-remote.config.ts",
-      "--project=chromium",
-      "--project=firefox",
-      "--project=webkit",
-      "--repeat-each=3",
-    ],
-    { allowFailure: true },
-  );
-  if (remote.status !== 0) throw new Error(`remote production E2E 失败：${remote.output}`);
-  const report = await writeGateEvidence(artifactDir(evidence.runId), "e2e", {
-    baseUrl,
-    browsers: ["chromium", "firefox", "webkit"],
-    repeatEach: 3,
-    webkitNavigationRepeatEach: 10,
-    remoteBrowsers: ["chromium", "firefox", "webkit"],
-  });
-  return { evidence: [report], detail: "production Playwright passed" };
+  const baseUrl = `http://127.0.0.1:${webPort}`;
+  const databasePassword = randomBytes(24).toString("base64url");
+  const databaseAppPassword = randomBytes(24).toString("base64url");
+  const adminEmail = `acceptance-${normalizedId}@example.invalid`;
+  const adminPassword = randomBytes(18).toString("base64url");
+  const adminTotpSecret = "A".repeat(32);
+  const settingsEncryptionKey = randomBytes(32).toString("hex");
+  const sessionSecret = randomBytes(48).toString("hex");
+  const readinessProbeSecret = randomBytes(32).toString("hex");
+  const storageAccessKey = randomBytes(12).toString("hex");
+  const storageSecretKey = randomBytes(24).toString("hex");
+  const envPath = join("/tmp", `crewqual-release-e2e-${normalizedId}.env`);
+  const lines = [
+    `RELEASE_WEB_IMAGE=${required("RELEASE_WEB_IMAGE")}`,
+    `RELEASE_RUNTIME_IMAGE=${required("RELEASE_RUNTIME_IMAGE")}`,
+    `POSTGRES_PASSWORD=${databasePassword}`,
+    `POSTGRES_APP_PASSWORD=${databaseAppPassword}`,
+    `DATABASE_URL=postgresql://crewqual_app:${databaseAppPassword}@postgres:5432/crewqual`,
+    `DIRECT_URL=postgresql://crewqual:${databasePassword}@postgres:5432/crewqual`,
+    `APP_ORIGIN=${baseUrl}`,
+    "APP_DOMAIN=127.0.0.1",
+    "DEPLOYMENT_NETWORK_MODE=http",
+    `APP_PORT=${webPort}`,
+    `ACCEPTANCE_WEB_PORT=${webPort}`,
+    `ACCEPTANCE_DB_PORT=${dbPort}`,
+    `SESSION_SECRET=${sessionSecret}`,
+    `READINESS_PROBE_SECRET=${readinessProbeSecret}`,
+    `SETTINGS_ENCRYPTION_KEY=${settingsEncryptionKey}`,
+    "STORAGE_MODE=builtin",
+    "OUTBOUND_ALLOWED_HOSTS=minio:9000",
+    "OUTBOUND_ALLOWED_CIDRS=",
+    "S3_ENDPOINT=http://minio:9000",
+    "S3_REGION=us-east-1",
+    "S3_BUCKET=crewqual-e2e",
+    `S3_ACCESS_KEY_ID=${storageAccessKey}`,
+    `S3_SECRET_ACCESS_KEY=${storageSecretKey}`,
+    "S3_FORCE_PATH_STYLE=true",
+    `INITIAL_ADMIN_EMAIL=${adminEmail}`,
+    `INITIAL_ADMIN_PASSWORD=${adminPassword}`,
+    `INITIAL_ADMIN_TOTP_SECRET=${adminTotpSecret}`,
+    "INITIAL_ORGANIZATION_CODE=CREWQUAL",
+    "INITIAL_ORGANIZATION_NAME=CrewQual E2E",
+    "INITIAL_UNIT_CODE=DEMO",
+    "INITIAL_UNIT_NAME=E2E 运行单位",
+    "INITIAL_TEMPLATE_PACK_CODE=aviation-china-airline-pilot",
+  ];
+  await writeFile(envPath, `${lines.join("\n")}\n`, { mode: 0o600 });
+  const composeEnv = {
+    ...process.env,
+    ...Object.fromEntries(
+      lines.map((line) => {
+        const separator = line.indexOf("=");
+        return [line.slice(0, separator), line.slice(separator + 1)];
+      }),
+    ),
+  };
+  const compose = (args: string[]) =>
+    command("docker", composeArgs(project, envPath, args), { env: composeEnv });
+  try {
+    compose(["run", "--rm", "migrate"]);
+    compose(["run", "--rm", "bootstrap"]);
+    const e2eDatabaseUrl = `postgresql://crewqual:${databasePassword}@127.0.0.1:${dbPort}/crewqual`;
+    const e2eEnv = {
+      ...process.env,
+      CI: "1",
+      NODE_ENV: "development",
+      SERVICE_MODE: "remote",
+      NEXT_PUBLIC_SERVICE_MODE: "remote",
+      APP_ORIGIN: baseUrl,
+      RELEASE_BASE_URL: baseUrl,
+      DATABASE_URL: e2eDatabaseUrl,
+      DIRECT_URL: e2eDatabaseUrl,
+      E2E_DATABASE_URL: e2eDatabaseUrl,
+      SETTINGS_ENCRYPTION_KEY: settingsEncryptionKey,
+      SESSION_SECRET: sessionSecret,
+      READINESS_PROBE_SECRET: readinessProbeSecret,
+      INITIAL_ADMIN_EMAIL: adminEmail,
+      INITIAL_ADMIN_PASSWORD: adminPassword,
+      INITIAL_ADMIN_TOTP_SECRET: adminTotpSecret,
+      E2E_ADMIN_EMAIL: adminEmail,
+      E2E_ADMIN_PASSWORD: adminPassword,
+      E2E_ADMIN_TOTP_SECRET: adminTotpSecret,
+      E2E_PILOT_EMPLOYEE_NUMBER: `CQ-E2E-${fixtureId}`,
+      E2E_CREDENTIAL_NUMBER: `E2E-CN-${fixtureId}`,
+      E2E_DIRECT_DB_PILOT_TOKEN: "1",
+      E2E_CANDIDATE_STACK: "1",
+    };
+    const seed = pnpmCommand(["db:seed"], { allowFailure: true, env: e2eEnv });
+    if (seed.status !== 0) throw new Error(`candidate E2E seed 失败：${seed.output}`);
+    const prepare = pnpmCommand(["db:e2e:prepare"], { allowFailure: true, env: e2eEnv });
+    if (prepare.status !== 0) throw new Error(`candidate E2E 数据准备失败：${prepare.output}`);
+    compose(["up", "-d", "web", "worker"]);
+    await waitFor(`${baseUrl}/api/health?probe=readiness`, 200, 180_000, {
+      "x-crewqual-readiness-secret": readinessProbeSecret,
+    });
+
+    for (const [service, expectedImage] of [
+      ["web", required("RELEASE_WEB_IMAGE")],
+      ["worker", required("RELEASE_RUNTIME_IMAGE")],
+    ] as const) {
+      const containerId = compose(["ps", "-q", service]).output.trim();
+      if (!containerId) throw new Error(`candidate ${service} 容器未运行`);
+      const actualImage = command("docker", [
+        "inspect",
+        "--format",
+        "{{.Config.Image}}",
+        containerId,
+      ]).output.trim();
+      if (actualImage !== expectedImage) {
+        throw new Error(`candidate ${service} 镜像不匹配：${actualImage}`);
+      }
+    }
+    const devEndpoint = await fetch(`${baseUrl}/api/dev/pilot-access?employeeNumber=CQ-1049`);
+    if (devEndpoint.status !== 404) throw new Error("生产候选镜像暴露了开发访问端点");
+
+    const result = pnpmCommand(
+      [
+        "exec",
+        "playwright",
+        "test",
+        "--config",
+        "playwright.release.config.ts",
+        "--project=chromium",
+        "--project=firefox",
+        "--project=webkit",
+        "--repeat-each=3",
+      ],
+      { allowFailure: true, env: e2eEnv },
+    );
+    if (result.status !== 0) throw new Error(`production E2E 失败：${result.output}`);
+    const webkit = pnpmCommand(
+      [
+        "exec",
+        "playwright",
+        "test",
+        "--config",
+        "playwright.release.config.ts",
+        "--project=webkit",
+        "--grep",
+        "admin navigation",
+        "--repeat-each=10",
+      ],
+      { allowFailure: true, env: e2eEnv },
+    );
+    if (webkit.status !== 0) throw new Error(`WebKit 管理导航专项失败：${webkit.output}`);
+    const remote = pnpmCommand(
+      [
+        "exec",
+        "playwright",
+        "test",
+        "--config",
+        "playwright.release-remote.config.ts",
+        "--project=chromium",
+        "--project=firefox",
+        "--project=webkit",
+        "--repeat-each=3",
+      ],
+      { allowFailure: true, env: e2eEnv },
+    );
+    if (remote.status !== 0) throw new Error(`remote production E2E 失败：${remote.output}`);
+    const qualificationAuditDb = new PrismaClient({ adapter: new PrismaPg(e2eDatabaseUrl) });
+    const qualificationAudit = await collectQualificationAudit(qualificationAuditDb).finally(() =>
+      qualificationAuditDb.$disconnect(),
+    );
+    const qualificationAuditReport = await writeGateEvidence(
+      artifactDir(evidence.runId),
+      "qualification-data-audit",
+      {
+        source: "isolated_candidate_fixtures",
+        report: qualificationAudit,
+      },
+    );
+    if (process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1") {
+      const reconciliation = pnpmCommand(["db:reconcile:members"], {
+        allowFailure: true,
+        env: e2eEnv,
+      });
+      if (reconciliation.status !== 0)
+        throw new Error("member compatibility removal requires zero reconciliation findings");
+    }
+    const report = await writeGateEvidence(artifactDir(evidence.runId), "e2e", {
+      project,
+      candidateImages: {
+        web: required("RELEASE_WEB_IMAGE"),
+        runtime: required("RELEASE_RUNTIME_IMAGE"),
+      },
+      browsers: ["chromium", "firefox", "webkit"],
+      repeatEach: 3,
+      webkitNavigationRepeatEach: 10,
+      remoteBrowsers: ["chromium", "firefox", "webkit"],
+      remotePilotEmployeeNumber: e2eEnv.E2E_PILOT_EMPLOYEE_NUMBER,
+      devEndpointStatus: devEndpoint.status,
+      qualificationAuditReport,
+      compatibilityRemovalGate:
+        process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1" ? "passed" : "not_requested",
+    });
+    return { evidence: [report, qualificationAuditReport], detail: `candidate compose=${project}` };
+  } finally {
+    command("docker", composeArgs(project, envPath, ["down", "-v", "--remove-orphans"]), {
+      allowFailure: true,
+      env: composeEnv,
+    });
+    try {
+      unlinkSync(envPath);
+    } catch {
+      // Best-effort removal of the temporary candidate-stack secret file.
+    }
+  }
 }
 
 async function toolVersion(name: string, args: string[] = ["--version"]) {
@@ -1037,6 +1449,9 @@ async function main() {
   const stableTag = /^v[0-9]+\.[0-9]+\.[0-9]+$/.test(tag);
   const releaseCandidateTag = /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/.test(tag);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
+  if (profile === "final" && process.env.RELEASE_ACCEPTANCE_SCOPE !== "full") {
+    throw new Error("final 发布必须使用 RELEASE_ACCEPTANCE_SCOPE=full");
+  }
   if ((profile === "final" && !stableTag) || (profile === "rc" && !releaseCandidateTag)) {
     throw new Error(`无效 ${profile} release tag：${tag}`);
   }

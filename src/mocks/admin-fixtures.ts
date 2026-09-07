@@ -21,6 +21,7 @@ import type {
   UpgradePlanType,
 } from "@/types/services";
 import { pilotRoleLabel } from "@/lib/domain-i18n";
+import { mockFixtureDate } from "@/mocks/test-clock";
 
 export type AdminMockState = AdminStateV4;
 export type { AdminPilotEntity } from "@/types/services";
@@ -46,6 +47,7 @@ function qualificationsFor(
     translations: item.translations,
     parameter: item.parameter,
     cycleMonths: item.cycleMonths,
+    validityRule: { kind: "manual_expiry" },
     expiresOn: expiryOverrides[item.id] ?? defaultExpiries[index]!,
     credentialNumber: `SANITIZED-${pilotCode}-${index + 1}`,
     issueDate: "2026-01-10",
@@ -469,7 +471,7 @@ const pilots: AdminPilotEntity[] = [
     active: true,
     version: 1,
     qualifications: qualificationsFor("1301", {
-      "annual-recurrent-training": "2026-09-01",
+      "annual-recurrent-training": mockFixtureDate(18, "2026-09-01"),
       "simulator-recurrent-training": "2026-11-12",
     }),
     activeUpgradePlanId: null,

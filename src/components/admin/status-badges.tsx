@@ -23,6 +23,8 @@ const aiStatusMap = {
 } as const;
 
 const healthMap = {
+  missing: { tone: "danger" },
+  incomplete: { tone: "warning" },
   unconfigured: { tone: "neutral" },
   normal: { tone: "success" },
   expiring: { tone: "warning" },

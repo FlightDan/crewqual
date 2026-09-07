@@ -44,8 +44,11 @@ async function main() {
   });
   await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: "admin-login:" } } });
   await prisma.adminUser.updateMany({
-    where: { email: "admin@example.com" },
-    data: { failedAttempts: 0, lockedUntil: null },
+    where: { email: process.env.E2E_ADMIN_EMAIL ?? "admin@example.com" },
+    // The configuration scenario targets DEMO's PILOT position. A bootstrap
+    // organization may coexist in this disposable database, so a global null
+    // organization would correctly be rejected as an ambiguous position code.
+    data: { failedAttempts: 0, lockedUntil: null, organizationId: unit.organizationId },
   });
   const coreTypes = await prisma.qualificationType.findMany({
     where: { core: true, active: true },

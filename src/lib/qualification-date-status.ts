@@ -6,53 +6,44 @@ import type {
   QualificationSection,
   QualificationStatus,
 } from "@/types/services";
+import {
+  DEFAULT_BUSINESS_TIMEZONE,
+  databaseDateOnly,
+  isValidTimezone,
+  qualificationDaysRemaining,
+} from "@/lib/date-only";
+import { qualificationValiditySnapshotSchema, validityRuleSchema } from "@/lib/qualification-rules";
 
 export const systemClock: Clock = { now: () => new Date() };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function shanghaiDay(value: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(value);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
+export function fixedClock(clock: Clock = systemClock): Clock {
+  const now = clock.now();
+  return { now: () => now };
 }
 
-function dateOnlyDay(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return Number.NaN;
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  if (
-    parsed.getUTCFullYear() !== year ||
-    parsed.getUTCMonth() !== month - 1 ||
-    parsed.getUTCDate() !== day
-  ) {
-    return Number.NaN;
-  }
-  return parsed.getTime();
+function unavailableState(
+  status: "missing" | "incomplete",
+  reason: string,
+): QualificationDateState {
+  const label = status === "missing" ? "缺少资质记录" : "数据不完整";
+  return {
+    status,
+    window: status,
+    daysRemaining: null,
+    statusLabel: label,
+    remainingLabel: status === "missing" ? "请提交资质材料" : "请联系管理员核查",
+    statusReason: reason,
+  };
 }
 
+/** Date projection only. A blank date is not proof of a non-expiring credential. */
 export function deriveQualificationDateState(
   expiresOn: string,
   clock: Clock = systemClock,
+  timezone: string = DEFAULT_BUSINESS_TIMEZONE,
 ): QualificationDateState {
-  if (!expiresOn) {
-    return {
-      status: "valid",
-      window: "valid",
-      daysRemaining: Number.POSITIVE_INFINITY,
-      statusLabel: "长期有效",
-      remainingLabel: "长期有效",
-    };
-  }
-  const expiryDay = dateOnlyDay(expiresOn);
-  if (Number.isNaN(expiryDay)) throw new Error(`Invalid qualification expiry date: ${expiresOn}`);
-
-  const daysRemaining = Math.round((expiryDay - shanghaiDay(clock.now())) / DAY_MS);
+  if (!expiresOn) return unavailableState("incomplete", "missing_expiry");
+  const daysRemaining = qualificationDaysRemaining(expiresOn, clock.now(), timezone);
   const status: QualificationStatus =
     daysRemaining < 0
       ? "expired"
@@ -72,7 +63,6 @@ export function deriveQualificationDateState(
             ? "due_90"
             : "valid";
   const absoluteDays = Math.abs(daysRemaining);
-
   return {
     status,
     window,
@@ -91,17 +81,97 @@ export function deriveQualificationDateState(
         : daysRemaining === 0
           ? "今日到期"
           : `剩余 ${daysRemaining} 天`,
+    statusReason: "expiry_date",
   };
+}
+
+export type QualificationStateRecord = {
+  expiryDate: Date | string | null | undefined;
+  validityRule: unknown;
+  snapshotSource?: "captured" | "reviewer_confirmed" | "inferred_backfill";
+};
+
+/** Shared domain decision for display, eligibility and notification routing. */
+export function evaluateQualification(input: {
+  record: QualificationStateRecord | null | undefined;
+  timezone: string | null | undefined;
+  clock?: Clock;
+}): QualificationDateState {
+  if (!input.record) return unavailableState("missing", "missing_record");
+  if (!isValidTimezone(input.timezone)) return unavailableState("incomplete", "invalid_timezone");
+  const rule = validityRuleSchema.safeParse(input.record.validityRule);
+  if (!rule.success) return unavailableState("incomplete", "invalid_rule");
+  if (input.record.snapshotSource === "inferred_backfill") {
+    return unavailableState("incomplete", "unverified_rule");
+  }
+  const expiresOn = databaseDateOnly(input.record.expiryDate);
+  if (rule.data.kind === "non_expiring") {
+    if (expiresOn) return unavailableState("incomplete", "unexpected_expiry");
+    return {
+      status: "valid",
+      window: "valid",
+      daysRemaining: null,
+      statusLabel: "长期有效",
+      remainingLabel: "长期有效",
+      statusReason: "non_expiring",
+    };
+  }
+  if (!expiresOn) return unavailableState("incomplete", "missing_expiry");
+  try {
+    return deriveQualificationDateState(expiresOn, input.clock, input.timezone);
+  } catch {
+    return unavailableState("incomplete", "invalid_expiry");
+  }
+}
+
+export type StoredQualificationStateRecord = {
+  expiryDate: Date | string | null;
+  qualificationRuleSnapshot: unknown;
+};
+
+/** Authoritative reads use the saved rule evidence, not the current type configuration. */
+export function evaluateStoredQualification(
+  record: StoredQualificationStateRecord | null | undefined,
+  clock: Clock = systemClock,
+  timezone: string | null | undefined = DEFAULT_BUSINESS_TIMEZONE,
+): QualificationDateState {
+  if (!record) return unavailableState("missing", "missing_record");
+  const snapshot = qualificationValiditySnapshotSchema.safeParse(record.qualificationRuleSnapshot);
+  return evaluateQualification({
+    record: {
+      expiryDate: record.expiryDate,
+      validityRule: snapshot.success ? snapshot.data.validityRule : undefined,
+      snapshotSource: snapshot.success ? snapshot.data.snapshotSource : undefined,
+    },
+    timezone,
+    clock,
+  });
 }
 
 export function deriveQualification(
   record: QualificationRecord,
   clock: Clock = systemClock,
 ): Qualification {
-  return { ...record, ...deriveQualificationDateState(record.expiresOn, clock) };
+  const timezone = record.timezone === undefined ? DEFAULT_BUSINESS_TIMEZONE : record.timezone;
+  const state =
+    record.recordExists === false || record.validityRule || !record.expiresOn || !timezone
+      ? evaluateQualification({
+          record:
+            record.recordExists === false
+              ? null
+              : { expiryDate: record.expiresOn, validityRule: record.validityRule },
+          timezone,
+          clock,
+        })
+      : deriveQualificationDateState(record.expiresOn, clock, timezone);
+  return { ...record, ...state };
 }
 
-const sectionDefinitions: Array<Pick<QualificationSection, "status" | "title">> = [
+export const qualificationSectionDefinitions: Array<
+  Pick<QualificationSection, "status" | "title">
+> = [
+  { status: "missing", title: "需要补充（缺少资质）" },
+  { status: "incomplete", title: "需要人工核查（数据不完整）" },
   { status: "expired", title: "需要紧急处理（已过期）" },
   { status: "due_30", title: "即将到期（30天内）" },
   { status: "due_90", title: "正常跟进（90天内）" },
@@ -112,8 +182,9 @@ export function groupQualificationsByStatus(
   records: QualificationRecord[],
   clock: Clock = systemClock,
 ): QualificationSection[] {
-  const qualifications = records.map((record) => deriveQualification(record, clock));
-  return sectionDefinitions.map((section) => ({
+  const capturedClock = fixedClock(clock);
+  const qualifications = records.map((record) => deriveQualification(record, capturedClock));
+  return qualificationSectionDefinitions.map((section) => ({
     ...section,
     qualifications: qualifications.filter((item) => item.status === section.status),
   }));

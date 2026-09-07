@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 const root = JSON.parse(await readFile(resolve("package.json"), "utf8"));
 const runtimePackages = ["runtime/package.json"];
+const requiredRuntimeDependencies = new Set(["@smithy/node-http-handler", "re2-wasm"]);
 const forbidden = new Set([
   "next",
   "react",
@@ -19,6 +20,11 @@ const forbidden = new Set([
 for (const relativePath of runtimePackages) {
   const runtime = JSON.parse(await readFile(resolve(relativePath), "utf8"));
   const dependencies = runtime.dependencies ?? {};
+  for (const name of requiredRuntimeDependencies) {
+    if (!dependencies[name]) {
+      throw new Error(`${relativePath}: required runtime dependency ${name} is missing`);
+    }
+  }
   for (const [name, range] of Object.entries(dependencies)) {
     const rootRange = root.dependencies?.[name] ?? root.devDependencies?.[name];
     if (!rootRange) {
@@ -29,6 +35,15 @@ for (const relativePath of runtimePackages) {
     }
     if (forbidden.has(name)) {
       throw new Error(`${relativePath}: forbidden frontend/test dependency ${name}`);
+    }
+  }
+  const rootOverrides = root.pnpm?.overrides ?? {};
+  const runtimeOverrides = runtime.pnpm?.overrides ?? {};
+  for (const [name, range] of Object.entries(rootOverrides)) {
+    if (runtimeOverrides[name] !== range) {
+      throw new Error(
+        `${relativePath}: pnpm override ${name} ${String(runtimeOverrides[name])} differs from root ${range}`,
+      );
     }
   }
 }

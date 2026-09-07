@@ -43,7 +43,10 @@ export function CorrectionDialog({
     () => review.validityRule ?? ({ kind: "manual_expiry" } as const),
     [review.validityRule],
   );
-  const schema = React.useMemo(() => createQualificationUpdateSchema(validityRule), [validityRule]);
+  const schema = React.useMemo(
+    () => createQualificationUpdateSchema(validityRule, review.parameterRestriction),
+    [review.parameterRestriction, validityRule],
+  );
   const {
     register,
     reset,

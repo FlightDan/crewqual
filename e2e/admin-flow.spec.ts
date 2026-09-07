@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./test-clock";
 import { qualificationDefinitions } from "../src/mocks/admin-fixtures";
 import { pilotCsvHeaders } from "../src/lib/pilot-management-validation";
 
@@ -61,15 +61,15 @@ test.describe("admin review workflow", () => {
     );
   });
 
-  test("question record can be searched, corrected and approved", async ({ page }) => {
+  test("manual-expiry record can be searched, corrected and approved", async ({ page }) => {
     await page.goto("/admin/reviews");
-    await page.getByLabel("AI 结果").selectOption("question");
-    await expect(page).toHaveURL(/ai=question/);
-    await page.getByLabel("搜索审核记录").first().fill("MOCK-1049");
+    await page.getByLabel("AI 结果").selectOption("unavailable");
+    await expect(page).toHaveURL(/ai=unavailable/);
+    await page.getByLabel("搜索审核记录").first().fill("MOCK-1522");
     await page.getByRole("main").getByRole("button", { name: "搜索", exact: true }).click();
-    await expect(page).toHaveURL(/q=MOCK-1049/);
+    await expect(page).toHaveURL(/q=MOCK-1522/);
     await page.locator("a:visible").filter({ hasText: "快速核对" }).click();
-    await expect(page).toHaveURL(/REV-1002$/);
+    await expect(page).toHaveURL(/REV-1004$/);
     await page.getByRole("button", { name: /手动纠正/ }).click();
     const expiry = page.getByLabel("到期日期");
     await expiry.fill("2027-09-01");
@@ -77,14 +77,14 @@ test.describe("admin review workflow", () => {
     await page.getByRole("button", { name: "保存人工纠正" }).click();
     await expect(page.getByText("已人工修正")).toHaveCount(2);
     await page.getByRole("button", { name: /手动纠正/ }).click();
-    await page.getByLabel("到期日期").fill("2027-08-31");
+    await page.getByLabel("到期日期").fill("2028-08-14");
     await page.getByRole("button", { name: "保存人工纠正" }).click();
     await expect(page.getByText("已人工修正")).toHaveCount(1);
     const expiryRow = page
       .getByTestId("review-field-comparisons")
       .locator(":scope > div")
       .filter({ hasText: "到期日期" });
-    await expect(expiryRow).toContainText("2027-08-31");
+    await expect(expiryRow).toContainText("2028-08-14");
     await expect(expiryRow).not.toContainText("已人工修正");
     await page.getByRole("button", { name: /手动纠正/ }).click();
     await expect(page.getByRole("button", { name: "保存人工纠正" })).toBeDisabled();
@@ -159,7 +159,7 @@ test.describe("admin review workflow", () => {
     await page.getByRole("main").getByRole("button", { name: "搜索", exact: true }).click();
     const pilotTable = page.getByRole("table");
     await expect(pilotTable.getByRole("cell", { name: "新增飞行员示例" })).toBeVisible();
-    await expect(pilotTable.getByText("未建档")).toBeVisible();
+    await expect(pilotTable.getByText("缺少资质")).toBeVisible();
 
     await page.getByRole("button", { name: "批量导入" }).click();
     const qualifications = qualificationDefinitions.map((item) => ({

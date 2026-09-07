@@ -14,6 +14,10 @@ import { useAdminState } from "@/services/admin-state-provider";
 import { isRemoteServiceMode } from "@/lib/service-mode";
 import { useI18n } from "@/components/i18n-provider";
 
+import { projectMockMemberQualifications, captureMockMemberClock } from "@/services/member-status";
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
+import type { MemberHealth, QualificationCounts } from "@/lib/member-health";
+
 type MemberListItem = {
   id: string;
   employeeNumber: string;
@@ -21,12 +25,15 @@ type MemberListItem = {
   initials: string;
   active: boolean;
   primaryPosition: { code: string; name: string } | null;
-  qualificationCounts: { missing: number; expired: number; due: number; valid: number };
-  health: "missing" | "expired" | "due" | "valid";
+  timezone: string | null;
+  qualificationCounts: QualificationCounts;
+  health: MemberHealth;
 };
 
 const healthTones = {
   missing: "danger",
+  incomplete: "warning",
+  unconfigured: "neutral",
   expired: "danger",
   due: "warning",
   valid: "success",
@@ -41,13 +48,14 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
   const [items, setItems] = React.useState<MemberListItem[] | null>(null);
   const [revision, setRevision] = React.useState(0);
 
+  const refreshRevision = useBusinessDayRefresh(items?.map((item) => item.timezone) ?? []);
   React.useEffect(() => {
     if (!remoteMode) {
+      const clock = captureMockMemberClock();
       if (positionCode !== "PILOT") {
         setItems([]);
         return;
       }
-      const now = Date.now();
       setItems(
         state.pilots
           .filter(
@@ -61,15 +69,6 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
             (pilot) => status === "all" || (status === "active" ? pilot.active : !pilot.active),
           )
           .map((pilot) => {
-            const expired = pilot.qualifications.filter(
-              (item) => item.expiryDate && new Date(item.expiryDate).getTime() < now,
-            ).length;
-            const due = pilot.qualifications.filter((item) => {
-              if (!item.expiryDate) return false;
-              const expiry = new Date(item.expiryDate).getTime();
-              return expiry >= now && expiry <= now + 90 * 24 * 60 * 60 * 1000;
-            }).length;
-            const health = expired ? "expired" : due ? "due" : "valid";
             return {
               id: pilot.id,
               employeeNumber: pilot.employeeNumber,
@@ -77,13 +76,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
               initials: pilot.initials,
               active: pilot.active,
               primaryPosition: { code: "PILOT", name: t("portal.pilot") },
-              qualificationCounts: {
-                missing: 0,
-                expired,
-                due,
-                valid: pilot.qualifications.length - expired - due,
-              },
-              health,
+              ...projectMockMemberQualifications(pilot, state.qualificationConfigs, clock),
             };
           }),
       );
@@ -106,7 +99,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
     return () => {
       active = false;
     };
-  }, [positionCode, query, remoteMode, revision, state, status, t]);
+  }, [positionCode, query, remoteMode, revision, state, status, t, refreshRevision]);
 
   return (
     <PageContainer className="space-y-5">
@@ -152,6 +145,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
                     t("members.status"),
                     t("members.health"),
                     t("members.missingShort"),
+                    t("members.incompleteShort"),
                     t("members.expiredShort"),
                     t("members.dueShort"),
                     t("members.actions"),
@@ -181,6 +175,7 @@ export function MemberDirectoryView({ positionCode }: { positionCode: string }) 
                       </Badge>
                     </td>
                     <td className="px-4 py-3">{member.qualificationCounts.missing}</td>
+                    <td className="px-4 py-3">{member.qualificationCounts.incomplete}</td>
                     <td className="px-4 py-3">{member.qualificationCounts.expired}</td>
                     <td className="px-4 py-3">{member.qualificationCounts.due}</td>
                     <td className="px-4 py-3">

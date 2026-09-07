@@ -12,6 +12,7 @@ import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import { relatedPilotUnitWhere, pilotUnitWhere, isSuperAdmin } from "@/server/admin-permissions";
 import { serializeUpgradePlan } from "@/server/serializers";
+import { lockPositionAssignment } from "@/server/upgrade-plan-rules";
 
 const schema = z.object({
   pilotId: z.string().uuid(),
@@ -74,6 +75,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         },
       });
       if (updated.count !== 1) throw new ApiError("VERSION_CONFLICT", "升级计划已被更新", 409);
+      // updateMany holds the plan row lock first, matching lifecycle actions.
+      // Lock and re-read the destination assignment before committing so an
+      // assignment-ending transaction cannot race this reassignment.
+      await lockPositionAssignment(tx, position.id);
+      const currentTargetAssignment = await tx.personPositionAssignment.findFirst({
+        where: { id: position.id, personId: target.person!.id, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!currentTargetAssignment) {
+        throw new ApiError(
+          "POSITION_ASSIGNMENT_INACTIVE",
+          "目标人员任职记录已结束，不能重新分配升级计划",
+          409,
+        );
+      }
       await tx.auditEvent.create({
         data: {
           actorType: "admin",

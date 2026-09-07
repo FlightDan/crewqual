@@ -119,7 +119,11 @@ export function summarizeDayQualifications(
     const record = qualification.record;
     if (!record) {
       missingCount += 1;
-    } else if (record.daysRemaining <= 30) {
+    } else if (
+      record.status === "incomplete" ||
+      record.status === "missing" ||
+      (typeof record.daysRemaining === "number" && record.daysRemaining <= 30)
+    ) {
       attention.push(qualification);
     } else {
       normalCount += 1;

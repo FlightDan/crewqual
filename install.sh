@@ -1845,9 +1845,11 @@ download_release_files() {
 }
 
 write_initial_env() {
-  local postgres_password session_secret settings_key minio_user minio_password updater_secret backup_key network_secret setup_auth_code setup_auth_hash setup_auth_random
+  local postgres_password postgres_app_password session_secret readiness_probe_secret settings_key minio_user minio_password updater_secret backup_key network_secret setup_auth_code setup_auth_hash setup_auth_random
   postgres_password="$(openssl rand -hex 32)"
+  postgres_app_password="$(openssl rand -hex 32)"
   session_secret="$(openssl rand -hex 48)"
+  readiness_probe_secret="$(openssl rand -hex 32)"
   settings_key="$(openssl rand -hex 32)"
   minio_user="crewqual-$(openssl rand -hex 8)"
   minio_password="$(openssl rand -hex 32)"
@@ -1874,10 +1876,13 @@ write_initial_env() {
     printf "DEPLOYMENT_NETWORK_MODE='%s'\nAPP_PORT='%s'\nCADDY_SITE_ADDRESS='%s'\nCADDY_TLS_CONFIG='%s'\nCADDY_EMAIL_CONFIG='%s'\nAPP_BIND='%s'\nACME_BIND='%s'\nACME_PORT='%s'\nNETWORK_ACCESS_SECRET='%s'\n" \
       "$NETWORK_MODE_INPUT" "$APP_PORT_INPUT" "$CADDY_SITE_ADDRESS_VALUE" "$CADDY_TLS_CONFIG_VALUE" "$CADDY_EMAIL_CONFIG_VALUE" "$APP_BIND_VALUE" "$ACME_BIND_VALUE" "$ACME_PORT_VALUE" "$network_secret"
     printf "POSTGRES_PASSWORD='%s'\n" "$postgres_password"
-    printf "DATABASE_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
+    printf "POSTGRES_APP_PASSWORD='%s'\n" "$postgres_app_password"
+    printf "DATABASE_URL='postgresql://crewqual_app:%s@postgres:5432/crewqual'\n" "$postgres_app_password"
     printf "DIRECT_URL='postgresql://crewqual:%s@postgres:5432/crewqual'\n" "$postgres_password"
-    printf "SESSION_SECRET='%s'\nSETTINGS_ENCRYPTION_KEY='%s'\n" "$session_secret" "$settings_key"
+    printf "SESSION_SECRET='%s'\nREADINESS_PROBE_SECRET='%s'\nSETTINGS_ENCRYPTION_KEY='%s'\n" \
+      "$session_secret" "$readiness_probe_secret" "$settings_key"
     printf '%s\n' "PILOT_SESSION_TTL_MINUTES=60" "ADMIN_SESSION_TTL_HOURS=8" "TRUSTED_PROXY_HOPS=1"
+    printf '%s\n' "OUTBOUND_ALLOWED_HOSTS=minio:9000,host.docker.internal:8000" "OUTBOUND_ALLOWED_CIDRS="
     printf '%s\n' "STORAGE_MODE=builtin" "S3_ENDPOINT=http://minio:9000" "S3_REGION=us-east-1"
     printf '%s\n' "S3_BUCKET=crewqual-private" "S3_FORCE_PATH_STYLE=true" "S3_SSE_KMS_KEY_ID="
     printf "S3_ACCESS_KEY_ID='%s'\nS3_SECRET_ACCESS_KEY='%s'\n" "$minio_user" "$minio_password"
@@ -2442,6 +2447,15 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   fi
   set_env_key CREWQUAL_WEB_IMAGE "$MANIFEST_WEB_IMAGE"
   set_env_key CREWQUAL_RUNTIME_IMAGE "$MANIFEST_RUNTIME_IMAGE"
+  # Existing official installs used the owner login for both application and
+  # migration traffic. Generate the new runtime secret once, then normalize
+  # both URLs while preserving the owner secret and database volume.
+  if [[ -z "$(env_value POSTGRES_APP_PASSWORD)" ]]; then
+    set_env_key POSTGRES_APP_PASSWORD "$(openssl rand -hex 32)"
+  fi
+  [[ -n "$(env_value POSTGRES_PASSWORD)" ]] || die "POSTGRES_PASSWORD is required for the database owner role"
+  set_env_key DATABASE_URL "postgresql://crewqual_app:$(env_value POSTGRES_APP_PASSWORD)@postgres:5432/crewqual"
+  set_env_key DIRECT_URL "postgresql://crewqual:$(env_value POSTGRES_PASSWORD)@postgres:5432/crewqual"
   set_env_key CREWQUAL_UPDATER_MODE "$UPDATER_MODE"
   set_env_key CREWQUAL_UPDATER_HOST_DIR "$UPDATER_HOST_DIR"
   ensure_env_key CREWQUAL_UPDATER_SOCKET "/run/crewqual-updater/api.sock"

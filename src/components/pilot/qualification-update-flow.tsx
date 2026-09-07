@@ -159,8 +159,8 @@ export function QualificationUpdateFlow({
     [qualification.validityRule],
   );
   const formSchema = React.useMemo(
-    () => createQualificationUpdateSchema(validityRule),
-    [validityRule],
+    () => createQualificationUpdateSchema(validityRule, qualification.parameterRestriction),
+    [qualification.parameterRestriction, validityRule],
   );
 
   React.useEffect(() => {
@@ -455,7 +455,7 @@ export function QualificationUpdateFlow({
     Boolean(document.name) &&
     !uploading &&
     isValid &&
-    isDraftSubmittable(buildDraft(values), validityRule);
+    isDraftSubmittable(buildDraft(values), validityRule, qualification.parameterRestriction);
   const activeStep: 1 | 2 | 3 = !document.name ? 1 : canSubmit ? 3 : 2;
   const confidence = assist.kind === "recognized" ? assist.confidence : undefined;
   const displayedDateFields: DateFieldName[] = [

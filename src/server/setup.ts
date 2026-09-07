@@ -13,6 +13,12 @@ import {
   encryptSettingSecret,
   verifyTotp,
 } from "@/server/crypto";
+import {
+  parseBackupCredentials,
+  serializeRemoteCredentialsWithEncryptionKey,
+} from "@/server/backup-credential";
+import { checkBackupEndpoint, type RemoteBackupTargetType } from "@/server/backup-endpoint-safety";
+import { assertSendEndpoint, checkExternalEndpoint } from "@/server/external-endpoint-safety";
 import { checkObjectStorage } from "@/server/health";
 import { probeObjectStorage } from "@/server/health";
 import { getPrisma } from "@/server/prisma";
@@ -71,8 +77,16 @@ export const setupCompleteSchema = z
       enabled: z.boolean(),
       targetName: z.string().trim().min(1).max(128),
       targetType: z.enum(["LOCAL", "SMB", "FTP", "WEBDAV", "S3"]),
-      endpoint: z.string().trim().max(2048),
-      basePath: z.string().trim().min(1).max(1024),
+      endpoint: z
+        .string()
+        .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), "备份服务地址不能包含控制字符")
+        .transform((value) => value.trim())
+        .pipe(z.string().max(2048)),
+      basePath: z
+        .string()
+        .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), "备份路径不能包含控制字符")
+        .transform((value) => value.trim())
+        .pipe(z.string().min(1).max(1024)),
       secret: z.string().max(8192).optional(),
     }),
     notifications: z.object({
@@ -99,6 +113,7 @@ export const setupCompleteSchema = z
     }),
   })
   .superRefine((value, context) => {
+    const config = getServerConfig();
     if (value.admin.requireTotp && !value.admin.verifiedTotpToken) {
       context.addIssue({
         code: "custom",
@@ -141,6 +156,22 @@ export const setupCompleteSchema = z
           code: "custom",
           path: ["notifications", key, "endpoint"],
           message: "启用外部渠道前请填写服务地址",
+        });
+        continue;
+      }
+      const endpointCheck = checkExternalEndpoint(
+        value.notifications[key].endpoint,
+        config.NODE_ENV === "production",
+        {
+          allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+          allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+        },
+      );
+      if (!endpointCheck.ok) {
+        context.addIssue({
+          code: "custom",
+          path: ["notifications", key, "endpoint"],
+          message: endpointCheck.reason,
         });
       }
     }
@@ -489,15 +520,14 @@ export function validateSetupBackupTarget(input: {
   }
   const localLocation =
     input.type === "LOCAL" ? normalizeLocalBackupLocation(endpoint, basePath) : null;
-  if (input.type === "S3") {
-    let url: URL;
-    try {
-      url = new URL(endpoint);
-    } catch {
-      throw new ApiError("INVALID_BACKUP_ENDPOINT", "S3 服务地址无效", 422);
-    }
-    if (getServerConfig().NODE_ENV === "production" && url.protocol !== "https:") {
-      throw new ApiError("INSECURE_BACKUP_ENDPOINT", "生产环境的 S3 地址必须使用 HTTPS", 422);
+  if (input.type !== "LOCAL") {
+    const endpointCheck = checkBackupEndpoint(
+      input.type as RemoteBackupTargetType,
+      endpoint,
+      getServerConfig(),
+    );
+    if (!endpointCheck.ok) {
+      throw new ApiError("INVALID_BACKUP_ENDPOINT", endpointCheck.reason, 422);
     }
   }
   return {
@@ -540,6 +570,23 @@ function unitCode() {
 
 export async function completeSetup(rawInput: SetupCompleteInput): Promise<SetupCompleteResult> {
   const input = setupCompleteSchema.parse(rawInput);
+  const config = getServerConfig();
+  for (const key of ["feishu", "sms"] as const) {
+    const channel = input.notifications[key];
+    if (!channel.enabled || !channel.endpoint || config.NODE_ENV !== "production") continue;
+    try {
+      await assertSendEndpoint(channel.endpoint, true, {
+        allowedHosts: config.OUTBOUND_ALLOWED_HOSTS,
+        allowedCidrs: config.OUTBOUND_ALLOWED_CIDRS,
+      });
+    } catch (error) {
+      throw new ApiError(
+        "INVALID_EXTERNAL_ENDPOINT",
+        error instanceof Error ? error.message : "通知服务地址解析失败",
+        422,
+      );
+    }
+  }
   const storageConfig = resolveSetupStorage(input.storage);
   try {
     await probeObjectStorage(storageConfig);
@@ -559,6 +606,7 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
     }
   }
   if (input.backup.enabled) {
+    parseBackupCredentials(input.backup.targetType, input.backup.secret);
     const backupLocation = validateSetupBackupTarget({
       type: input.backup.targetType,
       endpoint: input.backup.endpoint,
@@ -732,11 +780,21 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
       }
 
       if (input.backup.enabled) {
-        const generatedSecret =
+        let generatedSecret =
           input.backup.secret ||
           (input.backup.targetType === "LOCAL"
             ? createOpaqueToken(32)
             : JSON.stringify({ encryptionKey: createOpaqueToken(32) }));
+        const parsedBackupCredentials = parseBackupCredentials(
+          input.backup.targetType,
+          generatedSecret,
+        );
+        if (parsedBackupCredentials.type !== "LOCAL") {
+          generatedSecret = serializeRemoteCredentialsWithEncryptionKey(
+            parsedBackupCredentials,
+            createOpaqueToken(32),
+          );
+        }
         const target = await tx.backupTarget.create({
           data: {
             name: input.backup.targetName,

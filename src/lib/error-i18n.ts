@@ -10,6 +10,14 @@ export function localizeError(
 ): string {
   const error = reason as ErrorWithCode | null;
   const code = error?.code;
+  if (code === "QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION")
+    return t("errors.QUALIFICATION_BASELINE_REQUIRES_RESUBMISSION");
+  if (code === "QUALIFICATION_CHANGED_SINCE_SUBMISSION") return t("errors.qualificationChanged");
+  if (
+    code === "QUALIFICATION_RULE_SNAPSHOT_INVALID" ||
+    code === "QUALIFICATION_RULE_SNAPSHOT_REQUIRES_REVIEW"
+  )
+    return t("errors.qualificationRuleReview");
   if (code === "NOT_FOUND" || error?.status === 404) return t("errors.notFound");
   if (code === "VALIDATION_ERROR" || error?.status === 422) return t("errors.validation");
   if (code === "CONFLICT" || error?.status === 409) return t("errors.conflict");

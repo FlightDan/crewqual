@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { readPrivateEvidence } from "@/server/storage";
 import { getRuntimeIntegration } from "@/server/runtime-settings";
 import { getServerConfig } from "@/server/config";
+import { fetchExternalEndpoint } from "@/server/external-endpoint-safety";
 
 export const extractionResultSchema = z.object({
   available: z.boolean(),
@@ -55,41 +56,50 @@ export async function recognizeEvidence(objectKey: string): Promise<VlmRecogniti
     bytes = new Uint8Array(await sharp(Buffer.from(bytes)).jpeg({ quality: 95 }).toBuffer());
     mimeType = "image/jpeg";
   }
-  const response = await fetch(`${config.endpoint.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(config.secret ? { authorization: `Bearer ${config.secret}` } : {}),
-    },
-    body: JSON.stringify({
-      model: config.model,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "你只负责从证照图片提取字段，不进行匹配、审核或批准。只输出 JSON：available、confidence、summary、fields、fieldConfidence、evidence。",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "请提取 credentialNumber、holderName、issueDate、trainingDate、expiryDate、issuingAuthority、sealDetected，并为每个字段返回置信度和证据说明。",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`,
+  const serverConfig = getServerConfig();
+  const response = await fetchExternalEndpoint(
+    `${config.endpoint.replace(/\/$/, "")}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(config.secret ? { authorization: `Bearer ${config.secret}` } : {}),
+      },
+      body: JSON.stringify({
+        model: config.model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "你只负责从证照图片提取字段，不进行匹配、审核或批准。只输出 JSON：available、confidence、summary、fields、fieldConfidence、evidence。",
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "请提取 credentialNumber、holderName、issueDate、trainingDate、expiryDate、issuingAuthority、sealDetected，并为每个字段返回置信度和证据说明。",
               },
-            },
-          ],
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
-  });
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(config.timeoutSeconds * 1000),
+    },
+    serverConfig.NODE_ENV === "production",
+    {
+      allowedHosts: serverConfig.OUTBOUND_ALLOWED_HOSTS,
+      allowedCidrs: serverConfig.OUTBOUND_ALLOWED_CIDRS,
+    },
+  );
   if (!response.ok)
     return {
       available: false,

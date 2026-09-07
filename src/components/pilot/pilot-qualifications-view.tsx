@@ -6,6 +6,7 @@ import { QualificationGroup } from "@/components/pilot/qualification-list";
 import { Skeleton } from "@/components/ui/misc";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { PilotProfile, QualificationSection } from "@/types/services";
+import { useBusinessDayRefresh } from "@/hooks/use-business-day-refresh";
 import { useI18n } from "@/components/i18n-provider";
 
 export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot" | "member" }) {
@@ -14,6 +15,9 @@ export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot"
   const [sections, setSections] = React.useState<QualificationSection[] | null>(null);
   const { t } = useI18n();
 
+  const refreshRevision = useBusinessDayRefresh(
+    sections?.flatMap((section) => section.qualifications.map((item) => item.timezone)) ?? [],
+  );
   React.useEffect(() => {
     let active = true;
     const activeProfile = pilotIdentity.getActiveProfile();
@@ -40,7 +44,7 @@ export function PilotQualificationsView({ portal = "pilot" }: { portal?: "pilot"
     return () => {
       active = false;
     };
-  }, [pilotIdentity, qualifications]);
+  }, [pilotIdentity, qualifications, refreshRevision]);
 
   return (
     <PilotShell profile={profile} portal={portal} className="space-y-5">

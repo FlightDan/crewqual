@@ -201,6 +201,8 @@ export type QualificationEvidenceOrderByWithRelationInput = {
 export type QualificationEvidenceWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   evidenceImageId_qualificationRecordId_updateRequestId?: Prisma.QualificationEvidenceEvidenceImageIdQualificationRecordIdUpdateRequestIdCompoundUniqueInput
+  evidenceImageId_qualificationRecordId?: Prisma.QualificationEvidenceEvidenceImageIdQualificationRecordIdCompoundUniqueInput
+  evidenceImageId_updateRequestId?: Prisma.QualificationEvidenceEvidenceImageIdUpdateRequestIdCompoundUniqueInput
   AND?: Prisma.QualificationEvidenceWhereInput | Prisma.QualificationEvidenceWhereInput[]
   OR?: Prisma.QualificationEvidenceWhereInput[]
   NOT?: Prisma.QualificationEvidenceWhereInput | Prisma.QualificationEvidenceWhereInput[]
@@ -211,7 +213,7 @@ export type QualificationEvidenceWhereUniqueInput = Prisma.AtLeast<{
   evidenceImage?: Prisma.XOR<Prisma.EvidenceImageScalarRelationFilter, Prisma.EvidenceImageWhereInput>
   qualificationRecord?: Prisma.XOR<Prisma.QualificationRecordNullableScalarRelationFilter, Prisma.QualificationRecordWhereInput> | null
   updateRequest?: Prisma.XOR<Prisma.QualificationUpdateRequestNullableScalarRelationFilter, Prisma.QualificationUpdateRequestWhereInput> | null
-}, "id" | "evidenceImageId_qualificationRecordId_updateRequestId">
+}, "id" | "evidenceImageId_qualificationRecordId_updateRequestId" | "evidenceImageId_qualificationRecordId" | "evidenceImageId_updateRequestId">
 
 export type QualificationEvidenceOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -301,6 +303,16 @@ export type QualificationEvidenceOrderByRelationAggregateInput = {
 export type QualificationEvidenceEvidenceImageIdQualificationRecordIdUpdateRequestIdCompoundUniqueInput = {
   evidenceImageId: string
   qualificationRecordId: string
+  updateRequestId: string
+}
+
+export type QualificationEvidenceEvidenceImageIdQualificationRecordIdCompoundUniqueInput = {
+  evidenceImageId: string
+  qualificationRecordId: string
+}
+
+export type QualificationEvidenceEvidenceImageIdUpdateRequestIdCompoundUniqueInput = {
+  evidenceImageId: string
   updateRequestId: string
 }
 

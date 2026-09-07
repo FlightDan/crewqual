@@ -9,7 +9,7 @@
     <img alt="Chinese and English" src="https://img.shields.io/badge/i18n-中文%20%7C%20English-7c3aed.svg">
   </p>
   <p><kbd><strong>简体中文</strong></kbd> · <a href="./README.en.md"><kbd>English</kbd></a></p>
-  <p><a href="#快速开始">Quick Start</a> · <a href="#saas-与企业服务">SaaS 与企业服务</a></p>
+  <p><a href="#快速开始">Quick Start</a> · <a href="./wiki/README.md">Wiki</a> · <a href="./docs/zh-CN/README.md">技术文档</a> · <a href="#saas-与企业服务">SaaS 与企业服务</a></p>
 </div>
 
 <p align="center">
@@ -32,6 +32,10 @@ CrewQual 是一款现代化可私有部署的人员资质与合规管理平台�
 | 到期预警与统一日历 | 凭证拍摄或上传 | PostgreSQL 与私有对象存储 |
 | AI 辅助核验与人工审核 | 到期日识别与手动修正 | 权限控制、操作审计|
 | 档案维护与升级计划 | 进度与临期提醒 | 健康检查、备份与恢复 |
+
+## 文档与 Wiki
+
+[Wiki](./wiki/README.md)介绍产品概念、成员操作、管理员操作和常见问题。[技术文档](./docs/zh-CN/README.md)说明安装、配置、升级、备份恢复、本地开发和架构。每个主题都有对应的中英文页面，可在页首切换语言。
 
 ## 产品界面
 
