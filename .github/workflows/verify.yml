@@ -53,6 +53,7 @@ jobs:
       DATABASE_URL: postgresql://crewqual_app:crewqual-app@127.0.0.1:5432/crewqual
       DIRECT_URL: postgresql://crewqual:crewqual@127.0.0.1:5432/crewqual
       POSTGRES_APP_PASSWORD: crewqual-app
+      SESSION_SECRET: ci-only-queue-migration-session-secret
     services:
       postgres:
         image: postgres@sha256:44c4ee9810eff91f7eab4d822642e01115b1a9eccce4bcbdde7604752d68eac6
