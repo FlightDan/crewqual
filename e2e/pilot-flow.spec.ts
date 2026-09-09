@@ -81,12 +81,13 @@ test.describe("pilot qualification flow", () => {
       "ambiguous",
       "conflict",
       "mismatch",
+      "disabled",
       "busy",
       "modified",
       "confirm",
     ]) {
       await expect(page.locator(`a[href*="scenario=${scenario}"]`)).toHaveCount(1);
     }
-    await expect(page.locator("main a")).toHaveCount(11);
+    await expect(page.locator("main a")).toHaveCount(12);
   });
 });

@@ -6,7 +6,7 @@
     "overrides": {
       "deepmerge-ts": "8.0.1",
       "postcss": "8.5.26",
-      "sharp": "0.35.3",
+      "sharp": "0.35.4",
       "mysql2@<3.22.0": ">=3.22.0 <4",
       "fast-uri@<3.1.6": ">=3.1.6 <4"
     },
@@ -22,7 +22,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
-    "@next/env": "^15.5.2",
+    "@next/env": "^15.5.24",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "@smithy/node-http-handler": "4.10.0",
@@ -33,7 +33,7 @@
     "pg-boss": "^12.26.3",
     "prisma": "^7.9.0",
     "re2-wasm": "1.0.2",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "tsx": "^4.20.3",
     "zod": "^4.0.17"
   }
