@@ -118,9 +118,15 @@ stop_test_server() {
 }
 
 cleanup_acceptance() {
+  local exit_code="$?"
   stop_test_server
+  if ((exit_code != 0)) && [[ -n "$wrapper_dir" && -f "$wrapper_dir/server.log" ]]; then
+    echo "==> updater test server log (last 120 lines)" >&2
+    tail -n 120 "$wrapper_dir/server.log" >&2 || true
+  fi
   [[ -z "$wrapper_dir" ]] || sudo rm -rf -- "$wrapper_dir"
   [[ -z "$target_updater" ]] || sudo rm -f -- "$target_updater"
+  return "$exit_code"
 }
 
 # Sourceable helpers support fixture tests without touching Docker or the host.

@@ -10,6 +10,7 @@ grep -q 'validate-release-inputs.sh.*"\$acceptance_scope"' <<<"$post_source"
 grep -q 'signed manifest and SHA256SUMS' <<<"$post_source"
 grep -q '"\$target_updater" reconcile-caddy' <<<"$post_source"
 ! grep -q '/usr/local/libexec/crewqual-updater reconcile-caddy' <<<"$post_source"
+grep -q 'tail -n 120 "\$wrapper_dir/server.log"' <<<"$post_source"
 target=v1.2.0-rc.2
 ACCEPTANCE_POLL_ATTEMPTS=2
 ACCEPTANCE_POLL_INTERVAL=0

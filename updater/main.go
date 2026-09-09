@@ -1059,18 +1059,65 @@ func (a *App) backupDatabase(jobID string) (string, error) {
 	if err := validate.Run(); err != nil {
 		return "", fmt.Errorf("backup pg_restore validation failed: %w", err)
 	}
-	entries, _ := os.ReadDir(filepath.Join(a.cfg.DataDir, backupDir))
-	var backups []os.DirEntry
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".dump.enc") {
-			backups = append(backups, entry)
-		}
-	}
-	sort.Slice(backups, func(i, j int) bool { return backups[i].Name() > backups[j].Name() })
-	for _, entry := range backups[3:] {
-		_ = os.Remove(filepath.Join(a.cfg.DataDir, backupDir, entry.Name()))
+	if err = pruneBackupFiles(filepath.Join(a.cfg.DataDir, backupDir), destination, 3); err != nil {
+		return "", fmt.Errorf("backup retention failed: %w", err)
 	}
 	return destination, nil
+}
+
+type backupFile struct {
+	name    string
+	modTime time.Time
+}
+
+func pruneBackupFiles(directory, currentPath string, limit int) error {
+	if limit < 1 {
+		return errors.New("backup retention limit must be positive")
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return err
+	}
+	currentName := filepath.Base(currentPath)
+	currentPresent := false
+	backups := make([]backupFile, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".dump.enc") {
+			continue
+		}
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			return infoErr
+		}
+		if entry.Name() == currentName {
+			currentPresent = true
+		}
+		backups = append(backups, backupFile{name: entry.Name(), modTime: info.ModTime()})
+	}
+	sort.Slice(backups, func(i, j int) bool {
+		if backups[i].modTime.Equal(backups[j].modTime) {
+			return backups[i].name > backups[j].name
+		}
+		return backups[i].modTime.After(backups[j].modTime)
+	})
+	otherLimit := limit
+	if currentPresent {
+		otherLimit--
+	}
+	keptOthers := 0
+	for _, backup := range backups {
+		if currentPresent && backup.name == currentName {
+			continue
+		}
+		if keptOthers < otherLimit {
+			keptOthers++
+			continue
+		}
+		if err = os.Remove(filepath.Join(directory, backup.name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func decryptFile(path, key string) ([]byte, error) {
