@@ -108,6 +108,15 @@ type State struct {
 	NetworkJob      *NetworkJob `json:"networkJob"`
 }
 
+type managedFilesSnapshot struct {
+	compose               []byte
+	caddy                 []byte
+	env                   []byte
+	configureDomain       []byte
+	configureDomainMode   os.FileMode
+	configureDomainExists bool
+}
+
 type NetworkJob struct {
 	ID          string `json:"id"`
 	Phase       string `json:"phase"`
@@ -134,13 +143,15 @@ type NetworkInput struct {
 }
 
 type App struct {
-	cfg         Config
-	stateMu     sync.Mutex
-	state       State
-	manifest    *Manifest
-	manifestRaw []byte
-	nonceMu     sync.Mutex
-	nonces      map[string]time.Time
+	cfg                 Config
+	stateMu             sync.Mutex
+	state               State
+	manifest            *Manifest
+	manifestRaw         []byte
+	nonceMu             sync.Mutex
+	nonces              map[string]time.Time
+	healthCheckTimeout  time.Duration
+	healthCheckInterval time.Duration
 }
 
 type envelope struct {
@@ -797,21 +808,6 @@ func (a *App) run(job *Job, manifest Manifest) {
 		_ = a.saveState()
 		a.stateMu.Unlock()
 	}
-	rollbackDatabase := func(code string, cause error, backupPath string) {
-		if restoreErr := a.restoreDatabase(backupPath); restoreErr != nil {
-			fail("DATABASE_ROLLBACK_FAILED", fmt.Errorf("%s；数据库自动恢复失败: %w", cause, restoreErr))
-			a.stateMu.Lock()
-			job.Phase = "NEEDS_MANUAL_RECOVERY"
-			_ = a.saveState()
-			a.stateMu.Unlock()
-			return
-		}
-		fail(code, cause)
-		a.stateMu.Lock()
-		job.Phase = "ROLLED_BACK"
-		_ = a.saveState()
-		a.stateMu.Unlock()
-	}
 
 	if manifest.MigrationPolicy == "manual-required" {
 		fail("MANUAL_MIGRATION_REQUIRED", errors.New("该版本需要人工维护升级"))
@@ -868,20 +864,85 @@ func (a *App) run(job *Job, manifest Manifest) {
 		fail("IMAGE_PULL_FAILED", err)
 		return
 	}
+	a.applyUpgrade(job, manifest, composePath, caddyPath, configureDomainPath, stagedEnv, currentEnv, a.ensureCaddy)
+}
+
+func (a *App) applyUpgrade(job *Job, manifest Manifest, composePath, caddyPath, configureDomainPath, stagedEnv string, currentEnv []byte, entranceProbe func() error) {
+	clearMaintenanceOnExit := true
+	setPhase := func(phase string, progress int, message string) {
+		a.stateMu.Lock()
+		job.Phase, job.Progress, job.Message = phase, progress, message
+		_ = a.saveState()
+		a.stateMu.Unlock()
+	}
+	finishFailure := func(phase, code string, err error) {
+		a.stateMu.Lock()
+		job.Phase, job.ErrorCode, job.Message, job.CompletedAt = phase, code, err.Error(), time.Now().UTC().Format(time.RFC3339)
+		a.state.LastError = err.Error()
+		_ = a.saveState()
+		a.stateMu.Unlock()
+	}
+	fail := func(code string, err error) {
+		finishFailure("FAILED", code, err)
+	}
+	manualRecovery := func(code string, cause error) {
+		clearMaintenanceOnExit = false
+		finishFailure("NEEDS_MANUAL_RECOVERY", code, cause)
+	}
+	rollbackDatabase := func(code string, cause error, backupPath string) {
+		if restoreErr := a.restoreDatabaseWithServices(backupPath); restoreErr != nil {
+			manualRecovery("DATABASE_ROLLBACK_FAILED", fmt.Errorf("%s；数据库自动恢复失败: %w", cause, restoreErr))
+			return
+		}
+		finishFailure("ROLLED_BACK", code, cause)
+	}
+	rollbackInstallation := func(code string, cause error, files managedFilesSnapshot, backupPath string, clientsMayBeRunning, rolledBack bool) {
+		if clientsMayBeRunning {
+			if stopErr := a.stopDatabaseClients(); stopErr != nil {
+				manualRecovery("MANUAL_RECOVERY_REQUIRED", fmt.Errorf("%s；回退前停止数据库客户端失败: %w", cause, stopErr))
+				return
+			}
+		}
+		if rollbackErr := a.rollback(files, backupPath, entranceProbe); rollbackErr != nil {
+			manualRecovery("MANUAL_RECOVERY_REQUIRED", fmt.Errorf("%s；自动回退失败: %w", cause, rollbackErr))
+			return
+		}
+		if rolledBack {
+			finishFailure("ROLLED_BACK", code, cause)
+			return
+		}
+		fail(code, cause)
+	}
+	restartAfterQuiesce := func(code string, cause error) {
+		if restartErr := a.startDatabaseClients(); restartErr != nil {
+			manualRecovery("MANUAL_RECOVERY_REQUIRED", fmt.Errorf("%s；恢复数据库客户端失败: %w", cause, restartErr))
+			return
+		}
+		fail(code, cause)
+	}
+
+	previousFiles, err := snapshotManagedFiles(a.cfg, currentEnv)
+	if err != nil {
+		fail("MANAGED_FILE_READ_FAILED", err)
+		return
+	}
 	setPhase("BACKING_UP", 35, "创建并验证数据库保护备份")
 	if err := a.setMaintenance(true, job); err != nil {
 		fail("MAINTENANCE_MARKER_FAILED", err)
 		return
 	}
-	maintenanceEnabled := true
 	defer func() {
-		if maintenanceEnabled {
+		if clearMaintenanceOnExit {
 			_ = a.setMaintenance(false, job)
 		}
 	}()
+	if err = a.stopDatabaseClients(); err != nil {
+		restartAfterQuiesce("DATABASE_CLIENT_SHUTDOWN_FAILED", err)
+		return
+	}
 	backup, err := a.backupDatabase(job.ID)
 	if err != nil {
-		fail("BACKUP_FAILED", err)
+		restartAfterQuiesce("BACKUP_FAILED", err)
 		return
 	}
 	job.BackupPath = backup
@@ -894,38 +955,23 @@ func (a *App) run(job *Job, manifest Manifest) {
 		rollbackDatabase("BOOTSTRAP_FAILED", err, backup)
 		return
 	}
-	previousCompose, _ := os.ReadFile(a.cfg.ComposeFile)
-	previousCaddy, _ := os.ReadFile(a.cfg.CaddyFile)
-	previousEnv, _ := os.ReadFile(a.cfg.EnvFile)
 	if err = writeManagedFiles(a.cfg, composePath, caddyPath, configureDomainPath, manifest); err != nil {
-		fail("ATOMIC_INSTALL_FAILED", err)
+		rollbackInstallation("ATOMIC_INSTALL_FAILED", err, previousFiles, backup, false, true)
 		return
 	}
 	setPhase("RESTARTING", 70, "重启 Web 与 Worker")
 	if err = a.runCompose("up", "-d", "--no-deps", "web", "worker"); err != nil {
-		rollbackErr := a.rollback(previousCompose, previousCaddy, previousEnv, backup)
-		if rollbackErr != nil {
-			fail("MANUAL_RECOVERY_REQUIRED", fmt.Errorf("更新失败且自动回退失败: %w", rollbackErr))
-			return
-		}
-		fail("RESTART_FAILED", err)
+		rollbackInstallation("RESTART_FAILED", err, previousFiles, backup, true, false)
 		return
 	}
-	setPhase("HEALTH_CHECKING", 85, "等待服务健康")
-	if err = a.waitHealthy("web"); err != nil {
-		rollbackErr := a.rollback(previousCompose, previousCaddy, previousEnv, backup)
-		if rollbackErr != nil {
-			fail("MANUAL_RECOVERY_REQUIRED", fmt.Errorf("健康检查失败且自动回退失败: %w", rollbackErr))
+	setPhase("HEALTH_CHECKING", 85, "等待 Web 与 Worker 健康")
+	for _, service := range []string{"web", "worker"} {
+		if err = a.waitHealthy(service); err != nil {
+			rollbackInstallation("HEALTH_CHECK_FAILED", err, previousFiles, backup, true, true)
 			return
 		}
-		fail("HEALTH_CHECK_FAILED", err)
-		a.stateMu.Lock()
-		job.Phase = "ROLLED_BACK"
-		_ = a.saveState()
-		a.stateMu.Unlock()
-		return
 	}
-	a.finishUpgradeEntrance(job, manifest.Version, func() error { return a.runCompose("up", "-d", "--no-deps", "caddy") }, a.ensureCaddy)
+	a.finishUpgradeEntrance(job, manifest.Version, func() error { return a.runCompose("up", "-d", "--no-deps", "caddy") }, entranceProbe)
 }
 
 func (a *App) preflight(manifest Manifest) error {
@@ -987,7 +1033,15 @@ func (a *App) runComposeWith(composeFile, envFile string, args ...string) error 
 }
 
 func (a *App) waitHealthy(service string) error {
-	deadline := time.Now().Add(5 * time.Minute)
+	timeout := a.healthCheckTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Minute
+	}
+	interval := a.healthCheckInterval
+	if interval <= 0 {
+		interval = 3 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		cmd := exec.Command("docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "ps", "-q", service)
 		out, err := cmd.Output()
@@ -998,7 +1052,7 @@ func (a *App) waitHealthy(service string) error {
 				return nil
 			}
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(interval)
 	}
 	return fmt.Errorf("%s did not become healthy", service)
 }
@@ -1140,26 +1194,100 @@ func decryptFile(path, key string) ([]byte, error) {
 	return gcm.Open(nil, sealed[:gcm.NonceSize()], sealed[gcm.NonceSize():], nil)
 }
 
-func (a *App) rollback(compose, caddy, env []byte, backupPath string) error {
-	if len(compose) == 0 || len(caddy) == 0 || len(env) == 0 {
+func snapshotManagedFiles(cfg Config, env []byte) (managedFilesSnapshot, error) {
+	snapshot := managedFilesSnapshot{env: append([]byte(nil), env...)}
+	var err error
+	if snapshot.compose, err = os.ReadFile(cfg.ComposeFile); err != nil {
+		return managedFilesSnapshot{}, fmt.Errorf("read Compose file: %w", err)
+	}
+	if snapshot.caddy, err = os.ReadFile(cfg.CaddyFile); err != nil {
+		return managedFilesSnapshot{}, fmt.Errorf("read Caddyfile: %w", err)
+	}
+	configurePath := filepath.Join(cfg.InstallDir, "configure-domain.sh")
+	info, statErr := os.Lstat(configurePath)
+	if statErr == nil {
+		if !info.Mode().IsRegular() {
+			return managedFilesSnapshot{}, errors.New("configure-domain.sh is not a regular file")
+		}
+		snapshot.configureDomain, err = os.ReadFile(configurePath)
+		if err != nil {
+			return managedFilesSnapshot{}, fmt.Errorf("read configure-domain.sh: %w", err)
+		}
+		snapshot.configureDomainExists = true
+		snapshot.configureDomainMode = info.Mode().Perm()
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return managedFilesSnapshot{}, fmt.Errorf("inspect configure-domain.sh: %w", statErr)
+	}
+	return snapshot, nil
+}
+
+func restoreManagedFiles(cfg Config, snapshot managedFilesSnapshot) error {
+	if len(snapshot.compose) == 0 || len(snapshot.caddy) == 0 || len(snapshot.env) == 0 {
 		return errors.New("缺少上一版本受管理文件")
 	}
-	if err := atomicWrite(a.cfg.ComposeFile, compose, 0644); err != nil {
+	if err := atomicWrite(cfg.ComposeFile, snapshot.compose, 0644); err != nil {
 		return err
 	}
-	if err := atomicWrite(a.cfg.CaddyFile, caddy, 0644); err != nil {
+	if err := atomicWrite(cfg.CaddyFile, snapshot.caddy, 0644); err != nil {
 		return err
 	}
-	if err := atomicWrite(a.cfg.EnvFile, env, 0600); err != nil {
+	configurePath := filepath.Join(cfg.InstallDir, "configure-domain.sh")
+	if snapshot.configureDomainExists {
+		if err := atomicWrite(configurePath, snapshot.configureDomain, snapshot.configureDomainMode); err != nil {
+			return err
+		}
+	} else if err := os.Remove(configurePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return atomicWrite(cfg.EnvFile, snapshot.env, 0600)
+}
+
+func (a *App) rollback(files managedFilesSnapshot, backupPath string, entranceProbe func() error) error {
+	if err := restoreManagedFiles(a.cfg, files); err != nil {
 		return err
 	}
 	if err := a.restoreDatabase(backupPath); err != nil {
 		return fmt.Errorf("数据库恢复失败: %w", err)
 	}
-	if err := a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy"); err != nil {
+	if err := a.startDatabaseClients(); err != nil {
+		return fmt.Errorf("恢复数据库客户端失败: %w", err)
+	}
+	if err := a.runCompose("up", "-d", "--no-deps", "caddy"); err != nil {
 		return err
 	}
-	return a.ensureCaddy()
+	return entranceProbe()
+}
+
+func (a *App) stopDatabaseClients() error {
+	if err := a.runCompose("stop", "--timeout", "30", "web", "worker"); err != nil {
+		return fmt.Errorf("database client shutdown failed: %w", err)
+	}
+	return nil
+}
+
+func (a *App) startDatabaseClients() error {
+	if err := a.runCompose("up", "-d", "--no-deps", "web", "worker"); err != nil {
+		return fmt.Errorf("database client restart failed: %w", err)
+	}
+	for _, service := range []string{"web", "worker"} {
+		if err := a.waitHealthy(service); err != nil {
+			return fmt.Errorf("%s did not become healthy: %w", service, err)
+		}
+	}
+	return nil
+}
+
+func (a *App) restoreDatabaseWithServices(backupPath string) error {
+	if err := a.stopDatabaseClients(); err != nil {
+		return err
+	}
+	if err := a.restoreDatabase(backupPath); err != nil {
+		return err
+	}
+	if err := a.startDatabaseClients(); err != nil {
+		return fmt.Errorf("restored database clients unavailable: %w", err)
+	}
+	return nil
 }
 
 func (a *App) restoreDatabase(backupPath string) error {
@@ -1172,14 +1300,22 @@ func (a *App) restoreDatabase(backupPath string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "exec", "-T", "postgres", "pg_restore", "--clean", "--if-exists", "--no-owner", "--exit-on-error", "--dbname=crewqual", "--username=crewqual")
+	reset := exec.CommandContext(ctx, "docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "exec", "-T", "postgres", "psql", "--no-psqlrc", "--no-password", "--username=crewqual", "--dbname=postgres", "--set=ON_ERROR_STOP=1", "--command=DROP DATABASE IF EXISTS crewqual WITH (FORCE);")
+	reset.Stdout, reset.Stderr = os.Stdout, os.Stderr
+	if err := reset.Run(); err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("database reset timed out: %w", ctx.Err())
+		}
+		return fmt.Errorf("database reset failed: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, "docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "exec", "-T", "postgres", "pg_restore", "--create", "--no-owner", "--exit-on-error", "--no-password", "--dbname=postgres", "--username=crewqual")
 	cmd.Stdin = bytes.NewReader(raw)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return fmt.Errorf("database restore timed out: %w", ctx.Err())
 		}
-		return err
+		return fmt.Errorf("database restore failed: %w", err)
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -91,6 +92,255 @@ func TestPruneBackupFilesPreservesCurrentAndNewestPrevious(t *testing.T) {
 	}
 }
 
+func TestRestoreManagedFilesPreservesConfigureDomainState(t *testing.T) {
+	for _, existed := range []bool{false, true} {
+		t.Run(strconv.FormatBool(existed), func(t *testing.T) {
+			directory := t.TempDir()
+			cfg := Config{
+				InstallDir:  directory,
+				ComposeFile: filepath.Join(directory, "compose.yaml"),
+				CaddyFile:   filepath.Join(directory, "Caddyfile"),
+				EnvFile:     filepath.Join(directory, ".env"),
+			}
+			for path, contents := range map[string]string{
+				cfg.ComposeFile: "baseline-compose\n",
+				cfg.CaddyFile:   "baseline-caddy\n",
+				cfg.EnvFile:     "BASELINE=true\n",
+			} {
+				if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			configurePath := filepath.Join(directory, "configure-domain.sh")
+			if existed {
+				if err := os.WriteFile(configurePath, []byte("baseline-script\n"), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			snapshot, err := snapshotManagedFiles(cfg, []byte("BASELINE=true\n"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for path, contents := range map[string]string{
+				cfg.ComposeFile: "target-compose\n",
+				cfg.CaddyFile:   "target-caddy\n",
+				cfg.EnvFile:     "TARGET=true\n",
+				configurePath:   "target-script\n",
+			} {
+				if err := os.WriteFile(path, []byte(contents), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := restoreManagedFiles(cfg, snapshot); err != nil {
+				t.Fatal(err)
+			}
+			for path, expected := range map[string]string{
+				cfg.ComposeFile: "baseline-compose\n",
+				cfg.CaddyFile:   "baseline-caddy\n",
+				cfg.EnvFile:     "BASELINE=true\n",
+			} {
+				raw, readErr := os.ReadFile(path)
+				if readErr != nil || string(raw) != expected {
+					t.Fatalf("%s was not restored: contents=%q err=%v", path, raw, readErr)
+				}
+			}
+			info, statErr := os.Stat(configurePath)
+			if existed {
+				if statErr != nil {
+					t.Fatal(statErr)
+				}
+				raw, readErr := os.ReadFile(configurePath)
+				if readErr != nil || string(raw) != "baseline-script\n" || info.Mode().Perm() != 0700 {
+					t.Fatalf("configure-domain.sh was not restored: contents=%q mode=%o err=%v", raw, info.Mode().Perm(), readErr)
+				}
+			} else if !errors.Is(statErr, os.ErrNotExist) {
+				t.Fatalf("new configure-domain.sh was retained: %v", statErr)
+			}
+		})
+	}
+}
+
+func TestApplyUpgradeFailureRecoveryStateMachine(t *testing.T) {
+	tests := []struct {
+		name              string
+		failureStage      string
+		wantPhase         string
+		wantCode          string
+		wantMaintenance   bool
+		wantTargetFiles   bool
+		wantTargetVersion bool
+	}{
+		{name: "shutdown", failureStage: "shutdown", wantPhase: "FAILED", wantCode: "DATABASE_CLIENT_SHUTDOWN_FAILED"},
+		{name: "backup", failureStage: "backup", wantPhase: "FAILED", wantCode: "BACKUP_FAILED"},
+		{name: "migration", failureStage: "migration", wantPhase: "ROLLED_BACK", wantCode: "MIGRATION_FAILED"},
+		{name: "bootstrap", failureStage: "bootstrap", wantPhase: "ROLLED_BACK", wantCode: "BOOTSTRAP_FAILED"},
+		{name: "restore", failureStage: "migration-restore", wantPhase: "NEEDS_MANUAL_RECOVERY", wantCode: "DATABASE_ROLLBACK_FAILED", wantMaintenance: true},
+		{name: "restart", failureStage: "restart", wantPhase: "FAILED", wantCode: "RESTART_FAILED"},
+		{name: "health", failureStage: "health", wantPhase: "ROLLED_BACK", wantCode: "HEALTH_CHECK_FAILED"},
+		{name: "success", wantPhase: "SUCCEEDED", wantTargetFiles: true, wantTargetVersion: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			directory := t.TempDir()
+			installDirectory := filepath.Join(directory, "install")
+			artifactDirectory := filepath.Join(directory, "artifacts")
+			if err := os.MkdirAll(artifactDirectory, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(installDirectory, 0700); err != nil {
+				t.Fatal(err)
+			}
+			cfg := Config{
+				InstallDir:  installDirectory,
+				DataDir:     filepath.Join(directory, "data"),
+				ComposeFile: filepath.Join(installDirectory, "compose.yaml"),
+				CaddyFile:   filepath.Join(installDirectory, "Caddyfile"),
+				EnvFile:     filepath.Join(installDirectory, ".env"),
+				Socket:      filepath.Join(directory, "runtime", "api.sock"),
+				BackupKey:   "fixture-backup-key",
+			}
+			baseline := map[string]string{
+				cfg.ComposeFile: "baseline-compose\n",
+				cfg.CaddyFile:   "baseline-caddy\n",
+				cfg.EnvFile:     "CREWQUAL_VERSION='v1.0.0'\n",
+				filepath.Join(installDirectory, "configure-domain.sh"): "baseline-script\n",
+			}
+			for path, contents := range baseline {
+				if err := os.WriteFile(path, []byte(contents), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			composePath := filepath.Join(artifactDirectory, "compose.yaml")
+			caddyPath := filepath.Join(artifactDirectory, "Caddyfile")
+			configurePath := filepath.Join(artifactDirectory, "configure-domain.sh")
+			stagedEnv := filepath.Join(artifactDirectory, ".env")
+			target := map[string]string{
+				composePath:   "target-compose\n",
+				caddyPath:     "target-caddy\n",
+				configurePath: "target-script\n",
+				stagedEnv:     "CREWQUAL_VERSION='v1.1.0'\n",
+			}
+			for path, contents := range target {
+				if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			docker := filepath.Join(directory, "docker")
+			dockerScript := `#!/bin/sh
+printf '%s\n' "$*" >>"$DOCKER_CALLS_FILE"
+state_dir="$DOCKER_STATE_DIR"
+args=" $* "
+case "$args" in
+  *" stop --timeout 30 web worker "*)
+    count=0
+    if [ -f "$state_dir/stop-count" ]; then count=$(cat "$state_dir/stop-count"); fi
+    count=$((count + 1)); printf '%s' "$count" >"$state_dir/stop-count"
+    if [ "$count" -ge 2 ]; then touch "$state_dir/rollback-stopped"; fi
+    if [ "${DOCKER_FAILURE_STAGE:-}" = shutdown ] && [ "$count" -eq 1 ]; then exit 41; fi ;;
+  *" pg_dump "*)
+    if [ "${DOCKER_FAILURE_STAGE:-}" = backup ]; then exit 42; fi
+    printf 'fixture-database-dump' ;;
+  *" pg_restore --list "*) cat >/dev/null ;;
+  *" run --rm --no-deps migrate "*)
+    case "${DOCKER_FAILURE_STAGE:-}" in migration|migration-restore) exit 43 ;; esac ;;
+  *" run --rm --no-deps bootstrap "*)
+    if [ "${DOCKER_FAILURE_STAGE:-}" = bootstrap ]; then exit 44; fi ;;
+  *" psql "*) ;;
+  *" pg_restore "*)
+    cat >/dev/null
+    if [ "${DOCKER_FAILURE_STAGE:-}" = migration-restore ]; then exit 45; fi ;;
+  *" up -d --no-deps web worker "*)
+    if [ "${DOCKER_FAILURE_STAGE:-}" = restart ] && [ ! -f "$state_dir/restart-failed" ]; then
+      touch "$state_dir/restart-failed"; exit 46
+    fi ;;
+  *" ps -q web "*) printf 'fixture-web-container\n' ;;
+  *" ps -q worker "*) printf 'fixture-worker-container\n' ;;
+  *" inspect --format "*)
+    if [ "${DOCKER_FAILURE_STAGE:-}" = health ] && [ ! -f "$state_dir/rollback-stopped" ]; then
+      printf 'unhealthy\n'
+    else
+      printf 'healthy\n'
+    fi ;;
+  *" up -d --no-deps caddy "*) ;;
+  *) exit 99 ;;
+esac
+`
+			if err := os.WriteFile(docker, []byte(dockerScript), 0700); err != nil {
+				t.Fatal(err)
+			}
+			callsFile := filepath.Join(directory, "docker-calls")
+			t.Setenv("DOCKER_CALLS_FILE", callsFile)
+			t.Setenv("DOCKER_STATE_DIR", directory)
+			t.Setenv("DOCKER_FAILURE_STAGE", test.failureStage)
+			t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+			job := &Job{ID: "fixture-job", RequestedVersion: "v1.1.0", Phase: "STAGING", StartedAt: time.Now().UTC().Format(time.RFC3339)}
+			app := &App{
+				cfg:                 cfg,
+				state:               State{CurrentVersion: "v1.0.0", Job: job},
+				healthCheckTimeout:  20 * time.Millisecond,
+				healthCheckInterval: time.Millisecond,
+			}
+			manifest := Manifest{Version: "v1.1.0", WebImage: "target-web", RuntimeImage: "target-runtime", ConfigureDomainURL: "https://github.com/FlightDan/crewqual/releases/download/v1.1.0/configure-domain.sh"}
+			app.applyUpgrade(job, manifest, composePath, caddyPath, configurePath, stagedEnv, []byte(baseline[cfg.EnvFile]), func() error { return nil })
+
+			if job.Phase != test.wantPhase || job.ErrorCode != test.wantCode || job.CompletedAt == "" {
+				t.Fatalf("unexpected terminal job: %+v", job)
+			}
+			if (app.state.CurrentVersion == "v1.1.0") != test.wantTargetVersion {
+				t.Fatalf("unexpected current version %q", app.state.CurrentVersion)
+			}
+			_, markerErr := os.Stat(app.maintenancePath())
+			if (markerErr == nil) != test.wantMaintenance {
+				t.Fatalf("maintenance marker state mismatch: %v", markerErr)
+			}
+			if markerErr != nil && !errors.Is(markerErr, os.ErrNotExist) {
+				t.Fatal(markerErr)
+			}
+			wantFiles := baseline
+			if test.wantTargetFiles {
+				wantFiles = map[string]string{
+					cfg.ComposeFile: "target-compose\n",
+					cfg.CaddyFile:   "target-caddy\n",
+					cfg.EnvFile:     "",
+					filepath.Join(installDirectory, "configure-domain.sh"): "target-script\n",
+				}
+			}
+			for path, expected := range wantFiles {
+				if test.wantTargetFiles && path == cfg.EnvFile {
+					if readEnv(path, "CREWQUAL_VERSION") != "v1.1.0" || readEnv(path, "CREWQUAL_WEB_IMAGE") != "target-web" || readEnv(path, "CREWQUAL_RUNTIME_IMAGE") != "target-runtime" {
+						t.Fatalf("target environment was not installed: %s", path)
+					}
+					continue
+				}
+				raw, err := os.ReadFile(path)
+				if err != nil || string(raw) != expected {
+					t.Fatalf("unexpected managed file %s: contents=%q err=%v", path, raw, err)
+				}
+			}
+			calls, err := os.ReadFile(callsFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			callsText := string(calls)
+			if test.failureStage != "shutdown" {
+				stopIndex := strings.Index(callsText, " stop --timeout 30 web worker")
+				backupIndex := strings.Index(callsText, " pg_dump ")
+				if stopIndex < 0 || backupIndex <= stopIndex {
+					t.Fatalf("database clients were not stopped before backup:\n%s", calls)
+				}
+			}
+			if test.failureStage == "migration-restore" {
+				restoreIndex := strings.LastIndex(callsText, " pg_restore --create ")
+				if restoreIndex < 0 || strings.Contains(callsText[restoreIndex:], " up -d --no-deps web worker") {
+					t.Fatalf("database clients restarted after failed restore:\n%s", calls)
+				}
+			}
+		})
+	}
+}
+
 func TestBackupDatabaseRetainsThreeVerifiedBackups(t *testing.T) {
 	directory := t.TempDir()
 	docker := filepath.Join(directory, "docker")
@@ -99,7 +349,13 @@ printf '%s\n' "$*" >>"$DOCKER_CALLS_FILE"
 case " $* " in
   *" pg_dump "*) printf 'fixture-database-dump' ;;
   *" pg_restore --list "*) cat >/dev/null ;;
-  *" pg_restore "*) cat >/dev/null ;;
+  *" pg_restore "*) cat >/dev/null; if [ "${DOCKER_FAIL_RESTORE:-}" = 1 ]; then exit 42; fi ;;
+  *" psql "*) ;;
+  *" stop --timeout 30 web worker "*) ;;
+  *" up -d --no-deps web worker "*) ;;
+  *" ps -q web "*) printf 'fixture-web-container\n' ;;
+  *" ps -q worker "*) printf 'fixture-worker-container\n' ;;
+  *" inspect --format "*) printf 'healthy\n' ;;
   *) exit 99 ;;
 esac
 `
@@ -146,15 +402,41 @@ esac
 		}
 		latest = path
 	}
-	if err := app.restoreDatabase(latest); err != nil {
+	if err := app.restoreDatabaseWithServices(latest); err != nil {
 		t.Fatalf("restore current backup: %v", err)
 	}
 	calls, err := os.ReadFile(callsFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(calls), "pg_restore --clean --if-exists --no-owner --exit-on-error --dbname=crewqual --username=crewqual") {
-		t.Fatalf("restore did not select the crewqual database role:\n%s", calls)
+	callsText := string(calls)
+	expectedOrder := []string{
+		" stop --timeout 30 web worker",
+		" psql --no-psqlrc --no-password --username=crewqual --dbname=postgres --set=ON_ERROR_STOP=1 --command=DROP DATABASE IF EXISTS crewqual WITH (FORCE);",
+		" pg_restore --create --no-owner --exit-on-error --no-password --dbname=postgres --username=crewqual",
+		" up -d --no-deps web worker",
+	}
+	previous := -1
+	for _, expected := range expectedOrder {
+		index := strings.Index(callsText, expected)
+		if index <= previous {
+			t.Fatalf("restore command %q missing or out of order:\n%s", expected, calls)
+		}
+		previous = index
+	}
+	if err := os.WriteFile(callsFile, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DOCKER_FAIL_RESTORE", "1")
+	if err := app.restoreDatabaseWithServices(latest); err == nil {
+		t.Fatal("failed restore succeeded")
+	}
+	failedCalls, err := os.ReadFile(callsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(failedCalls), " up -d --no-deps web worker") {
+		t.Fatalf("database clients restarted after failed restore:\n%s", failedCalls)
 	}
 }
 
