@@ -1172,7 +1172,7 @@ func (a *App) restoreDatabase(backupPath string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "exec", "-T", "postgres", "pg_restore", "--clean", "--if-exists", "--no-owner", "--exit-on-error", "--dbname=crewqual")
+	cmd := exec.CommandContext(ctx, "docker", "compose", "--project-directory", a.cfg.InstallDir, "--env-file", a.cfg.EnvFile, "-f", a.cfg.ComposeFile, "exec", "-T", "postgres", "pg_restore", "--clean", "--if-exists", "--no-owner", "--exit-on-error", "--dbname=crewqual", "--username=crewqual")
 	cmd.Stdin = bytes.NewReader(raw)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {

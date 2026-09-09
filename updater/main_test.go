@@ -95,15 +95,19 @@ func TestBackupDatabaseRetainsThreeVerifiedBackups(t *testing.T) {
 	directory := t.TempDir()
 	docker := filepath.Join(directory, "docker")
 	dockerScript := `#!/bin/sh
+printf '%s\n' "$*" >>"$DOCKER_CALLS_FILE"
 case " $* " in
   *" pg_dump "*) printf 'fixture-database-dump' ;;
   *" pg_restore --list "*) cat >/dev/null ;;
+  *" pg_restore "*) cat >/dev/null ;;
   *) exit 99 ;;
 esac
 `
 	if err := os.WriteFile(docker, []byte(dockerScript), 0700); err != nil {
 		t.Fatal(err)
 	}
+	callsFile := filepath.Join(directory, "docker-calls")
+	t.Setenv("DOCKER_CALLS_FILE", callsFile)
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
 	dataDirectory := filepath.Join(directory, "data")
 	app := App{cfg: Config{
@@ -113,6 +117,7 @@ esac
 		EnvFile:     "/fixture/.env",
 		BackupKey:   "fixture-backup-key",
 	}}
+	latest := ""
 	for index := 1; index <= 5; index++ {
 		path, err := app.backupDatabase(fmt.Sprintf("retention-%d-%d", os.Getpid(), index))
 		if err != nil {
@@ -139,6 +144,17 @@ esac
 		if len(entries) != wantCount {
 			t.Fatalf("after backup %d got %d retained backups, want %d", index, len(entries), wantCount)
 		}
+		latest = path
+	}
+	if err := app.restoreDatabase(latest); err != nil {
+		t.Fatalf("restore current backup: %v", err)
+	}
+	calls, err := os.ReadFile(callsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(calls), "pg_restore --clean --if-exists --no-owner --exit-on-error --dbname=crewqual --username=crewqual") {
+		t.Fatalf("restore did not select the crewqual database role:\n%s", calls)
 	}
 }
 
