@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 source "$(dirname "$0")/../post-publish-acceptance.sh"
 post_source="$(cat "$(dirname "$0")/../post-publish-acceptance.sh")"
+[[ "$acceptance_root" == /var/lib/crewqual-release-acceptance ]]
+[[ "$fresh_dir" == "$acceptance_root/fresh" ]]
+[[ "$upgrade_dir" == "$acceptance_root/upgrade" ]]
 grep -q 'validate-release-inputs.sh.*"\$acceptance_scope"' <<<"$post_source"
 ! grep -q 'validate-release-inputs.sh.* local ' <<<"$post_source"
 grep -q 'signed manifest and SHA256SUMS' <<<"$post_source"

@@ -336,7 +336,8 @@ if CREWQUAL_TEST_INSTALL_DIR="$unsafe_parent/install" \
   exit 1
 fi
 [[ ! -e "$unsafe_parent/install" ]]
-grep -q '安装目录不安全' "$unsafe_parent_log"
+grep -q '安装目录.*不安全' "$unsafe_parent_log"
+grep -Fq "$unsafe_parent" "$unsafe_parent_log"
 
 relative_install="crewqual-relative-install-$$"
 relative_log="$TEST_DIR/relative-install.log"

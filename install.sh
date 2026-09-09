@@ -893,6 +893,8 @@ msg() {
     en:install_dir_invalid) printf 'Install directory must be an absolute path other than /' ;;
     zh:install_dir_unsafe) printf '安装目录不安全（必须是当前用户所有、非符号链接且不允许组/其他用户写入）: %s' "$1" ;;
     en:install_dir_unsafe) printf 'Unsafe install directory (must be owned by the current user, not a symlink, and not group/world-writable): %s' "$1" ;;
+    zh:install_dir_component_unsafe) printf '安装目录路径组件不安全（必须由可信用户所有、非符号链接且不允许组/其他用户写入）: %s（安装目录: %s）' "$1" "$2" ;;
+    en:install_dir_component_unsafe) printf 'Unsafe install-directory path component (must have a trusted owner, not be a symlink, and not be group/world-writable): %s (install directory: %s)' "$1" "$2" ;;
     zh:env_symlink) printf '.env 不能是符号链接' ;;
     en:env_symlink) printf '.env must not be a symbolic link' ;;
     zh:missing_option_value) printf '%s 缺少参数' "$1" ;;
@@ -1239,18 +1241,18 @@ prepare_install_directory() {
   path="$INSTALL_DIR"
   while :; do
     if [[ -e "$path" || -L "$path" ]]; then
-      [[ -d "$path" && ! -L "$path" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      [[ -d "$path" && ! -L "$path" ]] || die "$(msg install_dir_component_unsafe "$path" "$INSTALL_DIR")"
       owner="$(stat -c '%u' -- "$path")"
       mode="$(stat -c '%a' -- "$path")"
-      [[ "$owner" == "0" || "$owner" == "$trusted_owner" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
-      [[ "$mode" =~ ^[0-7]{3,4}$ ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      [[ "$owner" == "0" || "$owner" == "$trusted_owner" ]] || die "$(msg install_dir_component_unsafe "$path" "$INSTALL_DIR")"
+      [[ "$mode" =~ ^[0-7]{3,4}$ ]] || die "$(msg install_dir_component_unsafe "$path" "$INSTALL_DIR")"
       mode_value=$((8#$mode))
       if (((mode_value & 0022) != 0)); then
         # Production roots need an unbroken chain of non-writable ancestors.
         # Tests may live below the root-owned sticky /tmp harness directory.
         [[ "$test_mode" == "1" && "$path" != "$INSTALL_DIR" && "$owner" == "0" ]] ||
-          die "$(msg install_dir_unsafe "$INSTALL_DIR")"
-        (((mode_value & 01000) != 0)) || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+          die "$(msg install_dir_component_unsafe "$path" "$INSTALL_DIR")"
+        (((mode_value & 01000) != 0)) || die "$(msg install_dir_component_unsafe "$path" "$INSTALL_DIR")"
       fi
     fi
     [[ "$path" == "/" ]] && break
