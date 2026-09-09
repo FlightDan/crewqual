@@ -288,7 +288,10 @@ describe("release input safeguards", () => {
           script,
           location,
         ],
-        { encoding: "utf8" },
+        {
+          encoding: "utf8",
+          env: { ...process.env, CREWQUAL_REPO_DIR: process.cwd() },
+        },
       );
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("--replace-existing-tag");

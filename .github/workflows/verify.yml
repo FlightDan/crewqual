@@ -79,10 +79,12 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Provision runtime role and apply Prisma migrations
+      - name: Provision runtime role and apply database migrations
         run: |
           sh scripts/ensure-postgres-runtime-role.sh provision
           pnpm db:migrate
+          pnpm db:migrate:queue
+          sh scripts/ensure-postgres-runtime-role.sh grant
           sh scripts/ensure-postgres-runtime-role.sh verify
       - name: Run PostgreSQL rate-limit integration
         run: pnpm test:integration:rate-limit

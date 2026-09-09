@@ -226,7 +226,7 @@ async function dbSnapshot(databaseUrl: string) {
       pilotProfiles,
       positionAssignments,
       qualificationAssignments,
-      qualificationTypes,
+      qualificationTypeCount,
       qualificationRecords,
       updateRequests,
       evidenceImages,
@@ -287,7 +287,6 @@ async function dbSnapshot(databaseUrl: string) {
       pilotProfiles,
       positionAssignments,
       qualificationAssignments,
-      qualificationTypes,
       qualificationRecords,
       updateRequests,
       evidenceImages,
@@ -307,6 +306,7 @@ async function dbSnapshot(databaseUrl: string) {
       unitCount !== 1 ||
       positions.map(({ code }) => code).join(",") !== "PILOT" ||
       qualificationDefinitionCount !== PILOT_TEMPLATE_PACK.qualificationDefinitions.length ||
+      qualificationTypeCount !== PILOT_TEMPLATE_PACK.qualificationDefinitions.length ||
       qualificationRequirementCount !== PILOT_TEMPLATE_PACK.requirements.length ||
       templatePackCount !== 1 ||
       templateInstallationCount !== 1 ||
@@ -320,6 +320,7 @@ async function dbSnapshot(databaseUrl: string) {
           unitCount,
           positions,
           qualificationDefinitionCount,
+          qualificationTypeCount,
           qualificationRequirementCount,
           templatePackCount,
           templateInstallationCount,
@@ -342,6 +343,7 @@ async function dbSnapshot(databaseUrl: string) {
         unitCount,
         positions,
         qualificationDefinitionCount,
+        qualificationTypeCount,
         qualificationRequirementCount,
         templatePackCount,
         templateInstallationCount,
