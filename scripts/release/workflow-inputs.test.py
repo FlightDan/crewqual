@@ -153,6 +153,8 @@ if [[ "$1" == pull ]]; then
   printf 'pull\\n' >> "$FIXTURE/pulls"
 elif [[ "$1 $2" == 'image inspect' ]]; then
   if [[ "${BAD_PLATFORM:-}" == 1 ]]; then echo linux/amd64; else cat "$FIXTURE/platform"; fi
+elif [[ "$1 $2" == 'image rm' ]]; then
+  printf 'remove\\n' >> "$FIXTURE/removals"
 else exit 2
 fi
 ''')
@@ -165,6 +167,7 @@ fi
             result = run()
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual((root / 'pulls').read_text().splitlines(), ['pull'] * 4)
+            self.assertEqual((root / 'removals').read_text().splitlines(), ['remove'] * 4)
             self.assertNotEqual(run(BAD_PLATFORM='1').returncode, 0)
             (root / 'pulls').unlink()
             signature = root / 'v1.0.4/update-manifest-v1.json.sig'

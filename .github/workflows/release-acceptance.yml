@@ -289,6 +289,11 @@ jobs:
             while IFS= read -r image; do
               docker pull --platform "linux/$arch" "$image" >/dev/null
               actual="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")"
+              # Docker binds a digest pull to the selected platform locally and
+              # refuses to overwrite that reference during the next architecture
+              # probe. This runner is disposable, so remove only the exact
+              # baseline reference after recording its native platform.
+              docker image rm --force "$image" >/dev/null
               [[ "$actual" == "linux/$arch" ]] || { echo "baseline $tag image lacks linux/$arch"; return 1; }
             done < <(jq -r '.webImage, .runtimeImage' "$directory/update-manifest-v1.json")
             rm -rf -- "$directory"
