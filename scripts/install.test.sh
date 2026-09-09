@@ -238,9 +238,15 @@ run_installer_pty() {
     script -qefc "stty rows $rows cols $cols; $command" "$transcript" >/dev/null
 }
 
-run_installer --domain crewqual.example.com --tls-email ops@example.com --non-interactive
+(
+  # A fresh managed root must not inherit a group-writable mode from its
+  # caller: the privileged updater rejects such roots before Caddy recovery.
+  umask 0002
+  run_installer --domain crewqual.example.com --tls-email ops@example.com --non-interactive
+)
 
 [[ -f "$INSTALL_DIR/compose.yaml" && -f "$INSTALL_DIR/Caddyfile" && -f "$INSTALL_DIR/.env" ]]
+[[ "$(stat -c '%a' "$INSTALL_DIR")" == "755" ]]
 [[ "$(stat -c '%a' "$INSTALL_DIR/.env")" == "600" ]]
 [[ -f "$INSTALL_DIR/.deployment.lock" && "$(stat -c '%a' "$INSTALL_DIR/.deployment.lock")" == "600" ]]
 grep -q "CREWQUAL_VERSION='v9.8.7'" "$INSTALL_DIR/.env"
@@ -301,6 +307,56 @@ grep -q 'deployment_state_token' <<<"$rollback_source"
 recovery_source="$(sed -n '/^start_application_services()/,/^}/p' "$PROJECT_DIR/install.sh")"
 grep -q 'ROLLBACK_STATE_TOKEN="$(deployment_state_token)"' <<<"$recovery_source"
 grep -q '检测到另一个部署任务' <<<"$recovery_source"
+grep -q 'report_caddy_recovery_failure' <<<"$recovery_source"
+diagnostic_source="$(sed -n '/^report_caddy_recovery_failure()/,/^}/p' "$PROJECT_DIR/install.sh")"
+grep -q 'systemctl show' <<<"$diagnostic_source"
+grep -q 'journalctl --unit' <<<"$diagnostic_source"
+
+symlink_target="$TEST_DIR/symlink-target"
+symlink_install="$TEST_DIR/symlink-install"
+mkdir -p "$symlink_target"
+ln -s "$symlink_target" "$symlink_install"
+symlink_log="$TEST_DIR/symlink-install.log"
+if CREWQUAL_TEST_INSTALL_DIR="$symlink_install/." \
+  run_installer --version v9.8.7 --domain unsafe.example.com \
+  --tls-email unsafe@example.com --non-interactive >"$symlink_log" 2>&1; then
+  echo "expected a symlinked install root to be rejected" >&2
+  exit 1
+fi
+[[ ! -e "$symlink_target/.env" ]]
+grep -q '安装目录不安全' "$symlink_log"
+
+unsafe_parent="$TEST_DIR/unsafe-parent"
+mkdir -m 0777 "$unsafe_parent"
+unsafe_parent_log="$TEST_DIR/unsafe-parent.log"
+if CREWQUAL_TEST_INSTALL_DIR="$unsafe_parent/install" \
+  run_installer --version v9.8.7 --domain unsafe.example.com \
+  --tls-email unsafe@example.com --non-interactive >"$unsafe_parent_log" 2>&1; then
+  echo "expected an install root below a writable non-sticky parent to be rejected" >&2
+  exit 1
+fi
+[[ ! -e "$unsafe_parent/install" ]]
+grep -q '安装目录不安全' "$unsafe_parent_log"
+
+relative_install="crewqual-relative-install-$$"
+relative_log="$TEST_DIR/relative-install.log"
+if CREWQUAL_TEST_INSTALL_DIR="$relative_install" \
+  run_installer --version v9.8.7 --domain unsafe.example.com \
+  --tls-email unsafe@example.com --non-interactive >"$relative_log" 2>&1; then
+  echo "expected a relative install root to be rejected" >&2
+  exit 1
+fi
+[[ ! -e "$PROJECT_DIR/$relative_install" ]]
+grep -q '安装目录必须是非根目录的绝对路径' "$relative_log"
+
+setgid_parent="$TEST_DIR/setgid-parent"
+setgid_install="$setgid_parent/install"
+mkdir -m 2755 "$setgid_parent"
+CREWQUAL_TEST_INSTALL_DIR="$setgid_install" \
+  run_installer --version v9.8.7 --domain setgid.example.com \
+  --tls-email setgid@example.com --non-interactive >/dev/null
+setgid_mode="$(stat -c '%a' "$setgid_install")"
+(((8#$setgid_mode & 0022) == 0))
 
 CREWQUAL_TEST_INSTALL_DIR="$RC_INSTALL_DIR" \
   run_installer --version v9.8.7-rc.2 --domain rc.example.com \

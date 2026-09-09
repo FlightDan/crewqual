@@ -55,6 +55,25 @@ func TestManagedCaddyPathsRejectMissingMarkerAndEscapes(t *testing.T) {
 	}
 }
 
+func TestManagedCaddyPathsRejectWritableInstallRoot(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("managed paths must be root-owned")
+	}
+	dir := t.TempDir()
+	app := &App{cfg: Config{InstallDir: dir, EnvFile: filepath.Join(dir, ".env"), ComposeFile: filepath.Join(dir, "compose.yaml"), CaddyFile: filepath.Join(dir, "Caddyfile")}}
+	for _, p := range []string{filepath.Join(dir, ".crewqual-official-install"), app.cfg.EnvFile, app.cfg.ComposeFile, app.cfg.CaddyFile} {
+		if err := os.WriteFile(p, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chmod(dir, 0775); err != nil {
+		t.Fatal(err)
+	}
+	if app.validateCaddyPaths() == nil {
+		t.Fatal("group-writable managed root accepted")
+	}
+}
+
 func TestCaddyExactPorts(t *testing.T) {
 	expected := map[string][]caddyBinding{"443/tcp": {{"192.0.2.10", "443"}}, "80/tcp": {{"127.0.0.1", "18080"}}}
 	if !exactCaddyPorts(expected, expected) {

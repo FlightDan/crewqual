@@ -891,6 +891,8 @@ msg() {
     en:timeout_invalid) printf 'CREWQUAL_INSTALL_TIMEOUT_SECONDS must be a positive integer' ;;
     zh:install_dir_invalid) printf '安装目录必须是非根目录的绝对路径' ;;
     en:install_dir_invalid) printf 'Install directory must be an absolute path other than /' ;;
+    zh:install_dir_unsafe) printf '安装目录不安全（必须是当前用户所有、非符号链接且不允许组/其他用户写入）: %s' "$1" ;;
+    en:install_dir_unsafe) printf 'Unsafe install directory (must be owned by the current user, not a symlink, and not group/world-writable): %s' "$1" ;;
     zh:env_symlink) printf '.env 不能是符号链接' ;;
     en:env_symlink) printf '.env must not be a symbolic link' ;;
     zh:missing_option_value) printf '%s 缺少参数' "$1" ;;
@@ -1223,6 +1225,73 @@ release_deployment_lock() {
     DEPLOYMENT_LOCK_FD=""
   fi
   DEPLOYMENT_LOCK_HELD=0
+}
+
+prepare_install_directory() {
+  local mode mode_value owner path test_mode trusted_owner
+  normalize_install_directory_path
+  ENV_FILE="$INSTALL_DIR/.env"
+  COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
+
+  test_mode="${CREWQUAL_INSTALL_TEST_MODE:-0}"
+  trusted_owner=0
+  [[ "$test_mode" == "1" ]] && trusted_owner="$(id -u)"
+  path="$INSTALL_DIR"
+  while :; do
+    if [[ -e "$path" || -L "$path" ]]; then
+      [[ -d "$path" && ! -L "$path" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      owner="$(stat -c '%u' -- "$path")"
+      mode="$(stat -c '%a' -- "$path")"
+      [[ "$owner" == "0" || "$owner" == "$trusted_owner" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      [[ "$mode" =~ ^[0-7]{3,4}$ ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      mode_value=$((8#$mode))
+      if (((mode_value & 0022) != 0)); then
+        # Production roots need an unbroken chain of non-writable ancestors.
+        # Tests may live below the root-owned sticky /tmp harness directory.
+        [[ "$test_mode" == "1" && "$path" != "$INSTALL_DIR" && "$owner" == "0" ]] ||
+          die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+        (((mode_value & 01000) != 0)) || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+      fi
+    fi
+    [[ "$path" == "/" ]] && break
+    path="$(dirname -- "$path")"
+  done
+
+  if [[ -e "$INSTALL_DIR" || -L "$INSTALL_DIR" ]]; then
+    return 0
+  fi
+  # Do not inherit a caller's permissive umask. The host updater deliberately
+  # rejects a managed root that another local user could modify.
+  install -d -m 0755 -- "$INSTALL_DIR"
+  normalize_install_directory_path
+  [[ -d "$INSTALL_DIR" && ! -L "$INSTALL_DIR" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+  owner="$(stat -c '%u' -- "$INSTALL_DIR")"
+  mode="$(stat -c '%a' -- "$INSTALL_DIR")"
+  [[ "$owner" == "$trusted_owner" && "$mode" =~ ^[0-7]{3,4}$ ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+  mode_value=$((8#$mode))
+  (((mode_value & 0022) == 0)) || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+}
+
+normalize_install_directory_path() {
+  local normalized physical
+  require_command realpath
+  [[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
+  normalized="$(realpath -ms -- "$INSTALL_DIR")" || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+  [[ "$normalized" == /* && "$normalized" != "/" ]] || die "$(msg install_dir_invalid)"
+  physical="$(realpath -m -- "$normalized")" || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+  [[ "$physical" == "$normalized" ]] || die "$(msg install_dir_unsafe "$INSTALL_DIR")"
+  INSTALL_DIR="$normalized"
+}
+
+report_caddy_recovery_failure() {
+  echo "--- $CADDY_RECOVERY_UNIT failure details ---" >&2
+  systemctl show "$CADDY_RECOVERY_UNIT" \
+    --property=Result,ExecMainCode,ExecMainStatus,ActiveState,SubState --no-pager >&2 || true
+  systemctl status "$CADDY_RECOVERY_UNIT" --no-pager --full >&2 || true
+  journalctl --unit "$CADDY_RECOVERY_UNIT" --lines 80 --no-pager >&2 || true
+  stat -Lc '%U:%G %a %F %n' -- \
+    "$INSTALL_DIR" "$INSTALL_DIR/.crewqual-official-install" \
+    "$ENV_FILE" "$COMPOSE_FILE" "$INSTALL_DIR/Caddyfile" >&2 || true
 }
 
 deployment_state_token() {
@@ -2319,6 +2388,10 @@ run_preflight_checks() {
   require_command grep
   require_command timeout
   require_command flock
+  require_command realpath
+  require_command stat
+  require_command dirname
+  require_command id
   configure_host_platform
 }
 
@@ -2423,6 +2496,7 @@ start_application_services() {
     local recovery_start_timeout=$((CADDY_RECOVERY_TIMEOUT_SECONDS + DOCKER_COMMAND_TIMEOUT_SECONDS))
     local recovery_failed=0
     if ! run_with_timeout "$recovery_start_timeout" systemctl start "$CADDY_RECOVERY_UNIT"; then
+      report_caddy_recovery_failure
       run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl stop "$CADDY_RECOVERY_UNIT" >/dev/null 2>&1 || true
       recovery_failed=1
     fi
@@ -2537,6 +2611,7 @@ if ((AUTO_TLS_INPUT)) && custom_tls_requested; then
   die "--auto-tls 不能与 --tls-cert/--tls-key 同时使用"
 fi
 
+normalize_install_directory_path
 ENV_FILE="$INSTALL_DIR/.env"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
 ui_init
@@ -2554,7 +2629,7 @@ ui_task_run 6 "$(msg task_verify)" verify_downloaded_release
 # Hold the deployment lock before reading any existing managed state. The
 # staged environment and rollback snapshot must describe the same deployment
 # that will eventually be committed.
-mkdir -p -- "$INSTALL_DIR"
+prepare_install_directory
 acquire_deployment_lock || die "$(msg deployment_lock_failed)"
 
 if [[ -f "$ENV_FILE" ]]; then
