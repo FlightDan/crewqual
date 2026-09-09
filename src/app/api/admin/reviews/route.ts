@@ -20,6 +20,6 @@ export async function GET(request: NextRequest) {
     const query = querySchema.parse(Object.fromEntries(url.searchParams.entries()));
     return jsonData(await listAdminReviews(admin, query), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

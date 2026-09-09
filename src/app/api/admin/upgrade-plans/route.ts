@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -325,6 +325,6 @@ export async function POST(request: NextRequest) {
     });
     return jsonData(serializeUpgradePlan(plan), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

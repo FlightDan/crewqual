@@ -3,23 +3,39 @@ import { getRequestId, jsonData, jsonError } from "@/server/api";
 import { authenticatePilot } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
 import { getPrivateEvidenceUrl } from "@/server/storage";
+import { assertEvidenceProvenance, evidenceUnavailable } from "@/server/evidence-provenance";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
   try {
     const pilot = await authenticatePilot(request);
     const { id } = await context.params;
-    const image = await getPrisma().evidenceImage.findFirst({ where: { id, pilotId: pilot.id } });
-    if (!image) throw new Error("Evidence not found");
+    const image = await getPrisma().evidenceImage.findFirst({
+      where: { id, pilotId: pilot.id, OR: [{ personId: null }, { personId: pilot.personId }] },
+    });
+    if (!image) throw evidenceUnavailable();
+    assertEvidenceProvenance(image);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const url = await getPrivateEvidenceUrl(image, 300);
+    await getPrisma().auditEvent.create({
+      data: {
+        actorType: "pilot",
+        pilotId: pilot.id,
+        action: "evidence.read",
+        entityType: "EvidenceImage",
+        entityId: image.id,
+        detail: { purpose: "signed_url", expiresAt: expiresAt.toISOString() },
+        requestId,
+      },
+    });
     return jsonData(
       {
-        url: await getPrivateEvidenceUrl(image.objectKey, 300),
+        url,
         expiresAt: expiresAt.toISOString(),
       },
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

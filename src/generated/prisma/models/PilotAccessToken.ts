@@ -20,8 +20,18 @@ export type PilotAccessTokenModel = runtime.Types.Result.DefaultSelection<Prisma
 
 export type AggregatePilotAccessToken = {
   _count: PilotAccessTokenCountAggregateOutputType | null
+  _avg: PilotAccessTokenAvgAggregateOutputType | null
+  _sum: PilotAccessTokenSumAggregateOutputType | null
   _min: PilotAccessTokenMinAggregateOutputType | null
   _max: PilotAccessTokenMaxAggregateOutputType | null
+}
+
+export type PilotAccessTokenAvgAggregateOutputType = {
+  policyVersion: number | null
+}
+
+export type PilotAccessTokenSumAggregateOutputType = {
+  policyVersion: number | null
 }
 
 export type PilotAccessTokenMinAggregateOutputType = {
@@ -30,6 +40,7 @@ export type PilotAccessTokenMinAggregateOutputType = {
   tokenHash: string | null
   expiresAt: Date | null
   consumedAt: Date | null
+  policyVersion: number | null
   createdAt: Date | null
 }
 
@@ -39,6 +50,7 @@ export type PilotAccessTokenMaxAggregateOutputType = {
   tokenHash: string | null
   expiresAt: Date | null
   consumedAt: Date | null
+  policyVersion: number | null
   createdAt: Date | null
 }
 
@@ -48,10 +60,19 @@ export type PilotAccessTokenCountAggregateOutputType = {
   tokenHash: number
   expiresAt: number
   consumedAt: number
+  policyVersion: number
   createdAt: number
   _all: number
 }
 
+
+export type PilotAccessTokenAvgAggregateInputType = {
+  policyVersion?: true
+}
+
+export type PilotAccessTokenSumAggregateInputType = {
+  policyVersion?: true
+}
 
 export type PilotAccessTokenMinAggregateInputType = {
   id?: true
@@ -59,6 +80,7 @@ export type PilotAccessTokenMinAggregateInputType = {
   tokenHash?: true
   expiresAt?: true
   consumedAt?: true
+  policyVersion?: true
   createdAt?: true
 }
 
@@ -68,6 +90,7 @@ export type PilotAccessTokenMaxAggregateInputType = {
   tokenHash?: true
   expiresAt?: true
   consumedAt?: true
+  policyVersion?: true
   createdAt?: true
 }
 
@@ -77,6 +100,7 @@ export type PilotAccessTokenCountAggregateInputType = {
   tokenHash?: true
   expiresAt?: true
   consumedAt?: true
+  policyVersion?: true
   createdAt?: true
   _all?: true
 }
@@ -119,6 +143,18 @@ export type PilotAccessTokenAggregateArgs<ExtArgs extends runtime.Types.Extensio
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: PilotAccessTokenAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: PilotAccessTokenSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: PilotAccessTokenMinAggregateInputType
@@ -149,6 +185,8 @@ export type PilotAccessTokenGroupByArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   _count?: PilotAccessTokenCountAggregateInputType | true
+  _avg?: PilotAccessTokenAvgAggregateInputType
+  _sum?: PilotAccessTokenSumAggregateInputType
   _min?: PilotAccessTokenMinAggregateInputType
   _max?: PilotAccessTokenMaxAggregateInputType
 }
@@ -159,8 +197,11 @@ export type PilotAccessTokenGroupByOutputType = {
   tokenHash: string
   expiresAt: Date
   consumedAt: Date | null
+  policyVersion: number
   createdAt: Date
   _count: PilotAccessTokenCountAggregateOutputType | null
+  _avg: PilotAccessTokenAvgAggregateOutputType | null
+  _sum: PilotAccessTokenSumAggregateOutputType | null
   _min: PilotAccessTokenMinAggregateOutputType | null
   _max: PilotAccessTokenMaxAggregateOutputType | null
 }
@@ -189,6 +230,7 @@ export type PilotAccessTokenWhereInput = {
   tokenHash?: Prisma.StringFilter<"PilotAccessToken"> | string
   expiresAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
   consumedAt?: Prisma.DateTimeNullableFilter<"PilotAccessToken"> | Date | string | null
+  policyVersion?: Prisma.IntFilter<"PilotAccessToken"> | number
   createdAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
   pilot?: Prisma.XOR<Prisma.PilotScalarRelationFilter, Prisma.PilotWhereInput>
 }
@@ -199,6 +241,7 @@ export type PilotAccessTokenOrderByWithRelationInput = {
   tokenHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   consumedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   pilot?: Prisma.PilotOrderByWithRelationInput
 }
@@ -212,6 +255,7 @@ export type PilotAccessTokenWhereUniqueInput = Prisma.AtLeast<{
   pilotId?: Prisma.UuidFilter<"PilotAccessToken"> | string
   expiresAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
   consumedAt?: Prisma.DateTimeNullableFilter<"PilotAccessToken"> | Date | string | null
+  policyVersion?: Prisma.IntFilter<"PilotAccessToken"> | number
   createdAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
   pilot?: Prisma.XOR<Prisma.PilotScalarRelationFilter, Prisma.PilotWhereInput>
 }, "id" | "tokenHash">
@@ -222,10 +266,13 @@ export type PilotAccessTokenOrderByWithAggregationInput = {
   tokenHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   consumedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.PilotAccessTokenCountOrderByAggregateInput
+  _avg?: Prisma.PilotAccessTokenAvgOrderByAggregateInput
   _max?: Prisma.PilotAccessTokenMaxOrderByAggregateInput
   _min?: Prisma.PilotAccessTokenMinOrderByAggregateInput
+  _sum?: Prisma.PilotAccessTokenSumOrderByAggregateInput
 }
 
 export type PilotAccessTokenScalarWhereWithAggregatesInput = {
@@ -237,6 +284,7 @@ export type PilotAccessTokenScalarWhereWithAggregatesInput = {
   tokenHash?: Prisma.StringWithAggregatesFilter<"PilotAccessToken"> | string
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"PilotAccessToken"> | Date | string
   consumedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PilotAccessToken"> | Date | string | null
+  policyVersion?: Prisma.IntWithAggregatesFilter<"PilotAccessToken"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PilotAccessToken"> | Date | string
 }
 
@@ -245,6 +293,7 @@ export type PilotAccessTokenCreateInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
   pilot: Prisma.PilotCreateNestedOneWithoutAccessTokensInput
 }
@@ -255,6 +304,7 @@ export type PilotAccessTokenUncheckedCreateInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
 }
 
@@ -263,6 +313,7 @@ export type PilotAccessTokenUpdateInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   pilot?: Prisma.PilotUpdateOneRequiredWithoutAccessTokensNestedInput
 }
@@ -273,6 +324,7 @@ export type PilotAccessTokenUncheckedUpdateInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -282,6 +334,7 @@ export type PilotAccessTokenCreateManyInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
 }
 
@@ -290,6 +343,7 @@ export type PilotAccessTokenUpdateManyMutationInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -299,6 +353,7 @@ export type PilotAccessTokenUncheckedUpdateManyInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -318,7 +373,12 @@ export type PilotAccessTokenCountOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   consumedAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type PilotAccessTokenAvgOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type PilotAccessTokenMaxOrderByAggregateInput = {
@@ -327,6 +387,7 @@ export type PilotAccessTokenMaxOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   consumedAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -336,7 +397,12 @@ export type PilotAccessTokenMinOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   consumedAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type PilotAccessTokenSumOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type PilotAccessTokenCreateNestedManyWithoutPilotInput = {
@@ -386,6 +452,7 @@ export type PilotAccessTokenCreateWithoutPilotInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
 }
 
@@ -394,6 +461,7 @@ export type PilotAccessTokenUncheckedCreateWithoutPilotInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
 }
 
@@ -432,6 +500,7 @@ export type PilotAccessTokenScalarWhereInput = {
   tokenHash?: Prisma.StringFilter<"PilotAccessToken"> | string
   expiresAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
   consumedAt?: Prisma.DateTimeNullableFilter<"PilotAccessToken"> | Date | string | null
+  policyVersion?: Prisma.IntFilter<"PilotAccessToken"> | number
   createdAt?: Prisma.DateTimeFilter<"PilotAccessToken"> | Date | string
 }
 
@@ -440,6 +509,7 @@ export type PilotAccessTokenCreateManyPilotInput = {
   tokenHash: string
   expiresAt: Date | string
   consumedAt?: Date | string | null
+  policyVersion?: number
   createdAt?: Date | string
 }
 
@@ -448,6 +518,7 @@ export type PilotAccessTokenUpdateWithoutPilotInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -456,6 +527,7 @@ export type PilotAccessTokenUncheckedUpdateWithoutPilotInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -464,6 +536,7 @@ export type PilotAccessTokenUncheckedUpdateManyWithoutPilotInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   consumedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -475,6 +548,7 @@ export type PilotAccessTokenSelect<ExtArgs extends runtime.Types.Extensions.Inte
   tokenHash?: boolean
   expiresAt?: boolean
   consumedAt?: boolean
+  policyVersion?: boolean
   createdAt?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotAccessToken"]>
@@ -485,6 +559,7 @@ export type PilotAccessTokenSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   tokenHash?: boolean
   expiresAt?: boolean
   consumedAt?: boolean
+  policyVersion?: boolean
   createdAt?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotAccessToken"]>
@@ -495,6 +570,7 @@ export type PilotAccessTokenSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   tokenHash?: boolean
   expiresAt?: boolean
   consumedAt?: boolean
+  policyVersion?: boolean
   createdAt?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotAccessToken"]>
@@ -505,10 +581,11 @@ export type PilotAccessTokenSelectScalar = {
   tokenHash?: boolean
   expiresAt?: boolean
   consumedAt?: boolean
+  policyVersion?: boolean
   createdAt?: boolean
 }
 
-export type PilotAccessTokenOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "tokenHash" | "expiresAt" | "consumedAt" | "createdAt", ExtArgs["result"]["pilotAccessToken"]>
+export type PilotAccessTokenOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "tokenHash" | "expiresAt" | "consumedAt" | "policyVersion" | "createdAt", ExtArgs["result"]["pilotAccessToken"]>
 export type PilotAccessTokenInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }
@@ -530,6 +607,7 @@ export type $PilotAccessTokenPayload<ExtArgs extends runtime.Types.Extensions.In
     tokenHash: string
     expiresAt: Date
     consumedAt: Date | null
+    policyVersion: number
     createdAt: Date
   }, ExtArgs["result"]["pilotAccessToken"]>
   composites: {}
@@ -960,6 +1038,7 @@ export interface PilotAccessTokenFieldRefs {
   readonly tokenHash: Prisma.FieldRef<"PilotAccessToken", 'String'>
   readonly expiresAt: Prisma.FieldRef<"PilotAccessToken", 'DateTime'>
   readonly consumedAt: Prisma.FieldRef<"PilotAccessToken", 'DateTime'>
+  readonly policyVersion: Prisma.FieldRef<"PilotAccessToken", 'Int'>
   readonly createdAt: Prisma.FieldRef<"PilotAccessToken", 'DateTime'>
 }
     

@@ -1,14 +1,33 @@
 import { createHash, randomUUID } from "node:crypto";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { getServerConfig } from "@/server/config";
 import { ApiError } from "@/server/api-error";
 import { getRuntimeStorageConfig, type RuntimeStorageConfig } from "@/server/runtime-storage";
 import { createPinnedS3Client } from "@/server/s3-client";
+import {
+  assertEvidenceBytes,
+  assertEvidenceProvenance,
+  evidenceUnavailable,
+  type EvidenceProvenance,
+} from "@/server/evidence-provenance";
 
 export const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 export const MAX_EVIDENCE_DIMENSION = 2560;
+const decodeOptions = { limitInputPixels: MAX_EVIDENCE_DIMENSION ** 2, failOn: "error" as const };
+
+export type PrivateEvidenceObject = {
+  bytes: Uint8Array;
+  contentLength?: number;
+  contentType?: string;
+  sha256?: string;
+};
 
 async function getS3(config: RuntimeStorageConfig) {
   return createPinnedS3Client(config);
@@ -83,7 +102,7 @@ export async function validateProcessedJpeg(bytes: Uint8Array) {
     throw new ApiError("IMAGE_TOO_LARGE", "图片不能超过 10 MiB", 422);
   }
   const parsed = readJpegDimensions(bytes);
-  const metadata = await sharp(Buffer.from(bytes))
+  const metadata = await sharp(Buffer.from(bytes), decodeOptions)
     .metadata()
     .catch(() => null);
   if (!metadata || metadata.format !== "jpeg" || !metadata.width || !metadata.height) {
@@ -102,9 +121,16 @@ export async function validateProcessedJpeg(bytes: Uint8Array) {
   // Re-encode on the server to strip EXIF/GPS/comments and any non-image
   // payload while retaining the original values for backwards-compatible
   // validation callers.
-  const sanitized = await sharp(Buffer.from(bytes)).rotate().jpeg({ quality: 90 }).toBuffer();
+  const sanitized = await sharp(Buffer.from(bytes), decodeOptions)
+    .rotate()
+    .jpeg({ quality: 90 })
+    .toBuffer();
   const sanitizedMetadata = await sharp(sanitized).metadata();
-  if (!sanitizedMetadata.width || !sanitizedMetadata.height) {
+  if (
+    !sanitizedMetadata.width ||
+    !sanitizedMetadata.height ||
+    sanitized.byteLength > MAX_EVIDENCE_BYTES
+  ) {
     throw new ApiError("INVALID_IMAGE", "JPEG 无法生成安全副本", 422);
   }
   return {
@@ -116,6 +142,34 @@ export async function validateProcessedJpeg(bytes: Uint8Array) {
     storageByteSize: sanitized.byteLength,
     storageSha256: createHash("sha256").update(sanitized).digest("hex"),
   };
+}
+
+/** Offline reconciliation/restore accepts historical AVIF, but always emits a fresh JPEG. */
+export async function rebuildEvidenceImage(bytes: Uint8Array, mimeType: string) {
+  if (mimeType === "image/jpeg") return validateProcessedJpeg(bytes);
+  if (
+    mimeType !== "image/avif" ||
+    bytes.byteLength === 0 ||
+    bytes.byteLength > MAX_EVIDENCE_BYTES
+  ) {
+    throw new ApiError("INVALID_IMAGE", "证照来源格式或大小无效", 422);
+  }
+  const metadata = await sharp(Buffer.from(bytes), decodeOptions).metadata();
+  if (
+    !["heif", "avif"].includes(metadata.format ?? "") ||
+    !metadata.width ||
+    !metadata.height ||
+    metadata.width > MAX_EVIDENCE_DIMENSION ||
+    metadata.height > MAX_EVIDENCE_DIMENSION ||
+    (metadata.pages ?? 1) !== 1
+  ) {
+    throw new ApiError("INVALID_IMAGE", "证照来源格式或尺寸无效", 422);
+  }
+  const jpeg = await sharp(Buffer.from(bytes), decodeOptions)
+    .rotate()
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  return validateProcessedJpeg(jpeg);
 }
 
 export async function putPrivateEvidence(bytes: Uint8Array, sha256: string) {
@@ -152,6 +206,9 @@ export async function putPrivateObject(
 export async function convertJpegToLosslessAvif(bytes: Uint8Array) {
   const source = await sharp(Buffer.from(bytes)).raw().toBuffer({ resolveWithObject: true });
   const encoded = await sharp(Buffer.from(bytes)).avif({ lossless: true }).toBuffer();
+  if (encoded.byteLength > MAX_EVIDENCE_BYTES || encoded.byteLength > bytes.byteLength) {
+    throw new ApiError("IMAGE_CONVERSION_FAILED", "AVIF 转换不能增加证照存储占用", 422);
+  }
   const decoded = await sharp(encoded).raw().toBuffer({ resolveWithObject: true });
   if (
     source.info.width !== decoded.info.width ||
@@ -174,24 +231,98 @@ export async function convertJpegToLosslessAvif(bytes: Uint8Array) {
   };
 }
 
-export async function getPrivateEvidenceUrl(objectKey: string, expiresIn = 300) {
+export async function getPrivateEvidenceUrl(evidence: EvidenceProvenance, expiresIn = 300) {
+  assertEvidenceProvenance(evidence);
   assertStorageAccess();
   const config = await getRuntimeStorageConfig();
+  const client = await getS3(config);
+  const head = await client.send(
+    new HeadObjectCommand({ Bucket: config.S3_BUCKET, Key: evidence.objectKey }),
+  );
+  assertPrivateEvidenceObject(evidence, {
+    contentLength: head.ContentLength,
+    contentType: head.ContentType,
+    sha256: head.Metadata?.sha256,
+  });
   return getSignedUrl(
-    await getS3(config),
-    new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }),
-    { expiresIn },
+    client,
+    new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: evidence.objectKey }),
+    { expiresIn: Math.min(300, Math.max(1, expiresIn)) },
   );
 }
 
-export async function readPrivateEvidence(objectKey: string) {
+/** Raw object access is restricted to backup/reconciliation and verified processing callers. */
+export async function readPrivateEvidenceObject(
+  objectKey: string,
+  providedConfig?: RuntimeStorageConfig,
+): Promise<PrivateEvidenceObject> {
   assertStorageAccess();
-  const config = await getRuntimeStorageConfig();
+  const config = providedConfig ?? (await getRuntimeStorageConfig());
   const result = await (
     await getS3(config)
   ).send(new GetObjectCommand({ Bucket: config.S3_BUCKET, Key: objectKey }));
   if (!result.Body) throw new Error("Evidence object has no body");
-  return new Uint8Array(await result.Body.transformToByteArray());
+  if (result.ContentLength && result.ContentLength > MAX_EVIDENCE_BYTES) {
+    throw new ApiError("IMAGE_TOO_LARGE", "图片不能超过 10 MiB", 422);
+  }
+  const reader = result.Body.transformToWebStream().getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > MAX_EVIDENCE_BYTES) {
+        await reader.cancel();
+        throw new ApiError("IMAGE_TOO_LARGE", "图片不能超过 10 MiB", 422);
+      }
+      chunks.push(chunk.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return {
+    bytes,
+    contentLength: result.ContentLength,
+    contentType: result.ContentType,
+    sha256: result.Metadata?.sha256,
+  };
+}
+
+/** Raw bytes are retained for backup callers that validate their own archive manifest. */
+export async function readPrivateEvidence(
+  objectKey: string,
+  providedConfig?: RuntimeStorageConfig,
+) {
+  return (await readPrivateEvidenceObject(objectKey, providedConfig)).bytes;
+}
+
+function assertPrivateEvidenceObject(
+  evidence: EvidenceProvenance,
+  object: Omit<PrivateEvidenceObject, "bytes">,
+) {
+  if (
+    object.sha256 !== evidence.sha256 ||
+    object.contentLength !== evidence.byteSize ||
+    object.contentType !== evidence.mimeType
+  ) {
+    throw evidenceUnavailable();
+  }
+}
+
+export async function readVerifiedEvidence(evidence: EvidenceProvenance) {
+  assertEvidenceProvenance(evidence);
+  const object = await readPrivateEvidenceObject(evidence.objectKey);
+  assertPrivateEvidenceObject(evidence, object);
+  assertEvidenceBytes(evidence, object.bytes);
+  return object.bytes;
 }
 
 export async function deletePrivateEvidence(objectKey: string) {

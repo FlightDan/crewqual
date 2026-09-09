@@ -110,6 +110,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
     return jsonData(serializeUpgradePlan(result), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

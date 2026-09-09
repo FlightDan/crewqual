@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (!item) throw new ApiError("NOT_FOUND", "通知不存在", 404);
     return jsonData(serialize(item), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -65,6 +65,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (updated.count !== 1) throw new ApiError("NOT_FOUND", "通知不存在", 404);
     return jsonData({ id, read: true, readAt: readAt.toISOString() }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

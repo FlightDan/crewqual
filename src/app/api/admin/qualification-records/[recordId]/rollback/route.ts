@@ -126,6 +126,6 @@ export async function POST(
     });
     return jsonData(result, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -15,5 +15,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminLoginPage() {
   if (await isSetupRequired().catch(() => true)) redirect("/setup");
   const [policy, config] = await Promise.all([getRuntimeSecurityPolicy(), getServerConfig()]);
-  return <AdminLoginForm mode={policy.adminLoginMode} mockMode={config.SERVICE_MODE === "mock"} />;
+  return (
+    <AdminLoginForm
+      mode={policy.adminLoginMode}
+      fidoRequired={policy.adminFido2Required}
+      mockMode={config.SERVICE_MODE === "mock"}
+    />
+  );
 }

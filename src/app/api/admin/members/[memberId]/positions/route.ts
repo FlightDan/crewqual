@@ -18,10 +18,13 @@ export async function POST(
   try {
     assertSameOrigin(request);
     const admin = await getAdmin(request, "pilots.write", true);
-    const { memberId } = await context.params;
+    const memberId = z
+      .string()
+      .uuid()
+      .parse((await context.params).memberId);
     const input = await parseJson(request, schema);
     return jsonData(await assignPosition(admin, memberId, input), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

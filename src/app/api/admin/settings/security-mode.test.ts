@@ -104,6 +104,7 @@ describe("security login mode changes", () => {
       request({
         ...currentPolicy,
         adminLoginMode: "TOTP_ONLY",
+        currentPassword: "current-password",
         currentTotpCode: "123456",
       }),
     );
@@ -112,7 +113,7 @@ describe("security login mode changes", () => {
     await expect(response.json()).resolves.toMatchObject({
       data: { reauthenticate: true, policy: { adminLoginMode: "TOTP_ONLY" } },
     });
-    expect(mocks.verifyPassword).not.toHaveBeenCalled();
+    expect(mocks.verifyPassword).toHaveBeenCalledWith("password-hash", "current-password");
     expect(mocks.deleteSessions).toHaveBeenCalledWith({});
     expect(mocks.updateActor).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ lastTotpCounter: BigInt(100) }) }),
@@ -127,12 +128,13 @@ describe("security login mode changes", () => {
         ...currentPolicy,
         adminLoginMode: "PASSWORD_ONLY",
         currentPassword: "current-password",
+        currentTotpCode: "123456",
       }),
     );
 
     expect(response.status).toBe(200);
     expect(mocks.verifyPassword).toHaveBeenCalledWith("password-hash", "current-password");
-    expect(mocks.verifyTotp).not.toHaveBeenCalled();
+    expect(mocks.verifyTotp).toHaveBeenCalledWith("JBSWY3DPEHPK3PXP", "123456");
     expect(mocks.deleteSessions).toHaveBeenCalledWith({});
   });
 

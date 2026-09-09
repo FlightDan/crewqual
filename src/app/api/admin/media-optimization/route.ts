@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     });
     return jsonData(setting, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -63,6 +63,6 @@ export async function PATCH(request: NextRequest) {
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

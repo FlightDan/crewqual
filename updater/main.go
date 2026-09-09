@@ -163,6 +163,13 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	if len(os.Args) > 1 && os.Args[1] == "reconcile-caddy" {
+		if err = validateManagedPath(cfgPath); err != nil {
+			fatal(err)
+		}
+		fatal((&App{cfg: cfg}).reconcileCaddyCommand(os.Args[2:]))
+		return
+	}
 	app, err := newApp(cfg)
 	if err != nil {
 		fatal(err)
@@ -179,8 +186,10 @@ func main() {
 		fatal(err)
 	case "status":
 		fatal(writeJSON(os.Stdout, app.status()))
+	case "reconcile-caddy":
+		fatal(app.reconcileCaddyCommand(os.Args[2:]))
 	default:
-		fatal(fmt.Errorf("usage: crewqual-updater [serve|check|status|verify-manifest]"))
+		fatal(fmt.Errorf("usage: crewqual-updater [serve|check|status|verify-manifest|reconcile-caddy]"))
 	}
 }
 
@@ -627,6 +636,18 @@ func (a *App) runNetwork(job *NetworkJob, input NetworkInput) {
 		_ = a.saveState()
 		a.stateMu.Unlock()
 	}
+	lockCtx, lockCancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer lockCancel()
+	unlock, err := lockDeployment(lockCtx, deploymentLock)
+	if err != nil {
+		fail("DEPLOYMENT_LOCK_FAILED", err, false)
+		return
+	}
+	defer unlock()
+	if err = a.validateCaddyPaths(); err != nil {
+		fail("PREFLIGHT_FAILED", err, false)
+		return
+	}
 	previous, err := os.ReadFile(a.cfg.EnvFile)
 	if err != nil {
 		fail("ENV_READ_FAILED", err, false)
@@ -672,23 +693,36 @@ func (a *App) runNetwork(job *NetworkJob, input NetworkInput) {
 		return
 	}
 	setPhase("RESTARTING", 45, "重建网络入口和应用容器")
+	restoreNetwork := func(code string, cause error) {
+		if e := atomicWrite(a.cfg.EnvFile, previous, 0600); e != nil {
+			fail("MANUAL_RECOVERY_REQUIRED", e, false)
+			return
+		}
+		if e := a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy"); e != nil {
+			fail("MANUAL_RECOVERY_REQUIRED", e, false)
+			return
+		}
+		if e := a.ensureCaddy(); e != nil {
+			fail("MANUAL_RECOVERY_REQUIRED", e, false)
+			return
+		}
+		fail(code, cause, true)
+	}
 	if err = a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy"); err != nil {
-		_ = atomicWrite(a.cfg.EnvFile, previous, 0600)
-		_ = a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy")
-		fail("RESTART_FAILED", err, true)
+		restoreNetwork("RESTART_FAILED", err)
 		return
 	}
 	setPhase("HEALTH_CHECKING", 75, "等待 Web 与 Worker 健康")
 	if err = a.waitHealthy("web"); err != nil {
-		_ = atomicWrite(a.cfg.EnvFile, previous, 0600)
-		_ = a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy")
-		fail("HEALTH_CHECK_FAILED", err, true)
+		restoreNetwork("HEALTH_CHECK_FAILED", err)
 		return
 	}
 	if err = a.waitHealthy("worker"); err != nil {
-		_ = atomicWrite(a.cfg.EnvFile, previous, 0600)
-		_ = a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy")
-		fail("HEALTH_CHECK_FAILED", err, true)
+		restoreNetwork("HEALTH_CHECK_FAILED", err)
+		return
+	}
+	if err = a.ensureCaddy(); err != nil {
+		restoreNetwork("ENTRANCE_CHECK_FAILED", err)
 		return
 	}
 	setPhase("SUCCEEDED", 100, "网络配置已应用")
@@ -783,6 +817,14 @@ func (a *App) run(job *Job, manifest Manifest) {
 		fail("MANUAL_MIGRATION_REQUIRED", errors.New("该版本需要人工维护升级"))
 		return
 	}
+	lockCtx, lockCancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer lockCancel()
+	unlock, lockErr := lockDeployment(lockCtx, deploymentLock)
+	if lockErr != nil {
+		fail("DEPLOYMENT_LOCK_FAILED", lockErr)
+		return
+	}
+	defer unlock()
 	setPhase("PREFLIGHT", 10, "检查部署与发布清单")
 	if err := a.preflight(manifest); err != nil {
 		fail("PREFLIGHT_FAILED", err)
@@ -883,16 +925,16 @@ func (a *App) run(job *Job, manifest Manifest) {
 		a.stateMu.Unlock()
 		return
 	}
-	_ = a.runCompose("up", "-d", "--no-deps", "caddy")
-	a.stateMu.Lock()
-	job.Phase, job.Progress, job.Message, job.CompletedAt = "SUCCEEDED", 100, "更新完成", time.Now().UTC().Format(time.RFC3339)
-	a.state.CurrentVersion = manifest.Version
-	a.state.LastError = ""
-	_ = a.saveState()
-	a.stateMu.Unlock()
+	a.finishUpgradeEntrance(job, manifest.Version, func() error { return a.runCompose("up", "-d", "--no-deps", "caddy") }, a.ensureCaddy)
 }
 
 func (a *App) preflight(manifest Manifest) error {
+	if err := a.validateCaddyPaths(); err != nil {
+		return err
+	}
+	if _, err := a.caddyTarget(); err != nil {
+		return fmt.Errorf("invalid Caddy entrance configuration: %w", err)
+	}
 	if err := validateManagedPath(a.cfg.InstallDir); err != nil {
 		return err
 	}
@@ -1067,7 +1109,10 @@ func (a *App) rollback(compose, caddy, env []byte, backupPath string) error {
 	if err := a.restoreDatabase(backupPath); err != nil {
 		return fmt.Errorf("数据库恢复失败: %w", err)
 	}
-	return a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy")
+	if err := a.runCompose("up", "-d", "--no-deps", "web", "worker", "caddy"); err != nil {
+		return err
+	}
+	return a.ensureCaddy()
 }
 
 func (a *App) restoreDatabase(backupPath string) error {

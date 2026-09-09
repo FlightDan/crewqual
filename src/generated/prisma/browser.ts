@@ -228,6 +228,31 @@ export type AuditEvent = Prisma.AuditEventModel
  */
 export type RateLimitBucket = Prisma.RateLimitBucketModel
 /**
+ * Model SecuritySignalBucket
+ * 
+ */
+export type SecuritySignalBucket = Prisma.SecuritySignalBucketModel
+/**
+ * Model SecuritySignalReceipt
+ * 
+ */
+export type SecuritySignalReceipt = Prisma.SecuritySignalReceiptModel
+/**
+ * Model SecurityDetectionBucket
+ * 
+ */
+export type SecurityDetectionBucket = Prisma.SecurityDetectionBucketModel
+/**
+ * Model SecurityDetectionMembership
+ * 
+ */
+export type SecurityDetectionMembership = Prisma.SecurityDetectionMembershipModel
+/**
+ * Model SecurityTelemetryState
+ * 
+ */
+export type SecurityTelemetryState = Prisma.SecurityTelemetryStateModel
+/**
  * Model UploadReservation
  * 
  */
@@ -247,6 +272,21 @@ export type ObjectStorageSetting = Prisma.ObjectStorageSettingModel
  * 
  */
 export type SecurityPolicy = Prisma.SecurityPolicyModel
+/**
+ * Model FidoCredential
+ * 
+ */
+export type FidoCredential = Prisma.FidoCredentialModel
+/**
+ * Model WebAuthnChallenge
+ * 
+ */
+export type WebAuthnChallenge = Prisma.WebAuthnChallengeModel
+/**
+ * Model AdminPasswordResetToken
+ * 
+ */
+export type AdminPasswordResetToken = Prisma.AdminPasswordResetTokenModel
 /**
  * Model WorkerHeartbeat
  * 

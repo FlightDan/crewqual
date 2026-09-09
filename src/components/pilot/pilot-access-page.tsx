@@ -36,7 +36,14 @@ export function PilotAccessPage({ portal = "pilot" }: { portal?: "pilot" | "memb
               cache: "no-store",
             });
             if (current.ok) {
-              router.replace(`${portalPath}/qualifications`);
+              const currentPayload = (await current.json().catch(() => ({}))) as {
+                data?: { authState?: string };
+              };
+              router.replace(
+                currentPayload.data?.authState === "PENDING_ENROLLMENT"
+                  ? `${portalPath}/security`
+                  : `${portalPath}/qualifications`,
+              );
               return;
             }
           }
@@ -57,7 +64,15 @@ export function PilotAccessPage({ portal = "pilot" }: { portal?: "pilot" | "memb
           });
           return;
         }
-        router.replace(`${portalPath}/qualifications`);
+        const payload = (await response.json().catch(() => ({}))) as {
+          data?: { authState?: string };
+          error?: { code?: string; message?: string };
+        };
+        router.replace(
+          payload.data?.authState === "PENDING_ENROLLMENT"
+            ? `${portalPath}/security`
+            : `${portalPath}/qualifications`,
+        );
       })
       .catch(() => setState({ kind: "network", message: t("pilotAccess.networkMessage") }));
   }, [params.token, portalPath, router, t]);

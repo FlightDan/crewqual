@@ -180,6 +180,6 @@ export async function POST(
     if (!result) throw new ApiError("NOT_FOUND", "升级计划不存在", 404);
     return jsonData(serializeUpgradePlan(result), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

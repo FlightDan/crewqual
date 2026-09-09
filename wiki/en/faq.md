@@ -4,11 +4,19 @@
 
 ## Why did the request succeed without an SMS arriving?
 
-The page gives the same response for matching and nonmatching details to avoid exposing personnel information. Check your employee number and registered 11-digit mobile number. Ask an administrator to check your active status, whether SMS is enabled, and delivery status. Frequent requests are rate limited. If an unexpired link already exists, another request does not send a new link.
+The page gives the same response for matching and nonmatching details to avoid exposing personnel information. Check your employee number and registered 11-digit mobile number. Ask an administrator to check your active status, whether SMS is enabled, and delivery status. Requests are rate limited separately by source address, employee number, and mobile number. If an unexpired link already exists, another request does not send a new link. A member with a password, TOTP, or FIDO2 factor cannot use SMS as a recovery or downgrade path.
 
 ## What should I do with an expired or used link?
 
-A link can be redeemed once. Its default lifetime is 15 minutes; the security policy determines the actual lifetime. A browser that is already signed in can continue using its valid session. If you have no valid session, return to the identity page and request another link.
+A link can be redeemed once. Its default lifetime and server-side cap are 10 minutes, subject to the active security policy. A browser that is already signed in can continue using its valid session. If you have no valid session, return to the identity page and request another link.
+
+## What are the three authentication targets?
+
+Enhanced authentication requires password, TOTP, and FIDO2 for administrators and members. Combined authentication requires password and TOTP for both. Convenience authentication, the recommended target, uses password and TOTP for administrators and a one-time SMS link for members. The target name describes identity configuration; it does not mean that every ASVS or Level 3 requirement has passed. See [Security and authentication](security.md).
+
+## What should an administrator do after forgetting a password?
+
+Ask an authorized administrator to start a recovery task from account management. The target administrator must open `/admin/password-reset` and set a new password within 30 minutes. A verified TOTP also requires the current code; without a verified TOTP, complete the task in a browser where the target account is still signed in. Completing the task invalidates the account's other sessions. The current flow does not send a recovery link by email or SMS.
 
 ## Can I submit if AI did not recognize the dates?
 

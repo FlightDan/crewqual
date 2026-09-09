@@ -1,5 +1,5 @@
 import { ApiError } from "@/server/api";
-import { requireAssignedUnit } from "@/server/admin-permissions";
+import { personScopeWhere } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
 import { pilotRoleLabel } from "@/lib/domain-i18n";
@@ -26,11 +26,7 @@ function positionCodes(value?: string) {
 }
 
 export function memberScopeWhere(admin: AuthenticatedAdmin): Prisma.PersonWhereInput {
-  const unitId = requireAssignedUnit(admin);
-  return {
-    ...(admin.organizationId ? { organizationId: admin.organizationId } : {}),
-    ...(unitId ? { unitId } : {}),
-  };
+  return personScopeWhere(admin);
 }
 
 const memberInclude = {

@@ -6,6 +6,15 @@ import { QualificationConfigView } from "@/components/admin/qualification-config
 import { applicationServices } from "@/services/application-services";
 import { adminStateStore } from "@/services/admin-state-store";
 import type { QualificationConfigInput } from "@/types/services";
+import {
+  adminSettingsService,
+  defaultAdminSettingsSnapshot,
+} from "@/services/admin-settings-service";
+
+const adminSession = vi.hoisted(() => ({ isSuperAdmin: true }));
+vi.mock("@/services/admin-session-provider", () => ({
+  useAdminSession: () => ({ ...adminSession, hasPermission: () => true }),
+}));
 
 const routerReplace = vi.fn();
 const params = new URLSearchParams();
@@ -29,6 +38,10 @@ function renderView(positionCode = "PILOT") {
 describe("QualificationConfigView selection", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    adminSession.isSuperAdmin = true;
+    vi.spyOn(adminSettingsService, "load").mockResolvedValue(
+      structuredClone(defaultAdminSettingsSnapshot),
+    );
     routerReplace.mockReset();
     for (const key of [...params.keys()]) params.delete(key);
     window.history.replaceState(null, "", "/admin/qualification-config");
@@ -177,11 +190,14 @@ describe("QualificationConfigView selection", () => {
 
   it("adds a position-scoped supplemental config to the cache and selects it", async () => {
     const user = userEvent.setup();
+    const create = vi.spyOn(applicationServices.qualificationConfigs, "create");
     renderView();
     await screen.findByTestId("qualification-config-editor");
 
     await user.click(screen.getByRole("button", { name: "新增资质项目" }));
     const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    await within(dialog).findByRole("option", { name: "一大队一中队" });
+    await user.selectOptions(within(dialog).getByLabelText("目标组织 *"), "unit-1");
     await user.type(within(dialog).getByLabelText("资质项目名称 *"), "CRM专项训练");
     await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
 
@@ -190,6 +206,7 @@ describe("QualificationConfigView selection", () => {
     ).toBeVisible();
     expect(screen.getByText("资质项目（7）")).toBeVisible();
     expect(window.location.search).toMatch(/^\?config=custom-/);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "unit-1" }));
   });
 
   it("starts non-pilot positions empty and creates an independent core config", async () => {
@@ -199,6 +216,8 @@ describe("QualificationConfigView selection", () => {
     expect(await screen.findByText("当前职位还没有资质项目")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "新增资质项目" }));
     const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    await within(dialog).findByRole("option", { name: "一大队一中队" });
+    await user.selectOptions(within(dialog).getByLabelText("目标组织 *"), "unit-1");
     await user.type(within(dialog).getByLabelText("资质项目名称 *"), "客舱应急训练");
     await user.selectOptions(within(dialog).getByLabelText("资质类型"), "core");
     await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
@@ -211,6 +230,49 @@ describe("QualificationConfigView selection", () => {
     expect((await applicationServices.qualificationConfigs.list("CABIN_CREW")).data).toHaveLength(
       1,
     );
+  });
+
+  it("requires a deliberate organization selection and preserves a different selected organization", async () => {
+    const user = userEvent.setup();
+    const settings = structuredClone(defaultAdminSettingsSnapshot);
+    settings.positions.push({
+      ...settings.positions[0]!,
+      id: "position-other",
+      organizationId: "unit-2",
+    });
+    vi.mocked(adminSettingsService.load).mockResolvedValue(settings);
+    const create = vi.spyOn(applicationServices.qualificationConfigs, "create");
+    renderView();
+    await screen.findByTestId("qualification-config-editor");
+    await user.click(screen.getByRole("button", { name: "新增资质项目" }));
+    const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    const organization = within(dialog).getByLabelText("目标组织 *");
+    await within(dialog).findByRole("option", { name: settings.units[1]!.name });
+    expect(organization).toHaveValue("");
+    await user.type(within(dialog).getByLabelText("资质项目名称 *"), "异地组织训练");
+    await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
+    expect(create).not.toHaveBeenCalled();
+    expect(organization).toHaveAttribute("aria-invalid", "true");
+    await user.selectOptions(organization, "unit-2");
+    await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
+    await waitFor(() =>
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "unit-2" })),
+    );
+  });
+
+  it("leaves ordinary administrator creation bound to the server's trusted organization", async () => {
+    adminSession.isSuperAdmin = false;
+    const user = userEvent.setup();
+    const create = vi.spyOn(applicationServices.qualificationConfigs, "create");
+    renderView();
+    await screen.findByTestId("qualification-config-editor");
+    await user.click(screen.getByRole("button", { name: "新增资质项目" }));
+    const dialog = screen.getByRole("dialog", { name: "新增资质项目" });
+    expect(within(dialog).queryByLabelText("目标组织 *")).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText("资质项目名称 *"), "单位内训练");
+    await user.click(within(dialog).getByRole("button", { name: "创建资质项目" }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]![0]).not.toHaveProperty("organizationId");
   });
 
   it("protects structured rules on locked core qualifications", async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertSuperAdminContinuity,
   pilotUnitWhere,
+  personScopeWhere,
   relatedPilotUnitWhere,
   roleHasPermission,
 } from "@/server/admin-permissions";
@@ -29,6 +30,26 @@ describe("admin role permissions", () => {
   it("allows super administrators global scope and rejects unassigned ordinary accounts", () => {
     expect(pilotUnitWhere({ roles: ["SUPER_ADMIN"], unitId: null })).toEqual({});
     expect(() => pilotUnitWhere({ roles: ["VIEWER"], unitId: null })).toThrow("尚未分配所属单位");
+  });
+
+  it.each([null, "unit-a"])(
+    "keeps all super administrator scopes global with unit %s",
+    (unitId) => {
+      const admin = { roles: ["SUPER_ADMIN"], organizationId: "org-a", unitId };
+      expect(pilotUnitWhere(admin)).toEqual({});
+      expect(relatedPilotUnitWhere(admin)).toEqual({});
+      expect(personScopeWhere(admin)).toEqual({});
+    },
+  );
+
+  it.each(["ADMIN", "REVIEWER", "VIEWER"])("requires a unit for %s canonical access", (role) => {
+    expect(() =>
+      personScopeWhere({ roles: [role], unitId: null, organizationId: "org-a" }),
+    ).toThrow("尚未分配所属单位");
+    expect(personScopeWhere({ roles: [role], unitId: "unit-a", organizationId: "org-a" })).toEqual({
+      unitId: "unit-a",
+      organizationId: "org-a",
+    });
   });
 
   it("protects the last active super administrator", () => {

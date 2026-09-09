@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     return jsonData(
       {
         id: admin.id,
+        sessionId: admin.sessionId,
         email: admin.email,
         displayName: admin.displayName,
         roles: admin.roles,
@@ -32,6 +33,6 @@ export async function GET(request: NextRequest) {
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

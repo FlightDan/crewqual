@@ -439,10 +439,18 @@ export const ModelName = {
   NotificationAttempt: 'NotificationAttempt',
   AuditEvent: 'AuditEvent',
   RateLimitBucket: 'RateLimitBucket',
+  SecuritySignalBucket: 'SecuritySignalBucket',
+  SecuritySignalReceipt: 'SecuritySignalReceipt',
+  SecurityDetectionBucket: 'SecurityDetectionBucket',
+  SecurityDetectionMembership: 'SecurityDetectionMembership',
+  SecurityTelemetryState: 'SecurityTelemetryState',
   UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
   ObjectStorageSetting: 'ObjectStorageSetting',
   SecurityPolicy: 'SecurityPolicy',
+  FidoCredential: 'FidoCredential',
+  WebAuthnChallenge: 'WebAuthnChallenge',
+  AdminPasswordResetToken: 'AdminPasswordResetToken',
   WorkerHeartbeat: 'WorkerHeartbeat'
 } as const
 
@@ -459,7 +467,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "galleryObjectTombstone" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "uploadReservation" | "systemIntegrationSetting" | "objectStorageSetting" | "securityPolicy" | "workerHeartbeat"
+    modelProps: "organization" | "organizationUnit" | "person" | "pilot" | "pilotProfile" | "position" | "personPositionAssignment" | "role" | "permission" | "adminUser" | "adminUserRole" | "rolePermission" | "adminSession" | "pilotAccessToken" | "pilotSession" | "qualificationType" | "qualificationDefinition" | "qualificationRequirement" | "qualificationAssignment" | "templatePack" | "organizationTemplateInstallation" | "qualificationRecord" | "evidenceImage" | "galleryObjectTombstone" | "imageOptimizationTask" | "mediaOptimizationSetting" | "backupTarget" | "backupPlan" | "backupRun" | "qualificationEvidence" | "qualificationUpdateRequest" | "verificationResult" | "qualificationCorrection" | "recognitionTask" | "upgradePlan" | "upgradeStage" | "inspectionItem" | "upgradePlanInspectionItem" | "notificationDelivery" | "notificationAttempt" | "auditEvent" | "rateLimitBucket" | "securitySignalBucket" | "securitySignalReceipt" | "securityDetectionBucket" | "securityDetectionMembership" | "securityTelemetryState" | "uploadReservation" | "systemIntegrationSetting" | "objectStorageSetting" | "securityPolicy" | "fidoCredential" | "webAuthnChallenge" | "adminPasswordResetToken" | "workerHeartbeat"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3571,6 +3579,376 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    SecuritySignalBucket: {
+      payload: Prisma.$SecuritySignalBucketPayload<ExtArgs>
+      fields: Prisma.SecuritySignalBucketFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecuritySignalBucketFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecuritySignalBucketFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        findFirst: {
+          args: Prisma.SecuritySignalBucketFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecuritySignalBucketFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        findMany: {
+          args: Prisma.SecuritySignalBucketFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>[]
+        }
+        create: {
+          args: Prisma.SecuritySignalBucketCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        createMany: {
+          args: Prisma.SecuritySignalBucketCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecuritySignalBucketCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>[]
+        }
+        delete: {
+          args: Prisma.SecuritySignalBucketDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        update: {
+          args: Prisma.SecuritySignalBucketUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        deleteMany: {
+          args: Prisma.SecuritySignalBucketDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecuritySignalBucketUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecuritySignalBucketUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>[]
+        }
+        upsert: {
+          args: Prisma.SecuritySignalBucketUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalBucketPayload>
+        }
+        aggregate: {
+          args: Prisma.SecuritySignalBucketAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecuritySignalBucket>
+        }
+        groupBy: {
+          args: Prisma.SecuritySignalBucketGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecuritySignalBucketGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecuritySignalBucketCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecuritySignalBucketCountAggregateOutputType> | number
+        }
+      }
+    }
+    SecuritySignalReceipt: {
+      payload: Prisma.$SecuritySignalReceiptPayload<ExtArgs>
+      fields: Prisma.SecuritySignalReceiptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecuritySignalReceiptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecuritySignalReceiptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        findFirst: {
+          args: Prisma.SecuritySignalReceiptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecuritySignalReceiptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        findMany: {
+          args: Prisma.SecuritySignalReceiptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>[]
+        }
+        create: {
+          args: Prisma.SecuritySignalReceiptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        createMany: {
+          args: Prisma.SecuritySignalReceiptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecuritySignalReceiptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>[]
+        }
+        delete: {
+          args: Prisma.SecuritySignalReceiptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        update: {
+          args: Prisma.SecuritySignalReceiptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        deleteMany: {
+          args: Prisma.SecuritySignalReceiptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecuritySignalReceiptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecuritySignalReceiptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>[]
+        }
+        upsert: {
+          args: Prisma.SecuritySignalReceiptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecuritySignalReceiptPayload>
+        }
+        aggregate: {
+          args: Prisma.SecuritySignalReceiptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecuritySignalReceipt>
+        }
+        groupBy: {
+          args: Prisma.SecuritySignalReceiptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecuritySignalReceiptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecuritySignalReceiptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecuritySignalReceiptCountAggregateOutputType> | number
+        }
+      }
+    }
+    SecurityDetectionBucket: {
+      payload: Prisma.$SecurityDetectionBucketPayload<ExtArgs>
+      fields: Prisma.SecurityDetectionBucketFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecurityDetectionBucketFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecurityDetectionBucketFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        findFirst: {
+          args: Prisma.SecurityDetectionBucketFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecurityDetectionBucketFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        findMany: {
+          args: Prisma.SecurityDetectionBucketFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>[]
+        }
+        create: {
+          args: Prisma.SecurityDetectionBucketCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        createMany: {
+          args: Prisma.SecurityDetectionBucketCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecurityDetectionBucketCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>[]
+        }
+        delete: {
+          args: Prisma.SecurityDetectionBucketDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        update: {
+          args: Prisma.SecurityDetectionBucketUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        deleteMany: {
+          args: Prisma.SecurityDetectionBucketDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecurityDetectionBucketUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecurityDetectionBucketUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>[]
+        }
+        upsert: {
+          args: Prisma.SecurityDetectionBucketUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionBucketPayload>
+        }
+        aggregate: {
+          args: Prisma.SecurityDetectionBucketAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecurityDetectionBucket>
+        }
+        groupBy: {
+          args: Prisma.SecurityDetectionBucketGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityDetectionBucketGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecurityDetectionBucketCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityDetectionBucketCountAggregateOutputType> | number
+        }
+      }
+    }
+    SecurityDetectionMembership: {
+      payload: Prisma.$SecurityDetectionMembershipPayload<ExtArgs>
+      fields: Prisma.SecurityDetectionMembershipFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecurityDetectionMembershipFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecurityDetectionMembershipFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        findFirst: {
+          args: Prisma.SecurityDetectionMembershipFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecurityDetectionMembershipFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        findMany: {
+          args: Prisma.SecurityDetectionMembershipFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>[]
+        }
+        create: {
+          args: Prisma.SecurityDetectionMembershipCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        createMany: {
+          args: Prisma.SecurityDetectionMembershipCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecurityDetectionMembershipCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>[]
+        }
+        delete: {
+          args: Prisma.SecurityDetectionMembershipDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        update: {
+          args: Prisma.SecurityDetectionMembershipUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        deleteMany: {
+          args: Prisma.SecurityDetectionMembershipDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecurityDetectionMembershipUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecurityDetectionMembershipUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>[]
+        }
+        upsert: {
+          args: Prisma.SecurityDetectionMembershipUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityDetectionMembershipPayload>
+        }
+        aggregate: {
+          args: Prisma.SecurityDetectionMembershipAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecurityDetectionMembership>
+        }
+        groupBy: {
+          args: Prisma.SecurityDetectionMembershipGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityDetectionMembershipGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecurityDetectionMembershipCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityDetectionMembershipCountAggregateOutputType> | number
+        }
+      }
+    }
+    SecurityTelemetryState: {
+      payload: Prisma.$SecurityTelemetryStatePayload<ExtArgs>
+      fields: Prisma.SecurityTelemetryStateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecurityTelemetryStateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecurityTelemetryStateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        findFirst: {
+          args: Prisma.SecurityTelemetryStateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecurityTelemetryStateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        findMany: {
+          args: Prisma.SecurityTelemetryStateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>[]
+        }
+        create: {
+          args: Prisma.SecurityTelemetryStateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        createMany: {
+          args: Prisma.SecurityTelemetryStateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecurityTelemetryStateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>[]
+        }
+        delete: {
+          args: Prisma.SecurityTelemetryStateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        update: {
+          args: Prisma.SecurityTelemetryStateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        deleteMany: {
+          args: Prisma.SecurityTelemetryStateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecurityTelemetryStateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecurityTelemetryStateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>[]
+        }
+        upsert: {
+          args: Prisma.SecurityTelemetryStateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecurityTelemetryStatePayload>
+        }
+        aggregate: {
+          args: Prisma.SecurityTelemetryStateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecurityTelemetryState>
+        }
+        groupBy: {
+          args: Prisma.SecurityTelemetryStateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityTelemetryStateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecurityTelemetryStateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecurityTelemetryStateCountAggregateOutputType> | number
+        }
+      }
+    }
     UploadReservation: {
       payload: Prisma.$UploadReservationPayload<ExtArgs>
       fields: Prisma.UploadReservationFieldRefs
@@ -3867,6 +4245,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    FidoCredential: {
+      payload: Prisma.$FidoCredentialPayload<ExtArgs>
+      fields: Prisma.FidoCredentialFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FidoCredentialFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FidoCredentialFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        findFirst: {
+          args: Prisma.FidoCredentialFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FidoCredentialFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        findMany: {
+          args: Prisma.FidoCredentialFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>[]
+        }
+        create: {
+          args: Prisma.FidoCredentialCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        createMany: {
+          args: Prisma.FidoCredentialCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FidoCredentialCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>[]
+        }
+        delete: {
+          args: Prisma.FidoCredentialDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        update: {
+          args: Prisma.FidoCredentialUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        deleteMany: {
+          args: Prisma.FidoCredentialDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FidoCredentialUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FidoCredentialUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>[]
+        }
+        upsert: {
+          args: Prisma.FidoCredentialUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FidoCredentialPayload>
+        }
+        aggregate: {
+          args: Prisma.FidoCredentialAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFidoCredential>
+        }
+        groupBy: {
+          args: Prisma.FidoCredentialGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FidoCredentialGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FidoCredentialCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FidoCredentialCountAggregateOutputType> | number
+        }
+      }
+    }
+    WebAuthnChallenge: {
+      payload: Prisma.$WebAuthnChallengePayload<ExtArgs>
+      fields: Prisma.WebAuthnChallengeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WebAuthnChallengeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WebAuthnChallengeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        findFirst: {
+          args: Prisma.WebAuthnChallengeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WebAuthnChallengeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        findMany: {
+          args: Prisma.WebAuthnChallengeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>[]
+        }
+        create: {
+          args: Prisma.WebAuthnChallengeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        createMany: {
+          args: Prisma.WebAuthnChallengeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WebAuthnChallengeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>[]
+        }
+        delete: {
+          args: Prisma.WebAuthnChallengeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        update: {
+          args: Prisma.WebAuthnChallengeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        deleteMany: {
+          args: Prisma.WebAuthnChallengeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WebAuthnChallengeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WebAuthnChallengeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>[]
+        }
+        upsert: {
+          args: Prisma.WebAuthnChallengeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WebAuthnChallengePayload>
+        }
+        aggregate: {
+          args: Prisma.WebAuthnChallengeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWebAuthnChallenge>
+        }
+        groupBy: {
+          args: Prisma.WebAuthnChallengeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebAuthnChallengeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WebAuthnChallengeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WebAuthnChallengeCountAggregateOutputType> | number
+        }
+      }
+    }
+    AdminPasswordResetToken: {
+      payload: Prisma.$AdminPasswordResetTokenPayload<ExtArgs>
+      fields: Prisma.AdminPasswordResetTokenFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AdminPasswordResetTokenFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AdminPasswordResetTokenFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        findFirst: {
+          args: Prisma.AdminPasswordResetTokenFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AdminPasswordResetTokenFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        findMany: {
+          args: Prisma.AdminPasswordResetTokenFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>[]
+        }
+        create: {
+          args: Prisma.AdminPasswordResetTokenCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        createMany: {
+          args: Prisma.AdminPasswordResetTokenCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AdminPasswordResetTokenCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>[]
+        }
+        delete: {
+          args: Prisma.AdminPasswordResetTokenDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        update: {
+          args: Prisma.AdminPasswordResetTokenUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        deleteMany: {
+          args: Prisma.AdminPasswordResetTokenDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AdminPasswordResetTokenUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AdminPasswordResetTokenUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>[]
+        }
+        upsert: {
+          args: Prisma.AdminPasswordResetTokenUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AdminPasswordResetTokenPayload>
+        }
+        aggregate: {
+          args: Prisma.AdminPasswordResetTokenAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAdminPasswordResetToken>
+        }
+        groupBy: {
+          args: Prisma.AdminPasswordResetTokenGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AdminPasswordResetTokenGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AdminPasswordResetTokenCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AdminPasswordResetTokenCountAggregateOutputType> | number
+        }
+      }
+    }
     WorkerHeartbeat: {
       payload: Prisma.$WorkerHeartbeatPayload<ExtArgs>
       fields: Prisma.WorkerHeartbeatFieldRefs
@@ -4043,6 +4643,12 @@ export const PilotScalarFieldEnum = {
   rankLabel: 'rankLabel',
   unitId: 'unitId',
   active: 'active',
+  passwordHash: 'passwordHash',
+  passwordSetAt: 'passwordSetAt',
+  totpSecretCiphertext: 'totpSecretCiphertext',
+  totpVerifiedAt: 'totpVerifiedAt',
+  lastTotpCounter: 'lastTotpCounter',
+  antiphishingCodeHash: 'antiphishingCodeHash',
   version: 'version',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -4133,9 +4739,11 @@ export const AdminUserScalarFieldEnum = {
   active: 'active',
   failedAttempts: 'failedAttempts',
   lockedUntil: 'lockedUntil',
+  antiphishingCodeHash: 'antiphishingCodeHash',
   unitId: 'unitId',
   organizationId: 'organizationId',
   version: 'version',
+  lastSuccessfulLoginAt: 'lastSuccessfulLoginAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -4166,7 +4774,10 @@ export const AdminSessionScalarFieldEnum = {
   csrfTokenHash: 'csrfTokenHash',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  policyVersion: 'policyVersion',
+  securitySummarySince: 'securitySummarySince',
+  securitySummaryUntil: 'securitySummaryUntil'
 } as const
 
 export type AdminSessionScalarFieldEnum = (typeof AdminSessionScalarFieldEnum)[keyof typeof AdminSessionScalarFieldEnum]
@@ -4178,6 +4789,7 @@ export const PilotAccessTokenScalarFieldEnum = {
   tokenHash: 'tokenHash',
   expiresAt: 'expiresAt',
   consumedAt: 'consumedAt',
+  policyVersion: 'policyVersion',
   createdAt: 'createdAt'
 } as const
 
@@ -4191,7 +4803,9 @@ export const PilotSessionScalarFieldEnum = {
   csrfTokenHash: 'csrfTokenHash',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  authState: 'authState',
+  policyVersion: 'policyVersion'
 } as const
 
 export type PilotSessionScalarFieldEnum = (typeof PilotSessionScalarFieldEnum)[keyof typeof PilotSessionScalarFieldEnum]
@@ -4356,6 +4970,8 @@ export const EvidenceImageScalarFieldEnum = {
   height: 'height',
   byteSize: 'byteSize',
   sha256: 'sha256',
+  storageEncodingVersion: 'storageEncodingVersion',
+  sanitizedAt: 'sanitizedAt',
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -4695,6 +5311,92 @@ export const RateLimitBucketScalarFieldEnum = {
 export type RateLimitBucketScalarFieldEnum = (typeof RateLimitBucketScalarFieldEnum)[keyof typeof RateLimitBucketScalarFieldEnum]
 
 
+export const SecuritySignalBucketScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  bucketStart: 'bucketStart',
+  keyVersion: 'keyVersion',
+  dimensionKey: 'dimensionKey',
+  sourceHash: 'sourceHash',
+  maskedSource: 'maskedSource',
+  accountHash: 'accountHash',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  personId: 'personId',
+  unitId: 'unitId',
+  organizationId: 'organizationId',
+  routeClass: 'routeClass',
+  pathHash: 'pathHash',
+  outcome: 'outcome',
+  count: 'count',
+  firstSeenAt: 'firstSeenAt',
+  lastSeenAt: 'lastSeenAt',
+  sampleRequestId: 'sampleRequestId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecuritySignalBucketScalarFieldEnum = (typeof SecuritySignalBucketScalarFieldEnum)[keyof typeof SecuritySignalBucketScalarFieldEnum]
+
+
+export const SecuritySignalReceiptScalarFieldEnum = {
+  id: 'id',
+  requestKey: 'requestKey',
+  signalBucketId: 'signalBucketId',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type SecuritySignalReceiptScalarFieldEnum = (typeof SecuritySignalReceiptScalarFieldEnum)[keyof typeof SecuritySignalReceiptScalarFieldEnum]
+
+
+export const SecurityDetectionBucketScalarFieldEnum = {
+  id: 'id',
+  category: 'category',
+  ruleVersion: 'ruleVersion',
+  groupKey: 'groupKey',
+  dedupeKey: 'dedupeKey',
+  windowStart: 'windowStart',
+  windowEnd: 'windowEnd',
+  firstSeenAt: 'firstSeenAt',
+  lastSeenAt: 'lastSeenAt',
+  requestCount: 'requestCount',
+  sourceCount: 'sourceCount',
+  accountCount: 'accountCount',
+  pathCount: 'pathCount',
+  truncatedByRetention: 'truncatedByRetention',
+  sample: 'sample',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecurityDetectionBucketScalarFieldEnum = (typeof SecurityDetectionBucketScalarFieldEnum)[keyof typeof SecurityDetectionBucketScalarFieldEnum]
+
+
+export const SecurityDetectionMembershipScalarFieldEnum = {
+  detectionBucketId: 'detectionBucketId',
+  signalBucketId: 'signalBucketId',
+  createdAt: 'createdAt'
+} as const
+
+export type SecurityDetectionMembershipScalarFieldEnum = (typeof SecurityDetectionMembershipScalarFieldEnum)[keyof typeof SecurityDetectionMembershipScalarFieldEnum]
+
+
+export const SecurityTelemetryStateScalarFieldEnum = {
+  id: 'id',
+  processedThrough: 'processedThrough',
+  lastCollectedAt: 'lastCollectedAt',
+  lastAggregatedAt: 'lastAggregatedAt',
+  collectionHealthy: 'collectionHealthy',
+  droppedCount: 'droppedCount',
+  lastError: 'lastError',
+  version: 'version',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecurityTelemetryStateScalarFieldEnum = (typeof SecurityTelemetryStateScalarFieldEnum)[keyof typeof SecurityTelemetryStateScalarFieldEnum]
+
+
 export const UploadReservationScalarFieldEnum = {
   id: 'id',
   pilotId: 'pilotId',
@@ -4750,6 +5452,11 @@ export type ObjectStorageSettingScalarFieldEnum = (typeof ObjectStorageSettingSc
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
   adminLoginMode: 'adminLoginMode',
+  authenticationPreset: 'authenticationPreset',
+  memberLoginMode: 'memberLoginMode',
+  adminFido2Required: 'adminFido2Required',
+  memberFido2Required: 'memberFido2Required',
+  highRiskReauthEnabled: 'highRiskReauthEnabled',
   adminSessionTtlHours: 'adminSessionTtlHours',
   pilotAccessLinkTtlMinutes: 'pilotAccessLinkTtlMinutes',
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',
@@ -4762,6 +5469,55 @@ export const SecurityPolicyScalarFieldEnum = {
 } as const
 
 export type SecurityPolicyScalarFieldEnum = (typeof SecurityPolicyScalarFieldEnum)[keyof typeof SecurityPolicyScalarFieldEnum]
+
+
+export const FidoCredentialScalarFieldEnum = {
+  id: 'id',
+  credentialId: 'credentialId',
+  publicKey: 'publicKey',
+  counter: 'counter',
+  transports: 'transports',
+  deviceType: 'deviceType',
+  backedUp: 'backedUp',
+  userVerified: 'userVerified',
+  label: 'label',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  createdAt: 'createdAt',
+  lastUsedAt: 'lastUsedAt'
+} as const
+
+export type FidoCredentialScalarFieldEnum = (typeof FidoCredentialScalarFieldEnum)[keyof typeof FidoCredentialScalarFieldEnum]
+
+
+export const WebAuthnChallengeScalarFieldEnum = {
+  id: 'id',
+  challenge: 'challenge',
+  kind: 'kind',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  sessionId: 'sessionId',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type WebAuthnChallengeScalarFieldEnum = (typeof WebAuthnChallengeScalarFieldEnum)[keyof typeof WebAuthnChallengeScalarFieldEnum]
+
+
+export const AdminPasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  adminUserId: 'adminUserId',
+  createdById: 'createdById',
+  tokenHash: 'tokenHash',
+  tokenCiphertext: 'tokenCiphertext',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  policyVersion: 'policyVersion',
+  createdAt: 'createdAt'
+} as const
+
+export type AdminPasswordResetTokenScalarFieldEnum = (typeof AdminPasswordResetTokenScalarFieldEnum)[keyof typeof AdminPasswordResetTokenScalarFieldEnum]
 
 
 export const WorkerHeartbeatScalarFieldEnum = {
@@ -4892,6 +5648,20 @@ export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$Prisma
 
 
 /**
+ * Reference to a field of type 'BigInt'
+ */
+export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
+    
+
+
+/**
+ * Reference to a field of type 'BigInt[]'
+ */
+export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
+    
+
+
+/**
  * Reference to a field of type 'PositionAssignmentStatus'
  */
 export type EnumPositionAssignmentStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PositionAssignmentStatus'>
@@ -4916,20 +5686,6 @@ export type EnumAdminRoleCodeFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
  * Reference to a field of type 'AdminRoleCode[]'
  */
 export type ListEnumAdminRoleCodeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminRoleCode[]'>
-    
-
-
-/**
- * Reference to a field of type 'BigInt'
- */
-export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
-    
-
-
-/**
- * Reference to a field of type 'BigInt[]'
- */
-export type ListBigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt[]'>
     
 
 
@@ -5214,6 +5970,34 @@ export type ListEnumNotificationStatusFieldRefInput<$PrismaModel> = FieldRefInpu
 
 
 /**
+ * Reference to a field of type 'SecuritySignalKind'
+ */
+export type EnumSecuritySignalKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SecuritySignalKind'>
+    
+
+
+/**
+ * Reference to a field of type 'SecuritySignalKind[]'
+ */
+export type ListEnumSecuritySignalKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SecuritySignalKind[]'>
+    
+
+
+/**
+ * Reference to a field of type 'SecurityDetectionCategory'
+ */
+export type EnumSecurityDetectionCategoryFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SecurityDetectionCategory'>
+    
+
+
+/**
+ * Reference to a field of type 'SecurityDetectionCategory[]'
+ */
+export type ListEnumSecurityDetectionCategoryFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SecurityDetectionCategory[]'>
+    
+
+
+/**
  * Reference to a field of type 'UploadReservationStatus'
  */
 export type EnumUploadReservationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadReservationStatus'>
@@ -5252,6 +6036,62 @@ export type EnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$P
  * Reference to a field of type 'AdminLoginMode[]'
  */
 export type ListEnumAdminLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AdminLoginMode[]'>
+    
+
+
+/**
+ * Reference to a field of type 'AuthenticationPreset'
+ */
+export type EnumAuthenticationPresetFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AuthenticationPreset'>
+    
+
+
+/**
+ * Reference to a field of type 'AuthenticationPreset[]'
+ */
+export type ListEnumAuthenticationPresetFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AuthenticationPreset[]'>
+    
+
+
+/**
+ * Reference to a field of type 'MemberLoginMode'
+ */
+export type EnumMemberLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MemberLoginMode'>
+    
+
+
+/**
+ * Reference to a field of type 'MemberLoginMode[]'
+ */
+export type ListEnumMemberLoginModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MemberLoginMode[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Bytes'
+ */
+export type BytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes'>
+    
+
+
+/**
+ * Reference to a field of type 'Bytes[]'
+ */
+export type ListBytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes[]'>
+    
+
+
+/**
+ * Reference to a field of type 'WebAuthnChallengeKind'
+ */
+export type EnumWebAuthnChallengeKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebAuthnChallengeKind'>
+    
+
+
+/**
+ * Reference to a field of type 'WebAuthnChallengeKind[]'
+ */
+export type ListEnumWebAuthnChallengeKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebAuthnChallengeKind[]'>
     
 
 
@@ -5461,10 +6301,18 @@ export type GlobalOmitConfig = {
   notificationAttempt?: Prisma.NotificationAttemptOmit
   auditEvent?: Prisma.AuditEventOmit
   rateLimitBucket?: Prisma.RateLimitBucketOmit
+  securitySignalBucket?: Prisma.SecuritySignalBucketOmit
+  securitySignalReceipt?: Prisma.SecuritySignalReceiptOmit
+  securityDetectionBucket?: Prisma.SecurityDetectionBucketOmit
+  securityDetectionMembership?: Prisma.SecurityDetectionMembershipOmit
+  securityTelemetryState?: Prisma.SecurityTelemetryStateOmit
   uploadReservation?: Prisma.UploadReservationOmit
   systemIntegrationSetting?: Prisma.SystemIntegrationSettingOmit
   objectStorageSetting?: Prisma.ObjectStorageSettingOmit
   securityPolicy?: Prisma.SecurityPolicyOmit
+  fidoCredential?: Prisma.FidoCredentialOmit
+  webAuthnChallenge?: Prisma.WebAuthnChallengeOmit
+  adminPasswordResetToken?: Prisma.AdminPasswordResetTokenOmit
   workerHeartbeat?: Prisma.WorkerHeartbeatOmit
 }
 

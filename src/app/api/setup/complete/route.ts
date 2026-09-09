@@ -8,10 +8,13 @@ export async function POST(request: NextRequest) {
   try {
     await guardSetupMutation(request, "complete", 5);
     const input = await parseJson(request, setupCompleteSchema);
-    const response = jsonData(await completeSetup(input), requestId, 201);
-    response.cookies.set({ name: SETUP_AUTH_COOKIE, value: "", maxAge: 0, path: "/" });
+    const result = await completeSetup(input);
+    const response = jsonData(result, requestId, 201);
+    if (!result.requiresFidoBinding) {
+      response.cookies.set({ name: SETUP_AUTH_COOKIE, value: "", maxAge: 0, path: "/" });
+    }
     return response;
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

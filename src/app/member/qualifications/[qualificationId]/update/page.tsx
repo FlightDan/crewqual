@@ -14,6 +14,7 @@ const scenarios = new Set<PilotFlowScenario>([
   "ambiguous",
   "conflict",
   "mismatch",
+  "disabled",
   "busy",
   "modified",
   "confirm",

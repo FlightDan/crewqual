@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
       throw new ApiError("EVIDENCE_UNAVAILABLE", "该凭证已提交或不可用", 409);
     }
     const vlm = await getRuntimeIntegration("vlm");
+    const recognitionEnabled = vlm.enabled !== false && vlm.adapter !== "disabled";
     const submission = await db.$transaction(async (tx) => {
       const existing = await tx.qualificationRecord.findFirst({
         where: { pilotId: pilot.id, qualificationTypeId: qualificationType.id, status: "ACTIVE" },
@@ -155,26 +156,31 @@ export async function POST(request: NextRequest) {
       await tx.qualificationEvidence.create({
         data: { evidenceImageId: image.id, updateRequestId: created.id },
       });
-      const insertedTask = await tx.recognitionTask.createMany({
-        data: [
-          {
-            evidenceImageId: image.id,
-            taskType: "EXTRACTION",
-            status: "QUEUED",
-            retryLimit: vlm.retryLimit,
-            provider: vlm.model || vlm.adapter,
+      let insertedTaskCount = 0;
+      let recognition: { id: string; status: string; result: unknown } | null = null;
+      if (recognitionEnabled) {
+        const insertedTask = await tx.recognitionTask.createMany({
+          data: [
+            {
+              evidenceImageId: image.id,
+              taskType: "EXTRACTION",
+              status: "QUEUED",
+              retryLimit: vlm.retryLimit,
+              provider: vlm.model || vlm.adapter,
+            },
+          ],
+          skipDuplicates: true,
+        });
+        insertedTaskCount = insertedTask.count;
+        recognition = await tx.recognitionTask.findUniqueOrThrow({
+          where: {
+            evidenceImageId_taskType: {
+              evidenceImageId: image.id,
+              taskType: "EXTRACTION",
+            },
           },
-        ],
-        skipDuplicates: true,
-      });
-      const recognition = await tx.recognitionTask.findUniqueOrThrow({
-        where: {
-          evidenceImageId_taskType: {
-            evidenceImageId: image.id,
-            taskType: "EXTRACTION",
-          },
-        },
-      });
+        });
+      }
       await tx.auditEvent.create({
         data: {
           actorType: "pilot",
@@ -187,12 +193,21 @@ export async function POST(request: NextRequest) {
           requestId,
         },
       });
-      if (recognition.status === "COMPLETED" && recognition.result) {
+      if (recognition?.status === "COMPLETED" && recognition.result) {
         await persistVerificationForEvidence(tx, image.id, recognition.result);
-      } else if (insertedTask.count === 1) {
+      } else if (recognitionEnabled && insertedTaskCount === 1 && recognition) {
         await enqueueInTransaction(tx, QUEUES.recognition, {
           recognitionId: recognition.id,
           evidenceImageId: image.id,
+        });
+      } else if (!recognitionEnabled) {
+        await persistVerificationForEvidence(tx, image.id, {
+          available: false,
+          summary: "VLM adapter disabled",
+          fields: {},
+          fieldConfidence: {},
+          evidence: {},
+          provider: "disabled",
         });
       }
       return created;
@@ -203,6 +218,6 @@ export async function POST(request: NextRequest) {
       201,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

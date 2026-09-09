@@ -10,7 +10,9 @@
 
 The accepted message does not reveal whether your details matched. If the SMS does not arrive, ask an administrator to check your employee number, mobile number, active status, and the SMS service.
 
-An access link can be redeemed once. Links expire after 15 minutes by default, and the resulting session lasts 60 minutes by default. Administrators can change the security policy. Request another link after expiry. A browser with a valid session can continue using that session without redeeming the same link again.
+An access link can be redeemed once. It expires after 10 minutes by default, and the server caps the lifetime at 10 minutes. The resulting member session lasts 60 minutes by default and ends after 30 minutes of inactivity. Administrators can change the security policy. Request another link after expiry. A browser with a valid session can continue using that session without redeeming the same link again.
+
+When the organization selects Combined or Enhanced authentication, the SMS link opens only a restricted security-enrollment session. Under Combined, complete password and TOTP enrollment. Under Enhanced, complete password, TOTP, and FIDO2 hardware-key enrollment. Follow the page to `/member/security` and complete all factors required by the target before viewing qualifications. An account with existing factors cannot use SMS to recover its password or return to SMS sign-in. See [Security and authentication](security.md) for the target and enrollment rules.
 
 ## View qualifications
 

@@ -30,6 +30,6 @@ export async function POST(request: NextRequest) {
     store.delete(`${COOKIE_NAMES.admin}_csrf`);
     return jsonData({ authenticated: false }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import type { QualificationCustomField } from "@/types/services";
 
 const mocks = vi.hoisted(() => ({
+  organizationFindUnique: vi.fn(),
   positionFindMany: vi.fn(),
   requirementFindMany: vi.fn(),
   requirementFindFirst: vi.fn(),
@@ -41,6 +42,7 @@ const tx = {
 };
 
 const db = {
+  organization: { findUnique: mocks.organizationFindUnique },
   position: { findMany: mocks.positionFindMany },
   qualificationRequirement: {
     findMany: mocks.requirementFindMany,
@@ -83,6 +85,7 @@ const position = {
 };
 
 const configInput = {
+  organizationId,
   positionCode: "CABIN_CREW",
   kind: "core" as const,
   name: "客舱应急训练",
@@ -155,6 +158,7 @@ function patchRequest(
 describe("position-scoped qualification configs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.organizationFindUnique.mockResolvedValue({ id: organizationId });
     mocks.positionFindMany.mockResolvedValue([position]);
     mocks.requirementFindMany.mockResolvedValue([]);
     mocks.requirementFindFirst.mockResolvedValue(null);
@@ -183,7 +187,7 @@ describe("position-scoped qualification configs", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ data: [] });
     expect(mocks.requirementFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { positionId } }),
+      expect.objectContaining({ where: { positionId: { in: [positionId] } } }),
     );
   });
 

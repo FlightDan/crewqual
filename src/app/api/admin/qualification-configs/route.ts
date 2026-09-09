@@ -12,6 +12,10 @@ import {
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import {
+  adminOrganizationWhere,
+  resolveOrganizationTarget,
+} from "@/server/admin-organization-scope";
+import {
   qualificationConfigCreateSchema,
   qualificationConfigInputSchema,
 } from "@/lib/admin-operations-validation";
@@ -44,28 +48,20 @@ const createSchema = z.intersection(
   z.object({
     positionCode: positionCodeSchema,
     kind: z.enum(["core", "supplemental"]),
+    organizationId: z.string().uuid().optional(),
   }),
 );
 
-function organizationId(admin: AuthenticatedAdmin) {
-  return admin.organizationId ?? admin.unitId;
-}
-
-async function resolvePosition(admin: AuthenticatedAdmin, code: string) {
-  const scopedOrganizationId = organizationId(admin);
+async function resolvePositions(admin: AuthenticatedAdmin, code: string, selected?: string | null) {
   const positions = await getPrisma().position.findMany({
     where: {
       code,
-      ...(scopedOrganizationId ? { organizationId: scopedOrganizationId } : {}),
+      ...adminOrganizationWhere(admin, selected),
     },
     orderBy: { createdAt: "asc" },
-    take: 2,
   });
   if (!positions.length) throw new ApiError("POSITION_NOT_FOUND", "职位不存在", 404);
-  if (positions.length > 1) {
-    throw new ApiError("POSITION_AMBIGUOUS", "该职位存在于多个组织，请先选择数据范围", 409);
-  }
-  return positions[0]!;
+  return positions;
 }
 
 function serializeRequirement(requirement: any) {
@@ -74,6 +70,7 @@ function serializeRequirement(requirement: any) {
     id: requirement.id,
     qualificationId: definition.id,
     positionCode: requirement.position.code,
+    organizationId: requirement.position.organizationId,
     code: definition.code,
     name: definition.name,
     translations: definition.translations ?? {},
@@ -107,9 +104,14 @@ function normalizedStructure(value: {
   };
 }
 
-async function findRequirement(positionId: string, id: string) {
+async function findRequirement(
+  admin: AuthenticatedAdmin,
+  positionCode: string,
+  id: string,
+  selected?: string | null,
+) {
   const requirement = await getPrisma().qualificationRequirement.findFirst({
-    where: { id, positionId },
+    where: { id, position: { code: positionCode, ...adminOrganizationWhere(admin, selected) } },
     include: { position: true, qualificationDefinition: true },
   });
   if (!requirement) throw new ApiError("NOT_FOUND", "资质配置不存在", 404);
@@ -123,15 +125,19 @@ export async function GET(request: NextRequest) {
     const positionCode = positionCodeSchema.parse(
       new URL(request.url).searchParams.get("positionCode"),
     );
-    const position = await resolvePosition(admin, positionCode);
+    const positions = await resolvePositions(
+      admin,
+      positionCode,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
     const requirements = await getPrisma().qualificationRequirement.findMany({
-      where: { positionId: position.id },
+      where: { positionId: { in: positions.map((position) => position.id) } },
       include: { position: true, qualificationDefinition: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
     return jsonData(requirements.map(serializeRequirement), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -145,8 +151,13 @@ export async function PATCH(request: NextRequest) {
     if (!id) throw new ApiError("VALIDATION_ERROR", "缺少资质配置 ID", 422);
     const positionCode = positionCodeSchema.parse(url.searchParams.get("positionCode"));
     const input = await parseJson(request, patchSchema);
-    const position = await resolvePosition(admin, positionCode);
-    const current = await findRequirement(position.id, id);
+    const current = await findRequirement(
+      admin,
+      positionCode,
+      id,
+      url.searchParams.get("organizationId"),
+    );
+    const position = current.position;
     const definition = current.qualificationDefinition;
     const locked = Boolean(current.sourcePackCode);
     if (locked && !input.active) {
@@ -276,7 +287,7 @@ export async function PATCH(request: NextRequest) {
     });
     return jsonData(serializeRequirement(updated), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -286,7 +297,11 @@ export async function POST(request: NextRequest) {
     assertSameOrigin(request);
     const admin = await getAdmin(request, "operations.write", true);
     const input = await parseJson(request, createSchema);
-    const position = await resolvePosition(admin, input.positionCode);
+    const organizationId = await resolveOrganizationTarget(admin, input.organizationId);
+    const positions = await resolvePositions(admin, input.positionCode, organizationId);
+    if (positions.length !== 1)
+      throw new ApiError("POSITION_AMBIGUOUS", "目标组织内职位不唯一", 409);
+    const position = positions[0]!;
     const duplicateRequirements =
       (await getPrisma().qualificationRequirement.findMany({
         where: {
@@ -394,6 +409,6 @@ export async function POST(request: NextRequest) {
     });
     return jsonData(serializeRequirement(created), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

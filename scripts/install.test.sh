@@ -152,6 +152,22 @@ if [[ "${1:-}" == "inspect" ]]; then
 fi
 if [[ "${1:-}" == "compose" ]]; then
   if [[ "${2:-}" == "version" && "${CREWQUAL_TEST_COMPOSE_FAIL:-0}" == "1" ]]; then exit 2; fi
+  has_up=0
+  has_caddy=0
+  for argument in "$@"; do
+    [[ "$argument" == "up" ]] && has_up=1
+    [[ "$argument" == "caddy" ]] && has_caddy=1
+  done
+  if ((has_up && has_caddy)) && [[ "${CREWQUAL_TEST_CADDY_START_FAILURES:-0}" =~ ^[1-9][0-9]*$ ]]; then
+    state_file="${CREWQUAL_TEST_CADDY_STATE_FILE:?CREWQUAL_TEST_CADDY_STATE_FILE is required}"
+    attempts=0
+    if [[ -f "$state_file" ]]; then attempts="$(cat "$state_file")"; fi
+    if ((attempts < CREWQUAL_TEST_CADDY_START_FAILURES)); then
+      printf '%s\n' "$((attempts + 1))" >"$state_file"
+      printf '%s\n' "$*" >>"${CREWQUAL_TEST_CADDY_START_LOG:-/dev/null}"
+      exit 17
+    fi
+  fi
   for argument in "$@"; do
     if [[ "$argument" == "pg_dump" ]]; then
       printf 'fake-upgrade-database-dump\n'
@@ -194,6 +210,10 @@ run_installer() {
     CREWQUAL_TEST_UPDATER_VERIFIED_FILE="$UPDATER_VERIFY_LOG" \
     CREWQUAL_TEST_CURL_FAIL="${CREWQUAL_TEST_CURL_FAIL:-0}" \
     CREWQUAL_TEST_DOCKER_FAIL_ACTION="${CREWQUAL_TEST_DOCKER_FAIL_ACTION:-}" \
+    CREWQUAL_TEST_CADDY_START_FAILURES="${CREWQUAL_TEST_CADDY_START_FAILURES:-0}" \
+    CREWQUAL_TEST_CADDY_STATE_FILE="${CREWQUAL_TEST_CADDY_STATE_FILE:-$TEST_DIR/caddy-start-state}" \
+    CREWQUAL_TEST_CADDY_START_LOG="${CREWQUAL_TEST_CADDY_START_LOG:-$TEST_DIR/caddy-start.log}" \
+    CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS:-30}" \
     bash "$PROJECT_DIR/install.sh" "$@"
 }
 
@@ -222,12 +242,30 @@ run_installer --domain crewqual.example.com --tls-email ops@example.com --non-in
 
 [[ -f "$INSTALL_DIR/compose.yaml" && -f "$INSTALL_DIR/Caddyfile" && -f "$INSTALL_DIR/.env" ]]
 [[ "$(stat -c '%a' "$INSTALL_DIR/.env")" == "600" ]]
+[[ -f "$INSTALL_DIR/.deployment.lock" && "$(stat -c '%a' "$INSTALL_DIR/.deployment.lock")" == "600" ]]
 grep -q "CREWQUAL_VERSION='v9.8.7'" "$INSTALL_DIR/.env"
 grep -q "CREWQUAL_UPDATER_MODE='managed'" "$INSTALL_DIR/.env"
 grep -q "CREWQUAL_UPDATER_HOST_DIR='/run/crewqual-updater'" "$INSTALL_DIR/.env"
 grep -Eq "CREWQUAL_UPDATER_SHARED_SECRET='[a-f0-9]{64}'" "$INSTALL_DIR/.env"
 ! grep -q '^CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY=' "$INSTALL_DIR/.env"
 grep -q 'CREWQUAL_RUNTIME_IMAGE: ${CREWQUAL_RUNTIME_IMAGE' "$INSTALL_DIR/compose.yaml"
+recovery_unit="$INSTALL_DIR/.updater-units/crewqual-caddy-recovery.service"
+[[ -f "$recovery_unit" ]]
+grep -q 'Wants=network-online.target' "$recovery_unit"
+grep -q 'After=network-online.target docker.service' "$recovery_unit"
+grep -q '^StartLimitIntervalSec=0$' "$recovery_unit"
+grep -q 'reconcile-caddy --timeout 300s' "$recovery_unit"
+grep -q '^RuntimeDirectory=crewqual-updater$' "$recovery_unit"
+grep -q '^RuntimeDirectoryMode=0755$' "$recovery_unit"
+grep -q '^RuntimeDirectoryPreserve=yes$' "$recovery_unit"
+grep -q 'ReadWritePaths=.* -/run/crewqual-updater' "$recovery_unit"
+grep -q 'Restart=on-failure' "$recovery_unit"
+grep -q '^TimeoutStartSec=330s$' "$recovery_unit"
+grep -q '^RuntimeDirectory=crewqual-updater$' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
+grep -q '^RuntimeDirectoryMode=0755$' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
+grep -q '^RuntimeDirectoryPreserve=yes$' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
+grep -q 'ReadWritePaths=.* -/run/crewqual-updater' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
+grep -q '^DirectoryMode=0755$' "$INSTALL_DIR/.updater-units/crewqual-updater.socket"
 
 before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
 run_installer --version v9.8.8 --non-interactive
@@ -236,6 +274,33 @@ after_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SES
 [[ "$before_secrets" == "$after_secrets" ]]
 grep -q "CREWQUAL_VERSION='v9.8.8'" "$INSTALL_DIR/.env"
 grep -q "INSTALL_LANGUAGE='zh'" "$INSTALL_DIR/.env"
+
+# A competing deployment must prevent an upgrade from staging and later
+# committing stale managed state.
+locked_env_hash="$(sha256sum "$INSTALL_DIR/.env" | awk '{print $1}')"
+exec {test_lock_fd}>"$INSTALL_DIR/.deployment.lock"
+flock "$test_lock_fd"
+lock_failure_log="$TEST_DIR/deployment-lock-failure.log"
+if CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS=1 \
+  run_installer --version v9.8.9 --non-interactive >"$lock_failure_log" 2>&1; then
+  echo "expected concurrent deployment lock to reject the upgrade" >&2
+  exit 1
+fi
+[[ "$locked_env_hash" == "$(sha256sum "$INSTALL_DIR/.env" | awk '{print $1}')" ]]
+grep -q '部署锁' "$lock_failure_log"
+flock -u "$test_lock_fd"
+eval "exec ${test_lock_fd}>&-"
+
+lock_source="$(sed -n '/^acquire_deployment_lock()/,/^}/p' "$PROJECT_DIR/install.sh")"
+grep -q 'DEPLOYMENT_LOCK_FD=""' <<<"$lock_source"
+grep -q 'DEPLOYMENT_LOCK_HELD=0' <<<"$lock_source"
+rollback_source="$(sed -n '/^restore_existing_install()/,/^}/p' "$PROJECT_DIR/install.sh")"
+grep -q 'DEPLOYMENT_LOCK_HELD == 0' <<<"$rollback_source"
+grep -q 'ROLLBACK_STATE_GUARD_REQUIRED' <<<"$rollback_source"
+grep -q 'deployment_state_token' <<<"$rollback_source"
+recovery_source="$(sed -n '/^start_application_services()/,/^}/p' "$PROJECT_DIR/install.sh")"
+grep -q 'ROLLBACK_STATE_TOKEN="$(deployment_state_token)"' <<<"$recovery_source"
+grep -q '检测到另一个部署任务' <<<"$recovery_source"
 
 CREWQUAL_TEST_INSTALL_DIR="$RC_INSTALL_DIR" \
   run_installer --version v9.8.7-rc.2 --domain rc.example.com \
@@ -381,6 +446,19 @@ fi
 grep -q "CREWQUAL_VERSION='v9.8.8'" "$INSTALL_DIR/.env"
 [[ "$(sha256sum "$INSTALL_DIR/compose.yaml" | awk '{print $1}')" == "$old_upgrade_compose" ]]
 grep -q "已恢复升级前的受管理文件和数据库" "$upgrade_failure_log"
+
+caddy_retry_log="$TEST_DIR/caddy-retry.log"
+caddy_retry_state="$TEST_DIR/caddy-retry.state"
+CREWQUAL_TEST_INSTALL_DIR="$TEST_DIR/install-caddy-retry" \
+  CREWQUAL_TEST_CADDY_START_FAILURES=1 \
+  CREWQUAL_TEST_CADDY_STATE_FILE="$caddy_retry_state" \
+  CREWQUAL_TEST_CADDY_START_LOG="$caddy_retry_log" \
+  CREWQUAL_INSTALL_CADDY_RETRY_INTERVAL_SECONDS=1 \
+  run_installer --version v9.8.7 --domain retry.example.com \
+  --tls-email retry@example.com --non-interactive >"$caddy_retry_log.output" 2>&1
+[[ "$(cat "$caddy_retry_state")" == "1" ]]
+grep -q "Caddy 启动未就绪" "$caddy_retry_log.output"
+grep -q -- "--force-recreate" "$caddy_retry_log"
 
 [[ "$(wc -l <"$UPDATER_VERIFY_LOG")" -ge 1 ]]
 

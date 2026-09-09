@@ -19,6 +19,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { collectQualificationAudit } from "../audit-qualification-state";
+import { assertAcceptanceConfig, type AcceptanceScope } from "./acceptance-config";
 import { PILOT_TEMPLATE_PACK } from "../../src/server/template-packs";
 import {
   artifactDir,
@@ -1170,27 +1171,63 @@ async function supplyChain(evidence: ReleaseEvidence) {
         const image = required(name);
         const index = command("docker", ["buildx", "imagetools", "inspect", "--raw", image]);
         const parsedIndex = JSON.parse(index.output) as {
+          mediaType?: string;
           manifests?: Array<{
             digest: string;
+            mediaType?: string;
             platform?: { architecture?: string; os?: string };
           }>;
-          layers?: Array<{ size?: number }>;
         };
-        const selected = parsedIndex.manifests?.find(
-          (manifest) =>
-            manifest.platform?.os === "linux" && manifest.platform?.architecture === "amd64",
+        const expectedPlatforms = ["amd64", "arm64"] as const;
+        if (
+          parsedIndex.mediaType !== "application/vnd.oci.image.index.v1+json" ||
+          parsedIndex.manifests?.length !== expectedPlatforms.length
+        ) {
+          throw new Error(`${name} 必须是仅含 linux/amd64 与 linux/arm64 的 OCI index`);
+        }
+        const repository = image.replace(/@sha256:[0-9a-f]+$/i, "");
+        const platforms = Object.fromEntries(
+          expectedPlatforms.map((architecture) => {
+            const matches = parsedIndex.manifests!.filter(
+              (candidate) =>
+                candidate.platform?.os === "linux" &&
+                candidate.platform?.architecture === architecture,
+            );
+            if (
+              matches.length !== 1 ||
+              !/^sha256:[0-9a-f]{64}$/.test(matches[0]!.digest) ||
+              matches[0]!.mediaType !== "application/vnd.oci.image.manifest.v1+json"
+            ) {
+              throw new Error(`${name} 缺少唯一的 linux/${architecture} OCI manifest`);
+            }
+            const manifestRef = `${repository}@${matches[0]!.digest}`;
+            const manifest = JSON.parse(
+              command("docker", ["buildx", "imagetools", "inspect", "--raw", manifestRef]).output,
+            ) as { mediaType?: string; layers?: Array<{ size?: number }> };
+            if (manifest.mediaType !== "application/vnd.oci.image.manifest.v1+json") {
+              throw new Error(`${name} linux/${architecture} 不是 OCI image manifest`);
+            }
+            const compressedBytes = (manifest.layers ?? []).reduce(
+              (total, layer) => total + (layer.size ?? 0),
+              0,
+            );
+            if (!compressedBytes) {
+              throw new Error(`${name} linux/${architecture} OCI manifest 没有可测量的压缩层`);
+            }
+            return [
+              `linux/${architecture}`,
+              {
+                digest: matches[0]!.digest,
+                compressedBytes,
+                compressedMiB: Number((compressedBytes / 1024 / 1024).toFixed(2)),
+              },
+            ];
+          }),
         );
-        const manifestRef = selected
-          ? `${image.replace(/@sha256:[0-9a-f]+$/i, "")}@${selected.digest}`
-          : image;
-        const manifest = JSON.parse(
-          command("docker", ["buildx", "imagetools", "inspect", "--raw", manifestRef]).output,
-        ) as { layers?: Array<{ size?: number }> };
-        const compressedBytes = (manifest.layers ?? []).reduce(
-          (total, layer) => total + (layer.size ?? 0),
+        const compressedBytes = Object.values(platforms).reduce(
+          (total, platform) => total + platform.compressedBytes,
           0,
         );
-        if (!compressedBytes) throw new Error(`${name} OCI manifest 没有可测量的压缩层`);
         const local = command("docker", ["image", "inspect", "--format", "{{.Size}}", image]);
         const uncompressedBytes = Number(local.output.trim());
         if (!Number.isFinite(uncompressedBytes) || uncompressedBytes <= 0) {
@@ -1198,9 +1235,10 @@ async function supplyChain(evidence: ReleaseEvidence) {
         }
         const result = {
           image,
-          platform: "linux/amd64",
+          platforms,
           compressedBytes,
           compressedMiB: Number((compressedBytes / 1024 / 1024).toFixed(2)),
+          nativePlatform: "linux/amd64",
           uncompressedBytes,
           uncompressedMiB: Number((uncompressedBytes / 1024 / 1024).toFixed(2)),
         };
@@ -1449,11 +1487,16 @@ async function main() {
   const stableTag = /^v[0-9]+\.[0-9]+\.[0-9]+$/.test(tag);
   const releaseCandidateTag = /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/.test(tag);
   if (profile !== "rc" && profile !== "final") throw new Error(`无效 profile：${profile}`);
-  if (profile === "final" && process.env.RELEASE_ACCEPTANCE_SCOPE !== "full") {
-    throw new Error("final 发布必须使用 RELEASE_ACCEPTANCE_SCOPE=full");
-  }
+  const scope = (process.env.RELEASE_ACCEPTANCE_SCOPE ??
+    (operation === "local" ? "local" : "full")) as AcceptanceScope;
   if ((profile === "final" && !stableTag) || (profile === "rc" && !releaseCandidateTag)) {
     throw new Error(`无效 ${profile} release tag：${tag}`);
+  }
+  if (scope !== "local" && scope !== "full") {
+    throw new Error(`无效 RELEASE_ACCEPTANCE_SCOPE：${scope}`);
+  }
+  if (["all", "checks", "local"].includes(operation)) {
+    assertAcceptanceConfig(process.env, { scope, profile });
   }
   const id = runId();
   const evidence: ReleaseEvidence = {

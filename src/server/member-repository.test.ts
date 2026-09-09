@@ -67,6 +67,22 @@ describe("member qualification correctness", () => {
     vi.clearAllMocks();
     mocks.count.mockResolvedValue(1);
   });
+  it("does not retain an organization restriction on super administrator lists or details", async () => {
+    const superAdmin = { ...admin, roles: ["SUPER_ADMIN"] };
+    mocks.findMany.mockResolvedValue([]);
+    mocks.findFirst.mockResolvedValue(null);
+    await listMembers(superAdmin, {}, clock);
+    await expect(getMember(superAdmin, "other-organization-person", clock)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    expect(mocks.count).toHaveBeenCalledWith({ where: {} });
+    expect(mocks.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "other-organization-person" },
+      }),
+    );
+  });
   it("does not report a missing required record as healthy and scopes list reads", async () => {
     mocks.findMany.mockResolvedValue([person()]);
     const result = await listMembers(admin, {}, clock);

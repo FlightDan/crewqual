@@ -30,12 +30,14 @@ export type EvidenceImageAvgAggregateOutputType = {
   width: number | null
   height: number | null
   byteSize: number | null
+  storageEncodingVersion: number | null
 }
 
 export type EvidenceImageSumAggregateOutputType = {
   width: number | null
   height: number | null
   byteSize: number | null
+  storageEncodingVersion: number | null
 }
 
 export type EvidenceImageMinAggregateOutputType = {
@@ -48,6 +50,8 @@ export type EvidenceImageMinAggregateOutputType = {
   height: number | null
   byteSize: number | null
   sha256: string | null
+  storageEncodingVersion: number | null
+  sanitizedAt: Date | null
   status: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -65,6 +69,8 @@ export type EvidenceImageMaxAggregateOutputType = {
   height: number | null
   byteSize: number | null
   sha256: string | null
+  storageEncodingVersion: number | null
+  sanitizedAt: Date | null
   status: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -82,6 +88,8 @@ export type EvidenceImageCountAggregateOutputType = {
   height: number
   byteSize: number
   sha256: number
+  storageEncodingVersion: number
+  sanitizedAt: number
   status: number
   createdAt: number
   updatedAt: number
@@ -95,12 +103,14 @@ export type EvidenceImageAvgAggregateInputType = {
   width?: true
   height?: true
   byteSize?: true
+  storageEncodingVersion?: true
 }
 
 export type EvidenceImageSumAggregateInputType = {
   width?: true
   height?: true
   byteSize?: true
+  storageEncodingVersion?: true
 }
 
 export type EvidenceImageMinAggregateInputType = {
@@ -113,6 +123,8 @@ export type EvidenceImageMinAggregateInputType = {
   height?: true
   byteSize?: true
   sha256?: true
+  storageEncodingVersion?: true
+  sanitizedAt?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -130,6 +142,8 @@ export type EvidenceImageMaxAggregateInputType = {
   height?: true
   byteSize?: true
   sha256?: true
+  storageEncodingVersion?: true
+  sanitizedAt?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -147,6 +161,8 @@ export type EvidenceImageCountAggregateInputType = {
   height?: true
   byteSize?: true
   sha256?: true
+  storageEncodingVersion?: true
+  sanitizedAt?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -251,6 +267,8 @@ export type EvidenceImageGroupByOutputType = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion: number
+  sanitizedAt: Date | null
   status: string
   createdAt: Date
   updatedAt: Date
@@ -291,6 +309,8 @@ export type EvidenceImageWhereInput = {
   height?: Prisma.IntFilter<"EvidenceImage"> | number
   byteSize?: Prisma.IntFilter<"EvidenceImage"> | number
   sha256?: Prisma.StringFilter<"EvidenceImage"> | string
+  storageEncodingVersion?: Prisma.IntFilter<"EvidenceImage"> | number
+  sanitizedAt?: Prisma.DateTimeNullableFilter<"EvidenceImage"> | Date | string | null
   status?: Prisma.StringFilter<"EvidenceImage"> | string
   createdAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
@@ -313,6 +333,8 @@ export type EvidenceImageOrderByWithRelationInput = {
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
   sha256?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
+  sanitizedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -338,6 +360,8 @@ export type EvidenceImageWhereUniqueInput = Prisma.AtLeast<{
   height?: Prisma.IntFilter<"EvidenceImage"> | number
   byteSize?: Prisma.IntFilter<"EvidenceImage"> | number
   sha256?: Prisma.StringFilter<"EvidenceImage"> | string
+  storageEncodingVersion?: Prisma.IntFilter<"EvidenceImage"> | number
+  sanitizedAt?: Prisma.DateTimeNullableFilter<"EvidenceImage"> | Date | string | null
   status?: Prisma.StringFilter<"EvidenceImage"> | string
   createdAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
@@ -360,6 +384,8 @@ export type EvidenceImageOrderByWithAggregationInput = {
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
   sha256?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
+  sanitizedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -385,6 +411,8 @@ export type EvidenceImageScalarWhereWithAggregatesInput = {
   height?: Prisma.IntWithAggregatesFilter<"EvidenceImage"> | number
   byteSize?: Prisma.IntWithAggregatesFilter<"EvidenceImage"> | number
   sha256?: Prisma.StringWithAggregatesFilter<"EvidenceImage"> | string
+  storageEncodingVersion?: Prisma.IntWithAggregatesFilter<"EvidenceImage"> | number
+  sanitizedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"EvidenceImage"> | Date | string | null
   status?: Prisma.StringWithAggregatesFilter<"EvidenceImage"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"EvidenceImage"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"EvidenceImage"> | Date | string
@@ -400,6 +428,8 @@ export type EvidenceImageCreateInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -422,6 +452,8 @@ export type EvidenceImageUncheckedCreateInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -440,6 +472,8 @@ export type EvidenceImageUpdateInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -462,6 +496,8 @@ export type EvidenceImageUncheckedUpdateInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -482,6 +518,8 @@ export type EvidenceImageCreateManyInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -497,6 +535,8 @@ export type EvidenceImageUpdateManyMutationInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -514,6 +554,8 @@ export type EvidenceImageUncheckedUpdateManyInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -541,6 +583,8 @@ export type EvidenceImageCountOrderByAggregateInput = {
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
   sha256?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
+  sanitizedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -552,6 +596,7 @@ export type EvidenceImageAvgOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
 }
 
 export type EvidenceImageMaxOrderByAggregateInput = {
@@ -564,6 +609,8 @@ export type EvidenceImageMaxOrderByAggregateInput = {
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
   sha256?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
+  sanitizedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -581,6 +628,8 @@ export type EvidenceImageMinOrderByAggregateInput = {
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
   sha256?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
+  sanitizedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -592,6 +641,7 @@ export type EvidenceImageSumOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   byteSize?: Prisma.SortOrder
+  storageEncodingVersion?: Prisma.SortOrder
 }
 
 export type EvidenceImageScalarRelationFilter = {
@@ -733,6 +783,8 @@ export type EvidenceImageCreateWithoutPersonInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -753,6 +805,8 @@ export type EvidenceImageUncheckedCreateWithoutPersonInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -802,6 +856,8 @@ export type EvidenceImageScalarWhereInput = {
   height?: Prisma.IntFilter<"EvidenceImage"> | number
   byteSize?: Prisma.IntFilter<"EvidenceImage"> | number
   sha256?: Prisma.StringFilter<"EvidenceImage"> | string
+  storageEncodingVersion?: Prisma.IntFilter<"EvidenceImage"> | number
+  sanitizedAt?: Prisma.DateTimeNullableFilter<"EvidenceImage"> | Date | string | null
   status?: Prisma.StringFilter<"EvidenceImage"> | string
   createdAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EvidenceImage"> | Date | string
@@ -817,6 +873,8 @@ export type EvidenceImageCreateWithoutPilotInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -837,6 +895,8 @@ export type EvidenceImageUncheckedCreateWithoutPilotInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -881,6 +941,8 @@ export type EvidenceImageCreateWithoutOptimizationTaskInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -902,6 +964,8 @@ export type EvidenceImageUncheckedCreateWithoutOptimizationTaskInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -935,6 +999,8 @@ export type EvidenceImageUpdateWithoutOptimizationTaskInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -956,6 +1022,8 @@ export type EvidenceImageUncheckedUpdateWithoutOptimizationTaskInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -973,6 +1041,8 @@ export type EvidenceImageCreateWithoutEvidenceInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -994,6 +1064,8 @@ export type EvidenceImageUncheckedCreateWithoutEvidenceInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1027,6 +1099,8 @@ export type EvidenceImageUpdateWithoutEvidenceInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1048,6 +1122,8 @@ export type EvidenceImageUncheckedUpdateWithoutEvidenceInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1065,6 +1141,8 @@ export type EvidenceImageCreateWithoutRecognitionTasksInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1086,6 +1164,8 @@ export type EvidenceImageUncheckedCreateWithoutRecognitionTasksInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1119,6 +1199,8 @@ export type EvidenceImageUpdateWithoutRecognitionTasksInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1140,6 +1222,8 @@ export type EvidenceImageUncheckedUpdateWithoutRecognitionTasksInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1158,6 +1242,8 @@ export type EvidenceImageCreateManyPersonInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1173,6 +1259,8 @@ export type EvidenceImageUpdateWithoutPersonInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1193,6 +1281,8 @@ export type EvidenceImageUncheckedUpdateWithoutPersonInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1212,6 +1302,8 @@ export type EvidenceImageUncheckedUpdateManyWithoutPersonInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1228,6 +1320,8 @@ export type EvidenceImageCreateManyPilotInput = {
   height: number
   byteSize: number
   sha256: string
+  storageEncodingVersion?: number
+  sanitizedAt?: Date | string | null
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1243,6 +1337,8 @@ export type EvidenceImageUpdateWithoutPilotInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1263,6 +1359,8 @@ export type EvidenceImageUncheckedUpdateWithoutPilotInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1282,6 +1380,8 @@ export type EvidenceImageUncheckedUpdateManyWithoutPilotInput = {
   height?: Prisma.IntFieldUpdateOperationsInput | number
   byteSize?: Prisma.IntFieldUpdateOperationsInput | number
   sha256?: Prisma.StringFieldUpdateOperationsInput | string
+  storageEncodingVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  sanitizedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1339,6 +1439,8 @@ export type EvidenceImageSelect<ExtArgs extends runtime.Types.Extensions.Interna
   height?: boolean
   byteSize?: boolean
   sha256?: boolean
+  storageEncodingVersion?: boolean
+  sanitizedAt?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1362,6 +1464,8 @@ export type EvidenceImageSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   height?: boolean
   byteSize?: boolean
   sha256?: boolean
+  storageEncodingVersion?: boolean
+  sanitizedAt?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1381,6 +1485,8 @@ export type EvidenceImageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   height?: boolean
   byteSize?: boolean
   sha256?: boolean
+  storageEncodingVersion?: boolean
+  sanitizedAt?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1400,6 +1506,8 @@ export type EvidenceImageSelectScalar = {
   height?: boolean
   byteSize?: boolean
   sha256?: boolean
+  storageEncodingVersion?: boolean
+  sanitizedAt?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1407,7 +1515,7 @@ export type EvidenceImageSelectScalar = {
   expiresAt?: boolean
 }
 
-export type EvidenceImageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "objectKey" | "mimeType" | "width" | "height" | "byteSize" | "sha256" | "status" | "createdAt" | "updatedAt" | "linkedAt" | "expiresAt", ExtArgs["result"]["evidenceImage"]>
+export type EvidenceImageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "personId" | "objectKey" | "mimeType" | "width" | "height" | "byteSize" | "sha256" | "storageEncodingVersion" | "sanitizedAt" | "status" | "createdAt" | "updatedAt" | "linkedAt" | "expiresAt", ExtArgs["result"]["evidenceImage"]>
 export type EvidenceImageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   evidence?: boolean | Prisma.EvidenceImage$evidenceArgs<ExtArgs>
   recognitionTasks?: boolean | Prisma.EvidenceImage$recognitionTasksArgs<ExtArgs>
@@ -1444,6 +1552,8 @@ export type $EvidenceImagePayload<ExtArgs extends runtime.Types.Extensions.Inter
     height: number
     byteSize: number
     sha256: string
+    storageEncodingVersion: number
+    sanitizedAt: Date | null
     status: string
     createdAt: Date
     updatedAt: Date
@@ -1886,6 +1996,8 @@ export interface EvidenceImageFieldRefs {
   readonly height: Prisma.FieldRef<"EvidenceImage", 'Int'>
   readonly byteSize: Prisma.FieldRef<"EvidenceImage", 'Int'>
   readonly sha256: Prisma.FieldRef<"EvidenceImage", 'String'>
+  readonly storageEncodingVersion: Prisma.FieldRef<"EvidenceImage", 'Int'>
+  readonly sanitizedAt: Prisma.FieldRef<"EvidenceImage", 'DateTime'>
   readonly status: Prisma.FieldRef<"EvidenceImage", 'String'>
   readonly createdAt: Prisma.FieldRef<"EvidenceImage", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"EvidenceImage", 'DateTime'>

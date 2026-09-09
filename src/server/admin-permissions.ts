@@ -44,6 +44,7 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "notifications.read",
     "notifications.retry",
     "settings.read",
+    "audit.read",
     "settings.units.write",
     "settings.positions.write",
     "settings.notifications.write",
@@ -56,6 +57,7 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "operations.read",
     "notifications.read",
     "settings.read",
+    "audit.read",
   ],
   VIEWER: [
     "dashboard.read",
@@ -64,12 +66,14 @@ export const ROLE_PERMISSION_CODES: Record<AdminRoleCode, readonly AdminPermissi
     "operations.read",
     "notifications.read",
     "settings.read",
+    "audit.read",
   ],
 };
 
 export type AdminScopeIdentity = {
   roles: string[];
   unitId: string | null;
+  organizationId?: string | null;
 };
 
 export function isSuperAdmin(admin: Pick<AdminScopeIdentity, "roles">) {
@@ -92,6 +96,16 @@ export function pilotUnitWhere(admin: AdminScopeIdentity) {
 export function relatedPilotUnitWhere(admin: AdminScopeIdentity) {
   const unitId = requireAssignedUnit(admin);
   return unitId ? { pilot: { unitId } } : {};
+}
+
+/** Canonical people use the same global SUPER_ADMIN boundary as legacy pilots. */
+export function personScopeWhere(admin: AdminScopeIdentity) {
+  const unitId = requireAssignedUnit(admin);
+  if (!unitId) return {};
+  return {
+    unitId,
+    ...(admin.organizationId ? { organizationId: admin.organizationId } : {}),
+  };
 }
 
 export function roleHasPermission(role: AdminRoleCode, permission: AdminPermissionCode) {

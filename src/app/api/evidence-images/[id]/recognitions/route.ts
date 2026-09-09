@@ -4,6 +4,7 @@ import { assertCsrf, authenticatePilot } from "@/server/auth";
 import { enqueueInTransaction, QUEUES } from "@/server/jobs";
 import { getPrisma } from "@/server/prisma";
 import { getRuntimeIntegration } from "@/server/runtime-settings";
+import { assertEvidenceProvenance } from "@/server/evidence-provenance";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const requestId = getRequestId(request);
@@ -13,10 +14,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     await assertCsrf(request, pilot.csrfToken);
     const { id } = await context.params;
     const db = getPrisma();
-    const image = await db.evidenceImage.findFirst({ where: { id, pilotId: pilot.id } });
+    const image = await db.evidenceImage.findFirst({
+      where: { id, pilotId: pilot.id, OR: [{ personId: null }, { personId: pilot.personId }] },
+    });
     const owned = image;
-    if (!owned) return jsonError(new Error("Evidence image not found"), requestId);
+    assertEvidenceProvenance(owned);
     const integration = await getRuntimeIntegration("vlm");
+    if (integration.enabled === false || integration.adapter === "disabled") {
+      return jsonData({ status: "DISABLED" }, requestId);
+    }
     const task = await db.$transaction(async (tx) => {
       const inserted = await tx.recognitionTask.createMany({
         data: [
@@ -43,6 +49,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
     return jsonData({ id: task.id, status: task.status }, requestId, 202);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

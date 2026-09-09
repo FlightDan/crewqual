@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError, getRequestId, jsonData, jsonError } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
+import { adminOrganizationWhere } from "@/server/admin-organization-scope";
 import { customFieldsFromFieldSchema } from "@/lib/qualification-fields";
 
 const positionCodeSchema = z
@@ -18,13 +19,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const positionCode = positionCodeSchema.parse(
       new URL(request.url).searchParams.get("positionCode"),
     );
-    const organizationId = admin.organizationId ?? admin.unitId;
+    const scope = adminOrganizationWhere(
+      admin,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
     const item = await getPrisma().qualificationRequirement.findFirst({
       where: {
         id: (await context.params).id,
         position: {
           code: positionCode,
-          ...(organizationId ? { organizationId } : {}),
+          ...scope,
         },
       },
       include: { position: true, qualificationDefinition: true },
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         id: item.id,
         qualificationId: definition.id,
         positionCode: item.position.code,
+        organizationId: item.position.organizationId,
         code: definition.code,
         name: definition.name,
         translations: definition.translations ?? {},
@@ -54,6 +59,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

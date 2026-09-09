@@ -1,17 +1,25 @@
 import { getPrisma } from "@/server/prisma";
 import { getServerConfig } from "@/server/config";
 import { Prisma } from "@/generated/prisma/client";
+import { securityHasher } from "@/server/security-source";
+
+/** The database never receives the raw address, email, mobile or token dimension. */
+export function rateLimitStorageKey(key: string) {
+  const hasher = securityHasher();
+  return `v1:${hasher.keyVersion}:${hasher.hash("dimension", `rate-limit:${key}`)}`;
+}
 
 export async function consumeRateLimit(key: string, limit: number, windowMs: number) {
   const db = getPrisma();
   const now = new Date();
+  const storageKey = rateLimitStorageKey(key);
   // The decision and counter update must be one database operation.  The
   // previous find-then-upsert path allowed every first request racing on a
   // fresh key through while leaving the stored count at one.
   if (typeof (db as { $queryRaw?: unknown }).$queryRaw === "function") {
     const rows = await db.$queryRaw<Array<{ allowed: boolean }>>(Prisma.sql`
       INSERT INTO "RateLimitBucket" ("key", "windowStart", "count", "updatedAt")
-      VALUES (${key}, ${now}::timestamptz, 1, ${now}::timestamptz)
+      VALUES (${storageKey}, ${now}::timestamptz, 1, ${now}::timestamptz)
       ON CONFLICT ("key") DO UPDATE SET
         "windowStart" = CASE
           WHEN "RateLimitBucket"."windowStart" <= EXCLUDED."windowStart" - (${windowMs}::double precision * interval '1 millisecond')
@@ -32,17 +40,17 @@ export async function consumeRateLimit(key: string, limit: number, windowMs: num
     return rows[0]?.allowed === true;
   }
   // Small unit-test doubles may only expose the model delegate.
-  const current = await db.rateLimitBucket.findUnique({ where: { key } });
+  const current = await db.rateLimitBucket.findUnique({ where: { key: storageKey } });
   if (!current || now.getTime() - current.windowStart.getTime() >= windowMs) {
     await db.rateLimitBucket.upsert({
-      where: { key },
+      where: { key: storageKey },
       update: { windowStart: now, count: 1 },
-      create: { key, windowStart: now, count: 1 },
+      create: { key: storageKey, windowStart: now, count: 1 },
     });
     return true;
   }
   const updated = await db.rateLimitBucket.updateMany({
-    where: { key, count: { lt: limit } },
+    where: { key: storageKey, count: { lt: limit } },
     data: { count: { increment: 1 } },
   });
   return updated.count === 1;

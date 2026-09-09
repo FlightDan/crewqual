@@ -87,6 +87,6 @@ export async function GET(request: NextRequest) {
     });
     return jsonData({ items: result, dueWindowDays: DUE_WINDOW_DAYS }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

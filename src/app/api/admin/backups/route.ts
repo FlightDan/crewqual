@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   try {
     return jsonData(await listBackupSettings(await getAdmin(request, "settings.read")), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       );
     return jsonError(new Error("Unknown backup action"), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -115,6 +115,6 @@ export async function PATCH(request: NextRequest) {
     }
     return jsonError(new Error("Unknown backup action"), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -14,6 +14,8 @@ import {
   type RecognitionJobPayload,
 } from "@/server/worker-handlers";
 import { processQueuedBackupRuns } from "@/server/backup-runner";
+import { aggregateSecurityDetections, cleanupSecurityTelemetry } from "@/server/security-detection";
+import { monitorCaddySecurityHealth } from "@/server/security-caddy-health";
 import { createShutdownHandler } from "@/worker/lifecycle";
 
 async function main() {
@@ -64,6 +66,18 @@ async function main() {
     }
   });
 
+  await boss.work(QUEUES.securityDetection, async () => {
+    const caddyHealth = await monitorCaddySecurityHealth(process.env.CADDY_METRICS_URL, db);
+    // Do not advance the completeness watermark until the ingress monitor has
+    // established coverage. A later successful scrape can safely establish a
+    // baseline because Caddy's counters cover the lifetime of that process.
+    if (caddyHealth === "disabled" || caddyHealth === "uninitialized") return;
+    await aggregateSecurityDetections(db);
+  });
+  await boss.work(QUEUES.securityCleanup, async () => {
+    await cleanupSecurityTelemetry(db);
+  });
+
   await boss.work(QUEUES.reminders, async () => processReminderJob(db));
 
   await boss.work(QUEUES.cleanup, async () => processCleanupJob(db, deletePrivateEvidence));
@@ -72,6 +86,8 @@ async function main() {
   );
   await boss.work(QUEUES.backups, async () => processQueuedBackupRuns());
 
+  await boss.schedule(QUEUES.securityDetection, "* * * * *", {});
+  await boss.schedule(QUEUES.securityCleanup, "15 3 * * *", {});
   await boss.schedule(QUEUES.cleanup, "0 3 * * *", {});
   await boss.schedule(QUEUES.reminders, "0 8 * * *", {});
   await boss.schedule(QUEUES.mediaOptimization, "*/5 * * * *", { batchSize: 5 });

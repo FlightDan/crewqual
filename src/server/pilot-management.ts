@@ -3,6 +3,7 @@ import { getAdminPilot } from "@/server/admin-repository";
 import { isSuperAdmin, requireAssignedUnit } from "@/server/admin-permissions";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   createPilotCsvTemplate,
   parsePilotCsv,
@@ -130,13 +131,37 @@ export async function getPilotManagementMeta(
   admin: AuthenticatedAdmin,
 ): Promise<PilotManagementMeta> {
   const unitId = requireAssignedUnit(admin);
-  const [units, qualifications] = await Promise.all([
-    getPrisma().organizationUnit.findMany({
-      where: { active: true, ...(unitId ? { id: unitId } : {}) },
-      select: { id: true, code: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    getPrisma().qualificationType.findMany({
+  const db = getPrisma();
+  const unitsWithOrganization = await db.organizationUnit.findMany({
+    where: { active: true, ...(unitId ? { id: unitId } : {}) },
+    select: { id: true, code: true, name: true, organizationId: true },
+    orderBy: { name: "asc" },
+  });
+  const organizationIds = [
+    ...new Set(
+      unitsWithOrganization
+        .map((unit) => unit.organizationId)
+        .filter((organizationId): organizationId is string => Boolean(organizationId)),
+    ),
+  ];
+  const [definitions, legacyTypes] = await Promise.all([
+    organizationIds.length
+      ? db.qualificationDefinition.findMany({
+          where: { organizationId: { in: organizationIds }, active: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            translations: true,
+            validityRule: true,
+            version: true,
+            parameterRestriction: true,
+            legacyQualificationTypeId: true,
+          },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        })
+      : [],
+    db.qualificationType.findMany({
       where: { active: true },
       select: {
         id: true,
@@ -150,21 +175,45 @@ export async function getPilotManagementMeta(
       orderBy: [{ core: "desc" }, { name: "asc" }],
     }),
   ]);
-  const mappedQualifications = qualifications.map((qualification) => ({
-    id: qualification.id,
-    code: qualification.code,
-    name: qualification.name,
-    translations:
-      qualification.translations && typeof qualification.translations === "object"
-        ? (qualification.translations as Record<string, string>)
-        : {},
-    validityRule: parseValidityRule(qualification.validityRule),
-    ruleVersion: qualification.version,
-    parameterRestriction:
-      qualification.parameterRestriction as PilotManagementMeta["qualifications"][number]["parameterRestriction"],
-  }));
+  // Definitions are the source of truth for a newly installed organization.
+  // Keep a legacy-only fallback for databases that predate the member model;
+  // do not mix definitions from another organization into a scoped admin's
+  // metadata.
+  const mappedQualifications = definitions.length
+    ? [...new Map(definitions.map((definition) => [definition.code, definition])).values()].map(
+        (definition) => ({
+          id: definition.legacyQualificationTypeId ?? definition.id,
+          definitionId: definition.id,
+          ...(definition.legacyQualificationTypeId
+            ? { legacyQualificationTypeId: definition.legacyQualificationTypeId }
+            : {}),
+          code: definition.code,
+          name: definition.name,
+          translations:
+            definition.translations && typeof definition.translations === "object"
+              ? (definition.translations as Record<string, string>)
+              : {},
+          validityRule: parseValidityRule(definition.validityRule),
+          ruleVersion: definition.version,
+          parameterRestriction:
+            definition.parameterRestriction as PilotManagementMeta["qualifications"][number]["parameterRestriction"],
+        }),
+      )
+    : legacyTypes.map((qualification) => ({
+        id: qualification.id,
+        code: qualification.code,
+        name: qualification.name,
+        translations:
+          qualification.translations && typeof qualification.translations === "object"
+            ? (qualification.translations as Record<string, string>)
+            : {},
+        validityRule: parseValidityRule(qualification.validityRule),
+        ruleVersion: qualification.version,
+        parameterRestriction:
+          qualification.parameterRestriction as PilotManagementMeta["qualifications"][number]["parameterRestriction"],
+      }));
   return {
-    units,
+    units: unitsWithOrganization.map(({ id, code, name }) => ({ id, code, name })),
     qualifications: mappedQualifications,
     csvHeaders: pilotCsvHeaders(mappedQualifications),
   };
@@ -194,8 +243,19 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
     throw new ApiError("UNIT_REQUIRED", "超级管理员导出前必须选择中队", 422);
   }
   const db = getPrisma();
-  const [unit, qualifications, pilots] = await Promise.all([
-    db.organizationUnit.findFirst({ where: { id: unitId, active: true } }),
+  const unit = await db.organizationUnit.findFirst({
+    where: { id: unitId, active: true },
+    select: { id: true, code: true, name: true, organizationId: true },
+  });
+  if (!unit) throw new ApiError("UNIT_NOT_ALLOWED", "中队不存在或已停用", 422);
+  const [definitions, legacyTypes, pilots] = await Promise.all([
+    unit.organizationId
+      ? db.qualificationDefinition.findMany({
+          where: { organizationId: unit.organizationId, active: true },
+          select: { code: true },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        })
+      : [],
     db.qualificationType.findMany({
       where: { active: true },
       select: { id: true, code: true, name: true },
@@ -208,7 +268,8 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
         qualifications: {
           where: { status: "ACTIVE" },
           include: {
-            qualificationType: { select: { id: true, name: true, translations: true } },
+            qualificationType: { select: { id: true, code: true, name: true, translations: true } },
+            qualificationDefinition: { select: { code: true } },
           },
           orderBy: { updatedAt: "desc" },
         },
@@ -216,11 +277,14 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
       orderBy: { employeeNumber: "asc" },
     }),
   ]);
-  if (!unit) throw new ApiError("UNIT_NOT_ALLOWED", "中队不存在或已停用", 422);
+  const qualifications = definitions.length ? definitions : legacyTypes;
   const headers = pilotCsvHeaders(qualifications);
   const rows = pilots.map((pilot) => {
     const records = new Map(
-      pilot.qualifications.map((record) => [record.qualificationTypeId, record]),
+      pilot.qualifications.map((record) => [
+        record.qualificationDefinition?.code ?? record.qualificationType.code,
+        record,
+      ]),
     );
     const values = [
       pilot.employeeNumber,
@@ -232,7 +296,7 @@ export async function getPilotCsvExport(admin: AuthenticatedAdmin, requestedUnit
       pilot.rankLabel,
     ];
     qualifications.forEach((qualification) => {
-      const record = records.get(qualification.id);
+      const record = records.get(qualification.code);
       values.push(
         record?.issueDate.toISOString().slice(0, 10) ?? "",
         record?.trainingDate?.toISOString().slice(0, 10) ?? "",
@@ -485,14 +549,62 @@ export async function importPilotCsv(
   const qualificationIds = [
     ...new Set(validRows.flatMap((row) => row.qualifications.map((item) => item.qualificationId))),
   ];
-  const qualificationTypes = await getPrisma().qualificationType.findMany({
-    where: { id: { in: qualificationIds } },
+  const qualificationCodes = [
+    ...new Set(
+      validRows.flatMap((row) => row.qualifications.map((item) => item.qualificationCode)),
+    ),
+  ];
+  const organizationIds = [
+    ...new Set(
+      [...result.allowedUnits.values()]
+        .map((unit) => unit.organizationId)
+        .filter((organizationId): organizationId is string => Boolean(organizationId)),
+    ),
+  ];
+  const db = getPrisma();
+  const qualificationDefinitions = organizationIds.length
+    ? await db.qualificationDefinition.findMany({
+        where: {
+          organizationId: { in: organizationIds },
+          active: true,
+          code: { in: qualificationCodes },
+        },
+      })
+    : [];
+  const linkedTypeIds = qualificationDefinitions
+    .map((definition) => definition.legacyQualificationTypeId)
+    .filter((id): id is string => Boolean(id));
+  const qualificationTypes = await db.qualificationType.findMany({
+    where: {
+      OR: [
+        ...(qualificationIds.length ? [{ id: { in: qualificationIds } }] : []),
+        ...(linkedTypeIds.length ? [{ id: { in: linkedTypeIds } }] : []),
+        ...(qualificationCodes.length ? [{ code: { in: qualificationCodes } }] : []),
+      ],
+    },
   });
   const qualificationTypeMap = new Map(qualificationTypes.map((type) => [type.id, type]));
+  const qualificationTypeByCode = new Map(qualificationTypes.map((type) => [type.code, type]));
+  const qualificationDefinitionByOrganizationAndCode = new Map(
+    qualificationDefinitions.map((definition) => [
+      `${definition.organizationId}:${definition.code}`,
+      definition,
+    ]),
+  );
   for (const row of validRows) {
+    const unit = result.allowedUnits.get(row.input.unitCode);
     for (const qualification of row.qualifications) {
-      const type = qualificationTypeMap.get(qualification.qualificationId);
-      if (!type) throw new ApiError("QUALIFICATION_NOT_FOUND", "资质项目不存在或已停用", 422);
+      const definition = unit?.organizationId
+        ? qualificationDefinitionByOrganizationAndCode.get(
+            `${unit.organizationId}:${qualification.qualificationCode}`,
+          )
+        : undefined;
+      const type =
+        qualificationTypeMap.get(
+          qualification.legacyQualificationTypeId ?? qualification.qualificationId,
+        ) ?? qualificationTypeByCode.get(qualification.qualificationCode);
+      const ruleSource = type ?? definition;
+      if (!ruleSource) throw new ApiError("QUALIFICATION_NOT_FOUND", "资质项目不存在或已停用", 422);
       const validation = validateQualificationRuleFields(
         {
           issueDate: qualification.issueDate,
@@ -500,15 +612,15 @@ export async function importPilotCsv(
           expiryDate: qualification.expiryDate || null,
           levelOrParameter: qualification.levelOrParameter,
         },
-        parseValidityRule(type.validityRule),
-        type.parameterRestriction,
+        parseValidityRule(ruleSource.validityRule),
+        ruleSource.parameterRestriction,
       );
       if (validation.errors.length) {
         throw new ApiError("IMPORT_VALIDATION_FAILED", validation.errors[0]!.message, 422);
       }
     }
   }
-  const imported = await getPrisma().$transaction(async (tx) => {
+  const imported = await db.$transaction(async (tx) => {
     const pilotIds: string[] = [];
     let qualificationCount = 0;
     let createdCount = 0;
@@ -552,21 +664,62 @@ export async function importPilotCsv(
       if (existing) updatedCount += 1;
       const projection = await ensurePersonProjection(tx, pilot, unit);
       for (const qualification of row.qualifications) {
-        const qualificationType = qualificationTypeMap.get(qualification.qualificationId)!;
-        const definitionId = projection?.definitions?.find(
-          (definition: any) =>
-            definition.legacyQualificationTypeId === qualification.qualificationId ||
-            definition.code === qualificationType.code,
-        )?.id as string | undefined;
+        const definition = unit.organizationId
+          ? qualificationDefinitionByOrganizationAndCode.get(
+              `${unit.organizationId}:${qualification.qualificationCode}`,
+            )
+          : undefined;
+        const definitionId =
+          definition?.id ??
+          (projection?.definitions?.find(
+            (candidate: any) => candidate.code === qualification.qualificationCode,
+          )?.id as string | undefined);
+        let qualificationType =
+          qualificationTypeMap.get(
+            qualification.legacyQualificationTypeId ?? qualification.qualificationId,
+          ) ?? qualificationTypeByCode.get(qualification.qualificationCode);
+        if (!qualificationType && definition) {
+          // Custom definitions created after installation may not have a
+          // compatibility row yet. Create one transactionally so the legacy
+          // record schema can still store an imported record, then link the
+          // definition for subsequent requests.
+          qualificationType = await tx.qualificationType.upsert({
+            where: { code: definition.code },
+            update: {},
+            create: {
+              code: definition.code,
+              name: definition.name,
+              translations: definition.translations as Prisma.InputJsonValue,
+              core: false,
+              active: definition.active,
+              parameterRestriction: definition.parameterRestriction as Prisma.InputJsonValue,
+              validityRule: definition.validityRule as Prisma.InputJsonValue,
+              reminders: definition.reminders as Prisma.InputJsonValue,
+              ocrChecks: definition.ocrChecks as Prisma.InputJsonValue,
+              version: definition.version,
+            },
+          });
+          if (!definition.legacyQualificationTypeId) {
+            await tx.qualificationDefinition.update({
+              where: { id: definition.id },
+              data: { legacyQualificationTypeId: qualificationType.id },
+            });
+          }
+          qualificationTypeMap.set(qualificationType.id, qualificationType);
+          qualificationTypeByCode.set(qualificationType.code, qualificationType);
+        }
+        if (!qualificationType) {
+          throw new ApiError("QUALIFICATION_NOT_FOUND", "资质项目不存在或已停用", 422);
+        }
         if (definitionId) {
-          const definition = await tx.qualificationDefinition.findUnique({
+          const definitionConfig = await tx.qualificationDefinition.findUnique({
             where: { id: definitionId },
             select: { requiresEvidence: true, requiresHumanReview: true, allowAutoApproval: true },
           });
           if (
-            definition &&
-            (definition.requiresEvidence || definition.requiresHumanReview) &&
-            !definition.allowAutoApproval
+            definitionConfig &&
+            (definitionConfig.requiresEvidence || definitionConfig.requiresHumanReview) &&
+            !definitionConfig.allowAutoApproval
           ) {
             throw new ApiError(
               "IMPORT_REQUIRES_REVIEW",
@@ -578,7 +731,7 @@ export async function importPilotCsv(
         const currentRecord = await tx.qualificationRecord.findFirst({
           where: {
             pilotId: pilot.id,
-            qualificationTypeId: qualification.qualificationId,
+            qualificationTypeId: qualificationType.id,
             status: "ACTIVE",
           },
         });
@@ -595,7 +748,7 @@ export async function importPilotCsv(
             pilotId: pilot.id,
             personId: projection?.id,
             qualificationDefinitionId: definitionId,
-            qualificationTypeId: qualification.qualificationId,
+            qualificationTypeId: qualificationType.id,
             credentialNumber: "",
             issueDate: csvDate(qualification.issueDate),
             trainingDate: qualification.trainingDate ? csvDate(qualification.trainingDate) : null,

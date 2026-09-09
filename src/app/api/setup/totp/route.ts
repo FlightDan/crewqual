@@ -13,6 +13,6 @@ export async function POST(request: NextRequest) {
     const input = await parseJson(request, schema);
     return jsonData(await provisionSetupTotp(input.email), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

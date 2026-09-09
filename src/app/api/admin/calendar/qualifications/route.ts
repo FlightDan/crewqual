@@ -26,6 +26,6 @@ export async function GET(request: NextRequest) {
     );
     return jsonData(roster, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

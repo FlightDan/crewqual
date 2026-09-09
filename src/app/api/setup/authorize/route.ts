@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set(setupAuthorizationCookie());
     return response;
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -36,6 +36,6 @@ export async function DELETE(request: NextRequest) {
     response.cookies.set({ name: SETUP_AUTH_COOKIE, value: "", maxAge: 0, path: "/" });
     return response;
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

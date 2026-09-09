@@ -15,7 +15,19 @@ export function createOpaqueToken(byteLength = 32) {
 export function createTotpSecret(byteLength = 20) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   const bytes = randomBytes(byteLength);
-  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+  let output = "";
+  let buffer = 0;
+  let bits = 0;
+  for (const byte of bytes) {
+    buffer = (buffer << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      output += alphabet[(buffer >>> bits) & 31];
+    }
+  }
+  if (bits > 0) output += alphabet[(buffer << (5 - bits)) & 31];
+  return output;
 }
 
 function settingsEncryptionKey() {

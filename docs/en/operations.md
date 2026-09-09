@@ -21,6 +21,26 @@ On regular Linux, inspect the host updater with the following commands. WSL2 man
 ```bash
 sudo systemctl status crewqual-updater.service crewqual-updater.socket
 sudo journalctl -u crewqual-updater.service -n 100 --no-pager
+sudo systemctl status crewqual-caddy-recovery.service
+sudo journalctl -u crewqual-caddy-recovery.service -n 100 --no-pager
+```
+
+`crewqual-caddy-recovery.service` waits for the configured host addresses,
+checks Caddy's exact published IPs and ports, and probes the readiness endpoint
+with the deployment secret. It recreates only Caddy when a binding is missing;
+it never widens `APP_BIND` to `0.0.0.0`. A failed unit leaves the deployment
+configuration unchanged and records the reason in its journal. To pause
+automatic recovery while investigating a host network issue, stop and disable
+the unit, then re-enable and start it after the address is available:
+
+The installer and updater also share `/run/crewqual-updater/deployment.lock`,
+so an installation waits for an active upgrade or recovery operation instead
+of replacing files concurrently.
+
+```bash
+sudo systemctl disable --now crewqual-caddy-recovery.service
+# investigate the host address and Caddy logs
+sudo systemctl enable --now crewqual-caddy-recovery.service
 ```
 
 Start troubleshooting with configuration errors, database connectivity, object storage, and outbound allowlists. Remove credentials and personal information before sharing logs.
@@ -38,6 +58,33 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
 See [installation arguments](installation.md) to select a version or channel. The installer preserves secrets in the existing `.env` and Docker volumes while updating managed Compose/Caddy files and image versions. It does not change the network mode or port during an upgrade. Do not use `docker compose down -v` as an upgrade step; it deletes volumes.
 
 The host updater creates an encrypted database backup before upgrading and attempts recovery or rollback if migrations or health checks fail. Automatic recovery can also fail; inspect the update job error. Updater database backups do not include gallery files and do not replace application backups.
+
+## Final release acceptance configuration
+
+Final releases require `acceptance_scope=full`. Full acceptance runs static checks, container bootstrap, supply-chain verification, real S3 disaster recovery and isolated restoration, plus post-publish clean installation, upgrade, and rollback tests before the release is promoted to latest. RCs may use `acceptance_scope=local`; local scope runs the static, bootstrap, supply-chain, and post-publish installation, upgrade, and rollback checks with temporary MinIO and requires no S3, AWS, or external disaster-recovery configuration.
+
+`acceptance_scope=full` is also available for RCs that need the complete infrastructure check. When using full scope, keep S3, AWS, and disaster-recovery configuration exclusively in the `release-sandbox` GitHub Environment; do not rely on repository-level secrets with the same names. Start formal releases through `crewqual-release-publish`, not by dispatching the workflow in the Actions UI. GitHub merges environment and repository scopes in the workflow secret context, so only the publisher's environment inventory check prevents accidental use of a repository secret with the same name. The publisher checks secret names before signing or pushing a tag. The Actions workflow then aggregates value validation, OpenPGP key-to-allowlist matching, and isolation checks before building or pushing images, without printing secret values.
+
+Only full scope requires these infrastructure secrets in `release-sandbox`:
+
+| Category           | Secret names                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| S3 connection      | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_ENDPOINT`, `S3_KMS_KEY_ARN` |
+| Isolated buckets   | `EVIDENCE_S3_BUCKET`, `BACKUP_S3_BUCKET`, `RESTORE_S3_BUCKET`, `S3_FORBIDDEN_PREFIX`        |
+| Recovery evidence  | `BACKUP_RECOVERY_SET_ID`, `BACKUP_DATABASE_RUN_ID`, `BACKUP_GALLERY_RUN_ID`                 |
+| Tamper probes      | `BACKUP_TAMPER_ARTIFACT_KEYS`, `BACKUP_TAMPER_BLOB_SHA256`                                  |
+| Isolated databases | `DATABASE_URL`, `RESTORE_DATABASE_URL`                                                      |
+
+`S3_ENDPOINT` must use HTTPS; all three buckets must differ; the live and restore database URLs must differ; `BACKUP_TAMPER_ARTIFACT_KEYS` must contain non-empty `database`, `gallery`, and `blob` fields; and the blob checksum must be a 64-character hexadecimal SHA-256 value.
+
+Use `gh secret set NAME --repo FlightDan/crewqual --env release-sandbox` to enter one secret interactively. Afterwards, list names and update times without revealing values:
+
+```bash
+gh secret list --repo FlightDan/crewqual --env release-sandbox
+```
+
+`crewqual-release-publish sync-secrets` only synchronizes tag and manifest signing material plus the signer allowlist. It does not create or update the optional full-scope infrastructure configuration above.
+Final releases also require the repository-level `LICENSE_APPROVALS_JSON` secret to be valid JSON containing a string array named `licenses`; `sync-secrets` does not create it either.
 
 ## Backup plans
 

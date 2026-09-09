@@ -300,6 +300,41 @@ export async function installTemplatePackInTransaction(
     where: { organizationId_templatePackId: { organizationId, templatePackId } },
   });
   if (existingInstallation) {
+    // An installation can have been created before the canonical member
+    // architecture was introduced. Repair the compatibility links on a
+    // repeat setup call so the legacy pilot-management endpoints remain
+    // usable without requiring a destructive re-install.
+    for (const definition of pack.qualificationDefinitions) {
+      const existingDefinition = await db.qualificationDefinition.findUnique({
+        where: { organizationId_code: { organizationId, code: definition.code } },
+        select: { id: true, legacyQualificationTypeId: true },
+      });
+      if (!existingDefinition || existingDefinition.legacyQualificationTypeId) continue;
+      const legacyType = await db.qualificationType.findUnique({
+        where: { code: definition.code },
+        select: { id: true },
+      });
+      const type =
+        legacyType ??
+        (await db.qualificationType.create({
+          data: {
+            code: definition.code,
+            name: definition.name,
+            translations: definition.translations,
+            core: true,
+            active: definition.active,
+            parameterRestriction: definition.parameterRestriction,
+            validityRule: definition.validityRule,
+            reminders: definition.reminders,
+            ocrChecks: definition.ocrChecks,
+          },
+          select: { id: true },
+        }));
+      await db.qualificationDefinition.update({
+        where: { id: existingDefinition.id },
+        data: { legacyQualificationTypeId: type.id },
+      });
+    }
     const result = (existingInstallation.result ?? {}) as Record<string, number>;
     return {
       installationId: existingInstallation.id,
@@ -348,13 +383,59 @@ export async function installTemplatePackInTransaction(
   for (const definition of pack.qualificationDefinitions) {
     const existing = await db.qualificationDefinition.findUnique({
       where: { organizationId_code: { organizationId, code: definition.code } },
-      select: { id: true },
+      select: { id: true, legacyQualificationTypeId: true },
     });
     if (existing) {
-      definitions.set(definition.code, existing);
+      if (!existing.legacyQualificationTypeId) {
+        const legacyType = await db.qualificationType.findUnique({
+          where: { code: definition.code },
+          select: { id: true },
+        });
+        const type =
+          legacyType ??
+          (await db.qualificationType.create({
+            data: {
+              code: definition.code,
+              name: definition.name,
+              translations: definition.translations,
+              core: true,
+              active: definition.active,
+              parameterRestriction: definition.parameterRestriction,
+              validityRule: definition.validityRule,
+              reminders: definition.reminders,
+              ocrChecks: definition.ocrChecks,
+            },
+            select: { id: true },
+          }));
+        await db.qualificationDefinition.update({
+          where: { id: existing.id },
+          data: { legacyQualificationTypeId: type.id },
+        });
+      }
+      definitions.set(definition.code, { id: existing.id });
       skippedExisting += 1;
       continue;
     }
+    const legacyType = await db.qualificationType.findUnique({
+      where: { code: definition.code },
+      select: { id: true },
+    });
+    const type =
+      legacyType ??
+      (await db.qualificationType.create({
+        data: {
+          code: definition.code,
+          name: definition.name,
+          translations: definition.translations,
+          core: true,
+          active: definition.active,
+          parameterRestriction: definition.parameterRestriction,
+          validityRule: definition.validityRule,
+          reminders: definition.reminders,
+          ocrChecks: definition.ocrChecks,
+        },
+        select: { id: true },
+      }));
     const created = await db.qualificationDefinition.create({
       data: {
         organizationId,
@@ -375,6 +456,7 @@ export async function installTemplatePackInTransaction(
         sortOrder: definition.sortOrder,
         sourcePackCode: pack.code,
         sourcePackVersion: pack.version,
+        legacyQualificationTypeId: type.id,
       },
       select: { id: true },
     });

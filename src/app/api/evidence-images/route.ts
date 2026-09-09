@@ -2,8 +2,14 @@ import { NextRequest } from "next/server";
 import { ApiError, assertSameOrigin, getRequestId, jsonData, jsonError } from "@/server/api";
 import { assertCsrf, authenticatePilot } from "@/server/auth";
 import { getPrisma } from "@/server/prisma";
-import { deletePrivateEvidence, putPrivateEvidence, validateProcessedJpeg } from "@/server/storage";
+import {
+  deletePrivateEvidence,
+  MAX_EVIDENCE_BYTES,
+  putPrivateEvidence,
+  validateProcessedJpeg,
+} from "@/server/storage";
 import { releaseUpload, reserveUpload } from "@/server/upload-quotas";
+import { EVIDENCE_STORAGE_ENCODING_VERSION } from "@/server/evidence-provenance";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestId(request);
@@ -29,24 +35,30 @@ export async function POST(request: NextRequest) {
     if (value.type !== "image/jpeg") {
       throw new ApiError("INVALID_IMAGE", "只允许上传处理后的 JPEG 图片", 422);
     }
+    if (value.size > MAX_EVIDENCE_BYTES) {
+      throw new ApiError("IMAGE_TOO_LARGE", "图片不能超过 10 MiB", 413);
+    }
     const bytes = new Uint8Array(await value.arrayBuffer());
-    reservationId = await reserveUpload(getPrisma(), pilot.id, bytes.byteLength);
+    reservationId = await reserveUpload(getPrisma(), pilot.id, MAX_EVIDENCE_BYTES);
     const metadata = await validateProcessedJpeg(bytes);
-    const storageBytes = metadata.storageBytes ?? bytes;
-    const storageByteSize = metadata.storageByteSize ?? metadata.byteSize;
-    const storageSha256 = metadata.storageSha256 ?? metadata.sha256;
+    const storageBytes = metadata.storageBytes;
+    const storageByteSize = metadata.storageByteSize;
+    const storageSha256 = metadata.storageSha256;
     const objectKey = await putPrivateEvidence(storageBytes, storageSha256);
     let image;
     try {
       image = await getPrisma().evidenceImage.create({
         data: {
           pilotId: pilot.id,
+          personId: pilot.personId,
           objectKey,
           mimeType: "image/jpeg",
           width: metadata.width,
           height: metadata.height,
           byteSize: storageByteSize,
           sha256: storageSha256,
+          storageEncodingVersion: EVIDENCE_STORAGE_ENCODING_VERSION,
+          sanitizedAt: new Date(),
           status: "orphaned",
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
@@ -72,6 +84,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     if (reservationId) await releaseUpload(getPrisma(), reservationId).catch(() => undefined);
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

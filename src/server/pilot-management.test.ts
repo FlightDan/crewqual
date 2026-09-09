@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { importPilotCsv } from "./pilot-management";
+import { getPilotManagementMeta, importPilotCsv } from "./pilot-management";
 import type { AuthenticatedAdmin } from "./auth";
 const mocks = vi.hoisted(() => ({ getPrisma: vi.fn() }));
 vi.mock("@/server/prisma", () => ({ getPrisma: mocks.getPrisma }));
@@ -83,5 +83,49 @@ describe("CSV qualification revisions", () => {
     });
     expect(db.tx.qualificationRecord.create).not.toHaveBeenCalled();
     expect(db.tx.auditEvent.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("canonical qualification metadata", () => {
+  it("projects organization definitions to the legacy management contract", async () => {
+    const definition = {
+      id: "definition-medical",
+      code: "medical",
+      name: "体检合格证",
+      translations: { en: "Medical certificate" },
+      validityRule: { kind: "manual_expiry" },
+      version: 3,
+      parameterRestriction: { enabled: false, description: "" },
+      legacyQualificationTypeId: "legacy-medical",
+    };
+    mocks.getPrisma.mockReturnValue({
+      organizationUnit: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: "unit-hq", code: "HQ", name: "总部", organizationId: "org-a" },
+          ]),
+      },
+      qualificationDefinition: { findMany: vi.fn().mockResolvedValue([definition]) },
+      qualificationType: { findMany: vi.fn().mockResolvedValue([]) },
+    });
+
+    const meta = await getPilotManagementMeta(admin);
+
+    expect(meta.units).toEqual([{ id: "unit-hq", code: "HQ", name: "总部" }]);
+    expect(meta.qualifications).toEqual([
+      {
+        id: "legacy-medical",
+        definitionId: "definition-medical",
+        legacyQualificationTypeId: "legacy-medical",
+        code: "medical",
+        name: "体检合格证",
+        translations: { en: "Medical certificate" },
+        validityRule: { kind: "manual_expiry" },
+        ruleVersion: 3,
+        parameterRestriction: { enabled: false, description: "" },
+      },
+    ]);
+    expect(meta.csvHeaders).toContain("medical.issueDate");
   });
 });

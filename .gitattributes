@@ -1,0 +1,2 @@
+# Prisma 7.9 generates documentation blocks with intentional trailing spaces.
+src/generated/prisma/** whitespace=-trailing-space

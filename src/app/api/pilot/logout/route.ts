@@ -37,6 +37,6 @@ export async function POST(request: NextRequest) {
     }
     return jsonData({ authenticated: false }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

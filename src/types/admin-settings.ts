@@ -10,6 +10,64 @@ export type SettingsSectionId =
   | "backups"
   | "updates";
 
+export type SecurityRiskRange = "24h" | "7d" | "30d";
+export type SecurityRiskCategory =
+  "PUBLIC_SCAN" | "CREDENTIAL_STUFFING" | "DISTRIBUTED_LOGIN_ATTEMPT";
+export type SecurityRiskCounts = {
+  batches: number;
+  requests: number;
+  sources: number | null;
+  sourceSegments: Record<string, number>;
+};
+export type SecurityRiskTrendPoint = {
+  bucketStart: string;
+  requests: number;
+  categories: Record<SecurityRiskCategory, number>;
+};
+export type SecurityRiskSummary = SecurityRiskCounts & {
+  keyRotation: boolean;
+  unknownSourceRequests: number;
+  categories: Record<SecurityRiskCategory, SecurityRiskCounts>;
+  trend: SecurityRiskTrendPoint[];
+  trendBucketSeconds: number;
+  since: string;
+  until: string;
+  complete: boolean;
+  collectionHealthy: boolean;
+  processedThrough: string | null;
+  lastCollectedAt: string | null;
+  lastAggregatedAt: string | null;
+  droppedCount: number;
+  lastError: string | null;
+  delayed: boolean;
+};
+export type SecurityLoginSummary = SecurityRiskSummary & { sessionId: string };
+export type SecurityRiskDetection = {
+  id: string;
+  category: SecurityRiskCategory;
+  ruleVersion: number;
+  windowStart: string;
+  windowEnd: string;
+  requestCount: number;
+  sourceCount: number;
+  accountCount: number;
+  pathCount: number;
+  truncatedByRetention: boolean;
+  sample: {
+    rules: string[];
+    maskedSources: string[];
+    successfulLoginAfterAttack: boolean;
+  };
+  accounts?: Array<{ label: string; masked: boolean; count: number }>;
+};
+export type SecurityRiskDetectionPage = {
+  items: SecurityRiskDetection[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type MediaOptimizationSetting = {
   id: "global";
   enabled: boolean;
@@ -101,6 +159,8 @@ export type SettingsPosition = {
 export type SettingsAdminRole = "SUPER_ADMIN" | "ADMIN" | "REVIEWER" | "VIEWER";
 
 export type AdminLoginMode = "PASSWORD_TOTP" | "TOTP_ONLY" | "PASSWORD_ONLY";
+export type AuthenticationPreset = "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE";
+export type MemberLoginMode = "PASSWORD_TOTP" | "PASSWORD_FIDO2" | "SMS_LINK";
 
 export type SettingsAdminAccount = {
   id: string;
@@ -158,6 +218,11 @@ export type SecurityPolicy = {
   appOrigin: string;
   appPort: number;
   adminLoginMode: AdminLoginMode;
+  authenticationPreset: AuthenticationPreset;
+  memberLoginMode: MemberLoginMode;
+  adminFido2Required: boolean;
+  memberFido2Required: boolean;
+  highRiskReauthEnabled: boolean;
   adminSessionTtlHours: number;
   pilotAccessLinkTtlMinutes: number;
   pilotSessionTtlMinutes: number;

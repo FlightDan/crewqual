@@ -4,7 +4,7 @@
 
 ## Sign in and permissions
 
-Open `/admin/login` and enter your administrator email. Supply a password, a time-based one-time code (TOTP), or both as requested by the page. The security policy determines the login method.
+Open `/admin/login` and enter your administrator email. Supply the password and/or time-based one-time code (TOTP) requested by the page. Enhanced authentication also requires a FIDO2 hardware authenticator. The security policy determines the login method.
 
 | Role                              | Typical actions                                                                                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -14,6 +14,12 @@ Open `/admin/login` and enter your administrator email. Supply a password, a tim
 | Viewer `VIEWER`                   | View business pages without review decisions or business write access.                                                                                              |
 
 Administrators other than super administrators require an assigned unit, which limits their access to personnel data. Access to the settings page does not grant permission to edit every setting. The system requires at least one active super administrator.
+
+Read [Security and authentication](security.md) for the exact behavior of authentication targets, sessions, and security audit. Setup and System settings provide three targets: Enhanced requires password, TOTP, and FIDO2 for administrators and members; Combined requires password and TOTP for both; Convenience uses password and TOTP for administrators and a one-time SMS link for members. A target configures identity factors and is not a claim that the whole standard has passed.
+
+The Security and audit area in System settings lists active administrator sessions, filters recent audit records, and shows statistics, trends, and collection completeness for public scans, credential stuffing, and distributed login attempts. The post-login summary covers complete minutes since the previous successful sign-in, capped at 30 days, or the latest 24 hours for a first sign-in, and appears once per browser session. A super administrator with `settings.security.write` can end other sessions. `audit.read` grants global statistics and audit read access only; an ordinary administrator sees a full linked account only while that account is currently confirmed in the administrator's unit, and other accounts remain masked. Changing the authentication target, disabling high-risk reauthentication, or changing an important security policy requires reauthentication under the current policy and invalidates sessions from the old policy.
+
+An administrator cannot directly enter another administrator's new password. Account management creates a one-time recovery task valid for 30 minutes. The target administrator sets a new password of at least 12 characters at `/admin/password-reset`. A verified TOTP also requires the current code; without a verified TOTP, the target must complete the task in a browser where that account is still signed in. Completing the task revokes the target account's other sessions.
 
 ## Maintain members and requirements
 

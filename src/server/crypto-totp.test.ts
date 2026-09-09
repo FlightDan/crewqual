@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verifyTotp } from "@/server/crypto";
+import { createTotpSecret, verifyTotp } from "@/server/crypto";
 
 describe("TOTP verification", () => {
   const secret = "JBSWY3DPEHPK3PXP";
@@ -14,5 +14,10 @@ describe("TOTP verification", () => {
     expect(verifyTotp(secret, "", 0)).toBeNull();
     expect(verifyTotp(secret, "12345", 0)).toBeNull();
     expect(verifyTotp(secret, "000000", 0)).toBeNull();
+  });
+
+  it("creates a full-length RFC 4648 Base32 secret", () => {
+    const generated = createTotpSecret(20);
+    expect(generated).toMatch(/^[A-Z2-7]{32}$/);
   });
 });

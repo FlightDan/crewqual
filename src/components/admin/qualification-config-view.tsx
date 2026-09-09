@@ -24,6 +24,7 @@ import { localizedQualificationName } from "@/lib/i18n";
 import { useApplicationServices } from "@/services/application-services-provider";
 import type { QualificationConfig, QualificationConfigInput, ValidityRule } from "@/types/services";
 import { useAdminSession } from "@/services/admin-session-provider";
+import { adminSettingsService } from "@/services/admin-settings-service";
 import { useI18n } from "@/components/i18n-provider";
 
 const qualificationConfigsQueryKey = ["admin", "qualification-configs"] as const;
@@ -72,6 +73,7 @@ function CreateQualificationDialog({
   onNameChange,
   kind,
   onKindChange,
+  organizationSelection,
   error,
   loading,
   onCreate,
@@ -82,6 +84,13 @@ function CreateQualificationDialog({
   onNameChange: (name: string) => void;
   kind: QualificationKind;
   onKindChange: (kind: QualificationKind) => void;
+  organizationSelection?: {
+    value: string;
+    options: Array<{ value: string; label: string }>;
+    onChange: (value: string) => void;
+    loading: boolean;
+    error?: string;
+  };
   error: string;
   loading: boolean;
   onCreate: () => void;
@@ -98,6 +107,28 @@ function CreateQualificationDialog({
         </DialogDescription>
         <div className="mt-4 space-y-4">
           {error ? <Alert tone="danger">{error}</Alert> : null}
+          {organizationSelection ? (
+            <Select
+              label={t("qualificationConfig.targetOrganization")}
+              required
+              value={organizationSelection.value}
+              onChange={(event) => organizationSelection.onChange(event.target.value)}
+              disabled={organizationSelection.loading || loading}
+              error={organizationSelection.error}
+              helperText={t("qualificationConfig.targetOrganizationHelp")}
+              options={[
+                {
+                  value: "",
+                  label: t(
+                    organizationSelection.loading
+                      ? "qualificationConfig.loadingOrganizations"
+                      : "qualificationConfig.chooseOrganization",
+                  ),
+                },
+                ...organizationSelection.options,
+              ]}
+            />
+          ) : null}
           <Input
             label={t("qualificationConfig.name")}
             required
@@ -162,7 +193,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
   const params = useSearchParams();
   const positions = useAdminPositions(pathname);
   const { qualificationConfigs } = useApplicationServices();
-  const { hasPermission } = useAdminSession();
+  const { hasPermission, isSuperAdmin } = useAdminSession();
   const canWrite = hasPermission("operations.write");
   const queryClient = useQueryClient();
   const configsQuery = useQuery({
@@ -200,6 +231,47 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
   const [newOpen, setNewOpen] = React.useState(false);
   const [newName, setNewName] = React.useState("");
   const [newKind, setNewKind] = React.useState<QualificationKind>("supplemental");
+  const [newOrganizationId, setNewOrganizationId] = React.useState("");
+  const [organizationError, setOrganizationError] = React.useState("");
+  const organizationsQuery = useQuery({
+    queryKey: ["admin", "qualification-target-organizations"],
+    queryFn: () => adminSettingsService.load(),
+    enabled: isSuperAdmin && newOpen,
+  });
+  const organizationOptions = React.useMemo(() => {
+    const settings = organizationsQuery.data;
+    if (!settings) return [];
+    const ids = new Set(
+      settings.positions
+        .filter((position) => position.code === positionCode)
+        .map((position) => position.organizationId),
+    );
+    return [...ids].map((id) => ({
+      value: id,
+      label:
+        settings.units
+          .filter((unit) => unit.organizationId === id)
+          .map((unit) => unit.name)
+          .join(" / ") || id,
+    }));
+  }, [organizationsQuery.data, positionCode]);
+  const organizationSelection = isSuperAdmin
+    ? {
+        value: newOrganizationId,
+        options: organizationOptions,
+        onChange: (value: string) => {
+          setNewOrganizationId(value);
+          setOrganizationError("");
+        },
+        loading: organizationsQuery.isPending,
+        error: organizationsQuery.isError
+          ? t("qualificationConfig.organizationLoadError")
+          : organizationError ||
+            (organizationsQuery.isSuccess && organizationOptions.length === 0
+              ? t("qualificationConfig.noTargetOrganizations")
+              : undefined),
+      }
+    : undefined;
   const [error, setError] = React.useState("");
   const [success, setSuccess] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -274,15 +346,26 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
     setError("");
     setNewName("");
     setNewKind("supplemental");
+    setNewOrganizationId("");
+    setOrganizationError("");
     setNewOpen(true);
   };
 
   const createQualification = async () => {
     if (loading) return;
+    if (
+      isSuperAdmin &&
+      (!organizationsQuery.isSuccess ||
+        !organizationOptions.some((option) => option.value === newOrganizationId))
+    ) {
+      setOrganizationError(t("qualificationConfig.chooseOrganization"));
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       const created = await qualificationConfigs.create({
+        ...(isSuperAdmin ? { organizationId: newOrganizationId } : {}),
         positionCode,
         kind: newKind,
         name: newName,
@@ -371,6 +454,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
           onNameChange={setNewName}
           kind={newKind}
           onKindChange={setNewKind}
+          organizationSelection={organizationSelection}
           error={error}
           loading={loading}
           onCreate={() => void createQualification()}
@@ -998,6 +1082,7 @@ export function QualificationConfigView({ positionCode = "PILOT" }: { positionCo
         onNameChange={setNewName}
         kind={newKind}
         onKindChange={setNewKind}
+        organizationSelection={organizationSelection}
         error={error}
         loading={loading}
         onCreate={() => void createQualification()}

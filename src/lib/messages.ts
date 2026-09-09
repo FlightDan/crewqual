@@ -34,6 +34,12 @@ const zhCN: MessageDictionary = {
   "qualificationConfig.createDescription":
     "项目只属于当前职位；核心资质计入合规与升级硬约束，补充资质不计入核心完成率。",
   "qualificationConfig.name": "资质项目名称",
+  "qualificationConfig.targetOrganization": "目标组织",
+  "qualificationConfig.targetOrganizationHelp": "按单位名称区分组织；仅列出已设置当前职位的组织。",
+  "qualificationConfig.chooseOrganization": "请选择目标组织",
+  "qualificationConfig.loadingOrganizations": "正在加载组织…",
+  "qualificationConfig.organizationLoadError": "组织加载失败，请关闭窗口后重试。",
+  "qualificationConfig.noTargetOrganizations": "没有可选组织，请先在设置中为组织添加当前职位。",
   "qualificationConfig.kind": "资质类型",
   "qualificationConfig.supplemental": "补充资质",
   "qualificationConfig.core": "核心资质",
@@ -593,6 +599,66 @@ const zhCN: MessageDictionary = {
   "settingsNotify.connectionFailed": "连接测试失败",
   "settingsNotify.networkHelp": "请检查网络和服务地址",
   "settingsSecurity.title": "安全与审计",
+  "securityRisk.title": "公网风险统计",
+  "securityRisk.description":
+    "全局扫描、撞库和分布式登录尝试统计；规则命中表示疑似风险，不代表确认入侵。",
+  "securityRisk.scope": "覆盖 Caddy 站点处理链；不含 TLS 握手、ACME 和自动 HTTPS 重定向。",
+  "securityRisk.range": "统计时间范围",
+  "securityRisk.range24h": "最近 24 小时",
+  "securityRisk.range7d": "最近 7 天",
+  "securityRisk.range30d": "最近 30 天",
+  "securityRisk.refresh": "刷新统计",
+  "securityRisk.preview": "演示模式不采集真实公网请求，以下统计尚不可用。",
+  "securityRisk.complete": "统计完整",
+  "securityRisk.incomplete": "安全统计暂不完整",
+  "securityRisk.delayed": "统计延迟，近期请求尚未全部聚合。",
+  "securityRisk.collectionError": "采集异常，当前数据不能代表全部公网请求。",
+  "securityRisk.loadError": "安全统计加载失败，请重试。",
+  "securityRisk.detectionsError": "检测批次加载失败，请重试。",
+  "securityRisk.lastAggregated": "最近聚合：{time}",
+  "securityRisk.period": "统计区间：{since} 至 {until}（北京时间，分钟精度）",
+  "securityRisk.batches": "疑似攻击批次",
+  "securityRisk.requests": "相关请求",
+  "securityRisk.sources": "来源",
+  "securityRisk.segmented": "按版本分段",
+  "securityRisk.sourceSegment": "版本 {version}：{count} 个来源",
+  "securityRisk.keyRotation": "统计期间发生密钥轮换，跨版本来源可能重复，不能相加为精确来源总数。",
+  "securityRisk.unknownSources": "来源不可判定：{count} 次请求，未计入来源数。",
+  "securityRisk.overflow": "容量保护已丢弃 {count} 条信号，统计可能不完整。",
+  "securityRisk.observedOnly": "以下为已观察到的数据，不能据此判断没有攻击。",
+  "securityRisk.empty": "此区间未检测到疑似扫描、撞库或分布式登录尝试。",
+  "securityRisk.noDetails": "此区间暂无检测批次。",
+  "securityRisk.trend": "分类趋势",
+  "securityRisk.trendDescription":
+    "按时间展示相关请求数。分类可能重叠，全局请求数按并集去重，不能直接相加分类值。",
+  "securityRisk.trendTable": "趋势数据表",
+  "securityRisk.time": "时间（北京时间）",
+  "securityRisk.PUBLIC_SCAN": "疑似扫描",
+  "securityRisk.CREDENTIAL_STUFFING": "疑似撞库",
+  "securityRisk.DISTRIBUTED_LOGIN_ATTEMPT": "分布式登录尝试",
+  "securityRisk.detectedBatches": "检测批次",
+  "securityRisk.batchRange": "完整批次：{since} 至 {until}",
+  "securityRisk.batchMetrics":
+    "{requests} 次请求 · {sources} 个来源 · {accounts} 个目标 · {paths} 个路径",
+  "securityRisk.batchScope":
+    "列表展示完整批次证据，可能跨出查询区间；上方摘要仅统计所选区间内的请求。",
+  "securityRisk.maskedSources": "来源样例：{sources}",
+  "securityRisk.sourceUnknown": "来源不可判定",
+  "securityRisk.accountCount": "{label}（{count} 次请求）",
+  "securityRisk.maskedAccount": "脱敏标识",
+  "securityRisk.retentionTruncated": "已按 30 天保留期截断",
+  "securityRisk.combinedRisk": "命中规则的来源随后成功登录；此组合仍为疑似风险。",
+  "securityRisk.rule_KNOWN_PROBE": "已知探测路径",
+  "securityRisk.rule_PATH_ENUMERATION": "5 分钟内至少 20 次未知或拒绝请求，涉及至少 10 个路径",
+  "securityRisk.rule_MULTI_ACCOUNT_FAILURE": "10 分钟内至少 10 次失败，涉及至少 5 个账号",
+  "securityRisk.rule_MULTI_SOURCE_FAILURE": "同一账号 10 分钟内至少 10 次失败，来自至少 5 个来源",
+  "securityRisk.ruleUnknown": "版本化检测规则",
+  "securityRisk.summaryTitle": "本次登录安全摘要",
+  "securityRisk.summaryCounts":
+    "自上次登录以来识别到 {batches} 组疑似风险，共 {requests} 次请求，来源：{sources}。",
+  "securityRisk.summaryEmpty": "自上次登录以来未检测到疑似扫描、撞库或分布式登录尝试。",
+  "securityRisk.summaryUnavailable": "安全统计暂不完整，当前不能判断是否存在疑似风险。",
+  "securityRisk.viewStatistics": "查看安全统计",
   "settingsSecurity.allAreas": "全部功能区",
   "settingsSecurity.description": "控制双重验证、会话和登录锁定策略，并追踪所有系统设置变更。",
   "settingsSecurity.readonly":
@@ -624,7 +690,8 @@ const zhCN: MessageDictionary = {
   "settingsSecurity.cancel": "取消",
   "settingsSecurity.confirmSwitch": "确认并立即切换",
   "settingsSecurity.sessions": "活跃管理员会话",
-  "settingsSecurity.sessionsDescription": "IP 地址经过脱敏，仅用于识别异常登录。",
+  "settingsSecurity.sessionsDescription":
+    "来源地址经过脱敏，用于区分会话；地址变化本身不代表异常登录。",
   "settingsSecurity.currentSession": "当前会话",
   "settingsSecurity.login": "登录",
   "settingsSecurity.recentActivity": "最近活动",
@@ -886,9 +953,14 @@ const zhCN: MessageDictionary = {
   "memberDetail.rank": "级别：{value}",
   "memberDetail.qualifications": "职位要求与资质记录",
   "memberDetail.requirementDescription":
-    "项目由职位 requirement 生成；没有正式记录的必需项目仍会显示。",
+    "项目根据成员所属职位的资质要求生成；没有正式记录的必需项目仍会显示。",
   "memberDetail.orgLevel": "组织级",
+  "memberDetail.positionRequirement": "职位要求",
   "memberDetail.source": "来源 {value}",
+  "memberDetail.source.positionRequirement": "职位资质要求",
+  "memberDetail.source.manual": "管理员补充",
+  "memberDetail.source.legacyRecord": "历史记录兼容",
+  "memberDetail.source.system": "系统记录",
   "memberDetail.expiry": "到期 {date}",
   "memberDetail.noRecord": "尚无有效记录",
   "memberDetail.noQualifications": "当前没有已分配的资质要求。",
@@ -1581,6 +1653,8 @@ const zhCN: MessageDictionary = {
   "update.mismatch": "AI发现可能不一致",
   "update.mismatchDescription":
     "凭证日期与表单日期可能存在差异（凭证：{document}，表单：{form}）。此警告不会阻断提交。",
+  "update.disabled": "暂未启用证照识别",
+  "update.disabledDescription": "当前系统未启用自动识别，请根据证照内容手动填写并提交。",
   "update.busy": "AI识别系统繁忙",
   "update.busyDescription": "您可以手动填写并直接提交，服务器将在后台继续处理。",
   "update.skipped": "已跳过AI审核",
@@ -1655,6 +1729,15 @@ const enUS: MessageDictionary = {
   "qualificationConfig.createDescription":
     "The item belongs only to this position; core qualifications affect compliance and upgrade gates, while supplemental items do not count toward core completion.",
   "qualificationConfig.name": "Qualification name",
+  "qualificationConfig.targetOrganization": "Target organization",
+  "qualificationConfig.targetOrganizationHelp":
+    "Organizations are identified by their units. Only organizations with this position are listed.",
+  "qualificationConfig.chooseOrganization": "Choose a target organization",
+  "qualificationConfig.loadingOrganizations": "Loading organizations…",
+  "qualificationConfig.organizationLoadError":
+    "Unable to load organizations. Close this dialog and try again.",
+  "qualificationConfig.noTargetOrganizations":
+    "No organizations are available. Add this position to an organization in Settings first.",
   "qualificationConfig.kind": "Qualification type",
   "qualificationConfig.supplemental": "Supplemental",
   "qualificationConfig.core": "Core",
@@ -2254,6 +2337,80 @@ const enUS: MessageDictionary = {
   "settingsNotify.connectionFailed": "Connection test failed",
   "settingsNotify.networkHelp": "Check the network and service URL",
   "settingsSecurity.title": "Security and audit",
+  "securityRisk.title": "Public access risk statistics",
+  "securityRisk.description":
+    "Global scanning, credential stuffing and distributed login attempts. A rule match indicates suspected risk, not confirmed intrusion.",
+  "securityRisk.scope":
+    "Covers the Caddy site handling chain; excludes TLS handshakes, ACME and automatic HTTPS redirects.",
+  "securityRisk.range": "Statistics period",
+  "securityRisk.range24h": "Last 24 hours",
+  "securityRisk.range7d": "Last 7 days",
+  "securityRisk.range30d": "Last 30 days",
+  "securityRisk.refresh": "Refresh statistics",
+  "securityRisk.preview":
+    "Preview mode does not collect real public requests. Statistics are unavailable here.",
+  "securityRisk.complete": "Statistics complete",
+  "securityRisk.incomplete": "Security statistics incomplete",
+  "securityRisk.delayed": "Statistics delayed. Recent requests have not all been aggregated.",
+  "securityRisk.collectionError":
+    "Collection is unhealthy. The available data does not cover all public requests.",
+  "securityRisk.loadError": "Unable to load security statistics. Please retry.",
+  "securityRisk.detectionsError": "Unable to load detection batches. Please retry.",
+  "securityRisk.lastAggregated": "Last aggregation: {time}",
+  "securityRisk.period": "Period: {since} to {until} (China Standard Time, minute precision)",
+  "securityRisk.batches": "Suspected attack batches",
+  "securityRisk.requests": "Related requests",
+  "securityRisk.sources": "Sources",
+  "securityRisk.segmented": "By key version",
+  "securityRisk.sourceSegment": "Version {version}: {count} sources",
+  "securityRisk.keyRotation":
+    "Keys rotated during this period. Sources may repeat across versions, so segment counts cannot be added into an exact total.",
+  "securityRisk.unknownSources":
+    "Unknown source: {count} requests, excluded from the source count.",
+  "securityRisk.overflow":
+    "Capacity protection dropped {count} signals. Statistics may be incomplete.",
+  "securityRisk.observedOnly":
+    "Only observed data is shown. This does not establish that no attacks occurred.",
+  "securityRisk.empty":
+    "No suspected scanning, credential stuffing or distributed login attempts detected in this period.",
+  "securityRisk.noDetails": "No detection batches in this period.",
+  "securityRisk.trend": "Category trends",
+  "securityRisk.trendDescription":
+    "Related requests over time. Categories may overlap; the global request count is deduplicated and is not the sum of category values.",
+  "securityRisk.trendTable": "Trend data table",
+  "securityRisk.time": "Time (China Standard Time)",
+  "securityRisk.PUBLIC_SCAN": "Suspected scanning",
+  "securityRisk.CREDENTIAL_STUFFING": "Suspected credential stuffing",
+  "securityRisk.DISTRIBUTED_LOGIN_ATTEMPT": "Distributed login attempts",
+  "securityRisk.detectedBatches": "Detection batches",
+  "securityRisk.batchRange": "Full batch: {since} to {until}",
+  "securityRisk.batchMetrics":
+    "{requests} requests · {sources} sources · {accounts} targets · {paths} paths",
+  "securityRisk.batchScope":
+    "The list shows full batch evidence, which may extend beyond the selected period. The summary above includes only requests within that period.",
+  "securityRisk.maskedSources": "Source samples: {sources}",
+  "securityRisk.sourceUnknown": "Unknown source",
+  "securityRisk.accountCount": "{label} ({count} requests)",
+  "securityRisk.maskedAccount": "Masked identifier",
+  "securityRisk.retentionTruncated": "Truncated to the 30-day retention period",
+  "securityRisk.combinedRisk":
+    "A source matched a rule and then logged in successfully. This remains suspected risk.",
+  "securityRisk.rule_KNOWN_PROBE": "Known probe path",
+  "securityRisk.rule_PATH_ENUMERATION":
+    "At least 20 unknown or denied requests across 10 paths within 5 minutes",
+  "securityRisk.rule_MULTI_ACCOUNT_FAILURE":
+    "At least 10 failures targeting 5 accounts within 10 minutes",
+  "securityRisk.rule_MULTI_SOURCE_FAILURE":
+    "At least 10 failures for one account from 5 sources within 10 minutes",
+  "securityRisk.ruleUnknown": "Versioned detection rule",
+  "securityRisk.summaryTitle": "Security summary for this login",
+  "securityRisk.summaryCounts":
+    "Since your previous login: {batches} suspected risk batches, {requests} requests. Sources: {sources}.",
+  "securityRisk.summaryEmpty":
+    "No suspected scanning, credential stuffing or distributed login attempts detected since your previous login.",
+  "securityRisk.summaryUnavailable":
+    "Security statistics are incomplete. Suspected risks cannot currently be assessed.",
+  "securityRisk.viewStatistics": "View security statistics",
   "settingsSecurity.allAreas": "All areas",
   "settingsSecurity.description":
     "Control two-factor authentication, sessions, and login lockout policies while tracking all system-setting changes.",
@@ -2287,7 +2444,7 @@ const enUS: MessageDictionary = {
   "settingsSecurity.confirmSwitch": "Confirm and switch now",
   "settingsSecurity.sessions": "Active administrator sessions",
   "settingsSecurity.sessionsDescription":
-    "IP addresses are masked and used only to identify unusual sign-ins.",
+    "Masked source addresses help distinguish sessions. A change of address alone does not indicate an unusual sign-in.",
   "settingsSecurity.currentSession": "Current session",
   "settingsSecurity.login": "Sign-in",
   "settingsSecurity.recentActivity": "Recent activity",
@@ -2570,9 +2727,14 @@ const enUS: MessageDictionary = {
   "memberDetail.rank": "Rank: {value}",
   "memberDetail.qualifications": "Position requirements and qualification records",
   "memberDetail.requirementDescription":
-    "Items are generated from position requirements; required items without an official record are still shown.",
+    "Items are based on the member's position qualifications; required items without an official record are still shown.",
   "memberDetail.orgLevel": "Organization",
+  "memberDetail.positionRequirement": "Position requirement",
   "memberDetail.source": "Source: {value}",
+  "memberDetail.source.positionRequirement": "Position qualification",
+  "memberDetail.source.manual": "Administrator addition",
+  "memberDetail.source.legacyRecord": "Historical record",
+  "memberDetail.source.system": "System record",
   "memberDetail.expiry": "Expires {date}",
   "memberDetail.noRecord": "No active record",
   "memberDetail.noQualifications": "No qualification requirements are assigned.",
@@ -3308,6 +3470,9 @@ const enUS: MessageDictionary = {
   "update.mismatch": "AI found a possible mismatch",
   "update.mismatchDescription":
     "The credential and form dates may differ (credential: {document}, form: {form}). This warning does not block submission.",
+  "update.disabled": "Credential recognition is not enabled",
+  "update.disabledDescription":
+    "Automatic recognition is not enabled for this system. Enter the credential details manually and submit.",
   "update.busy": "AI recognition is busy",
   "update.busyDescription":
     "You can fill the form manually and submit; the server will continue processing in the background.",

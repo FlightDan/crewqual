@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fetchExternalEndpoint, readPrivateEvidence } = vi.hoisted(() => ({
+const { fetchExternalEndpoint, readVerifiedEvidence } = vi.hoisted(() => ({
   fetchExternalEndpoint: vi.fn(),
-  readPrivateEvidence: vi.fn(),
+  readVerifiedEvidence: vi.fn(),
 }));
-vi.mock("@/server/storage", () => ({ readPrivateEvidence }));
+vi.mock("@/server/storage", () => ({ readVerifiedEvidence }));
 vi.mock("@/server/external-endpoint-safety", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/external-endpoint-safety")>()),
   fetchExternalEndpoint,
@@ -12,6 +12,14 @@ vi.mock("@/server/external-endpoint-safety", async (importOriginal) => ({
 
 import { resetServerConfigForTests } from "@/server/config";
 import { recognizeEvidence } from "@/server/vlm";
+const evidence = {
+  objectKey: "evidence/verified.jpg",
+  mimeType: "image/jpeg",
+  byteSize: 4,
+  sha256: "a".repeat(64),
+  storageEncodingVersion: 1,
+  sanitizedAt: new Date(),
+};
 
 describe("Qwen OpenAI-compatible VLM adapter", () => {
   beforeEach(() => {
@@ -20,7 +28,8 @@ describe("Qwen OpenAI-compatible VLM adapter", () => {
     process.env.VLM_ADAPTER = "qwen";
     process.env.QWEN_BASE_URL = "http://qwen.test/v1";
     process.env.QWEN_MODEL = "Qwen3.7-35B";
-    readPrivateEvidence.mockResolvedValue(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));
+    delete process.env.CREWQUAL_TEST_NO_EXTERNAL;
+    readVerifiedEvidence.mockResolvedValue(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));
     resetServerConfigForTests();
     vi.clearAllMocks();
   });
@@ -44,7 +53,7 @@ describe("Qwen OpenAI-compatible VLM adapter", () => {
         }),
       ),
     );
-    const result = await recognizeEvidence("evidence/verified.jpg");
+    const result = await recognizeEvidence("evidence/verified.jpg", evidence);
     expect(result.available).toBe(true);
     expect(result.fields.expiryDate).toBe("2027-01-01");
     expect(fetchExternalEndpoint).toHaveBeenCalledWith(
@@ -64,7 +73,7 @@ describe("Qwen OpenAI-compatible VLM adapter", () => {
         JSON.stringify({ choices: [{ message: { content: '{"status":"approved"}' } }] }),
       ),
     );
-    const result = await recognizeEvidence("evidence/verified.jpg");
+    const result = await recognizeEvidence("evidence/verified.jpg", evidence);
     expect(result.available).toBe(false);
   });
 
@@ -84,7 +93,16 @@ describe("Qwen OpenAI-compatible VLM adapter", () => {
       available: false,
       provider: "disabled",
     });
-    expect(readPrivateEvidence).not.toHaveBeenCalled();
+    expect(readVerifiedEvidence).not.toHaveBeenCalled();
+    expect(fetchExternalEndpoint).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing or mismatched provenance before reading bytes or sending to the provider", async () => {
+    await expect(recognizeEvidence(evidence.objectKey)).rejects.toMatchObject({ status: 404 });
+    await expect(recognizeEvidence("evidence/other.jpg", evidence)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(readVerifiedEvidence).not.toHaveBeenCalled();
     expect(fetchExternalEndpoint).not.toHaveBeenCalled();
   });
 });

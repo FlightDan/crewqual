@@ -1,4 +1,5 @@
 import { isValidTimezone } from "@/lib/date-only";
+import { createHash, randomBytes } from "node:crypto";
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -25,7 +26,9 @@ import {
   isLocalTestEndpoint,
 } from "@/server/external-endpoint-safety";
 import { getPrisma } from "@/server/prisma";
+import { getRuntimeSecurityPolicy } from "@/server/runtime-settings";
 import { requestNetworkApply } from "@/server/system-updates";
+import { verifyAuthentication } from "@/server/webauthn";
 import type { AuthenticatedAdmin } from "@/server/auth";
 import type {
   AdminSettingsSnapshot,
@@ -79,7 +82,7 @@ const adminSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().trim().min(1).max(128),
   email: z.string().email(),
-  unitId: z.string().nullable(),
+  unitId: z.string().uuid().nullable(),
   role: z.enum(["SUPER_ADMIN", "ADMIN", "REVIEWER", "VIEWER"]),
   active: z.boolean(),
   temporaryPassword: z.string().min(12).max(256).optional(),
@@ -133,7 +136,14 @@ const securitySchema = z.object({
   appOrigin: z.string().url().optional(),
   appPort: z.number().int().min(1).max(65535).optional(),
   adminLoginMode: z.enum(["PASSWORD_TOTP", "TOTP_ONLY", "PASSWORD_ONLY"]),
+  authenticationPreset: z.enum(["ENHANCED_L3", "COMBINED_L2", "CONVENIENCE"]).optional(),
+  memberLoginMode: z.enum(["PASSWORD_TOTP", "PASSWORD_FIDO2", "SMS_LINK"]).optional(),
+  adminFido2Required: z.boolean().optional(),
+  memberFido2Required: z.boolean().optional(),
+  highRiskReauthEnabled: z.boolean().optional(),
   adminSessionTtlHours: z.number().int().min(1).max(72),
+  // Accept legacy values during migration; values are clamped to the 10-minute
+  // security ceiling when persisted.
   pilotAccessLinkTtlMinutes: z.number().int().min(5).max(60),
   pilotSessionTtlMinutes: z.number().int().min(15).max(480),
   maxFailedAttempts: z.number().int().min(3).max(20),
@@ -142,6 +152,8 @@ const securitySchema = z.object({
   version: z.number().int().positive(),
   currentPassword: z.string().max(256).optional(),
   currentTotpCode: z.string().max(32).optional(),
+  currentFidoChallengeId: z.string().uuid().optional(),
+  currentFidoResponse: z.unknown().optional(),
 });
 
 const defaultRoutes: NotificationRoute[] = [
@@ -200,6 +212,24 @@ const sectionForAction = (action: string): SettingsSectionId => {
 
 function requireSuperAdmin(admin: AuthenticatedAdmin) {
   if (!isSuperAdmin(admin)) throw new ApiError("FORBIDDEN", "仅超级管理员可以执行此操作", 403);
+}
+
+async function adminUnitScope(tx: any, role: SettingsAdminRole, unitId: string | null) {
+  if (role === "SUPER_ADMIN") return { unitId: null, organizationId: null };
+  const unit = await tx.organizationUnit.findUnique({
+    where: { id: unitId },
+    select: {
+      id: true,
+      active: true,
+      organizationId: true,
+      organization: { select: { id: true } },
+    },
+  });
+  if (!unit?.active) throw new ApiError("VALIDATION_ERROR", "所属单位不存在或已停用", 422);
+  if (!unit.organizationId || unit.organization?.id !== unit.organizationId) {
+    throw new ApiError("VALIDATION_ERROR", "所属单位缺少有效组织关系", 422);
+  }
+  return { unitId: unit.id, organizationId: unit.organizationId };
 }
 
 async function assertCanRemoveSuperAdmin(
@@ -352,6 +382,7 @@ async function loadSnapshot(
 ): Promise<AdminSettingsSnapshot> {
   const db = getPrisma();
   const superAdmin = isSuperAdmin(admin);
+  const canReadAudit = superAdmin || admin.permissions.includes("audit.read");
   const unitWhere = superAdmin ? {} : { id: requireAssignedUnit(admin)! };
   const positionOrganizationId = superAdmin
     ? (requestedUnitId ?? undefined)
@@ -394,7 +425,7 @@ async function loadSnapshot(
       orderBy: { lastSeenAt: "desc" },
       take: 50,
     }),
-    superAdmin
+    canReadAudit
       ? db.auditEvent.findMany({
           where: {
             OR: [
@@ -483,8 +514,13 @@ async function loadSnapshot(
     appOrigin: config.APP_ORIGIN,
     appPort: config.APP_PORT,
     adminLoginMode: "PASSWORD_TOTP",
+    authenticationPreset: "CONVENIENCE",
+    memberLoginMode: "SMS_LINK",
+    adminFido2Required: false,
+    memberFido2Required: false,
+    highRiskReauthEnabled: true,
     adminSessionTtlHours: config.ADMIN_SESSION_TTL_HOURS,
-    pilotAccessLinkTtlMinutes: 15,
+    pilotAccessLinkTtlMinutes: 10,
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
@@ -530,6 +566,11 @@ async function loadSnapshot(
           appOrigin: config.APP_ORIGIN,
           appPort: config.APP_PORT,
           adminLoginMode: policy.adminLoginMode,
+          authenticationPreset: policy.authenticationPreset,
+          memberLoginMode: policy.memberLoginMode,
+          adminFido2Required: policy.adminFido2Required,
+          memberFido2Required: policy.memberFido2Required,
+          highRiskReauthEnabled: policy.highRiskReauthEnabled,
           adminSessionTtlHours: policy.adminSessionTtlHours,
           pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
           pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
@@ -617,7 +658,7 @@ export async function GET(request: NextRequest) {
     response.headers.set("cache-control", "no-store");
     return response;
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -964,16 +1005,16 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       if (input.role !== "SUPER_ADMIN" && !input.unitId) {
         throw new ApiError("UNIT_REQUIRED", "非超级管理员必须选择所属单位", 422);
       }
-      const role = await db.role.findUniqueOrThrow({ where: { code: input.role } });
       await db.$transaction(async (tx) => {
+        const role = await tx.role.findUniqueOrThrow({ where: { code: input.role } });
+        const scope = await adminUnitScope(tx, input.role, input.unitId);
         await assertCanRemoveSuperAdmin(tx, adminId, input.role, input.active);
         await tx.adminUser.update({
           where: { id: adminId },
           data: {
             displayName: input.displayName,
             email: input.email.toLowerCase(),
-            unitId: input.role === "SUPER_ADMIN" ? null : input.unitId,
-            organizationId: input.role === "SUPER_ADMIN" ? null : input.unitId,
+            ...scope,
             active: input.active,
             version: { increment: 1 },
           },
@@ -998,19 +1039,22 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       if (input.role !== "SUPER_ADMIN" && !input.unitId) {
         throw new ApiError("UNIT_REQUIRED", "非超级管理员必须选择所属单位", 422);
       }
-      const role = await db.role.findUniqueOrThrow({ where: { code: input.role } });
       const totpSecret = createTotpSecret();
-      const user = await db.adminUser.create({
-        data: {
-          email: input.email.toLowerCase(),
-          displayName: input.displayName,
-          passwordHash: await hashPassword(input.temporaryPassword),
-          totpSecretCiphertext: encryptSettingSecret(totpSecret),
-          active: input.active,
-          unitId: input.role === "SUPER_ADMIN" ? null : input.unitId,
-          organizationId: input.role === "SUPER_ADMIN" ? null : input.unitId,
-          roles: { create: { roleId: role.id } },
-        },
+      const passwordHash = await hashPassword(input.temporaryPassword);
+      const user = await db.$transaction(async (tx) => {
+        const role = await tx.role.findUniqueOrThrow({ where: { code: input.role } });
+        const scope = await adminUnitScope(tx, input.role, input.unitId);
+        return tx.adminUser.create({
+          data: {
+            email: input.email.toLowerCase(),
+            displayName: input.displayName,
+            passwordHash,
+            totpSecretCiphertext: encryptSettingSecret(totpSecret),
+            active: input.active,
+            ...scope,
+            roles: { create: { roleId: role.id } },
+          },
+        });
       });
       const mapped = await readAdmin(user.id);
       await audit(admin, requestId, "settings.admin.created", "AdminUser", user.id, {
@@ -1036,22 +1080,102 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
           id: z.string(),
           action: z.enum(["disable", "enable", "resetPassword", "resetTotp", "revokeSessions"]),
           value: z.string().optional(),
+          currentPassword: z.string().max(256).optional(),
+          currentTotpCode: z
+            .string()
+            .regex(/^\d{6}$/)
+            .optional(),
         })
         .parse(envelope.input);
       if (input.id === admin.id && ["disable", "revokeSessions"].includes(input.action)) {
         throw new ApiError("SELF_LOCKOUT", "不能通过账号管理结束当前会话或停用自己", 409);
       }
+      let passwordResetExpiresAt: string | undefined;
+      if (["resetPassword", "resetTotp"].includes(input.action)) {
+        const activePolicy = await getRuntimeSecurityPolicy();
+        if (activePolicy.highRiskReauthEnabled) {
+          const actor = await (db.adminUser as any).findUniqueOrThrow({
+            where: { id: admin.id },
+            select: {
+              passwordHash: true,
+              totpSecretCiphertext: true,
+              lastTotpCounter: true,
+            },
+          });
+          const currentNeedsPassword = activePolicy.adminLoginMode !== "TOTP_ONLY";
+          const currentNeedsTotp = activePolicy.adminLoginMode !== "PASSWORD_ONLY";
+          const passwordOk =
+            !currentNeedsPassword ||
+            (await verifyPassword(actor.passwordHash, input.currentPassword ?? ""));
+          const totpCounter = currentNeedsTotp
+            ? verifyTotp(resolveTotpSecret(actor.totpSecretCiphertext), input.currentTotpCode ?? "")
+            : null;
+          if (!passwordOk || (currentNeedsTotp && totpCounter === null)) {
+            throw new ApiError("INVALID_CREDENTIALS", "当前管理员凭据验证失败", 401);
+          }
+          if (currentNeedsTotp) {
+            const claimed =
+              typeof (db.adminUser as any).updateMany === "function"
+                ? await (db.adminUser as any).updateMany({
+                    where: {
+                      id: admin.id,
+                      OR: [
+                        { lastTotpCounter: null },
+                        { lastTotpCounter: { lt: BigInt(totpCounter!) } },
+                      ],
+                    },
+                    data: { lastTotpCounter: BigInt(totpCounter!) },
+                  })
+                : { count: 1 };
+            if (claimed.count !== 1) {
+              throw new ApiError(
+                "INVALID_CREDENTIALS",
+                "当前动态验证码已使用，请等待下一组验证码",
+                401,
+              );
+            }
+          }
+        }
+      }
       if (input.action === "resetPassword") {
-        if (!input.value || input.value.length < 12)
-          throw new ApiError("PASSWORD_REQUIRED", "新临时密码至少需要 12 个字符", 422);
-        const passwordHash = await hashPassword(input.value);
+        const resetToken = randomBytes(32).toString("base64url");
+        const resetTokenHash = createHash("sha256").update(resetToken).digest("hex");
+        const policyVersion =
+          typeof (db.securityPolicy as any)?.findUnique === "function"
+            ? ((
+                await (db.securityPolicy as any).findUnique({
+                  where: { id: "global" },
+                  select: { version: true },
+                })
+              )?.version ?? 1)
+            : 1;
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
         await db.$transaction(async (tx) => {
+          const resetTokens = (tx as any).adminPasswordResetToken;
+          if (resetTokens?.deleteMany && resetTokens?.create) {
+            await resetTokens.deleteMany({
+              where: { adminUserId: input.id, consumedAt: null },
+            });
+            await resetTokens.create({
+              data: {
+                adminUserId: input.id,
+                createdById: admin.id,
+                tokenHash: resetTokenHash,
+                tokenCiphertext: encryptSettingSecret(resetToken),
+                expiresAt,
+                policyVersion,
+              },
+            });
+          }
           await tx.adminUser.update({
             where: { id: input.id },
-            data: { passwordHash, version: { increment: 1 } },
+            data: { version: { increment: 1 } },
           });
-          await tx.adminSession.deleteMany({ where: { userId: input.id } });
+          // Keep the target's existing session long enough for the target to
+          // retrieve the private handoff from /admin/password-reset. The
+          // sessions are revoked atomically when the target sets the password.
         });
+        passwordResetExpiresAt = expiresAt.toISOString();
       } else if (input.action === "resetTotp") {
         const totpSecret = createTotpSecret();
         await db.$transaction(async (tx) => {
@@ -1101,7 +1225,13 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         summary: `执行账号操作：${input.action}；敏感值未写入审计`,
         unitName: user.unitName,
       });
-      return jsonData(user, requestId);
+      return jsonData(
+        {
+          ...user,
+          ...(passwordResetExpiresAt ? { passwordResetExpiresAt, passwordResetPending: true } : {}),
+        },
+        requestId,
+      );
     }
 
     if (method === "PATCH" && envelope.action === "notifications.save") {
@@ -1279,7 +1409,44 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
       const current = await db.securityPolicy.findUnique({ where: { id: "global" } });
       if (current && current.version !== input.version) throw new Error("VERSION_CONFLICT");
       const previousMode = current?.adminLoginMode ?? "PASSWORD_TOTP";
-      const modeChanged = previousMode !== input.adminLoginMode;
+      const previousPreset = current?.authenticationPreset ?? "CONVENIENCE";
+      const preset = input.authenticationPreset ?? previousPreset;
+      const presetDefaults = {
+        ENHANCED_L3: {
+          adminLoginMode: "PASSWORD_TOTP" as const,
+          memberLoginMode: "PASSWORD_TOTP" as const,
+          adminFido2Required: true,
+          memberFido2Required: true,
+        },
+        COMBINED_L2: {
+          adminLoginMode: "PASSWORD_TOTP" as const,
+          memberLoginMode: "PASSWORD_TOTP" as const,
+          adminFido2Required: false,
+          memberFido2Required: false,
+        },
+        CONVENIENCE: {
+          adminLoginMode: "PASSWORD_TOTP" as const,
+          memberLoginMode: "SMS_LINK" as const,
+          adminFido2Required: false,
+          memberFido2Required: false,
+        },
+      }[preset];
+      const requestedAdminMode =
+        input.authenticationPreset !== undefined
+          ? presetDefaults.adminLoginMode
+          : input.adminLoginMode;
+      const requestedMemberMode = input.memberLoginMode ?? presetDefaults.memberLoginMode;
+      const requestedAdminFido2 = input.adminFido2Required ?? presetDefaults.adminFido2Required;
+      const requestedMemberFido2 = input.memberFido2Required ?? presetDefaults.memberFido2Required;
+      const requestedHighRiskReauth =
+        input.highRiskReauthEnabled ?? current?.highRiskReauthEnabled ?? true;
+      const modeChanged =
+        previousMode !== requestedAdminMode ||
+        previousPreset !== preset ||
+        (current?.memberLoginMode ?? "SMS_LINK") !== requestedMemberMode ||
+        (current?.adminFido2Required ?? false) !== requestedAdminFido2 ||
+        (current?.memberFido2Required ?? false) !== requestedMemberFido2 ||
+        (current?.highRiskReauthEnabled ?? true) !== requestedHighRiskReauth;
       const requestedPort = input.appPort ?? config.APP_PORT;
       const requestedPublicAccess =
         input.allowPublicAccess ??
@@ -1296,12 +1463,21 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
           422,
         );
       }
-      const needsPassword = input.adminLoginMode !== "TOTP_ONLY";
-      const needsTotp = input.adminLoginMode !== "PASSWORD_ONLY";
+      // Policy changes, especially factor removal, must be authorized with
+      // the factors that protect the current account before the new policy is
+      // considered. Do not let a downgrade turn off the proof it requires.
+      const currentNeedsPassword = previousMode !== "TOTP_ONLY";
+      const currentNeedsTotp = previousMode !== "PASSWORD_ONLY";
+      const currentNeedsFido = current?.adminFido2Required ?? false;
       const policyData = {
-        adminLoginMode: input.adminLoginMode,
+        adminLoginMode: requestedAdminMode,
+        authenticationPreset: preset,
+        memberLoginMode: requestedMemberMode,
+        adminFido2Required: requestedAdminFido2,
+        memberFido2Required: requestedMemberFido2,
+        highRiskReauthEnabled: requestedHighRiskReauth,
         adminSessionTtlHours: input.adminSessionTtlHours,
-        pilotAccessLinkTtlMinutes: input.pilotAccessLinkTtlMinutes,
+        pilotAccessLinkTtlMinutes: Math.min(input.pilotAccessLinkTtlMinutes, 10),
         pilotSessionTtlMinutes: input.pilotSessionTtlMinutes,
         maxFailedAttempts: input.maxFailedAttempts,
         lockoutMinutes: input.lockoutMinutes,
@@ -1322,19 +1498,41 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         : null;
       const passwordOk =
         !requiresReauthentication ||
-        !needsPassword ||
+        !currentNeedsPassword ||
         (actor ? await verifyPassword(actor.passwordHash, input.currentPassword ?? "") : false);
       const totpCounter =
-        requiresReauthentication && needsTotp && actor
+        requiresReauthentication && currentNeedsTotp && actor
           ? verifyTotp(resolveTotpSecret(actor.totpSecretCiphertext), input.currentTotpCode ?? "")
           : null;
-      const totpOk = !requiresReauthentication || !needsTotp || totpCounter !== null;
+      const totpOk = !requiresReauthentication || !currentNeedsTotp || totpCounter !== null;
       if (!passwordOk || !totpOk) {
         throw new ApiError("INVALID_CREDENTIALS", "当前管理员凭据验证失败", 401);
       }
+      if (requiresReauthentication && currentNeedsFido) {
+        if (!input.currentFidoChallengeId || !input.currentFidoResponse) {
+          throw new ApiError("FIDO2_REQUIRED", "当前安全策略需要硬件验证器再次确认", 401);
+        }
+        await verifyAuthentication({
+          kind: "ADMIN_AUTHENTICATION",
+          ownerId: admin.id,
+          challengeId: input.currentFidoChallengeId,
+          sessionId: admin.sessionId,
+          response: input.currentFidoResponse as never,
+        });
+      }
+      if (requestedAdminFido2) {
+        const fidoCount = await db.fidoCredential.count({ where: { adminUserId: admin.id } });
+        if (fidoCount < 1) {
+          throw new ApiError(
+            "FIDO2_NOT_READY",
+            "启用增强认证前，请先为当前管理员绑定 FIDO2 硬件验证器",
+            422,
+          );
+        }
+      }
       if (
         requiresReauthentication &&
-        needsTotp &&
+        currentNeedsTotp &&
         actor?.lastTotpCounter !== null &&
         actor?.lastTotpCounter !== undefined &&
         totpCounter !== null &&
@@ -1372,7 +1570,14 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
         });
         if (requiresReauthentication) {
           await tx.adminSession.deleteMany({});
-          if (actor && needsTotp && totpCounter !== null) {
+          const resetTokens = (tx as any).adminPasswordResetToken;
+          if (resetTokens?.updateMany) {
+            await resetTokens.updateMany({
+              where: { consumedAt: null },
+              data: { consumedAt: new Date() },
+            });
+          }
+          if (actor && currentNeedsTotp && totpCounter !== null) {
             await tx.adminUser.update({
               where: { id: admin.id },
               data: {
@@ -1392,7 +1597,8 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
                 section: "security",
                 summary: "更新全局安全与会话策略；登录模式切换后已撤销全部管理员会话",
                 previousLoginMode: previousMode,
-                loginMode: input.adminLoginMode,
+                loginMode: requestedAdminMode,
+                authenticationPreset: preset,
                 sessionsRevoked: true,
               },
               requestId,
@@ -1431,6 +1637,11 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
               : config.APP_ORIGIN,
             appPort: requestedPort,
             adminLoginMode: policy.adminLoginMode,
+            authenticationPreset: policy.authenticationPreset,
+            memberLoginMode: policy.memberLoginMode,
+            adminFido2Required: policy.adminFido2Required,
+            memberFido2Required: policy.memberFido2Required,
+            highRiskReauthEnabled: policy.highRiskReauthEnabled,
             adminSessionTtlHours: policy.adminSessionTtlHours,
             pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
             pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,
@@ -1460,7 +1671,7 @@ async function mutateSettings(request: NextRequest, method: "PATCH" | "POST") {
 
     throw new ApiError("UNKNOWN_SETTINGS_ACTION", "不支持的系统设置操作", 400);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 

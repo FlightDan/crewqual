@@ -72,6 +72,9 @@ export const setupCompleteSchema = z
       requireTotp: z.boolean(),
       verifiedTotpToken: z.string().max(4096).optional(),
     }),
+    authenticationPreset: z
+      .enum(["ENHANCED_L3", "COMBINED_L2", "CONVENIENCE"])
+      .default("CONVENIENCE"),
     templatePackIds: z.array(z.string().uuid()).max(20),
     backup: z.object({
       enabled: z.boolean(),
@@ -703,12 +706,32 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
         where: { id: "global" },
         update: {
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
+          authenticationPreset: input.authenticationPreset,
+          memberLoginMode:
+            input.authenticationPreset === "ENHANCED_L3"
+              ? "PASSWORD_TOTP"
+              : input.authenticationPreset === "COMBINED_L2"
+                ? "PASSWORD_TOTP"
+                : "SMS_LINK",
+          adminFido2Required: input.authenticationPreset === "ENHANCED_L3",
+          memberFido2Required: input.authenticationPreset === "ENHANCED_L3",
+          highRiskReauthEnabled: true,
           allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE !== "lan",
           version: { increment: 1 },
         },
         create: {
           id: "global",
           adminLoginMode: input.admin.requireTotp ? "PASSWORD_TOTP" : "PASSWORD_ONLY",
+          authenticationPreset: input.authenticationPreset,
+          memberLoginMode:
+            input.authenticationPreset === "ENHANCED_L3"
+              ? "PASSWORD_TOTP"
+              : input.authenticationPreset === "COMBINED_L2"
+                ? "PASSWORD_TOTP"
+                : "SMS_LINK",
+          adminFido2Required: input.authenticationPreset === "ENHANCED_L3",
+          memberFido2Required: input.authenticationPreset === "ENHANCED_L3",
+          highRiskReauthEnabled: true,
           allowPublicAccess: getServerConfig().DEPLOYMENT_NETWORK_MODE !== "lan",
         },
       });
@@ -854,6 +877,7 @@ export async function completeSetup(rawInput: SetupCompleteInput): Promise<Setup
       return {
         completed: true,
         adminEmail: admin.email,
+        requiresFidoBinding: input.authenticationPreset === "ENHANCED_L3",
         installedTemplateCount: input.templatePackIds.length,
         installedPositionCount,
         storageMode: input.storage.mode,

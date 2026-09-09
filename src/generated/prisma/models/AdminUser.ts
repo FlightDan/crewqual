@@ -49,9 +49,11 @@ export type AdminUserMinAggregateOutputType = {
   active: boolean | null
   failedAttempts: number | null
   lockedUntil: Date | null
+  antiphishingCodeHash: string | null
   unitId: string | null
   organizationId: string | null
   version: number | null
+  lastSuccessfulLoginAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -67,9 +69,11 @@ export type AdminUserMaxAggregateOutputType = {
   active: boolean | null
   failedAttempts: number | null
   lockedUntil: Date | null
+  antiphishingCodeHash: string | null
   unitId: string | null
   organizationId: string | null
   version: number | null
+  lastSuccessfulLoginAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -85,9 +89,11 @@ export type AdminUserCountAggregateOutputType = {
   active: number
   failedAttempts: number
   lockedUntil: number
+  antiphishingCodeHash: number
   unitId: number
   organizationId: number
   version: number
+  lastSuccessfulLoginAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -117,9 +123,11 @@ export type AdminUserMinAggregateInputType = {
   active?: true
   failedAttempts?: true
   lockedUntil?: true
+  antiphishingCodeHash?: true
   unitId?: true
   organizationId?: true
   version?: true
+  lastSuccessfulLoginAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -135,9 +143,11 @@ export type AdminUserMaxAggregateInputType = {
   active?: true
   failedAttempts?: true
   lockedUntil?: true
+  antiphishingCodeHash?: true
   unitId?: true
   organizationId?: true
   version?: true
+  lastSuccessfulLoginAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -153,9 +163,11 @@ export type AdminUserCountAggregateInputType = {
   active?: true
   failedAttempts?: true
   lockedUntil?: true
+  antiphishingCodeHash?: true
   unitId?: true
   organizationId?: true
   version?: true
+  lastSuccessfulLoginAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -258,9 +270,11 @@ export type AdminUserGroupByOutputType = {
   active: boolean
   failedAttempts: number
   lockedUntil: Date | null
+  antiphishingCodeHash: string | null
   unitId: string | null
   organizationId: string | null
   version: number
+  lastSuccessfulLoginAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: AdminUserCountAggregateOutputType | null
@@ -299,9 +313,11 @@ export type AdminUserWhereInput = {
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"AdminUser"> | string | null
   unitId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   organizationId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   version?: Prisma.IntFilter<"AdminUser"> | number
+  lastSuccessfulLoginAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
   unit?: Prisma.XOR<Prisma.OrganizationUnitNullableScalarRelationFilter, Prisma.OrganizationUnitWhereInput> | null
@@ -309,6 +325,10 @@ export type AdminUserWhereInput = {
   roles?: Prisma.AdminUserRoleListRelationFilter
   sessions?: Prisma.AdminSessionListRelationFilter
   notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
+  fidoCredentials?: Prisma.FidoCredentialListRelationFilter
+  webAuthnChallenges?: Prisma.WebAuthnChallengeListRelationFilter
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenListRelationFilter
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenListRelationFilter
 }
 
 export type AdminUserOrderByWithRelationInput = {
@@ -322,9 +342,11 @@ export type AdminUserOrderByWithRelationInput = {
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrderInput | Prisma.SortOrder
   unitId?: Prisma.SortOrderInput | Prisma.SortOrder
   organizationId?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
+  lastSuccessfulLoginAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   unit?: Prisma.OrganizationUnitOrderByWithRelationInput
@@ -332,6 +354,10 @@ export type AdminUserOrderByWithRelationInput = {
   roles?: Prisma.AdminUserRoleOrderByRelationAggregateInput
   sessions?: Prisma.AdminSessionOrderByRelationAggregateInput
   notificationDeliveries?: Prisma.NotificationDeliveryOrderByRelationAggregateInput
+  fidoCredentials?: Prisma.FidoCredentialOrderByRelationAggregateInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeOrderByRelationAggregateInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenOrderByRelationAggregateInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenOrderByRelationAggregateInput
 }
 
 export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
@@ -348,9 +374,11 @@ export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"AdminUser"> | string | null
   unitId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   organizationId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   version?: Prisma.IntFilter<"AdminUser"> | number
+  lastSuccessfulLoginAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
   unit?: Prisma.XOR<Prisma.OrganizationUnitNullableScalarRelationFilter, Prisma.OrganizationUnitWhereInput> | null
@@ -358,6 +386,10 @@ export type AdminUserWhereUniqueInput = Prisma.AtLeast<{
   roles?: Prisma.AdminUserRoleListRelationFilter
   sessions?: Prisma.AdminSessionListRelationFilter
   notificationDeliveries?: Prisma.NotificationDeliveryListRelationFilter
+  fidoCredentials?: Prisma.FidoCredentialListRelationFilter
+  webAuthnChallenges?: Prisma.WebAuthnChallengeListRelationFilter
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenListRelationFilter
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenListRelationFilter
 }, "id" | "email">
 
 export type AdminUserOrderByWithAggregationInput = {
@@ -371,9 +403,11 @@ export type AdminUserOrderByWithAggregationInput = {
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrderInput | Prisma.SortOrder
   unitId?: Prisma.SortOrderInput | Prisma.SortOrder
   organizationId?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
+  lastSuccessfulLoginAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AdminUserCountOrderByAggregateInput
@@ -397,9 +431,11 @@ export type AdminUserScalarWhereWithAggregatesInput = {
   active?: Prisma.BoolWithAggregatesFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntWithAggregatesFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminUser"> | Date | string | null
+  antiphishingCodeHash?: Prisma.StringNullableWithAggregatesFilter<"AdminUser"> | string | null
   unitId?: Prisma.UuidNullableWithAggregatesFilter<"AdminUser"> | string | null
   organizationId?: Prisma.UuidNullableWithAggregatesFilter<"AdminUser"> | string | null
   version?: Prisma.IntWithAggregatesFilter<"AdminUser"> | number
+  lastSuccessfulLoginAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminUser"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AdminUser"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AdminUser"> | Date | string
 }
@@ -415,7 +451,9 @@ export type AdminUserCreateInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
@@ -423,6 +461,10 @@ export type AdminUserCreateInput = {
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateInput = {
@@ -436,14 +478,20 @@ export type AdminUserUncheckedCreateInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUpdateInput = {
@@ -457,7 +505,9 @@ export type AdminUserUpdateInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
@@ -465,6 +515,10 @@ export type AdminUserUpdateInput = {
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateInput = {
@@ -478,14 +532,20 @@ export type AdminUserUncheckedUpdateInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserCreateManyInput = {
@@ -499,9 +559,11 @@ export type AdminUserCreateManyInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -517,7 +579,9 @@ export type AdminUserUpdateManyMutationInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -533,9 +597,11 @@ export type AdminUserUncheckedUpdateManyInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -561,9 +627,11 @@ export type AdminUserCountOrderByAggregateInput = {
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  lastSuccessfulLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -585,9 +653,11 @@ export type AdminUserMaxOrderByAggregateInput = {
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  lastSuccessfulLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -603,9 +673,11 @@ export type AdminUserMinOrderByAggregateInput = {
   active?: Prisma.SortOrder
   failedAttempts?: Prisma.SortOrder
   lockedUntil?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  lastSuccessfulLoginAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -710,14 +782,6 @@ export type AdminUserUncheckedUpdateManyWithoutUnitNestedInput = {
   deleteMany?: Prisma.AdminUserScalarWhereInput | Prisma.AdminUserScalarWhereInput[]
 }
 
-export type NullableBigIntFieldUpdateOperationsInput = {
-  set?: bigint | number | null
-  increment?: bigint | number
-  decrement?: bigint | number
-  multiply?: bigint | number
-  divide?: bigint | number
-}
-
 export type AdminUserCreateNestedOneWithoutRolesInput = {
   create?: Prisma.XOR<Prisma.AdminUserCreateWithoutRolesInput, Prisma.AdminUserUncheckedCreateWithoutRolesInput>
   connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutRolesInput
@@ -762,6 +826,66 @@ export type AdminUserUpdateOneWithoutNotificationDeliveriesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutNotificationDeliveriesInput, Prisma.AdminUserUpdateWithoutNotificationDeliveriesInput>, Prisma.AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput>
 }
 
+export type AdminUserCreateNestedOneWithoutFidoCredentialsInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedCreateWithoutFidoCredentialsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutFidoCredentialsInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+}
+
+export type AdminUserUpdateOneWithoutFidoCredentialsNestedInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedCreateWithoutFidoCredentialsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutFidoCredentialsInput
+  upsert?: Prisma.AdminUserUpsertWithoutFidoCredentialsInput
+  disconnect?: Prisma.AdminUserWhereInput | boolean
+  delete?: Prisma.AdminUserWhereInput | boolean
+  connect?: Prisma.AdminUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutFidoCredentialsInput, Prisma.AdminUserUpdateWithoutFidoCredentialsInput>, Prisma.AdminUserUncheckedUpdateWithoutFidoCredentialsInput>
+}
+
+export type AdminUserCreateNestedOneWithoutWebAuthnChallengesInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedCreateWithoutWebAuthnChallengesInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutWebAuthnChallengesInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+}
+
+export type AdminUserUpdateOneWithoutWebAuthnChallengesNestedInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedCreateWithoutWebAuthnChallengesInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutWebAuthnChallengesInput
+  upsert?: Prisma.AdminUserUpsertWithoutWebAuthnChallengesInput
+  disconnect?: Prisma.AdminUserWhereInput | boolean
+  delete?: Prisma.AdminUserWhereInput | boolean
+  connect?: Prisma.AdminUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutWebAuthnChallengesInput, Prisma.AdminUserUpdateWithoutWebAuthnChallengesInput>, Prisma.AdminUserUncheckedUpdateWithoutWebAuthnChallengesInput>
+}
+
+export type AdminUserCreateNestedOneWithoutPasswordResetTargetsInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetTargetsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutPasswordResetTargetsInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+}
+
+export type AdminUserCreateNestedOneWithoutPasswordResetCreatorsInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetCreatorsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutPasswordResetCreatorsInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+}
+
+export type AdminUserUpdateOneRequiredWithoutPasswordResetTargetsNestedInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetTargetsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutPasswordResetTargetsInput
+  upsert?: Prisma.AdminUserUpsertWithoutPasswordResetTargetsInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutPasswordResetTargetsInput, Prisma.AdminUserUpdateWithoutPasswordResetTargetsInput>, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetTargetsInput>
+}
+
+export type AdminUserUpdateOneRequiredWithoutPasswordResetCreatorsNestedInput = {
+  create?: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetCreatorsInput>
+  connectOrCreate?: Prisma.AdminUserCreateOrConnectWithoutPasswordResetCreatorsInput
+  upsert?: Prisma.AdminUserUpsertWithoutPasswordResetCreatorsInput
+  connect?: Prisma.AdminUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AdminUserUpdateToOneWithWhereWithoutPasswordResetCreatorsInput, Prisma.AdminUserUpdateWithoutPasswordResetCreatorsInput>, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetCreatorsInput>
+}
+
 export type AdminUserCreateWithoutOrganizationInput = {
   id?: string
   email: string
@@ -773,13 +897,19 @@ export type AdminUserCreateWithoutOrganizationInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateWithoutOrganizationInput = {
@@ -793,13 +923,19 @@ export type AdminUserUncheckedCreateWithoutOrganizationInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserCreateOrConnectWithoutOrganizationInput = {
@@ -842,9 +978,11 @@ export type AdminUserScalarWhereInput = {
   active?: Prisma.BoolFilter<"AdminUser"> | boolean
   failedAttempts?: Prisma.IntFilter<"AdminUser"> | number
   lockedUntil?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"AdminUser"> | string | null
   unitId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   organizationId?: Prisma.UuidNullableFilter<"AdminUser"> | string | null
   version?: Prisma.IntFilter<"AdminUser"> | number
+  lastSuccessfulLoginAt?: Prisma.DateTimeNullableFilter<"AdminUser"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AdminUser"> | Date | string
 }
@@ -860,13 +998,19 @@ export type AdminUserCreateWithoutUnitInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateWithoutUnitInput = {
@@ -880,13 +1024,19 @@ export type AdminUserUncheckedCreateWithoutUnitInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserCreateOrConnectWithoutUnitInput = {
@@ -926,13 +1076,19 @@ export type AdminUserCreateWithoutRolesInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateWithoutRolesInput = {
@@ -946,13 +1102,19 @@ export type AdminUserUncheckedCreateWithoutRolesInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserCreateOrConnectWithoutRolesInput = {
@@ -982,13 +1144,19 @@ export type AdminUserUpdateWithoutRolesInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutRolesInput = {
@@ -1002,13 +1170,19 @@ export type AdminUserUncheckedUpdateWithoutRolesInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserCreateWithoutSessionsInput = {
@@ -1022,13 +1196,19 @@ export type AdminUserCreateWithoutSessionsInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateWithoutSessionsInput = {
@@ -1042,13 +1222,19 @@ export type AdminUserUncheckedCreateWithoutSessionsInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserCreateOrConnectWithoutSessionsInput = {
@@ -1078,13 +1264,19 @@ export type AdminUserUpdateWithoutSessionsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutSessionsInput = {
@@ -1098,13 +1290,19 @@ export type AdminUserUncheckedUpdateWithoutSessionsInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserCreateWithoutNotificationDeliveriesInput = {
@@ -1118,13 +1316,19 @@ export type AdminUserCreateWithoutNotificationDeliveriesInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
   organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
   roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserUncheckedCreateWithoutNotificationDeliveriesInput = {
@@ -1138,13 +1342,19 @@ export type AdminUserUncheckedCreateWithoutNotificationDeliveriesInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
   sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
 }
 
 export type AdminUserCreateOrConnectWithoutNotificationDeliveriesInput = {
@@ -1174,13 +1384,19 @@ export type AdminUserUpdateWithoutNotificationDeliveriesInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput = {
@@ -1194,13 +1410,499 @@ export type AdminUserUncheckedUpdateWithoutNotificationDeliveriesInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserCreateWithoutFidoCredentialsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
+  roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserUncheckedCreateWithoutFidoCredentialsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  unitId?: string | null
+  organizationId?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserCreateOrConnectWithoutFidoCredentialsInput = {
+  where: Prisma.AdminUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedCreateWithoutFidoCredentialsInput>
+}
+
+export type AdminUserUpsertWithoutFidoCredentialsInput = {
+  update: Prisma.XOR<Prisma.AdminUserUpdateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedUpdateWithoutFidoCredentialsInput>
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedCreateWithoutFidoCredentialsInput>
+  where?: Prisma.AdminUserWhereInput
+}
+
+export type AdminUserUpdateToOneWithWhereWithoutFidoCredentialsInput = {
+  where?: Prisma.AdminUserWhereInput
+  data: Prisma.XOR<Prisma.AdminUserUpdateWithoutFidoCredentialsInput, Prisma.AdminUserUncheckedUpdateWithoutFidoCredentialsInput>
+}
+
+export type AdminUserUpdateWithoutFidoCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
+  organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
+  roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserUncheckedUpdateWithoutFidoCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserCreateWithoutWebAuthnChallengesInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
+  roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserUncheckedCreateWithoutWebAuthnChallengesInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  unitId?: string | null
+  organizationId?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserCreateOrConnectWithoutWebAuthnChallengesInput = {
+  where: Prisma.AdminUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedCreateWithoutWebAuthnChallengesInput>
+}
+
+export type AdminUserUpsertWithoutWebAuthnChallengesInput = {
+  update: Prisma.XOR<Prisma.AdminUserUpdateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedUpdateWithoutWebAuthnChallengesInput>
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedCreateWithoutWebAuthnChallengesInput>
+  where?: Prisma.AdminUserWhereInput
+}
+
+export type AdminUserUpdateToOneWithWhereWithoutWebAuthnChallengesInput = {
+  where?: Prisma.AdminUserWhereInput
+  data: Prisma.XOR<Prisma.AdminUserUpdateWithoutWebAuthnChallengesInput, Prisma.AdminUserUncheckedUpdateWithoutWebAuthnChallengesInput>
+}
+
+export type AdminUserUpdateWithoutWebAuthnChallengesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
+  organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
+  roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserUncheckedUpdateWithoutWebAuthnChallengesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserCreateWithoutPasswordResetTargetsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
+  roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserUncheckedCreateWithoutPasswordResetTargetsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  unitId?: string | null
+  organizationId?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutCreatedByInput
+}
+
+export type AdminUserCreateOrConnectWithoutPasswordResetTargetsInput = {
+  where: Prisma.AdminUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetTargetsInput>
+}
+
+export type AdminUserCreateWithoutPasswordResetCreatorsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit?: Prisma.OrganizationUnitCreateNestedOneWithoutAdminsInput
+  organization?: Prisma.OrganizationCreateNestedOneWithoutAdminsInput
+  roles?: Prisma.AdminUserRoleCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenCreateNestedManyWithoutAdminUserInput
+}
+
+export type AdminUserUncheckedCreateWithoutPasswordResetCreatorsInput = {
+  id?: string
+  email: string
+  displayName: string
+  passwordHash: string
+  totpSecretCiphertext: string
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  active?: boolean
+  failedAttempts?: number
+  lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
+  unitId?: string | null
+  organizationId?: string | null
+  version?: number
+  lastSuccessfulLoginAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  roles?: Prisma.AdminUserRoleUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.AdminSessionUncheckedCreateNestedManyWithoutUserInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutAdminUserInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutAdminUserInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutAdminUserInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedCreateNestedManyWithoutAdminUserInput
+}
+
+export type AdminUserCreateOrConnectWithoutPasswordResetCreatorsInput = {
+  where: Prisma.AdminUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetCreatorsInput>
+}
+
+export type AdminUserUpsertWithoutPasswordResetTargetsInput = {
+  update: Prisma.XOR<Prisma.AdminUserUpdateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetTargetsInput>
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetTargetsInput>
+  where?: Prisma.AdminUserWhereInput
+}
+
+export type AdminUserUpdateToOneWithWhereWithoutPasswordResetTargetsInput = {
+  where?: Prisma.AdminUserWhereInput
+  data: Prisma.XOR<Prisma.AdminUserUpdateWithoutPasswordResetTargetsInput, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetTargetsInput>
+}
+
+export type AdminUserUpdateWithoutPasswordResetTargetsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
+  organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
+  roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserUncheckedUpdateWithoutPasswordResetTargetsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
+}
+
+export type AdminUserUpsertWithoutPasswordResetCreatorsInput = {
+  update: Prisma.XOR<Prisma.AdminUserUpdateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetCreatorsInput>
+  create: Prisma.XOR<Prisma.AdminUserCreateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedCreateWithoutPasswordResetCreatorsInput>
+  where?: Prisma.AdminUserWhereInput
+}
+
+export type AdminUserUpdateToOneWithWhereWithoutPasswordResetCreatorsInput = {
+  where?: Prisma.AdminUserWhereInput
+  data: Prisma.XOR<Prisma.AdminUserUpdateWithoutPasswordResetCreatorsInput, Prisma.AdminUserUncheckedUpdateWithoutPasswordResetCreatorsInput>
+}
+
+export type AdminUserUpdateWithoutPasswordResetCreatorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
+  organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
+  roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+}
+
+export type AdminUserUncheckedUpdateWithoutPasswordResetCreatorsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  totpSecretCiphertext?: Prisma.StringFieldUpdateOperationsInput | string
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
+  lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
+  notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
 }
 
 export type AdminUserCreateManyOrganizationInput = {
@@ -1214,8 +1916,10 @@ export type AdminUserCreateManyOrganizationInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   unitId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1231,13 +1935,19 @@ export type AdminUserUpdateWithoutOrganizationInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   unit?: Prisma.OrganizationUnitUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutOrganizationInput = {
@@ -1251,13 +1961,19 @@ export type AdminUserUncheckedUpdateWithoutOrganizationInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateManyWithoutOrganizationInput = {
@@ -1271,8 +1987,10 @@ export type AdminUserUncheckedUpdateManyWithoutOrganizationInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   unitId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1288,8 +2006,10 @@ export type AdminUserCreateManyUnitInput = {
   active?: boolean
   failedAttempts?: number
   lockedUntil?: Date | string | null
+  antiphishingCodeHash?: string | null
   organizationId?: string | null
   version?: number
+  lastSuccessfulLoginAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1305,13 +2025,19 @@ export type AdminUserUpdateWithoutUnitInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneWithoutAdminsNestedInput
   roles?: Prisma.AdminUserRoleUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateWithoutUnitInput = {
@@ -1325,13 +2051,19 @@ export type AdminUserUncheckedUpdateWithoutUnitInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   roles?: Prisma.AdminUserRoleUncheckedUpdateManyWithoutUserNestedInput
   sessions?: Prisma.AdminSessionUncheckedUpdateManyWithoutUserNestedInput
   notificationDeliveries?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutAdminUserNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutAdminUserNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetTargets?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutAdminUserNestedInput
+  passwordResetCreators?: Prisma.AdminPasswordResetTokenUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
 export type AdminUserUncheckedUpdateManyWithoutUnitInput = {
@@ -1345,8 +2077,10 @@ export type AdminUserUncheckedUpdateManyWithoutUnitInput = {
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   failedAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   lockedUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   organizationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  lastSuccessfulLoginAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1360,12 +2094,20 @@ export type AdminUserCountOutputType = {
   roles: number
   sessions: number
   notificationDeliveries: number
+  fidoCredentials: number
+  webAuthnChallenges: number
+  passwordResetTargets: number
+  passwordResetCreators: number
 }
 
 export type AdminUserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   roles?: boolean | AdminUserCountOutputTypeCountRolesArgs
   sessions?: boolean | AdminUserCountOutputTypeCountSessionsArgs
   notificationDeliveries?: boolean | AdminUserCountOutputTypeCountNotificationDeliveriesArgs
+  fidoCredentials?: boolean | AdminUserCountOutputTypeCountFidoCredentialsArgs
+  webAuthnChallenges?: boolean | AdminUserCountOutputTypeCountWebAuthnChallengesArgs
+  passwordResetTargets?: boolean | AdminUserCountOutputTypeCountPasswordResetTargetsArgs
+  passwordResetCreators?: boolean | AdminUserCountOutputTypeCountPasswordResetCreatorsArgs
 }
 
 /**
@@ -1399,6 +2141,34 @@ export type AdminUserCountOutputTypeCountNotificationDeliveriesArgs<ExtArgs exte
   where?: Prisma.NotificationDeliveryWhereInput
 }
 
+/**
+ * AdminUserCountOutputType without action
+ */
+export type AdminUserCountOutputTypeCountFidoCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.FidoCredentialWhereInput
+}
+
+/**
+ * AdminUserCountOutputType without action
+ */
+export type AdminUserCountOutputTypeCountWebAuthnChallengesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WebAuthnChallengeWhereInput
+}
+
+/**
+ * AdminUserCountOutputType without action
+ */
+export type AdminUserCountOutputTypeCountPasswordResetTargetsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AdminPasswordResetTokenWhereInput
+}
+
+/**
+ * AdminUserCountOutputType without action
+ */
+export type AdminUserCountOutputTypeCountPasswordResetCreatorsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AdminPasswordResetTokenWhereInput
+}
+
 
 export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1411,9 +2181,11 @@ export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
+  antiphishingCodeHash?: boolean
   unitId?: boolean
   organizationId?: boolean
   version?: boolean
+  lastSuccessfulLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   unit?: boolean | Prisma.AdminUser$unitArgs<ExtArgs>
@@ -1421,6 +2193,10 @@ export type AdminUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   roles?: boolean | Prisma.AdminUser$rolesArgs<ExtArgs>
   sessions?: boolean | Prisma.AdminUser$sessionsArgs<ExtArgs>
   notificationDeliveries?: boolean | Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>
+  fidoCredentials?: boolean | Prisma.AdminUser$fidoCredentialsArgs<ExtArgs>
+  webAuthnChallenges?: boolean | Prisma.AdminUser$webAuthnChallengesArgs<ExtArgs>
+  passwordResetTargets?: boolean | Prisma.AdminUser$passwordResetTargetsArgs<ExtArgs>
+  passwordResetCreators?: boolean | Prisma.AdminUser$passwordResetCreatorsArgs<ExtArgs>
   _count?: boolean | Prisma.AdminUserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["adminUser"]>
 
@@ -1435,9 +2211,11 @@ export type AdminUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
+  antiphishingCodeHash?: boolean
   unitId?: boolean
   organizationId?: boolean
   version?: boolean
+  lastSuccessfulLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   unit?: boolean | Prisma.AdminUser$unitArgs<ExtArgs>
@@ -1455,9 +2233,11 @@ export type AdminUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
+  antiphishingCodeHash?: boolean
   unitId?: boolean
   organizationId?: boolean
   version?: boolean
+  lastSuccessfulLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   unit?: boolean | Prisma.AdminUser$unitArgs<ExtArgs>
@@ -1475,20 +2255,26 @@ export type AdminUserSelectScalar = {
   active?: boolean
   failedAttempts?: boolean
   lockedUntil?: boolean
+  antiphishingCodeHash?: boolean
   unitId?: boolean
   organizationId?: boolean
   version?: boolean
+  lastSuccessfulLoginAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AdminUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "displayName" | "passwordHash" | "totpSecretCiphertext" | "totpVerifiedAt" | "lastTotpCounter" | "active" | "failedAttempts" | "lockedUntil" | "unitId" | "organizationId" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["adminUser"]>
+export type AdminUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "displayName" | "passwordHash" | "totpSecretCiphertext" | "totpVerifiedAt" | "lastTotpCounter" | "active" | "failedAttempts" | "lockedUntil" | "antiphishingCodeHash" | "unitId" | "organizationId" | "version" | "lastSuccessfulLoginAt" | "createdAt" | "updatedAt", ExtArgs["result"]["adminUser"]>
 export type AdminUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   unit?: boolean | Prisma.AdminUser$unitArgs<ExtArgs>
   organization?: boolean | Prisma.AdminUser$organizationArgs<ExtArgs>
   roles?: boolean | Prisma.AdminUser$rolesArgs<ExtArgs>
   sessions?: boolean | Prisma.AdminUser$sessionsArgs<ExtArgs>
   notificationDeliveries?: boolean | Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>
+  fidoCredentials?: boolean | Prisma.AdminUser$fidoCredentialsArgs<ExtArgs>
+  webAuthnChallenges?: boolean | Prisma.AdminUser$webAuthnChallengesArgs<ExtArgs>
+  passwordResetTargets?: boolean | Prisma.AdminUser$passwordResetTargetsArgs<ExtArgs>
+  passwordResetCreators?: boolean | Prisma.AdminUser$passwordResetCreatorsArgs<ExtArgs>
   _count?: boolean | Prisma.AdminUserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AdminUserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1508,6 +2294,10 @@ export type $AdminUserPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     roles: Prisma.$AdminUserRolePayload<ExtArgs>[]
     sessions: Prisma.$AdminSessionPayload<ExtArgs>[]
     notificationDeliveries: Prisma.$NotificationDeliveryPayload<ExtArgs>[]
+    fidoCredentials: Prisma.$FidoCredentialPayload<ExtArgs>[]
+    webAuthnChallenges: Prisma.$WebAuthnChallengePayload<ExtArgs>[]
+    passwordResetTargets: Prisma.$AdminPasswordResetTokenPayload<ExtArgs>[]
+    passwordResetCreators: Prisma.$AdminPasswordResetTokenPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1520,9 +2310,11 @@ export type $AdminUserPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     active: boolean
     failedAttempts: number
     lockedUntil: Date | null
+    antiphishingCodeHash: string | null
     unitId: string | null
     organizationId: string | null
     version: number
+    lastSuccessfulLoginAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["adminUser"]>
@@ -1924,6 +2716,10 @@ export interface Prisma__AdminUserClient<T, Null = never, ExtArgs extends runtim
   roles<T extends Prisma.AdminUser$rolesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$rolesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminUserRolePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sessions<T extends Prisma.AdminUser$sessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   notificationDeliveries<T extends Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$notificationDeliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationDeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  fidoCredentials<T extends Prisma.AdminUser$fidoCredentialsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$fidoCredentialsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FidoCredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  webAuthnChallenges<T extends Prisma.AdminUser$webAuthnChallengesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$webAuthnChallengesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WebAuthnChallengePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  passwordResetTargets<T extends Prisma.AdminUser$passwordResetTargetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$passwordResetTargetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminPasswordResetTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  passwordResetCreators<T extends Prisma.AdminUser$passwordResetCreatorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AdminUser$passwordResetCreatorsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AdminPasswordResetTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1963,9 +2759,11 @@ export interface AdminUserFieldRefs {
   readonly active: Prisma.FieldRef<"AdminUser", 'Boolean'>
   readonly failedAttempts: Prisma.FieldRef<"AdminUser", 'Int'>
   readonly lockedUntil: Prisma.FieldRef<"AdminUser", 'DateTime'>
+  readonly antiphishingCodeHash: Prisma.FieldRef<"AdminUser", 'String'>
   readonly unitId: Prisma.FieldRef<"AdminUser", 'String'>
   readonly organizationId: Prisma.FieldRef<"AdminUser", 'String'>
   readonly version: Prisma.FieldRef<"AdminUser", 'Int'>
+  readonly lastSuccessfulLoginAt: Prisma.FieldRef<"AdminUser", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"AdminUser", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AdminUser", 'DateTime'>
 }
@@ -2476,6 +3274,102 @@ export type AdminUser$notificationDeliveriesArgs<ExtArgs extends runtime.Types.E
   take?: number
   skip?: number
   distinct?: Prisma.NotificationDeliveryScalarFieldEnum | Prisma.NotificationDeliveryScalarFieldEnum[]
+}
+
+/**
+ * AdminUser.fidoCredentials
+ */
+export type AdminUser$fidoCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FidoCredential
+   */
+  select?: Prisma.FidoCredentialSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FidoCredential
+   */
+  omit?: Prisma.FidoCredentialOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FidoCredentialInclude<ExtArgs> | null
+  where?: Prisma.FidoCredentialWhereInput
+  orderBy?: Prisma.FidoCredentialOrderByWithRelationInput | Prisma.FidoCredentialOrderByWithRelationInput[]
+  cursor?: Prisma.FidoCredentialWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.FidoCredentialScalarFieldEnum | Prisma.FidoCredentialScalarFieldEnum[]
+}
+
+/**
+ * AdminUser.webAuthnChallenges
+ */
+export type AdminUser$webAuthnChallengesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WebAuthnChallenge
+   */
+  select?: Prisma.WebAuthnChallengeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WebAuthnChallenge
+   */
+  omit?: Prisma.WebAuthnChallengeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WebAuthnChallengeInclude<ExtArgs> | null
+  where?: Prisma.WebAuthnChallengeWhereInput
+  orderBy?: Prisma.WebAuthnChallengeOrderByWithRelationInput | Prisma.WebAuthnChallengeOrderByWithRelationInput[]
+  cursor?: Prisma.WebAuthnChallengeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WebAuthnChallengeScalarFieldEnum | Prisma.WebAuthnChallengeScalarFieldEnum[]
+}
+
+/**
+ * AdminUser.passwordResetTargets
+ */
+export type AdminUser$passwordResetTargetsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AdminPasswordResetToken
+   */
+  select?: Prisma.AdminPasswordResetTokenSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AdminPasswordResetToken
+   */
+  omit?: Prisma.AdminPasswordResetTokenOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AdminPasswordResetTokenInclude<ExtArgs> | null
+  where?: Prisma.AdminPasswordResetTokenWhereInput
+  orderBy?: Prisma.AdminPasswordResetTokenOrderByWithRelationInput | Prisma.AdminPasswordResetTokenOrderByWithRelationInput[]
+  cursor?: Prisma.AdminPasswordResetTokenWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AdminPasswordResetTokenScalarFieldEnum | Prisma.AdminPasswordResetTokenScalarFieldEnum[]
+}
+
+/**
+ * AdminUser.passwordResetCreators
+ */
+export type AdminUser$passwordResetCreatorsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AdminPasswordResetToken
+   */
+  select?: Prisma.AdminPasswordResetTokenSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AdminPasswordResetToken
+   */
+  omit?: Prisma.AdminPasswordResetTokenOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AdminPasswordResetTokenInclude<ExtArgs> | null
+  where?: Prisma.AdminPasswordResetTokenWhereInput
+  orderBy?: Prisma.AdminPasswordResetTokenOrderByWithRelationInput | Prisma.AdminPasswordResetTokenOrderByWithRelationInput[]
+  cursor?: Prisma.AdminPasswordResetTokenWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AdminPasswordResetTokenScalarFieldEnum | Prisma.AdminPasswordResetTokenScalarFieldEnum[]
 }
 
 /**

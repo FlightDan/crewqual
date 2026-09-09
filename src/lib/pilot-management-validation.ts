@@ -209,6 +209,10 @@ export function parsePilotCsv(
       }
       importedQualifications.push({
         qualificationId: qualification.id,
+        ...(qualification.definitionId ? { definitionId: qualification.definitionId } : {}),
+        ...(qualification.legacyQualificationTypeId
+          ? { legacyQualificationTypeId: qualification.legacyQualificationTypeId }
+          : {}),
         qualificationCode: qualification.code,
         qualificationName: qualification.name,
         qualificationTranslations: qualification.translations,

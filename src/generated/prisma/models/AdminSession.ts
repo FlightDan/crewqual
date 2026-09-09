@@ -20,8 +20,18 @@ export type AdminSessionModel = runtime.Types.Result.DefaultSelection<Prisma.$Ad
 
 export type AggregateAdminSession = {
   _count: AdminSessionCountAggregateOutputType | null
+  _avg: AdminSessionAvgAggregateOutputType | null
+  _sum: AdminSessionSumAggregateOutputType | null
   _min: AdminSessionMinAggregateOutputType | null
   _max: AdminSessionMaxAggregateOutputType | null
+}
+
+export type AdminSessionAvgAggregateOutputType = {
+  policyVersion: number | null
+}
+
+export type AdminSessionSumAggregateOutputType = {
+  policyVersion: number | null
 }
 
 export type AdminSessionMinAggregateOutputType = {
@@ -32,6 +42,9 @@ export type AdminSessionMinAggregateOutputType = {
   expiresAt: Date | null
   createdAt: Date | null
   lastSeenAt: Date | null
+  policyVersion: number | null
+  securitySummarySince: Date | null
+  securitySummaryUntil: Date | null
 }
 
 export type AdminSessionMaxAggregateOutputType = {
@@ -42,6 +55,9 @@ export type AdminSessionMaxAggregateOutputType = {
   expiresAt: Date | null
   createdAt: Date | null
   lastSeenAt: Date | null
+  policyVersion: number | null
+  securitySummarySince: Date | null
+  securitySummaryUntil: Date | null
 }
 
 export type AdminSessionCountAggregateOutputType = {
@@ -52,9 +68,20 @@ export type AdminSessionCountAggregateOutputType = {
   expiresAt: number
   createdAt: number
   lastSeenAt: number
+  policyVersion: number
+  securitySummarySince: number
+  securitySummaryUntil: number
   _all: number
 }
 
+
+export type AdminSessionAvgAggregateInputType = {
+  policyVersion?: true
+}
+
+export type AdminSessionSumAggregateInputType = {
+  policyVersion?: true
+}
 
 export type AdminSessionMinAggregateInputType = {
   id?: true
@@ -64,6 +91,9 @@ export type AdminSessionMinAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  policyVersion?: true
+  securitySummarySince?: true
+  securitySummaryUntil?: true
 }
 
 export type AdminSessionMaxAggregateInputType = {
@@ -74,6 +104,9 @@ export type AdminSessionMaxAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  policyVersion?: true
+  securitySummarySince?: true
+  securitySummaryUntil?: true
 }
 
 export type AdminSessionCountAggregateInputType = {
@@ -84,6 +117,9 @@ export type AdminSessionCountAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  policyVersion?: true
+  securitySummarySince?: true
+  securitySummaryUntil?: true
   _all?: true
 }
 
@@ -125,6 +161,18 @@ export type AdminSessionAggregateArgs<ExtArgs extends runtime.Types.Extensions.I
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AdminSessionAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AdminSessionSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AdminSessionMinAggregateInputType
@@ -155,6 +203,8 @@ export type AdminSessionGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   _count?: AdminSessionCountAggregateInputType | true
+  _avg?: AdminSessionAvgAggregateInputType
+  _sum?: AdminSessionSumAggregateInputType
   _min?: AdminSessionMinAggregateInputType
   _max?: AdminSessionMaxAggregateInputType
 }
@@ -167,7 +217,12 @@ export type AdminSessionGroupByOutputType = {
   expiresAt: Date
   createdAt: Date
   lastSeenAt: Date
+  policyVersion: number
+  securitySummarySince: Date | null
+  securitySummaryUntil: Date | null
   _count: AdminSessionCountAggregateOutputType | null
+  _avg: AdminSessionAvgAggregateOutputType | null
+  _sum: AdminSessionSumAggregateOutputType | null
   _min: AdminSessionMinAggregateOutputType | null
   _max: AdminSessionMaxAggregateOutputType | null
 }
@@ -198,6 +253,9 @@ export type AdminSessionWhereInput = {
   expiresAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
+  policyVersion?: Prisma.IntFilter<"AdminSession"> | number
+  securitySummarySince?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
+  securitySummaryUntil?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
   user?: Prisma.XOR<Prisma.AdminUserScalarRelationFilter, Prisma.AdminUserWhereInput>
 }
 
@@ -209,6 +267,9 @@ export type AdminSessionOrderByWithRelationInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+  securitySummarySince?: Prisma.SortOrderInput | Prisma.SortOrder
+  securitySummaryUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   user?: Prisma.AdminUserOrderByWithRelationInput
 }
 
@@ -223,6 +284,9 @@ export type AdminSessionWhereUniqueInput = Prisma.AtLeast<{
   expiresAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
+  policyVersion?: Prisma.IntFilter<"AdminSession"> | number
+  securitySummarySince?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
+  securitySummaryUntil?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
   user?: Prisma.XOR<Prisma.AdminUserScalarRelationFilter, Prisma.AdminUserWhereInput>
 }, "id" | "tokenHash">
 
@@ -234,9 +298,14 @@ export type AdminSessionOrderByWithAggregationInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+  securitySummarySince?: Prisma.SortOrderInput | Prisma.SortOrder
+  securitySummaryUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.AdminSessionCountOrderByAggregateInput
+  _avg?: Prisma.AdminSessionAvgOrderByAggregateInput
   _max?: Prisma.AdminSessionMaxOrderByAggregateInput
   _min?: Prisma.AdminSessionMinOrderByAggregateInput
+  _sum?: Prisma.AdminSessionSumOrderByAggregateInput
 }
 
 export type AdminSessionScalarWhereWithAggregatesInput = {
@@ -250,6 +319,9 @@ export type AdminSessionScalarWhereWithAggregatesInput = {
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"AdminSession"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AdminSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeWithAggregatesFilter<"AdminSession"> | Date | string
+  policyVersion?: Prisma.IntWithAggregatesFilter<"AdminSession"> | number
+  securitySummarySince?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminSession"> | Date | string | null
+  securitySummaryUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"AdminSession"> | Date | string | null
 }
 
 export type AdminSessionCreateInput = {
@@ -259,6 +331,9 @@ export type AdminSessionCreateInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
   user: Prisma.AdminUserCreateNestedOneWithoutSessionsInput
 }
 
@@ -270,6 +345,9 @@ export type AdminSessionUncheckedCreateInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
 }
 
 export type AdminSessionUpdateInput = {
@@ -279,6 +357,9 @@ export type AdminSessionUpdateInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.AdminUserUpdateOneRequiredWithoutSessionsNestedInput
 }
 
@@ -290,6 +371,9 @@ export type AdminSessionUncheckedUpdateInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AdminSessionCreateManyInput = {
@@ -300,6 +384,9 @@ export type AdminSessionCreateManyInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
 }
 
 export type AdminSessionUpdateManyMutationInput = {
@@ -309,6 +396,9 @@ export type AdminSessionUpdateManyMutationInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AdminSessionUncheckedUpdateManyInput = {
@@ -319,6 +409,9 @@ export type AdminSessionUncheckedUpdateManyInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AdminSessionListRelationFilter = {
@@ -339,6 +432,13 @@ export type AdminSessionCountOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+  securitySummarySince?: Prisma.SortOrder
+  securitySummaryUntil?: Prisma.SortOrder
+}
+
+export type AdminSessionAvgOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type AdminSessionMaxOrderByAggregateInput = {
@@ -349,6 +449,9 @@ export type AdminSessionMaxOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+  securitySummarySince?: Prisma.SortOrder
+  securitySummaryUntil?: Prisma.SortOrder
 }
 
 export type AdminSessionMinOrderByAggregateInput = {
@@ -359,6 +462,13 @@ export type AdminSessionMinOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+  securitySummarySince?: Prisma.SortOrder
+  securitySummaryUntil?: Prisma.SortOrder
+}
+
+export type AdminSessionSumOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type AdminSessionCreateNestedManyWithoutUserInput = {
@@ -410,6 +520,9 @@ export type AdminSessionCreateWithoutUserInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
 }
 
 export type AdminSessionUncheckedCreateWithoutUserInput = {
@@ -419,6 +532,9 @@ export type AdminSessionUncheckedCreateWithoutUserInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
 }
 
 export type AdminSessionCreateOrConnectWithoutUserInput = {
@@ -458,6 +574,9 @@ export type AdminSessionScalarWhereInput = {
   expiresAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"AdminSession"> | Date | string
+  policyVersion?: Prisma.IntFilter<"AdminSession"> | number
+  securitySummarySince?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
+  securitySummaryUntil?: Prisma.DateTimeNullableFilter<"AdminSession"> | Date | string | null
 }
 
 export type AdminSessionCreateManyUserInput = {
@@ -467,6 +586,9 @@ export type AdminSessionCreateManyUserInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  policyVersion?: number
+  securitySummarySince?: Date | string | null
+  securitySummaryUntil?: Date | string | null
 }
 
 export type AdminSessionUpdateWithoutUserInput = {
@@ -476,6 +598,9 @@ export type AdminSessionUpdateWithoutUserInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AdminSessionUncheckedUpdateWithoutUserInput = {
@@ -485,6 +610,9 @@ export type AdminSessionUncheckedUpdateWithoutUserInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AdminSessionUncheckedUpdateManyWithoutUserInput = {
@@ -494,6 +622,9 @@ export type AdminSessionUncheckedUpdateManyWithoutUserInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  securitySummarySince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  securitySummaryUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -506,6 +637,9 @@ export type AdminSessionSelect<ExtArgs extends runtime.Types.Extensions.Internal
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  policyVersion?: boolean
+  securitySummarySince?: boolean
+  securitySummaryUntil?: boolean
   user?: boolean | Prisma.AdminUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["adminSession"]>
 
@@ -517,6 +651,9 @@ export type AdminSessionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  policyVersion?: boolean
+  securitySummarySince?: boolean
+  securitySummaryUntil?: boolean
   user?: boolean | Prisma.AdminUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["adminSession"]>
 
@@ -528,6 +665,9 @@ export type AdminSessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  policyVersion?: boolean
+  securitySummarySince?: boolean
+  securitySummaryUntil?: boolean
   user?: boolean | Prisma.AdminUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["adminSession"]>
 
@@ -539,9 +679,12 @@ export type AdminSessionSelectScalar = {
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  policyVersion?: boolean
+  securitySummarySince?: boolean
+  securitySummaryUntil?: boolean
 }
 
-export type AdminSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "tokenHash" | "csrfTokenHash" | "expiresAt" | "createdAt" | "lastSeenAt", ExtArgs["result"]["adminSession"]>
+export type AdminSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "tokenHash" | "csrfTokenHash" | "expiresAt" | "createdAt" | "lastSeenAt" | "policyVersion" | "securitySummarySince" | "securitySummaryUntil", ExtArgs["result"]["adminSession"]>
 export type AdminSessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.AdminUserDefaultArgs<ExtArgs>
 }
@@ -565,6 +708,9 @@ export type $AdminSessionPayload<ExtArgs extends runtime.Types.Extensions.Intern
     expiresAt: Date
     createdAt: Date
     lastSeenAt: Date
+    policyVersion: number
+    securitySummarySince: Date | null
+    securitySummaryUntil: Date | null
   }, ExtArgs["result"]["adminSession"]>
   composites: {}
 }
@@ -996,6 +1142,9 @@ export interface AdminSessionFieldRefs {
   readonly expiresAt: Prisma.FieldRef<"AdminSession", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"AdminSession", 'DateTime'>
   readonly lastSeenAt: Prisma.FieldRef<"AdminSession", 'DateTime'>
+  readonly policyVersion: Prisma.FieldRef<"AdminSession", 'Int'>
+  readonly securitySummarySince: Prisma.FieldRef<"AdminSession", 'DateTime'>
+  readonly securitySummaryUntil: Prisma.FieldRef<"AdminSession", 'DateTime'>
 }
     
 

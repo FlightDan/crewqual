@@ -77,6 +77,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
     return jsonData(serializeNotification(delivery), requestId, 202);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

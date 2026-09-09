@@ -110,6 +110,8 @@ function initialScenarioState(
         documentValue: "2026-09-09",
         formValue: "2026-10-09",
       };
+    case "disabled":
+      return { kind: "disabled" };
     case "busy":
       return { kind: "busy", operation: "recognize", retryable: true };
     case "default":

@@ -81,6 +81,8 @@ export function AdminAccountSettingsSection({
   const [actionTarget, setActionTarget] = React.useState<SettingsAdminAccount | null>(null);
   const [pendingAction, setPendingAction] = React.useState<AdminAction | null>(null);
   const [actionValue, setActionValue] = React.useState("");
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [currentTotpCode, setCurrentTotpCode] = React.useState("");
   const [acting, setActing] = React.useState(false);
   const [provisioning, setProvisioning] = React.useState<AdminCredentialResult | null>(null);
 
@@ -151,15 +153,13 @@ export function AdminAccountSettingsSection({
     setActionTarget(admin);
     setPendingAction(action);
     setActionValue("");
+    setCurrentPassword("");
+    setCurrentTotpCode("");
     setError(null);
   };
 
   const runAction = async () => {
     if (!actionTarget || !pendingAction) return;
-    if (pendingAction === "resetPassword" && actionValue.length < 12) {
-      setError(t("settingsAccount.newPasswordShort"));
-      return;
-    }
     setActing(true);
     setError(null);
     try {
@@ -167,11 +167,25 @@ export function AdminAccountSettingsSection({
         actionTarget.id,
         pendingAction,
         actionValue || undefined,
+        {
+          currentPassword: currentPassword || undefined,
+          currentTotpCode: currentTotpCode || undefined,
+        },
       );
-      const { oneTimeTotpSecret, oneTimeTotpUri, ...account } = saved;
+      const {
+        oneTimeTotpSecret,
+        oneTimeTotpUri,
+        passwordResetExpiresAt,
+        passwordResetPending,
+        ...account
+      } = saved;
       onAdminsChange(admins.map((item) => (item.id === account.id ? account : item)));
-      if (typeof oneTimeTotpSecret === "string") {
-        setProvisioning({ ...account, oneTimeTotpSecret, oneTimeTotpUri });
+      if (typeof oneTimeTotpSecret === "string" || passwordResetPending) {
+        setProvisioning({
+          ...account,
+          ...(oneTimeTotpSecret ? { oneTimeTotpSecret, oneTimeTotpUri } : {}),
+          ...(passwordResetPending ? { passwordResetPending, passwordResetExpiresAt } : {}),
+        });
       }
       setActionTarget(null);
       setPendingAction(null);
@@ -546,27 +560,48 @@ export function AdminAccountSettingsSection({
           </DialogDescription>
           {provisioning ? (
             <div className="mt-5 space-y-4">
-              <Alert tone="warning">{t("settingsAccount.secretWarning")}</Alert>
+              {provisioning.passwordResetPending ? (
+                <Alert tone="warning">
+                  已创建一次性恢复任务。请目标管理员在仍登录的浏览器中打开
+                  <code className="mx-1 rounded bg-slate-100 px-1">/admin/password-reset</code>
+                  完成设置；管理员不会看到或指定最终密码。
+                </Alert>
+              ) : (
+                <Alert tone="warning">{t("settingsAccount.secretWarning")}</Alert>
+              )}
               <div>
                 <p className="text-xs font-semibold text-muted">
                   {t("settingsAccount.adminLabel")}
                 </p>
                 <p className="mt-1 text-sm font-medium">{provisioning.email}</p>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-muted">
-                  {t("settingsAccount.manualSecret")}
-                </p>
-                <code className="mt-1 block break-all rounded-md bg-slate-100 p-3 text-sm">
-                  {provisioning.oneTimeTotpSecret}
-                </code>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-muted">{t("settingsAccount.uri")}</p>
-                <code className="mt-1 block max-h-28 overflow-auto break-all rounded-md bg-slate-100 p-3 text-xs">
-                  {provisioning.oneTimeTotpUri}
-                </code>
-              </div>
+              {provisioning.passwordResetPending ? (
+                <div>
+                  <p className="text-xs font-semibold text-muted">
+                    一次性恢复任务（30 分钟内有效）
+                  </p>
+                  <p className="mt-1 rounded-md bg-slate-100 p-3 text-xs text-secondary">
+                    目标管理员需要使用当前动态验证码（或仍有效的目标会话）完成独立确认。
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs font-semibold text-muted">
+                      {t("settingsAccount.manualSecret")}
+                    </p>
+                    <code className="mt-1 block break-all rounded-md bg-slate-100 p-3 text-sm">
+                      {provisioning.oneTimeTotpSecret}
+                    </code>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted">{t("settingsAccount.uri")}</p>
+                    <code className="mt-1 block max-h-28 overflow-auto break-all rounded-md bg-slate-100 p-3 text-xs">
+                      {provisioning.oneTimeTotpUri}
+                    </code>
+                  </div>
+                </>
+              )}
               <div className="flex justify-end">
                 <Button type="button" onClick={() => setProvisioning(null)}>
                   {t("settingsAccount.savedSecret")}
@@ -600,14 +635,29 @@ export function AdminAccountSettingsSection({
               </p>
             ) : null}
             {pendingAction === "resetPassword" ? (
-              <Input
-                label={t("settingsAccount.newPassword")}
-                type="password"
-                required
-                helperText={t("settingsAccount.newPasswordHelp")}
-                value={actionValue}
-                onChange={(event) => setActionValue(event.target.value)}
-              />
+              <Alert tone="info">
+                将生成一个 30 分钟内有效的一次性链接，由目标管理员本人设置最终密码。
+              </Alert>
+            ) : null}
+            {pendingAction === "resetPassword" || pendingAction === "resetTotp" ? (
+              <>
+                <Input
+                  label="当前管理员密码"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
+                <Input
+                  label="当前动态验证码"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={currentTotpCode}
+                  onChange={(event) =>
+                    setCurrentTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                />
+              </>
             ) : null}
             {pendingAction === "disable" ? (
               <Alert tone="warning">{t("settingsAccount.disableWarning")}</Alert>

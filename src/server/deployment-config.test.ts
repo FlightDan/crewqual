@@ -15,6 +15,10 @@ const releaseWorkflow = readFileSync(
   path.resolve(process.cwd(), ".github/workflows/release-acceptance.yml"),
   "utf8",
 );
+const releasePublisher = readFileSync(
+  path.resolve(process.cwd(), "scripts/release/crewqual-release-publish"),
+  "utf8",
+);
 const caddy = readFileSync(path.resolve(process.cwd(), "Caddyfile"), "utf8");
 const dockerfile = readFileSync(path.resolve(process.cwd(), "Dockerfile"), "utf8");
 const installer = readFileSync(path.resolve(process.cwd(), "install.sh"), "utf8");
@@ -97,6 +101,31 @@ describe("deployment configuration", () => {
     expect(releaseWorkflow).toContain("RELEASE_RUNTIME_IMAGE");
     expect(releaseWorkflow).not.toContain("RELEASE_WORKER_IMAGE");
     expect(releaseWorkflow).not.toContain("RELEASE_OPS_IMAGE");
+  });
+
+  it("validates release configuration before signing, pushing, or building images", () => {
+    expect(releaseWorkflow).toContain("acceptance-config:");
+    expect(releaseWorkflow).toMatch(
+      /build-images:\s+needs: \[acceptance-config, build-platform-images\]/,
+    );
+    expect(releaseWorkflow.indexOf("pnpm release:validate-config")).toBeLessThan(
+      releaseWorkflow.indexOf("docker buildx build --pull"),
+    );
+    expect(releaseWorkflow.indexOf("Preflight signed upgrade baseline release")).toBeLessThan(
+      releaseWorkflow.indexOf("docker buildx build --pull"),
+    );
+    expect(releasePublisher.indexOf('validate_release_environment_secrets "$scope"')).toBeLessThan(
+      releasePublisher.indexOf('"$KEY_DIR/crewqual-release-tag" sign'),
+    );
+    expect(releasePublisher.indexOf('validate_release_environment_secrets "$scope"')).toBeLessThan(
+      releasePublisher.indexOf('git -C "$REPO_DIR" push origin'),
+    );
+    expect(releaseWorkflow).toMatch(
+      /publish:\s+needs: \[acceptance-config, acceptance\]\s+runs-on:/,
+    );
+    expect(releaseWorkflow).toMatch(
+      /promote-final:\s+needs: post-publish-host-acceptance\s+if: inputs\.profile == 'final'/,
+    );
   });
 
   it("keeps readiness private while wiring authenticated container probes", () => {
@@ -193,7 +222,7 @@ describe("deployment configuration", () => {
     expect(compose).toMatch(/SMS_ADAPTER: \$\{SMS_ADAPTER:-disabled\}/);
     expect(compose).toMatch(/FEISHU_ADAPTER: \$\{FEISHU_ADAPTER:-disabled\}/);
     expect(compose).toMatch(/VLM_ADAPTER: \$\{VLM_ADAPTER:-disabled\}/);
-    expect(compose).not.toMatch(/https?:\/\/(?!postgres|web|minio|localhost|127\.0\.0\.1)/);
+    expect(compose).not.toMatch(/https?:\/\/(?!postgres|web|minio|caddy|localhost|127\.0\.0\.1)/);
   });
 
   it("routes through Caddy with TLS and baseline browser security headers", () => {
@@ -212,6 +241,35 @@ describe("deployment configuration", () => {
     expect(caddy).toContain("max_size 12MB");
     expect(caddy).toContain("-Server");
     expect(caddy).toContain('X-Robots-Tag "noindex, nofollow"');
+  });
+
+  it("keeps the public preflight credential-free and makes Caddy loss observable", () => {
+    expect(caddy).toContain(":2020 {\n\tmetrics /metrics");
+    expect(caddy).toContain("uri /api/internal/network-access?");
+    for (const header of [
+      "Cookie",
+      "Authorization",
+      "Proxy-Authorization",
+      "Referer",
+      "X-Csrf-Token",
+      "X-Api-Key",
+      "X-Original-Url",
+      "X-Rewrite-Url",
+    ]) {
+      expect(caddy).toContain(`header_up -${header}`);
+    }
+    expect(caddy).toMatch(/copy_headers \{\s+X-Crewqual-Request-Key\s+X-Crewqual-Route-Class\s+\}/);
+    for (const text of [compose, installCompose]) {
+      expect(text.match(/CADDY_METRICS_URL: http:\/\/caddy:2020\/metrics/g)).toHaveLength(1);
+    }
+    expect(caddy.match(/handle_errors \{/g)).toHaveLength(1);
+    const errorHandler = caddy.match(/handle_errors \{([\s\S]*?)\n\t\}/)?.[1] ?? "";
+    expect(errorHandler).toContain("-Server");
+    expect(errorHandler).toContain('X-Content-Type-Options "nosniff"');
+    expect(errorHandler).toContain('X-Frame-Options "DENY"');
+    expect(errorHandler).toContain('Referrer-Policy "same-origin"');
+    expect(errorHandler).toContain('Permissions-Policy "camera=(), microphone=()"');
+    expect(errorHandler).toContain('X-Robots-Tag "noindex, nofollow"');
   });
 
   it("defaults the development/mock launcher to all interfaces", () => {

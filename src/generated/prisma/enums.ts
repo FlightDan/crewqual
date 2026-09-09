@@ -28,6 +28,34 @@ export const AdminLoginMode = {
 export type AdminLoginMode = (typeof AdminLoginMode)[keyof typeof AdminLoginMode]
 
 
+export const AuthenticationPreset = {
+  ENHANCED_L3: 'ENHANCED_L3',
+  COMBINED_L2: 'COMBINED_L2',
+  CONVENIENCE: 'CONVENIENCE'
+} as const
+
+export type AuthenticationPreset = (typeof AuthenticationPreset)[keyof typeof AuthenticationPreset]
+
+
+export const MemberLoginMode = {
+  PASSWORD_TOTP: 'PASSWORD_TOTP',
+  PASSWORD_FIDO2: 'PASSWORD_FIDO2',
+  SMS_LINK: 'SMS_LINK'
+} as const
+
+export type MemberLoginMode = (typeof MemberLoginMode)[keyof typeof MemberLoginMode]
+
+
+export const WebAuthnChallengeKind = {
+  ADMIN_REGISTRATION: 'ADMIN_REGISTRATION',
+  ADMIN_AUTHENTICATION: 'ADMIN_AUTHENTICATION',
+  PILOT_REGISTRATION: 'PILOT_REGISTRATION',
+  PILOT_AUTHENTICATION: 'PILOT_AUTHENTICATION'
+} as const
+
+export type WebAuthnChallengeKind = (typeof WebAuthnChallengeKind)[keyof typeof WebAuthnChallengeKind]
+
+
 export const QualificationRecordStatus = {
   ACTIVE: 'ACTIVE',
   REPLACED: 'REPLACED'
@@ -199,6 +227,31 @@ export const UploadReservationStatus = {
 } as const
 
 export type UploadReservationStatus = (typeof UploadReservationStatus)[keyof typeof UploadReservationStatus]
+
+
+export const SecuritySignalKind = {
+  AUTH_FAILURE: 'AUTH_FAILURE',
+  AUTH_RATE_LIMIT: 'AUTH_RATE_LIMIT',
+  AUTH_SUCCESS: 'AUTH_SUCCESS',
+  AUTHORIZATION_DENIED: 'AUTHORIZATION_DENIED',
+  CSRF_DENIED: 'CSRF_DENIED',
+  KNOWN_PROBE: 'KNOWN_PROBE',
+  UNKNOWN_ROUTE: 'UNKNOWN_ROUTE',
+  INVALID_METHOD: 'INVALID_METHOD',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+  PUBLIC_ACCESS_DENIED: 'PUBLIC_ACCESS_DENIED'
+} as const
+
+export type SecuritySignalKind = (typeof SecuritySignalKind)[keyof typeof SecuritySignalKind]
+
+
+export const SecurityDetectionCategory = {
+  PUBLIC_SCAN: 'PUBLIC_SCAN',
+  CREDENTIAL_STUFFING: 'CREDENTIAL_STUFFING',
+  DISTRIBUTED_LOGIN_ATTEMPT: 'DISTRIBUTED_LOGIN_ATTEMPT'
+} as const
+
+export type SecurityDetectionCategory = (typeof SecurityDetectionCategory)[keyof typeof SecurityDetectionCategory]
 
 
 export const NotificationType = {

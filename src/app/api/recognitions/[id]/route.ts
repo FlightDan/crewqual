@@ -17,6 +17,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (!task) return jsonError(new Error("Recognition not found"), requestId);
     return jsonData({ id: task.id, status: task.status, result: task.result }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

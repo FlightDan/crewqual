@@ -15,6 +15,6 @@ export async function POST(request: NextRequest) {
       201,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

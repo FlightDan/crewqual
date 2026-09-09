@@ -9,7 +9,15 @@ import { Plane } from "lucide-react";
 import type { AdminLoginMode } from "@/types/admin-settings";
 import { useI18n } from "@/components/i18n-provider";
 
-export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockMode: boolean }) {
+export function AdminLoginForm({
+  mode,
+  fidoRequired,
+  mockMode,
+}: {
+  mode: AdminLoginMode;
+  fidoRequired: boolean;
+  mockMode: boolean;
+}) {
   const router = useRouter();
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -38,6 +46,27 @@ export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockM
     setError("");
     const form = new FormData(event.currentTarget);
     try {
+      let fido: { challengeId: string; response: unknown } | undefined;
+      if (fidoRequired) {
+        const optionsResponse = await fetch("/api/admin/login/fido-options", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: form.get("email") }),
+        });
+        const optionsPayload = (await optionsResponse.json().catch(() => ({}))) as {
+          data?: { challengeId?: string; [key: string]: unknown };
+          error?: { message?: string };
+        };
+        if (!optionsResponse.ok || !optionsPayload.data?.challengeId) {
+          throw new Error(optionsPayload.error?.message ?? "无法开始 FIDO2 验证");
+        }
+        const { startAuthentication } = await import("@simplewebauthn/browser");
+        fido = {
+          challengeId: optionsPayload.data.challengeId,
+          response: await startAuthentication({ optionsJSON: optionsPayload.data as never }),
+        };
+      }
       const response = await fetch("/api/admin/login", {
         method: "POST",
         credentials: "include",
@@ -46,6 +75,7 @@ export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockM
           email: form.get("email"),
           ...(needsPassword ? { password: form.get("password") } : {}),
           ...(needsTotp ? { totpCode: form.get("totpCode") } : {}),
+          ...(fido ? { fidoChallengeId: fido.challengeId, fidoResponse: fido.response } : {}),
         }),
       });
       if (response.ok) {
@@ -89,6 +119,11 @@ export function AdminLoginForm({ mode, mockMode }: { mode: AdminLoginMode; mockM
         {mockMode ? (
           <Alert tone="info" className="mt-4">
             {t("auth.mockNotice")}
+          </Alert>
+        ) : null}
+        {fidoRequired ? (
+          <Alert tone="info" className="mt-4">
+            请准备已绑定的 FIDO2 硬件安全钥匙，并在提交凭据后完成触摸确认。
           </Alert>
         ) : null}
         {notice ? (

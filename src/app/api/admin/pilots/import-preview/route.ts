@@ -11,6 +11,6 @@ export async function POST(request: NextRequest) {
     const { csvText, mode } = await parseJson(request, pilotCsvRequestSchema);
     return jsonData(await previewPilotCsv(admin, csvText, mode), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

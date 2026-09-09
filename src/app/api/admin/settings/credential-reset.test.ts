@@ -32,11 +32,14 @@ vi.mock("@/server/prisma", () => ({ getPrisma: () => db }));
 vi.mock("@/server/auth", () => ({
   requirePermission: vi.fn(),
   hashPassword: () => Promise.resolve("new-hash"),
+  verifyPassword: () => Promise.resolve(true),
 }));
 vi.mock("@/server/crypto", () => ({
   createTotpSecret: () => "ABCDEFGHIJKLMNOP",
   encryptSettingSecret: () => "v1:encrypted",
   decryptSettingSecret: vi.fn(),
+  resolveTotpSecret: () => "JBSWY3DPEHPK3PXP",
+  verifyTotp: () => 100,
 }));
 
 import { POST } from "@/app/api/admin/settings/route";
@@ -52,6 +55,8 @@ function request(action: "resetPassword" | "resetTotp") {
         id: target,
         action,
         ...(action === "resetPassword" ? { value: "temporary-password-123" } : {}),
+        currentPassword: "current-password",
+        currentTotpCode: "123456",
       },
     }),
   });
@@ -76,12 +81,16 @@ describe("administrator credential reset", () => {
   });
 
   it.each(["resetPassword", "resetTotp"] as const)(
-    "revokes every existing session in the same transaction for %s",
+    "handles existing sessions in the same transaction for %s",
     async (action) => {
       const response = await POST(request(action));
       expect(response.status).toBe(200);
       expect(mocks.transaction).toHaveBeenCalledTimes(1);
-      expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { userId: target } });
+      if (action === "resetTotp") {
+        expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { userId: target } });
+      } else {
+        expect(mocks.deleteMany).not.toHaveBeenCalled();
+      }
       expect(mocks.update).toHaveBeenCalled();
     },
   );

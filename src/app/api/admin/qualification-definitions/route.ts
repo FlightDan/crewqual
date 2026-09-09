@@ -11,6 +11,10 @@ import {
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
 import {
+  adminOrganizationWhere,
+  resolveOrganizationTarget,
+} from "@/server/admin-organization-scope";
+import {
   ocrChecksSchema,
   parameterRestrictionSchema,
   reminderRuleSchema,
@@ -39,10 +43,6 @@ const definitionSchema = z.object({
   parameterRestriction: parameterRestrictionSchema,
   expectedVersion: z.number().int().positive().optional(),
 });
-
-function organizationId(admin: Awaited<ReturnType<typeof getAdmin>>) {
-  return admin.organizationId ?? admin.unitId;
-}
 
 function serialize(item: any) {
   return {
@@ -83,15 +83,18 @@ export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const admin = await getAdmin(request, "operations.read");
-    const scopedOrganizationId = organizationId(admin);
+    const scope = adminOrganizationWhere(
+      admin,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
     const items = await getPrisma().qualificationDefinition.findMany({
-      where: scopedOrganizationId ? { organizationId: scopedOrganizationId } : {},
+      where: scope,
       include: { requirements: { include: { position: true }, orderBy: { sortOrder: "asc" } } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
     return jsonData(items.map(serialize), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -100,10 +103,11 @@ export async function POST(request: NextRequest) {
   try {
     assertSameOrigin(request);
     const admin = await getAdmin(request, "operations.write", true);
-    const scopedOrganizationId = organizationId(admin);
-    if (!scopedOrganizationId)
-      throw new ApiError("ORGANIZATION_REQUIRED", "管理员账号尚未绑定组织", 403);
-    const input = await parseJson(request, definitionSchema);
+    const input = await parseJson(
+      request,
+      definitionSchema.extend({ organizationId: z.string().uuid().optional() }),
+    );
+    const scopedOrganizationId = await resolveOrganizationTarget(admin, input.organizationId);
     const code = input.code ?? `custom-${Date.now().toString(36)}`;
     const duplicate = await getPrisma().qualificationDefinition.findUnique({
       where: { organizationId_code: { organizationId: scopedOrganizationId, code } },
@@ -132,7 +136,7 @@ export async function POST(request: NextRequest) {
     });
     return jsonData(serialize(item), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -141,20 +145,21 @@ export async function PATCH(request: NextRequest) {
   try {
     assertSameOrigin(request);
     const admin = await getAdmin(request, "operations.write", true);
-    const scopedOrganizationId = organizationId(admin);
-    if (!scopedOrganizationId)
-      throw new ApiError("ORGANIZATION_REQUIRED", "管理员账号尚未绑定组织", 403);
+    const scope = adminOrganizationWhere(
+      admin,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
     const id = new URL(request.url).searchParams.get("id");
     if (!id) throw new ApiError("VALIDATION_ERROR", "缺少资质定义 ID", 422);
     const input = await parseJson(request, definitionSchema.omit({ code: true }));
     const current = await getPrisma().qualificationDefinition.findFirst({
-      where: { id, organizationId: scopedOrganizationId },
+      where: { id, ...scope },
     });
     if (!current) throw new ApiError("NOT_FOUND", "资质定义不存在", 404);
     const updated = await getPrisma().qualificationDefinition.updateMany({
       where: {
         id,
-        organizationId: scopedOrganizationId,
+        ...scope,
         ...(input.expectedVersion ? { version: input.expectedVersion } : {}),
       },
       data: {
@@ -183,6 +188,6 @@ export async function PATCH(request: NextRequest) {
     });
     return jsonData(serialize(item), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -122,6 +122,8 @@ function recognitionResult(scenario: PilotFlowScenario): DocumentAssistState {
           description: "AI识别的到期日期",
         },
       };
+    case "disabled":
+      return { kind: "disabled" };
     default:
       return {
         kind: "recognized",

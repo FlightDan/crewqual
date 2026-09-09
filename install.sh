@@ -11,11 +11,17 @@ readonly WAIT_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_TIMEOUT_SECONDS:-300}"
 readonly DOCKER_COMMAND_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_DOCKER_TIMEOUT_SECONDS:-30}"
 readonly NETWORK_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_TIMEOUT_SECONDS:-60}"
 readonly NETWORK_RETRY_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_NETWORK_RETRY_TIMEOUT_SECONDS:-180}"
+readonly CADDY_START_RETRY_ATTEMPTS="${CREWQUAL_INSTALL_CADDY_RETRY_ATTEMPTS:-5}"
+readonly CADDY_START_RETRY_INTERVAL_SECONDS="${CREWQUAL_INSTALL_CADDY_RETRY_INTERVAL_SECONDS:-3}"
+readonly CADDY_RECOVERY_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_CADDY_RECOVERY_TIMEOUT_SECONDS:-300}"
 readonly NETWORK_PROGRESS_INTERVAL_SECONDS=15
 readonly PACKAGE_TIMEOUT_SECONDS="${CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS:-900}"
 readonly UPDATER_BINARY_DIR="/usr/local/libexec"
 readonly UPDATER_CONFIG_DIR="/etc/crewqual-updater"
 readonly UPDATER_DATA_DIR="/var/lib/crewqual-updater"
+readonly CADDY_RECOVERY_UNIT="crewqual-caddy-recovery.service"
+readonly CADDY_RECOVERY_UNIT_FILE="/etc/systemd/system/$CADDY_RECOVERY_UNIT"
+readonly DEPLOYMENT_LOCK_PATH="/run/crewqual-updater/deployment.lock"
 # Generated from security/update-manifest-keyring.json; release CI checks drift.
 readonly BUILTIN_UPDATE_KEYRING_JSON='{"schemaVersion":1,"keys":[{"id":"manifest-a1ba0c3f6cf25851","publicKey":"Db7Vh2kVfil0HhhBWfhRxmKKbTBt0IYCDvG+E0KOGP0=","status":"active"}]}'
 
@@ -74,6 +80,10 @@ UI_TASK_RUNNING=0
 UI_TASK_STARTED=0
 UI_CURRENT_TASK=""
 UI_LAST_TASK=""
+DEPLOYMENT_LOCK_FD=""
+DEPLOYMENT_LOCK_HELD=0
+ROLLBACK_STATE_TOKEN=""
+ROLLBACK_STATE_GUARD_REQUIRED=0
 UI_COLOR_BLUE=""
 UI_COLOR_GREEN=""
 UI_COLOR_YELLOW=""
@@ -119,6 +129,12 @@ Environment:
                                     Total retry window for network requests (default: 180).
   CREWQUAL_INSTALL_PACKAGE_TIMEOUT_SECONDS
                                     Package/Docker installation timeout (default: 900).
+  CREWQUAL_INSTALL_CADDY_RETRY_ATTEMPTS
+                                    Maximum Caddy start/recovery attempts (default: 5).
+  CREWQUAL_INSTALL_CADDY_RETRY_INTERVAL_SECONDS
+                                    Delay between Caddy start/recovery attempts (default: 3).
+  CREWQUAL_INSTALL_CADDY_RECOVERY_TIMEOUT_SECONDS
+                                    Host recovery timeout (default: 300).
   NO_COLOR                          Disable CUI colors while keeping the full-screen layout.
   CREWQUAL_UPDATER_TRUSTED_PUBLIC_KEY
                                     Legacy compatibility input. It is accepted only when
@@ -745,6 +761,10 @@ msg() {
     en:network_failed) printf 'Network request failed; check the network, DNS, or proxy' ;;
     zh:wait_status) printf '等待 %s: %s' "$1" "$2" ;;
     en:wait_status) printf 'Wait for %s: %s' "$1" "$2" ;;
+    zh:caddy_retry) printf 'Caddy 启动未就绪，将在 %ss 后重试（第 %s/%s 次）' "$1" "$2" "$3" ;;
+    en:caddy_retry) printf 'Caddy is not ready; retrying in %ss (attempt %s/%s)' "$1" "$2" "$3" ;;
+    zh:caddy_recovery_start) printf '校验并启用 Caddy 主机地址自动恢复' ;;
+    en:caddy_recovery_start) printf 'Validate and enable Caddy host-address recovery' ;;
     zh:service_status_bad) printf '%s 状态异常: %s' "$1" "$2" ;;
     en:service_status_bad) printf '%s has an unhealthy status: %s' "$1" "$2" ;;
     zh:service_status_timeout) printf '%s 未在 %ss 内达到 %s' "$1" "$2" "$3" ;;
@@ -777,8 +797,10 @@ msg() {
     en:manual_updater_mode) printf 'WSL2 uses manual update mode; the host automatic updater service will not be installed' ;;
     zh:manual_upgrade_command) printf '升级方式: 在 WSL2 Ubuntu 中重新运行 CrewQual 安装命令' ;;
     en:manual_upgrade_command) printf 'To upgrade, rerun the CrewQual installation command in WSL2 Ubuntu' ;;
-    zh:updater_disable_failed) printf '警告: 无法停止已有 CrewQual 更新器；请手工执行 systemctl disable --now crewqual-updater.service crewqual-updater.socket' ;;
-    en:updater_disable_failed) printf 'Warning: could not stop the existing CrewQual updater; run systemctl disable --now crewqual-updater.service crewqual-updater.socket manually' ;;
+    zh:updater_disable_failed) printf '警告: 无法停止已有 CrewQual 更新器；请手工执行 systemctl disable --now crewqual-updater.service crewqual-updater.socket crewqual-caddy-recovery.service' ;;
+    en:updater_disable_failed) printf 'Warning: could not stop the existing CrewQual updater; run systemctl disable --now crewqual-updater.service crewqual-updater.socket crewqual-caddy-recovery.service manually' ;;
+    zh:deployment_lock_failed) printf '错误: 无法在限定时间内取得 CrewQual 部署锁；请等待其他升级或恢复任务完成后重试。' ;;
+    en:deployment_lock_failed) printf 'Error: could not acquire the CrewQual deployment lock before the timeout; wait for the other update or recovery task and retry.' ;;
     zh:wsl_lan_firewall) printf 'WSL2 将使用 Windows 局域网地址 %s；请确认 Windows 防火墙允许 TCP %s 入站' "$1" "$2" ;;
     en:wsl_lan_firewall) printf 'WSL2 will use Windows LAN address %s; ensure Windows Firewall allows inbound TCP %s' "$1" "$2" ;;
     zh:setup_auth_code) printf '首次配置授权码（仅显示一次）: %s' "$1" ;;
@@ -1174,12 +1196,65 @@ atomic_install() {
   mv -f -- "$staged" "$target"
 }
 
+acquire_deployment_lock() {
+  local lock_path="$DEPLOYMENT_LOCK_PATH"
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" ]]; then
+    lock_path="$INSTALL_DIR/.deployment.lock"
+  else
+    install -d -m 0755 "$(dirname -- "$lock_path")"
+  fi
+  touch -- "$lock_path"
+  chmod 0600 "$lock_path"
+  exec {DEPLOYMENT_LOCK_FD}>"$lock_path"
+  if ! flock -w "$DOCKER_COMMAND_TIMEOUT_SECONDS" "$DEPLOYMENT_LOCK_FD"; then
+    echo "$(msg deployment_lock_failed)" >&2
+    eval "exec ${DEPLOYMENT_LOCK_FD}>&-" 2>/dev/null || true
+    DEPLOYMENT_LOCK_FD=""
+    DEPLOYMENT_LOCK_HELD=0
+    return 1
+  fi
+  DEPLOYMENT_LOCK_HELD=1
+}
+
+release_deployment_lock() {
+  if [[ -n "$DEPLOYMENT_LOCK_FD" ]]; then
+    flock -u "$DEPLOYMENT_LOCK_FD" >/dev/null 2>&1 || true
+    eval "exec ${DEPLOYMENT_LOCK_FD}>&-" 2>/dev/null || true
+    DEPLOYMENT_LOCK_FD=""
+  fi
+  DEPLOYMENT_LOCK_HELD=0
+}
+
+deployment_state_token() {
+  local path
+  {
+    for path in \
+      "$INSTALL_DIR/.crewqual-official-install" \
+      "$ENV_FILE" \
+      "$COMPOSE_FILE" \
+      "$INSTALL_DIR/Caddyfile" \
+      "$INSTALL_DIR/configure-domain.sh" \
+      "$INSTALL_DIR/tls/fullchain.pem" \
+      "$INSTALL_DIR/tls/privkey.pem"; do
+      printf '%s\0' "$path"
+      if [[ -L "$path" ]]; then
+        printf 'symlink\n'
+      elif [[ -f "$path" ]]; then
+        sha256sum "$path" | awk '{print $1}'
+      else
+        printf 'absent\n'
+      fi
+    done
+  } | sha256sum | awk '{print $1}'
+}
+
 compose() {
   "${COMPOSE[@]}" "$@"
 }
 
 cleanup() {
   ui_shutdown || true
+  release_deployment_lock
   if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
     rm -rf -- "$TEMP_DIR"
   fi
@@ -1256,6 +1331,15 @@ create_upgrade_database_backup() {
 
 restore_existing_install() {
   [[ "$EXISTING_INSTALL" == "1" && -n "$ROLLBACK_DIR" && -d "$ROLLBACK_DIR" ]] || return 0
+  if ((DEPLOYMENT_LOCK_HELD == 0)); then
+    echo "警告: 未持有部署锁，已跳过自动回滚以避免与更新器并发写入。" >&2
+    return 1
+  fi
+  if ((ROLLBACK_STATE_GUARD_REQUIRED)) &&
+    [[ -z "$ROLLBACK_STATE_TOKEN" || "$(deployment_state_token)" != "$ROLLBACK_STATE_TOKEN" ]]; then
+    echo "警告: 部署锁交接期间受管理文件已被其他任务修改，已跳过旧快照回滚。" >&2
+    return 1
+  fi
   local failed=0
   for pair in \
     "env:$ENV_FILE:0600" \
@@ -2055,38 +2139,53 @@ disable_existing_wsl_updater() {
   for unit_path in \
     /etc/systemd/system/crewqual-updater.service \
     /etc/systemd/system/crewqual-updater.socket \
+    /etc/systemd/system/crewqual-caddy-recovery.service \
     /usr/lib/systemd/system/crewqual-updater.service \
-    /usr/lib/systemd/system/crewqual-updater.socket; do
+    /usr/lib/systemd/system/crewqual-updater.socket \
+    /usr/lib/systemd/system/crewqual-caddy-recovery.service; do
     [[ -e "$unit_path" ]] && unit_found=1
   done
   ((unit_found)) || return 0
   if ! command -v systemctl >/dev/null 2>&1 || \
     ! run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl disable --now \
-      crewqual-updater.service crewqual-updater.socket; then
+      crewqual-updater.service crewqual-updater.socket "$CADDY_RECOVERY_UNIT"; then
     echo "$(msg updater_disable_failed)" >&2
   fi
 }
 
 install_updater_service() {
-  [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" ]] && return 0
-  if ! command -v systemctl >/dev/null 2>&1; then
-    echo "$(msg systemd_missing)" >&2
-    return 1
+  local test_mode="${CREWQUAL_INSTALL_TEST_MODE:-0}"
+  local unit_dir target config_path shared backup trusted
+  if [[ "$test_mode" == "1" ]]; then
+    unit_dir="${CREWQUAL_INSTALL_TEST_UNIT_DIR:-$INSTALL_DIR/.updater-units}"
+    target="$unit_dir/crewqual-updater"
+    config_path="$unit_dir/config.json"
+  else
+    if ! command -v systemctl >/dev/null 2>&1; then
+      echo "$(msg systemd_missing)" >&2
+      return 1
+    fi
+    unit_dir="$UPDATER_CONFIG_DIR"
+    target="$UPDATER_BINARY_DIR/crewqual-updater"
+    config_path="$UPDATER_CONFIG_DIR/config.json"
   fi
-  local target shared backup trusted
   [[ -n "$UPDATER_VERIFIER" && -x "$UPDATER_VERIFIER" ]] || return 1
-  target="$UPDATER_BINARY_DIR/crewqual-updater"
-  install -d -m 0755 "$UPDATER_BINARY_DIR" "$UPDATER_CONFIG_DIR" "$UPDATER_DATA_DIR" "$UPDATER_HOST_DIR"
-  install -m 0755 "$UPDATER_VERIFIER" "$target"
+  install -d -m 0755 "$unit_dir"
+  if [[ "$test_mode" == "1" ]]; then
+    install -m 0755 "$UPDATER_VERIFIER" "$target"
+  else
+    install -d -m 0755 "$UPDATER_BINARY_DIR" "$UPDATER_CONFIG_DIR" "$UPDATER_DATA_DIR" "$UPDATER_HOST_DIR"
+    install -m 0755 "$UPDATER_VERIFIER" "$target"
+  fi
   shared="$(env_value CREWQUAL_UPDATER_SHARED_SECRET)"
   backup="$(env_value CREWQUAL_UPDATER_BACKUP_KEY)"
   trusted="$TRUSTED_PUBLIC_KEY_VALUE"
   [[ -n "$trusted" ]] || { echo "$(msg updater_trust_missing)" >&2; return 1; }
   umask 077
   printf '{"installDir":"%s","dataDir":"%s","composeFile":"%s","envFile":"%s","caddyFile":"%s","socket":"/run/crewqual-updater/api.sock","sharedSecret":"%s","backupKey":"%s","channel":"%s","releaseAPIURL":"https://api.github.com/repos/%s/releases","trustedPublicKeys":[{"id":"%s","publicKey":"%s","status":"active"}],"updaterVersion":"%s"}\n' \
-    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$CHANNEL_INPUT" "$GITHUB_REPOSITORY" "$TRUSTED_KEY_ID_VALUE" "$trusted" "${RELEASE_VERSION#v}" >"$UPDATER_CONFIG_DIR/config.json"
-  chmod 600 "$UPDATER_CONFIG_DIR/config.json"
-  cat >"$UPDATER_CONFIG_DIR/crewqual-updater.service" <<EOF
+    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$CHANNEL_INPUT" "$GITHUB_REPOSITORY" "$TRUSTED_KEY_ID_VALUE" "$trusted" "${RELEASE_VERSION#v}" >"$config_path"
+  chmod 600 "$config_path"
+  cat >"$unit_dir/crewqual-updater.service" <<EOF
 [Unit]
 Description=CrewQual host update controller
 After=docker.service
@@ -2095,33 +2194,77 @@ Requires=docker.service
 [Service]
 Type=simple
 ExecStart=$target serve
+Environment=CREWQUAL_UPDATER_CONFIG=$config_path
 Restart=on-failure
 RestartSec=3
 User=root
 UMask=0077
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=$INSTALL_DIR $UPDATER_DATA_DIR $UPDATER_HOST_DIR
+# /run is cleared on every boot. Create the lock/socket parent before the
+# read-write namespace is assembled, and keep it while either unit may use it.
+RuntimeDirectory=crewqual-updater
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+ReadWritePaths=$INSTALL_DIR $UPDATER_DATA_DIR -$UPDATER_HOST_DIR
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
-  install -m 0644 "$UPDATER_CONFIG_DIR/crewqual-updater.service" /etc/systemd/system/crewqual-updater.service
-  cat >"$UPDATER_CONFIG_DIR/crewqual-updater.socket" <<EOF
+  cat >"$unit_dir/$CADDY_RECOVERY_UNIT" <<EOF
+[Unit]
+Description=CrewQual Caddy host-address recovery
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+# A configured address can return long after boot (for example after a VM NIC
+# or VPN is restored). Keep retrying bounded attempts instead of permanently
+# giving up after a small start-limit burst.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=$target reconcile-caddy --timeout ${CADDY_RECOVERY_TIMEOUT_SECONDS}s
+Environment=CREWQUAL_UPDATER_CONFIG=$config_path
+User=root
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+# /run is cleared on every boot. Create the lock/socket parent before the
+# read-write namespace is assembled, and keep it after this oneshot exits.
+RuntimeDirectory=crewqual-updater
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+ReadWritePaths=$INSTALL_DIR $UPDATER_DATA_DIR -$UPDATER_HOST_DIR
+PrivateTmp=true
+TimeoutStartSec=$((CADDY_RECOVERY_TIMEOUT_SECONDS + DOCKER_COMMAND_TIMEOUT_SECONDS))s
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  cat >"$unit_dir/crewqual-updater.socket" <<EOF
 [Unit]
 Description=CrewQual updater API socket
 
 [Socket]
 ListenStream=/run/crewqual-updater/api.sock
 SocketMode=0666
-DirectoryMode=0750
+DirectoryMode=0755
 RemoveOnStop=true
 
 [Install]
 WantedBy=sockets.target
 EOF
-  install -m 0644 "$UPDATER_CONFIG_DIR/crewqual-updater.socket" /etc/systemd/system/crewqual-updater.socket
+  if [[ "$test_mode" == "1" ]]; then
+    chmod 0644 "$unit_dir/crewqual-updater.service" "$unit_dir/$CADDY_RECOVERY_UNIT" "$unit_dir/crewqual-updater.socket"
+    return 0
+  fi
+  install -m 0644 "$unit_dir/crewqual-updater.service" /etc/systemd/system/crewqual-updater.service
+  install -m 0644 "$unit_dir/$CADDY_RECOVERY_UNIT" "$CADDY_RECOVERY_UNIT_FILE"
+  install -m 0644 "$unit_dir/crewqual-updater.socket" /etc/systemd/system/crewqual-updater.socket
   log "$(msg updater_start)"
   run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl daemon-reload || {
     echo "$(msg updater_start_failed)" >&2
@@ -2131,10 +2274,13 @@ EOF
     echo "$(msg updater_start_failed)" >&2
     return 1
   }
+  run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl enable "$CADDY_RECOVERY_UNIT" || {
+    echo "$(msg updater_start_failed)" >&2
+    return 1
+  }
 }
 
 configure_updater() {
-  prepare_updater_verifier || return 1
   if [[ "$UPDATER_MODE" == "manual" ]]; then
     install -d -m 0755 "$UPDATER_HOST_DIR"
     disable_existing_wsl_updater
@@ -2154,6 +2300,9 @@ run_preflight_checks() {
   [[ "$DOCKER_COMMAND_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
   [[ "$NETWORK_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
   [[ "$NETWORK_RETRY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$CADDY_START_RETRY_ATTEMPTS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$CADDY_START_RETRY_INTERVAL_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
+  [[ "$CADDY_RECOVERY_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
   [[ "$PACKAGE_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || die "$(msg timeout_invalid)"
   [[ "$INSTALL_DIR" == /* && "$INSTALL_DIR" != "/" ]] || die "$(msg install_dir_invalid)"
 
@@ -2169,6 +2318,7 @@ run_preflight_checks() {
   require_command hostname
   require_command grep
   require_command timeout
+  require_command flock
   configure_host_platform
 }
 
@@ -2192,13 +2342,18 @@ commit_managed_deployment() {
   if [[ "$EXISTING_INSTALL" == "1" ]]; then
     create_upgrade_database_backup
   fi
-  configure_updater
+  # Verify the matching host updater before replacing managed files, then
+  # install the new deployment files before enabling any unit that can act on
+  # them. This keeps a freshly started recovery service from observing a
+  # half-written deployment and lets an invalid updater fail before commit.
+  prepare_updater_verifier
   atomic_install "$TEMP_DIR/env.updated" "$ENV_FILE" 0600
   atomic_install "$TEMP_DIR/compose.yaml" "$COMPOSE_FILE" 0644
   atomic_install "$TEMP_DIR/Caddyfile" "$INSTALL_DIR/Caddyfile" 0644
   if [[ -s "$TEMP_DIR/configure-domain.sh" ]]; then
     atomic_install "$TEMP_DIR/configure-domain.sh" "$INSTALL_DIR/configure-domain.sh" 0755
   fi
+  configure_updater
 }
 
 pull_release_images() {
@@ -2232,8 +2387,56 @@ start_application_services() {
   wait_for_status web healthy
   wait_for_status worker healthy
   log "$(msg start_https)"
-  compose up -d --no-deps caddy
-  wait_for_status caddy running
+  # Recreate Caddy on the first attempt as well. A container left behind after
+  # a transient host-address bind failure can report `running` while retaining
+  # no published host port; an ordinary `up` then incorrectly treats it as
+  # healthy. Recreating the container keeps named volumes and clears that
+  # stale port-publish state.
+  local attempt force_recreate=1 caddy_started=0
+  for ((attempt = 1; attempt <= CADDY_START_RETRY_ATTEMPTS; attempt++)); do
+    if ((force_recreate)); then
+      if compose up -d --force-recreate --no-deps caddy && wait_for_status caddy running; then
+        caddy_started=1
+        break
+      fi
+    elif compose up -d --no-deps caddy && wait_for_status caddy running; then
+      caddy_started=1
+      break
+    fi
+    force_recreate=1
+    if ((attempt < CADDY_START_RETRY_ATTEMPTS)); then
+      log "$(msg caddy_retry "$CADDY_START_RETRY_INTERVAL_SECONDS" "$((attempt + 1))" "$CADDY_START_RETRY_ATTEMPTS")"
+      sleep "$CADDY_START_RETRY_INTERVAL_SECONDS"
+    fi
+  done
+  ((caddy_started)) || return 1
+  if [[ "$UPDATER_MODE" == "managed" && "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
+    log "$(msg caddy_recovery_start)"
+    # The recovery command takes the same deployment lock as the installer.
+    # Record the committed state, hand the lock to systemd for the entrance
+    # check, then reacquire it and reject any intervening deployment state.
+    ROLLBACK_STATE_TOKEN="$(deployment_state_token)"
+    ROLLBACK_STATE_GUARD_REQUIRED=1
+    release_deployment_lock
+    # The unit owns the full host-address recovery window; the shorter Docker
+    # command timeout would abort an otherwise healthy delayed-address install.
+    local recovery_start_timeout=$((CADDY_RECOVERY_TIMEOUT_SECONDS + DOCKER_COMMAND_TIMEOUT_SECONDS))
+    local recovery_failed=0
+    if ! run_with_timeout "$recovery_start_timeout" systemctl start "$CADDY_RECOVERY_UNIT"; then
+      run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl stop "$CADDY_RECOVERY_UNIT" >/dev/null 2>&1 || true
+      recovery_failed=1
+    fi
+    acquire_deployment_lock || {
+      echo "$(msg deployment_lock_failed)" >&2
+      return 1
+    }
+    if [[ "$(deployment_state_token)" != "$ROLLBACK_STATE_TOKEN" ]]; then
+      echo "警告: Caddy 恢复期间检测到另一个部署任务，当前安装结果不再可归因。" >&2
+      return 1
+    fi
+    ROLLBACK_STATE_GUARD_REQUIRED=0
+    ((recovery_failed == 0)) || return 1
+  fi
 }
 
 while (($# > 0)); do
@@ -2348,6 +2551,12 @@ ui_task_run 4 "$(msg task_release)" resolve_release_version
 ui_task_run 5 "$(msg task_download)" download_release_files
 ui_task_run 6 "$(msg task_verify)" verify_downloaded_release
 
+# Hold the deployment lock before reading any existing managed state. The
+# staged environment and rollback snapshot must describe the same deployment
+# that will eventually be committed.
+mkdir -p -- "$INSTALL_DIR"
+acquire_deployment_lock || die "$(msg deployment_lock_failed)"
+
 if [[ -f "$ENV_FILE" ]]; then
   EXISTING_INSTALL=1
   [[ ! -L "$ENV_FILE" ]] || die "$(msg env_symlink)"
@@ -2428,7 +2637,6 @@ fi
 
 UI_TASK_INDEX=7
 UI_LAST_TASK="$(msg task_config)"
-mkdir -p -- "$INSTALL_DIR"
 if [[ ! -e "$INSTALL_DIR/.crewqual-official-install" ]]; then
   install -m 0644 /dev/null "$INSTALL_DIR/.crewqual-official-install"
 fi

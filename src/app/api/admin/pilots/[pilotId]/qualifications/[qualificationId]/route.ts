@@ -60,10 +60,6 @@ export async function POST(
     const { pilotId, qualificationId } = await context.params;
     const input = await parseJson(request, adminQualificationRecordCreateSchema);
     const db = getPrisma();
-    const type = await db.qualificationType.findFirst({
-      where: { code: qualificationId, active: true },
-    });
-    if (!type) throw new ApiError("NOT_FOUND", "资质类型不存在或已停用", 404);
     const pilot = await db.pilot.findFirst({
       where: { id: pilotId, active: true, ...pilotUnitWhere(admin) },
       select: {
@@ -77,6 +73,29 @@ export async function POST(
       },
     });
     if (!pilot) throw new ApiError("PILOT_NOT_FOUND", "未找到飞行员", 404);
+    const definition =
+      pilot.personId && pilot.person?.organizationId
+        ? await db.qualificationDefinition.findFirst({
+            where: {
+              organizationId: pilot.person.organizationId,
+              active: true,
+              code: qualificationId,
+            },
+          })
+        : null;
+    const type = await db.qualificationType.findFirst({
+      where: {
+        active: true,
+        OR: [
+          { code: qualificationId },
+          ...(definition?.legacyQualificationTypeId
+            ? [{ id: definition.legacyQualificationTypeId }]
+            : []),
+        ],
+      },
+    });
+    const ruleSource = type ?? definition;
+    if (!ruleSource) throw new ApiError("NOT_FOUND", "资质类型不存在或已停用", 404);
     const validation = validateQualificationRuleFields(
       {
         issueDate: input.issueDate,
@@ -84,8 +103,8 @@ export async function POST(
         expiryDate: input.expiryDate || null,
         levelOrParameter: input.levelOrParameter,
       },
-      parseValidityRule(type.validityRule),
-      type.parameterRestriction,
+      parseValidityRule(ruleSource.validityRule),
+      ruleSource.parameterRestriction,
     );
     if (validation.errors.length) {
       throw new ApiError(
@@ -95,20 +114,36 @@ export async function POST(
         Object.fromEntries(validation.errors.map((error) => [error.field, [error.message]])),
       );
     }
-    const definition =
-      pilot.personId && pilot.person?.organizationId
-        ? await db.qualificationDefinition.findFirst({
-            where: {
-              organizationId: pilot.person.organizationId,
-              active: true,
-              OR: [{ legacyQualificationTypeId: type.id }, { code: type.code }],
-            },
-            select: { id: true },
-          })
-        : null;
     const created = (await db.$transaction(async (tx) => {
+      const resolvedType =
+        type ??
+        (definition
+          ? await tx.qualificationType.upsert({
+              where: { code: definition.code },
+              update: {},
+              create: {
+                code: definition.code,
+                name: definition.name,
+                translations: definition.translations as Prisma.InputJsonValue,
+                core: false,
+                active: definition.active,
+                parameterRestriction: definition.parameterRestriction as Prisma.InputJsonValue,
+                validityRule: definition.validityRule as Prisma.InputJsonValue,
+                reminders: definition.reminders as Prisma.InputJsonValue,
+                ocrChecks: definition.ocrChecks as Prisma.InputJsonValue,
+                version: definition.version,
+              },
+            })
+          : null);
+      if (!resolvedType) throw new ApiError("NOT_FOUND", "资质类型不存在或已停用", 404);
+      if (definition && !definition.legacyQualificationTypeId) {
+        await tx.qualificationDefinition.update({
+          where: { id: definition.id },
+          data: { legacyQualificationTypeId: resolvedType.id },
+        });
+      }
       const active = await tx.qualificationRecord.findFirst({
-        where: { pilotId: pilot.id, qualificationTypeId: type.id, status: "ACTIVE" },
+        where: { pilotId: pilot.id, qualificationTypeId: resolvedType.id, status: "ACTIVE" },
         select: { id: true },
       });
       if (active) {
@@ -118,7 +153,7 @@ export async function POST(
         data: {
           pilotId: pilot.id,
           personId: pilot.personId,
-          qualificationTypeId: type.id,
+          qualificationTypeId: resolvedType.id,
           qualificationDefinitionId: definition?.id,
           credentialNumber: input.credentialNumber,
           issueDate: new Date(`${input.issueDate}T00:00:00.000Z`),
@@ -128,7 +163,7 @@ export async function POST(
             : null,
           issuingAuthority: input.issuingAuthority,
           levelOrParameter: input.levelOrParameter,
-          qualificationRuleSnapshot: qualificationRuleSnapshot(type),
+          qualificationRuleSnapshot: qualificationRuleSnapshot(resolvedType),
           status: "ACTIVE",
           action: "ADMIN_IMPORT",
           actorId: admin.id,
@@ -164,7 +199,7 @@ export async function POST(
       201,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -312,6 +347,6 @@ export async function PATCH(
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -1,4 +1,5 @@
 import { ApiError } from "@/server/api";
+import { Prisma } from "@/generated/prisma/client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const UPLOAD_LIMITS = {
@@ -7,6 +8,7 @@ export const UPLOAD_LIMITS = {
   windowMs: 15 * 60 * 1000,
   dailyCount: 30,
   dailyBytes: 200 * 1024 * 1024,
+  totalBytes: 1024 * 1024 * 1024,
   maxOrphans: 10,
   leaseMs: 5 * 60 * 1000,
 } as const;
@@ -19,6 +21,7 @@ function quotaError(code: string, message: string, retryAfterSeconds = 60) {
       windowCount: UPLOAD_LIMITS.windowCount,
       dailyCount: UPLOAD_LIMITS.dailyCount,
       dailyBytes: UPLOAD_LIMITS.dailyBytes,
+      totalBytes: UPLOAD_LIMITS.totalBytes,
     },
   });
 }
@@ -32,7 +35,15 @@ export async function reserveUpload(db: any, pilotId: string, bytes: number, now
     });
     const windowSince = new Date(now.getTime() - UPLOAD_LIMITS.windowMs);
     const daySince = new Date(`${now.toISOString().slice(0, 10)}T00:00:00.000Z`);
-    const [active, recentLeases, todayLeases, todayImages, orphans] = await Promise.all([
+    const [
+      active,
+      recentLeases,
+      todayLeases,
+      todayImages,
+      totalImages,
+      activeReservations,
+      orphans,
+    ] = await Promise.all([
       tx.uploadReservation.count({ where: { pilotId, status: "ACTIVE", expiresAt: { gt: now } } }),
       tx.uploadReservation.count({ where: { pilotId, createdAt: { gte: windowSince } } }),
       tx.uploadReservation.count({ where: { pilotId, createdAt: { gte: daySince } } }),
@@ -40,6 +51,14 @@ export async function reserveUpload(db: any, pilotId: string, bytes: number, now
         where: { pilotId, createdAt: { gte: daySince } },
         _count: { _all: true },
         _sum: { byteSize: true },
+      }),
+      tx.evidenceImage.aggregate({
+        where: { pilotId },
+        _sum: { byteSize: true },
+      }),
+      tx.uploadReservation.aggregate({
+        where: { pilotId, status: "ACTIVE", expiresAt: { gt: now } },
+        _sum: { bytesReserved: true },
       }),
       tx.evidenceImage.count({ where: { pilotId, status: "orphaned" } }),
     ]);
@@ -51,6 +70,10 @@ export async function reserveUpload(db: any, pilotId: string, bytes: number, now
       throw quotaError("UPLOAD_RATE_LIMIT", "上传频率已达上限", 900);
     if (todayCount >= UPLOAD_LIMITS.dailyCount || todayBytes + bytes > UPLOAD_LIMITS.dailyBytes)
       throw quotaError("UPLOAD_DAILY_QUOTA", "今日上传配额已达上限", 3600);
+    const totalBytes =
+      Number(totalImages._sum?.byteSize ?? 0) + Number(activeReservations._sum?.bytesReserved ?? 0);
+    if (totalBytes + bytes > UPLOAD_LIMITS.totalBytes)
+      throw quotaError("UPLOAD_TOTAL_QUOTA", "账号持有的文件总容量已达上限", 3600);
     if (orphans >= UPLOAD_LIMITS.maxOrphans)
       throw quotaError("UPLOAD_ORPHAN_LIMIT", "待关联上传数量已达上限", 900);
     const reservation = await tx.uploadReservation.create({
@@ -63,7 +86,9 @@ export async function reserveUpload(db: any, pilotId: string, bytes: number, now
     });
     return reservation.id as string;
   };
-  return typeof db.$transaction === "function" ? db.$transaction(run) : run(db);
+  return typeof db.$transaction === "function"
+    ? db.$transaction(run, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    : run(db);
 }
 
 export async function releaseUpload(db: any, id: string, now = new Date()) {

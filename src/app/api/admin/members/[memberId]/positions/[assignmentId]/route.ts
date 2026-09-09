@@ -14,13 +14,15 @@ export async function PATCH(
   try {
     assertSameOrigin(request);
     const admin = await getAdmin(request, "pilots.write", true);
-    const { memberId, assignmentId } = await context.params;
+    const params = await context.params;
+    const memberId = z.string().uuid().parse(params.memberId);
+    const assignmentId = z.string().uuid().parse(params.assignmentId);
     const input = await parseJson(request, schema);
     return jsonData(
       await endPositionAssignment(admin, memberId, assignmentId, input.effectiveTo),
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

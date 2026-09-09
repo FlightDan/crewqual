@@ -106,6 +106,18 @@ describe("QualificationUpdateFlow", () => {
     );
   });
 
+  it("explains when recognition is disabled and keeps the manual form available", async () => {
+    render(<QualificationUpdateFlow qualification={qualification} scenario="disabled" />);
+
+    expect(await screen.findByText("暂未启用证照识别")).toBeVisible();
+    expect(
+      screen.getByText("当前系统未启用自动识别，请根据证照内容手动填写并提交。"),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "跳过并直接提交" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "开始AI审核" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "提交更新" })).toBeEnabled();
+  });
+
   it("shows a confirmation dialog when AI is unfinished", async () => {
     render(<QualificationUpdateFlow qualification={qualification} scenario="confirm" />);
     expect(await screen.findByRole("dialog")).toBeVisible();

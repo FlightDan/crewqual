@@ -90,6 +90,6 @@ export async function GET(request: NextRequest) {
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

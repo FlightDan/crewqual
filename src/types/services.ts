@@ -201,6 +201,7 @@ export type DocumentAssistState =
   | { kind: "reviewing" }
   | { kind: "matched" }
   | { kind: "mismatch"; message: string; documentValue: string; formValue: string }
+  | { kind: "disabled" }
   | { kind: "busy"; operation: "recognize" | "review"; retryable: boolean }
   | { kind: "skipped" };
 
@@ -211,6 +212,7 @@ export type PilotFlowScenario =
   | "ambiguous"
   | "conflict"
   | "mismatch"
+  | "disabled"
   | "busy"
   | "modified"
   | "confirm";
@@ -538,6 +540,7 @@ export type QualificationCustomField = {
 };
 export type QualificationConfig = {
   id: QualificationConfigId;
+  organizationId?: string;
   qualificationId?: QualificationId;
   positionCode: string;
   code: string;
@@ -570,10 +573,12 @@ export type QualificationConfigInput = Omit<
   | "createdAt"
   | "updatedAt"
   | "qualificationId"
+  | "organizationId"
   | "translations"
 > & { translations?: Record<string, string>; locale?: "zh-CN" | "en-US" };
 
 export type QualificationConfigCreateInput = QualificationConfigInput & {
+  organizationId?: string;
   positionCode: string;
   kind: "core" | "supplemental";
 };
@@ -660,6 +665,10 @@ export type PilotManagementMeta = {
   units: Array<{ id: string; code: string; name: string }>;
   qualifications: Array<{
     id: string;
+    /** Canonical organization-scoped definition used by the member model. */
+    definitionId?: string;
+    /** Compatibility record used by the legacy Pilot/CSV persistence path. */
+    legacyQualificationTypeId?: string;
     code: string;
     name: string;
     translations?: Record<string, string>;
@@ -672,6 +681,8 @@ export type PilotManagementMeta = {
 
 export type PilotImportQualification = {
   qualificationId: string;
+  definitionId?: string;
+  legacyQualificationTypeId?: string;
   qualificationCode: string;
   qualificationName: string;
   qualificationTranslations?: Record<string, string>;

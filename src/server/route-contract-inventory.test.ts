@@ -28,6 +28,12 @@ describe("production API route contract inventory", () => {
       const route = relativeRoute(file);
       if (route.startsWith("dev/")) continue;
       const source = readFileSync(file, "utf8");
+      if (
+        /^export \{ (GET|POST|PATCH|PUT|DELETE)(, (GET|POST|PATCH|PUT|DELETE))* \} from /.test(
+          source.trim(),
+        )
+      )
+        continue;
       expect(source, route).toContain("jsonError");
     }
   });
@@ -35,7 +41,7 @@ describe("production API route contract inventory", () => {
   it("requires an authenticated administrator on every non-public admin route", () => {
     for (const file of routes.filter((item) => item.includes(`${path.sep}admin${path.sep}`))) {
       const route = relativeRoute(file);
-      if (route === "admin/login/route.ts") continue;
+      if (route === "admin/login/route.ts" || route === "admin/password-reset/route.ts") continue;
       const source = readFileSync(file, "utf8");
       expect(source, route).toMatch(/getAdmin\(|authenticateAdmin\(/);
       if (hasMutation(source)) {

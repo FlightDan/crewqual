@@ -14,6 +14,6 @@ export async function GET(
     if (!review) throw new ApiError("NOT_FOUND", "审核申请不存在", 404);
     return jsonData(review, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

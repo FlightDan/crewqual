@@ -38,6 +38,7 @@ type Member = {
     name: string;
     translations?: Record<string, string>;
     positionCode: string | null;
+    positionName?: string | null;
     source: string;
     status: "missing" | "incomplete" | "expired" | "due" | "valid";
     statusLabel: string;
@@ -46,6 +47,38 @@ type Member = {
     record: { expiryDate: string | null } | null;
   }>;
 };
+
+function qualificationPositionLabel(
+  positionCode: string | null,
+  positionName: string | null | undefined,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  const code = positionCode?.trim().toUpperCase();
+  const name = positionName?.trim();
+  if (name && name.toUpperCase() !== code) return name;
+  if (code === "PILOT") return t("positions.pilot");
+  if (code === "CABIN_CREW") return t("positions.cabinCrew");
+  if (code === "MAINTENANCE") return t("positions.maintenance");
+  return code ? t("memberDetail.positionRequirement") : t("memberDetail.orgLevel");
+}
+
+function qualificationSourceLabel(
+  source: string,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  switch (source.trim().toUpperCase()) {
+    case "POSITION_REQUIREMENT":
+    case "POSITION":
+    case "MOCK_ASSIGNMENT":
+      return t("memberDetail.source.positionRequirement");
+    case "MANUAL":
+      return t("memberDetail.source.manual");
+    case "LEGACY_RECORD":
+      return t("memberDetail.source.legacyRecord");
+    default:
+      return t("memberDetail.source.system");
+  }
+}
 
 function mockMember(
   id: string,
@@ -193,9 +226,16 @@ export function MemberDetailView({ memberId }: { memberId: string }) {
                   )}
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  {qualification.positionCode ?? t("memberDetail.orgLevel")} ·{" "}
-                  {t("memberDetail.source", { value: qualification.source })} ·{" "}
-                  {t(qualification.required ? "memberDetail.required" : "memberDetail.optional")}
+                  {qualificationPositionLabel(
+                    qualification.positionCode,
+                    qualification.positionName,
+                    t,
+                  )}{" "}
+                  ·{" "}
+                  {t("memberDetail.source", {
+                    value: qualificationSourceLabel(qualification.source, t),
+                  })}{" "}
+                  · {t(qualification.required ? "memberDetail.required" : "memberDetail.optional")}
                 </p>
                 {qualification.status === "incomplete" ? (
                   <p className="mt-1 text-xs text-warning">{t("qualifications.reviewRequired")}</p>

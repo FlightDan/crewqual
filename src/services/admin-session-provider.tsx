@@ -6,6 +6,8 @@ import { isRemoteServiceMode } from "@/lib/service-mode";
 
 export type AdminSession = {
   id: string;
+  /** Session identity, distinct from the administrator's id. */
+  sessionId?: string | null;
   email: string;
   displayName: string;
   roles: string[];
@@ -107,7 +109,11 @@ function RemoteAdminSessionProvider({ children }: { children: React.ReactNode })
         return;
       }
       if (!response.ok || !body.data) throw new Error(body.error?.message ?? "无法验证管理员会话");
-      setSession(body.data);
+      setSession({
+        ...body.data,
+        sessionId:
+          body.data.sessionId ?? body.data.sessions.find((item) => item.current)?.id ?? null,
+      });
       setStatus("authenticated");
     } catch (cause) {
       setSession(null);

@@ -47,6 +47,24 @@ function notificationDb(delivery: Record<string, unknown> | null, latestAttempt:
   };
 }
 
+function taskEvidence(id: string, objectKey: string) {
+  return {
+    evidenceImageId: id,
+    evidenceImage: {
+      id,
+      objectKey,
+      mimeType: "image/jpeg",
+      byteSize: 3,
+      sha256: "a".repeat(64),
+      storageEncodingVersion: 1,
+      sanitizedAt: new Date(),
+      pilotId: "pilot-1",
+      personId: "person-1",
+      pilot: { id: "pilot-1", personId: "person-1", active: true },
+    },
+  };
+}
+
 describe("worker handlers", () => {
   it("writes queued and sent attempts for local in-app delivery", async () => {
     const db = notificationDb({
@@ -148,15 +166,19 @@ describe("worker handlers", () => {
     const db = {
       recognitionTask: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({ id: "task-1", status: "QUEUED", attemptCount: 0, retryLimit: 3 }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: "task-1",
+          status: "QUEUED",
+          attemptCount: 0,
+          retryLimit: 3,
+          ...taskEvidence("image-1", "e/1.jpg"),
+        }),
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: "task-1",
           status: "RUNNING",
           attemptCount: 1,
           retryLimit: 3,
-          evidenceImage: { objectKey: "e/1.jpg" },
+          ...taskEvidence("image-1", "e/1.jpg"),
         }),
       },
       $transaction: vi.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -175,7 +197,10 @@ describe("worker handlers", () => {
         new Date("2026-08-15T08:00:00.000Z"),
       ),
     ).resolves.toMatchObject({ status: "completed" });
-    expect(recognize).toHaveBeenCalledWith("e/1.jpg");
+    expect(recognize).toHaveBeenCalledWith(
+      "e/1.jpg",
+      expect.objectContaining({ storageEncodingVersion: 1 }),
+    );
     expect(tx.recognitionTask.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "COMPLETED" }) }),
     );
@@ -185,15 +210,19 @@ describe("worker handlers", () => {
     const db = {
       recognitionTask: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-        findUnique: vi
-          .fn()
-          .mockResolvedValue({ id: "task-2", status: "QUEUED", attemptCount: 0, retryLimit: 3 }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: "task-2",
+          status: "QUEUED",
+          attemptCount: 0,
+          retryLimit: 3,
+          ...taskEvidence("image-2", "e/2.jpg"),
+        }),
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: "task-2",
           status: "RUNNING",
           attemptCount: 1,
           retryLimit: 3,
-          evidenceImage: { objectKey: "e/2.jpg" },
+          ...taskEvidence("image-2", "e/2.jpg"),
         }),
       },
       $transaction: vi.fn(),
@@ -228,13 +257,14 @@ describe("worker handlers", () => {
           attemptCount: 0,
           retryLimit: 3,
           result: null,
+          ...taskEvidence("image-race", "e/race.jpg"),
         })),
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: "task-race",
           status: "RUNNING",
           attemptCount: 1,
           retryLimit: 3,
-          evidenceImage: { objectKey: "e/race.jpg" },
+          ...taskEvidence("image-race", "e/race.jpg"),
         }),
       },
       $transaction: vi.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -249,6 +279,48 @@ describe("worker handlers", () => {
 
     expect(recognize).toHaveBeenCalledTimes(1);
     expect(results.map((result) => result.status).sort()).toEqual(["completed", "ignored"]);
+  });
+
+  it("never claims or recognizes old, conflicting or forged evidence tasks", async () => {
+    for (const mutation of [
+      { storageEncodingVersion: 0 },
+      { sanitizedAt: null },
+      { personId: "other-person" },
+    ]) {
+      const task = taskEvidence("image-1", "e/1.jpg");
+      const db = {
+        recognitionTask: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findUnique: vi.fn().mockResolvedValue({
+            id: "task-1",
+            status: "QUEUED",
+            ...task,
+            evidenceImage: { ...task.evidenceImage, ...mutation },
+          }),
+        },
+      };
+      const recognize = vi.fn();
+      await expect(
+        processRecognitionJob(
+          db,
+          { recognitionId: "task-1", evidenceImageId: "image-1" },
+          recognize,
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(recognize).not.toHaveBeenCalled();
+      expect(db.recognitionTask.updateMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "FAILED", errorCode: "EVIDENCE_SOURCE_INVALID" }),
+        }),
+      );
+      await expect(
+        processRecognitionJob(
+          db,
+          { recognitionId: "task-1", evidenceImageId: "forged" },
+          recognize,
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+    }
   });
 
   it("deletes only expired orphaned images and tolerates storage cleanup failures", async () => {

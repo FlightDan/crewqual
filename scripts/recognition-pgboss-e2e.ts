@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { setTimeout as delay } from "node:timers/promises";
 import { createBoss } from "@/server/jobs";
 import { getPrisma } from "@/server/prisma";
@@ -14,6 +15,8 @@ const boss = createBoss();
 const runId = randomUUID();
 const queue = `crewqual.recognition.integration-${runId}`;
 let evidenceImageId: string | null = null;
+let fixturePilotId: string | null = null;
+let fixtureUnitId: string | null = null;
 let handled = 0;
 let extractionCalls = 0;
 let workerError: unknown;
@@ -46,14 +49,41 @@ async function main() {
   try {
     await boss.start();
     await boss.createQueue(queue, { retryLimit: 0, expireInSeconds: 60 });
+    const unit = await db.organizationUnit.create({
+      data: { code: `recognition-${runId}`, name: "Recognition integration" },
+    });
+    fixtureUnitId = unit.id;
+    const pilot = await db.pilot.create({
+      data: {
+        employeeNumber: `recognition-${runId}`,
+        displayName: "Recognition fixture",
+        mobile: "",
+        initials: "RF",
+        roleCode: "CAPTAIN",
+        aircraftType: "FIXTURE",
+        rankLabel: "Fixture",
+        unitId: unit.id,
+      },
+    });
+    fixturePilotId = pilot.id;
+    // This is a queue/database test: source pixels are generated locally and
+    // the provider is a boundary stub; no production storage is read or written.
+    const fixtureBytes = await sharp({
+      create: { width: 32, height: 32, channels: 3, background: "white" },
+    })
+      .jpeg()
+      .toBuffer();
     const evidence = await db.evidenceImage.create({
       data: {
+        pilotId: pilot.id,
         objectKey: `integration/${runId}.jpg`,
         mimeType: "image/jpeg",
         width: 32,
         height: 32,
-        byteSize: 128,
-        sha256: runId.replaceAll("-", "").padEnd(64, "0").slice(0, 64),
+        byteSize: fixtureBytes.length,
+        sha256: createHash("sha256").update(fixtureBytes).digest("hex"),
+        storageEncodingVersion: 1,
+        sanitizedAt: new Date(),
         status: "linked",
         expiresAt: new Date(Date.now() + 60_000),
       },
@@ -111,6 +141,10 @@ async function main() {
     if (evidenceImageId) {
       await db.evidenceImage.deleteMany({ where: { id: evidenceImageId } }).catch(() => undefined);
     }
+    if (fixturePilotId)
+      await db.pilot.deleteMany({ where: { id: fixturePilotId } }).catch(() => undefined);
+    if (fixtureUnitId)
+      await db.organizationUnit.deleteMany({ where: { id: fixtureUnitId } }).catch(() => undefined);
     await db.$disconnect();
   }
 }

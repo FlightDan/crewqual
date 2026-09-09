@@ -1,6 +1,11 @@
 import { z } from "zod";
 import sharp from "sharp";
-import { readPrivateEvidence } from "@/server/storage";
+import { readVerifiedEvidence } from "@/server/storage";
+import {
+  assertEvidenceProvenance,
+  evidenceUnavailable,
+  type EvidenceProvenance,
+} from "@/server/evidence-provenance";
 import { getRuntimeIntegration } from "@/server/runtime-settings";
 import { getServerConfig } from "@/server/config";
 import { fetchExternalEndpoint } from "@/server/external-endpoint-safety";
@@ -17,7 +22,10 @@ export const extractionResultSchema = z.object({
 
 export type VlmRecognition = z.infer<typeof extractionResultSchema>;
 
-export async function recognizeEvidence(objectKey: string): Promise<VlmRecognition> {
+export async function recognizeEvidence(
+  objectKey: string,
+  evidence?: EvidenceProvenance,
+): Promise<VlmRecognition> {
   if (process.env.CREWQUAL_TEST_NO_EXTERNAL === "1") {
     return {
       available: false,
@@ -48,8 +56,10 @@ export async function recognizeEvidence(objectKey: string): Promise<VlmRecogniti
       evidence: {},
       provider: "disabled",
     };
-  let bytes = await readPrivateEvidence(objectKey);
-  let mimeType = objectKey.toLocaleLowerCase().endsWith(".avif") ? "image/avif" : "image/jpeg";
+  assertEvidenceProvenance(evidence);
+  if (evidence.objectKey !== objectKey) throw evidenceUnavailable();
+  let bytes = await readVerifiedEvidence(evidence);
+  let mimeType = evidence.mimeType;
   if (mimeType === "image/avif") {
     // Keep the gallery lossless while allowing providers that only accept JPEG
     // data URLs to continue recognizing older evidence.

@@ -164,7 +164,9 @@ services:
 
   worker:
     image: ${CREWQUAL_RUNTIME_IMAGE:?CREWQUAL_RUNTIME_IMAGE is required}
-    environment: *app-environment
+    environment:
+      <<: *app-environment
+      CADDY_METRICS_URL: http://caddy:2020/metrics
     depends_on:
       bootstrap: { condition: service_completed_successfully }
     healthcheck:

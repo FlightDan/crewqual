@@ -8,11 +8,29 @@ readonly DEFAULT_ENVIRONMENT="release-sandbox"
 readonly DEFAULT_WORKFLOW=".github/workflows/release-acceptance.yml"
 readonly DEFAULT_WATCH_TIMEOUT_MINUTES="360"
 readonly PACKAGES=(crewqual-web crewqual-runtime)
+readonly RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS=(
+  AWS_REGION
+  AWS_ACCESS_KEY_ID
+  AWS_SECRET_ACCESS_KEY
+  S3_ENDPOINT
+  EVIDENCE_S3_BUCKET
+  BACKUP_S3_BUCKET
+  RESTORE_S3_BUCKET
+  S3_KMS_KEY_ARN
+  S3_FORBIDDEN_PREFIX
+  BACKUP_RECOVERY_SET_ID
+  BACKUP_DATABASE_RUN_ID
+  BACKUP_GALLERY_RUN_ID
+  BACKUP_TAMPER_ARTIFACT_KEYS
+  BACKUP_TAMPER_BLOB_SHA256
+  RESTORE_DATABASE_URL
+  DATABASE_URL
+)
 
 REPO_DIR="${CREWQUAL_REPO_DIR:-$DEFAULT_REPO}"
 KEY_DIR="${CREWQUAL_RELEASE_KEY_DIR:-$DEFAULT_KEY_DIR}"
 GITHUB_REPOSITORY="${CREWQUAL_GITHUB_REPOSITORY:-$DEFAULT_REPOSITORY}"
-RELEASE_ENVIRONMENT="${CREWQUAL_RELEASE_ENVIRONMENT:-$DEFAULT_ENVIRONMENT}"
+readonly RELEASE_ENVIRONMENT="$DEFAULT_ENVIRONMENT"
 WORKFLOW_FILE="${CREWQUAL_RELEASE_WORKFLOW:-$DEFAULT_WORKFLOW}"
 WATCH_TIMEOUT_MINUTES="${CREWQUAL_RELEASE_WATCH_TIMEOUT_MINUTES:-$DEFAULT_WATCH_TIMEOUT_MINUTES}"
 DRY_RUN=0
@@ -32,27 +50,27 @@ Usage:
   crewqual-release-publish [--dry-run] release TAG (--upgrade-from BASELINE|--first-release) [options]
 
 Release options:
-  --acceptance-scope local|full   Default: local
+  --acceptance-scope local|full   Default: local; final releases require full
   --first-release                Run fresh-install acceptance only; do not upgrade or roll back
-  --upgrade-from BASELINE        Use an existing lower release for upgrade/rollback acceptance
+  --upgrade-from BASELINE        Use a lower same-channel release; explicit "" means fresh install
   --strict-clean                  Refuse a dirty worktree
-  --replace-existing-tag         Explicitly allow replacing an existing local/remote tag (default)
-  --no-replace-existing-tag      Refuse to replace an existing local/remote tag
+  --replace-existing-tag         Explicitly allow replacing tags and release assets
+  --no-replace-existing-tag      Refuse to replace tags and release assets (default)
+  --validate-only                Validate inputs without repository, credentials, or network access
   --yes                            Do not ask for interactive confirmation
 
 Examples:
   crewqual-release-publish release v1.0.2-rc.1 \
     --upgrade-from v1.0.1-rc.1 --acceptance-scope local
   crewqual-release-publish release v1.0.4 \
-    --first-release --acceptance-scope local
+    --first-release --acceptance-scope full
   crewqual-release-publish --dry-run release v1.0.2 \
-    --upgrade-from v1.0.1
+    --upgrade-from v1.0.1 --acceptance-scope full
 
 Environment:
   CREWQUAL_REPO_DIR                 Repository (default: /root/crewqual)
   CREWQUAL_RELEASE_KEY_DIR          Signing directory (default: /root/crewqual-release-keys)
   CREWQUAL_GITHUB_REPOSITORY        GitHub repository (default: FlightDan/crewqual)
-  CREWQUAL_RELEASE_ENVIRONMENT      Actions environment (default: release-sandbox)
   CREWQUAL_RELEASE_WORKFLOW         Workflow path/name (default: .github/workflows/release-acceptance.yml)
   CREWQUAL_RELEASE_WATCH_TIMEOUT_MINUTES  Watch timeout (default: 360)
 EOF
@@ -97,37 +115,12 @@ current_branch() {
     die "当前 HEAD 处于 detached 状态；请切换到要推送的分支"
 }
 
-version_parts() {
-  [[ "$1" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$ ]] || return 1
-  printf '%d %d %d %d\n' \
-    "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999}"
-}
-
-compare_version() {
-  local left right i
-  read -r -a left <<<"$(version_parts "$1")"
-  read -r -a right <<<"$(version_parts "$2")"
-  for i in 0 1 2 3; do
-    ((left[i] < right[i])) && { printf '%s\n' -1; return; }
-    ((left[i] > right[i])) && { printf '%s\n' 1; return; }
-  done
-  printf '%s\n' 0
-}
+# Shared with the workflow's dependency-free input gate.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-release-inputs.sh"
 
 validate_release_args() {
-  local tag="$1" baseline="$2" scope="$3"
-  version_parts "$tag" >/dev/null || die "无效 release tag: $tag"
-  if [[ -n "$baseline" ]]; then
-    version_parts "$baseline" >/dev/null || die "无效 upgrade baseline tag: $baseline"
-    if [[ "$tag" == *-rc.* ]]; then
-      [[ "$baseline" == *-rc.* ]] || die "RC 只能使用 RC baseline"
-    else
-      [[ "$baseline" != *-rc.* ]] || die "稳定版只能使用稳定版 baseline"
-    fi
-    [[ "$(compare_version "$baseline" "$tag")" == -1 ]] ||
-      die "upgrade baseline 必须低于目标 tag"
-  fi
-  [[ "$scope" == local || "$scope" == full ]] || die "acceptance scope 必须是 local 或 full"
+  validate_release_inputs "$1" "${4:-$(profile_for_tag "$1")}" "$3" "$2" >/dev/null ||
+    die "release 输入校验失败"
 }
 
 profile_for_tag() {
@@ -145,7 +138,13 @@ tag_exists_local() {
 
 tag_exists_remote() {
   local tag="$1"
-  git -C "$REPO_DIR" ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
+  local result=0
+  git -C "$REPO_DIR" ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1 || result=$?
+  case "$result" in
+    0) return 0 ;;
+    2) return 1 ;;
+    *) die "无法确认远端 tag 是否存在；停止发布: $tag" ;;
+  esac
 }
 
 workflow_has_release_inputs() {
@@ -185,12 +184,26 @@ ensure_gh_auth() {
   fi
 }
 
+validate_release_environment_secrets() {
+  local scope="$1" names name
+  local -a missing=()
+  [[ "$scope" == full ]] || return 0
+  names="$(gh secret list --repo "$GITHUB_REPOSITORY" --env "$RELEASE_ENVIRONMENT" 2>/dev/null)" ||
+    die "无法读取 GitHub Environment $RELEASE_ENVIRONMENT 的 secret 清单"
+  for name in "${RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS[@]}"; do
+    grep -qE "^${name}[[:space:]]" <<<"$names" || missing+=("$name")
+  done
+  ((${#missing[@]} == 0)) ||
+    die "GitHub Environment $RELEASE_ENVIRONMENT 缺少 full acceptance secrets: ${missing[*]}"
+  announce "$RELEASE_ENVIRONMENT 的 full acceptance secret 名称已就绪；值和语义将由 workflow 预检"
+}
+
 sync_secrets() {
   ensure_secure_dir
   ensure_gh_auth 0
   cd "$REPO_DIR"
   if is_true "$DRY_RUN"; then
-    announce "同步 GPG tag、manifest secrets，以及 $RELEASE_ENVIRONMENT 环境签名者白名单"
+    announce "仅同步 GPG tag、manifest 签名 secrets，以及 $RELEASE_ENVIRONMENT 环境签名者白名单；不配置 S3/AWS/灾备 secrets"
     return
   fi
   "$KEY_DIR/crewqual-release-tag" github-sync
@@ -202,7 +215,7 @@ sync_secrets() {
   [[ "$fingerprint" =~ ^[A-Fa-f0-9]{40}$ ]] || die "tag-signing.env 中的 signer fingerprint 无效"
   printf '%s' "$fingerprint" |
     gh secret set RELEASE_SIGNER_FINGERPRINTS --repo "$GITHUB_REPOSITORY" --env "$RELEASE_ENVIRONMENT"
-  announce "GitHub secrets 已同步"
+  announce "GitHub 签名与 manifest secrets 已同步；S3/AWS/灾备 secrets 由 $RELEASE_ENVIRONMENT 独立管理"
 }
 
 setup_git_auth() {
@@ -313,6 +326,7 @@ release() {
   local tag="$1" baseline="$2" scope="$3" strict_clean="$4" replace_tag="$5" branch commit profile
   local existing_local_tag=0 existing_remote_tag=0
   RELEASE_YES="${RELEASE_YES:-0}"
+  validate_release_args "$tag" "$baseline" "$scope"
   ensure_secure_dir
   ensure_repo
   cd "$REPO_DIR"
@@ -325,7 +339,7 @@ release() {
   if tag_exists_remote "$tag"; then
     existing_remote_tag=1
     [[ "$replace_tag" == 1 ]] ||
-      die "远端 tag 已存在；如确认要覆盖，请去掉 --no-replace-existing-tag: $tag"
+      die "远端 tag 已存在；如确认要覆盖，请加 --replace-existing-tag: $tag"
     if is_true "$DRY_RUN"; then
       announce "将强制覆盖远端旧 tag $tag，并在当前 HEAD 上重新签署"
     fi
@@ -340,6 +354,7 @@ release() {
   workflow_has_release_inputs "$commit" ||
     die "当前 HEAD 的 $WORKFLOW_FILE 缺少 acceptance_scope 输入；请先提交新版 workflow"
   ensure_gh_auth 1
+  validate_release_environment_secrets "$scope"
   confirm_release "$tag" "$baseline" "$profile" "$branch" "$commit" "$replace_tag" "$existing_remote_tag"
   sync_secrets
   setup_git_auth
@@ -392,14 +407,15 @@ status() {
 
 parse_release() {
   [[ $# -ge 1 ]] || usage 2
-  local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=1 first_release=0
+  local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=0 first_release=0 baseline_set=0 validate_only=0
   shift
   RELEASE_YES=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; shift 2 ;;
-      --first-release) [[ -z "$baseline" ]] || die "--first-release 不能与 --upgrade-from 同时使用"; first_release=1; shift ;;
+      --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; baseline_set=1; shift 2 ;;
+      --first-release) [[ "$baseline_set" == 0 ]] || die "--first-release 不能与 --upgrade-from 同时使用"; first_release=1; shift ;;
       --acceptance-scope) [[ $# -ge 2 ]] || die "--acceptance-scope 需要参数"; scope="$2"; shift 2 ;;
+      --validate-only) validate_only=1; shift ;;
       --strict-clean) strict_clean=1; shift ;;
       --replace-existing-tag) replace_tag=1; shift ;;
       --no-replace-existing-tag) replace_tag=0; shift ;;
@@ -410,9 +426,14 @@ parse_release() {
     esac
   done
   if ((first_release)); then
-    [[ -z "$baseline" ]] || die "--first-release 不能与 --upgrade-from 同时使用"
+    [[ "$baseline_set" == 0 ]] || die "--first-release 不能与 --upgrade-from 同时使用"
   else
-    [[ -n "$baseline" ]] || die "必须提供 --upgrade-from 或 --first-release"
+    [[ "$baseline_set" == 1 ]] || die "必须提供 --upgrade-from 或 --first-release"
+  fi
+  validate_release_args "$tag" "$baseline" "$scope"
+  if ((validate_only)); then
+    validate_release_inputs "$tag" "$(profile_for_tag "$tag")" "$scope" "$baseline"
+    return
   fi
   release "$tag" "$baseline" "$scope" "$strict_clean" "$replace_tag"
 }
@@ -435,4 +456,6 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

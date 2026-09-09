@@ -348,6 +348,7 @@ function AssistIcon({ state }: { state: DocumentAssistState }) {
     case "conflict":
     case "mismatch":
       return <TriangleAlert aria-hidden="true" className="size-4" />;
+    case "disabled":
     case "busy":
       return <CircleAlert aria-hidden="true" className="size-4" />;
     case "idle":
@@ -410,6 +411,10 @@ export function AssistStatusCard({
         form: state.formValue,
       });
       break;
+    case "disabled":
+      title = t("update.disabled");
+      description = t("update.disabledDescription");
+      break;
     case "busy":
       title = t("update.busy");
       description = t("update.busyDescription");
@@ -467,7 +472,9 @@ export function AiReviewPanel({
   onSkip: () => void;
 }) {
   const { t } = useI18n();
-  const showActions = !["reviewing", "matched", "mismatch", "busy"].includes(state.kind);
+  const showActions = !["reviewing", "matched", "mismatch", "busy", "disabled"].includes(
+    state.kind,
+  );
   return (
     <section
       className="space-y-3 rounded-lg border border-border bg-card p-4"

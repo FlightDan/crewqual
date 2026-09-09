@@ -16,6 +16,7 @@ import {
   Edit3,
   FileArchive,
   Info,
+  KeyRound,
   LockKeyhole,
   MessageSquare,
   QrCode,
@@ -563,12 +564,15 @@ function PasswordStrength({ value, locale }: { value: string; locale: SetupLocal
 function AdminStep({
   locale,
   admin,
+  authenticationPreset,
   errors,
   busy,
   onChange,
+  onPresetChange,
   onGenerateTotp,
 }: {
   locale: SetupLocale;
+  authenticationPreset: "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE";
   admin: {
     displayName: string;
     email: string;
@@ -584,6 +588,7 @@ function AdminStep({
   errors: SetupErrorMap;
   busy: boolean;
   onChange: (patch: Partial<typeof admin>) => void;
+  onPresetChange: (preset: "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE") => void;
   onGenerateTotp: () => void;
 }) {
   const copy = setupCopy[locale];
@@ -601,6 +606,55 @@ function AdminStep({
         required
       />
       <Card className="space-y-6 p-4 sm:p-7">
+        <div className="space-y-2">
+          <Select
+            label={locale === "zh-CN" ? "认证目标" : "Authentication target"}
+            value={authenticationPreset}
+            options={[
+              {
+                value: "ENHANCED_L3",
+                label:
+                  locale === "zh-CN"
+                    ? "增强认证：ASVS L3／等保三级身份鉴别"
+                    : "Enhanced: ASVS L3 / Level 3 authentication",
+              },
+              {
+                value: "COMBINED_L2",
+                label:
+                  locale === "zh-CN"
+                    ? "组合认证：ASVS L2／等保三级身份鉴别"
+                    : "Combined: ASVS L2 / Level 3 authentication",
+              },
+              {
+                value: "CONVENIENCE",
+                label: locale === "zh-CN" ? "便捷认证（推荐）" : "Convenience (recommended)",
+              },
+            ]}
+            onChange={(event) =>
+              onPresetChange(event.target.value as "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE")
+            }
+          />
+          <p className="text-xs text-muted">
+            {authenticationPreset === "ENHANCED_L3"
+              ? locale === "zh-CN"
+                ? "管理员和成员均需密码／动态密码与 FIDO2 硬件验证器；需要额外采购硬件。"
+                : "Admins and members require password / TOTP plus a FIDO2 hardware authenticator; hardware purchase required."
+              : authenticationPreset === "COMBINED_L2"
+                ? locale === "zh-CN"
+                  ? "管理员和成员均需密码与动态密码。"
+                  : "Admins and members require password and TOTP."
+                : locale === "zh-CN"
+                  ? "管理员使用密码与动态密码；成员使用工号与短信一次性链接。"
+                  : "Admins use password and TOTP; members use employee number and one-time SMS link."}
+          </p>
+          {authenticationPreset === "CONVENIENCE" ? (
+            <Alert tone="warning">
+              {locale === "zh-CN"
+                ? "成员将使用单因素登录，不满足 ASVS L2／等保三级的组合认证要求。其他安全措施仍然有效。"
+                : "Members will use single-factor sign-in and will not meet the ASVS L2 / Level 3 combined-authentication requirement. Other security controls remain active."}
+            </Alert>
+          ) : null}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label={copy.admin.name}
@@ -1377,10 +1431,56 @@ function SuccessStep({
   totpEnabled: boolean;
 }) {
   const copy = setupCopy[locale];
+  const [bindingFido, setBindingFido] = React.useState(false);
+  const [fidoBound, setFidoBound] = React.useState(!result.requiresFidoBinding);
+  const [fidoError, setFidoError] = React.useState("");
   const later = [
     ...(!result.backupEnabled ? [copy.review.backup] : []),
     ...(result.notificationChannels.length <= 1 ? [copy.success.notifications] : []),
   ];
+  const bindFido = async () => {
+    setBindingFido(true);
+    setFidoError("");
+    try {
+      const headers = { "content-type": "application/json" };
+      const optionsResponse = await fetch("/api/setup/fido", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({ action: "options", adminEmail: result.adminEmail }),
+      });
+      const optionsPayload = (await optionsResponse.json().catch(() => ({}))) as {
+        data?: { challengeId?: string; [key: string]: unknown };
+        error?: { message?: string };
+      };
+      if (!optionsResponse.ok || !optionsPayload.data?.challengeId) {
+        throw new Error(optionsPayload.error?.message ?? "无法开始 FIDO2 注册");
+      }
+      const { startRegistration } = await import("@simplewebauthn/browser");
+      const response = await startRegistration({ optionsJSON: optionsPayload.data as never });
+      const verifyResponse = await fetch("/api/setup/fido", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({
+          action: "verify",
+          adminEmail: result.adminEmail,
+          challengeId: optionsPayload.data.challengeId,
+          response,
+          label: "初始化管理员硬件验证器",
+        }),
+      });
+      const verifyPayload = (await verifyResponse.json().catch(() => ({}))) as {
+        error?: { message?: string };
+      };
+      if (!verifyResponse.ok) throw new Error(verifyPayload.error?.message ?? "FIDO2 注册失败");
+      setFidoBound(true);
+    } catch (reason) {
+      setFidoError(reason instanceof Error ? reason.message : "FIDO2 注册失败");
+    } finally {
+      setBindingFido(false);
+    }
+  };
   return (
     <main className="min-h-dvh bg-surface">
       <header className="flex h-[76px] items-center justify-between border-b border-border bg-card px-4 sm:px-8">
@@ -1435,12 +1535,45 @@ function SuccessStep({
             {copy.success.security}
           </Alert>
         ) : null}
-        <Link
-          href="/admin/login"
-          className="mt-7 inline-flex min-h-12 w-full max-w-[320px] items-center justify-center rounded-md bg-brand px-5 text-base font-semibold text-white shadow-card hover:bg-blue-600"
-        >
-          {copy.success.login}
-        </Link>
+        {result.requiresFidoBinding && !fidoBound ? (
+          <Card className="mt-7 w-full text-left shadow-none">
+            <div className="flex items-start gap-3">
+              <KeyRound aria-hidden="true" className="mt-0.5 size-5 text-brand" />
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-primary">
+                  {locale === "zh-CN"
+                    ? "完成管理员硬件验证器绑定"
+                    : "Bind the administrator hardware key"}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-secondary">
+                  {locale === "zh-CN"
+                    ? "增强认证必须先绑定 FIDO2 硬件安全钥匙，完成后才能登录。"
+                    : "Enhanced authentication requires a FIDO2 hardware security key before sign-in."}
+                </p>
+                {fidoError ? (
+                  <Alert tone="danger" className="mt-3">
+                    {fidoError}
+                  </Alert>
+                ) : null}
+                <Button
+                  type="button"
+                  className="mt-4"
+                  loading={bindingFido}
+                  onClick={() => void bindFido()}
+                >
+                  {locale === "zh-CN" ? "绑定硬件验证器" : "Bind hardware key"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Link
+            href="/admin/login"
+            className="mt-7 inline-flex min-h-12 w-full max-w-[320px] items-center justify-center rounded-md bg-brand px-5 text-base font-semibold text-white shadow-card hover:bg-blue-600"
+          >
+            {copy.success.login}
+          </Link>
+        )}
         <Link
           href="/deployment"
           className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-brand hover:underline"
@@ -1534,6 +1667,9 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
     verifiedToken: "",
     totpCode: "",
   });
+  const [authenticationPreset, setAuthenticationPreset] = React.useState<
+    "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE"
+  >("CONVENIENCE");
   const [adminErrors, setAdminErrors] = React.useState<SetupErrorMap>({});
   const [selectedTemplates, setSelectedTemplates] = React.useState<Set<string>>(new Set());
   const [backup, setBackup] = React.useState<SetupCompleteInput["backup"]>({
@@ -1817,6 +1953,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         requireTotp: admin.requireTotp,
         ...(admin.requireTotp ? { verifiedTotpToken: admin.verifiedToken } : {}),
       },
+      authenticationPreset,
       templatePackIds: [...selectedTemplates],
       backup,
       notifications: {
@@ -1830,6 +1967,7 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
         setResult({
           completed: true,
           adminEmail: payload.admin.email,
+          requiresFidoBinding: false,
           installedTemplateCount: payload.templatePackIds.length,
           installedPositionCount: payload.templatePackIds.length,
           storageMode: payload.storage.mode,
@@ -1903,9 +2041,16 @@ export function SetupWizard({ initialOverview }: { initialOverview: SetupOvervie
       <AdminStep
         locale={locale}
         admin={admin}
+        authenticationPreset={authenticationPreset}
         errors={adminErrors}
         busy={busy}
         onChange={updateAdmin}
+        onPresetChange={(preset) => {
+          setAuthenticationPreset(preset);
+          if (preset === "ENHANCED_L3" || preset === "COMBINED_L2") {
+            updateAdmin({ requireTotp: true });
+          }
+        }}
         onGenerateTotp={() => void generateTotp()}
       />
     );

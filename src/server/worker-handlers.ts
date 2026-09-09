@@ -17,8 +17,15 @@ import {
   convertJpegToLosslessAvif,
   deletePrivateEvidence,
   putPrivateObject,
-  readPrivateEvidence,
+  readVerifiedEvidence,
 } from "@/server/storage";
+import {
+  assertEvidenceOwner,
+  assertEvidenceProvenance,
+  evidenceUnavailable,
+  EVIDENCE_STORAGE_ENCODING_VERSION,
+  type EvidenceProvenance,
+} from "@/server/evidence-provenance";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -40,7 +47,7 @@ export type RecognitionResult = {
 export async function processRecognitionJob(
   db: any,
   payload: RecognitionJobPayload,
-  recognize: (objectKey: string) => Promise<RecognitionResult>,
+  recognize: (objectKey: string, evidence: EvidenceProvenance) => Promise<RecognitionResult>,
   now = new Date(),
 ) {
   const staleBefore = new Date(now.getTime() - 10 * 60 * 1000);
@@ -48,8 +55,35 @@ export async function processRecognitionJob(
     where: { status: "RUNNING", startedAt: { lt: staleBefore } },
     data: { status: "QUEUED", startedAt: null },
   });
-  const initial = await db.recognitionTask.findUnique({ where: { id: payload.recognitionId } });
+  const initial = await db.recognitionTask.findUnique({
+    where: { id: payload.recognitionId },
+    include: { evidenceImage: { include: { pilot: true } } },
+  });
   if (!initial) return { status: "ignored" as const };
+  // A malformed queue payload must not change the real task it happens to name.
+  if (initial.evidenceImageId !== payload.evidenceImageId) throw evidenceUnavailable();
+  const checkTaskEvidence = (task: any) => {
+    if (
+      task.evidenceImageId !== payload.evidenceImageId ||
+      task.evidenceImage?.id !== task.evidenceImageId ||
+      !task.evidenceImage?.pilot?.active
+    ) {
+      throw evidenceUnavailable();
+    }
+    assertEvidenceProvenance(task.evidenceImage);
+    assertEvidenceOwner(task.evidenceImage, task.evidenceImage.pilot);
+  };
+  try {
+    checkTaskEvidence(initial);
+  } catch (error) {
+    // Invalid sources require reconciliation, not provider retries; leaving an
+    // invalid task QUEUED would indefinitely block idle gallery optimization.
+    await db.recognitionTask.updateMany({
+      where: { id: initial.id, status: { in: ["QUEUED", "RUNNING"] } },
+      data: { status: "FAILED", errorCode: "EVIDENCE_SOURCE_INVALID", completedAt: now },
+    });
+    throw error;
+  }
   if (initial.status === "COMPLETED" && initial.result) {
     await db.$transaction((tx: any) =>
       persistVerificationForEvidence(tx, payload.evidenceImageId, initial.result),
@@ -66,8 +100,12 @@ export async function processRecognitionJob(
     data: { status: "RUNNING", startedAt: now, attemptCount: { increment: 1 } },
   });
   if (claimed.count !== 1) {
-    const existing = await db.recognitionTask.findUnique({ where: { id: payload.recognitionId } });
+    const existing = await db.recognitionTask.findUnique({
+      where: { id: payload.recognitionId },
+      include: { evidenceImage: { include: { pilot: true } } },
+    });
     if (existing?.status === "COMPLETED" && existing.result) {
+      checkTaskEvidence(existing);
       await db.$transaction((tx: any) =>
         persistVerificationForEvidence(tx, payload.evidenceImageId, existing.result),
       );
@@ -77,10 +115,11 @@ export async function processRecognitionJob(
   }
   const task = await db.recognitionTask.findUniqueOrThrow({
     where: { id: payload.recognitionId },
-    include: { evidenceImage: true },
+    include: { evidenceImage: { include: { pilot: true } } },
   });
   try {
-    const result = await recognize(task.evidenceImage.objectKey);
+    checkTaskEvidence(task);
+    const result = await recognize(task.evidenceImage.objectKey, task.evidenceImage);
     await db.$transaction(async (tx: any) => {
       const completed = await tx.recognitionTask.updateMany({
         where: { id: task.id, status: "RUNNING" },
@@ -482,6 +521,8 @@ export async function processImageOptimizationJob(
     select: { id: true, objectKey: true },
     where: {
       mimeType: "image/jpeg",
+      storageEncodingVersion: EVIDENCE_STORAGE_ENCODING_VERSION,
+      sanitizedAt: { not: null },
       status: { not: "orphaned" },
       createdAt: { lt: idleBefore },
       optimizationTask: null,
@@ -498,7 +539,7 @@ export async function processImageOptimizationJob(
   }
   const tasks = await db.imageOptimizationTask.findMany({
     where: { status: "QUEUED" },
-    include: { evidenceImage: true },
+    include: { evidenceImage: { include: { pilot: true } } },
     take: batchSize,
     orderBy: { createdAt: "asc" },
   });
@@ -511,7 +552,15 @@ export async function processImageOptimizationJob(
     if (claim.count !== 1) continue;
     let targetObjectKey = "";
     try {
-      const sourceBytes = await readPrivateEvidence(task.sourceObjectKey);
+      assertEvidenceProvenance(task.evidenceImage);
+      if (
+        task.sourceObjectKey !== task.evidenceImage.objectKey ||
+        task.evidenceImageId !== task.evidenceImage.id ||
+        !task.evidenceImage.pilot?.active
+      )
+        throw evidenceUnavailable();
+      assertEvidenceOwner(task.evidenceImage, task.evidenceImage.pilot);
+      const sourceBytes = await readVerifiedEvidence(task.evidenceImage);
       const convertedImage = await convertJpegToLosslessAvif(sourceBytes);
       targetObjectKey = await putPrivateObject(
         convertedImage.storageBytes,
@@ -525,6 +574,9 @@ export async function processImageOptimizationJob(
             id: task.evidenceImageId,
             objectKey: task.sourceObjectKey,
             mimeType: "image/jpeg",
+            storageEncodingVersion: EVIDENCE_STORAGE_ENCODING_VERSION,
+            sanitizedAt: task.evidenceImage.sanitizedAt,
+            sha256: task.evidenceImage.sha256,
           },
           data: {
             objectKey: targetObjectKey,

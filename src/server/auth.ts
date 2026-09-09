@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { ApiError } from "@/server/api";
 import { createOpaqueToken, safeEqualHex, sha256 } from "@/server/crypto";
 import { getPrisma } from "@/server/prisma";
-import { getRuntimeSecurityPolicy } from "@/server/runtime-settings";
+import { getRuntimeSecurityPolicy, type RuntimeSecurityPolicy } from "@/server/runtime-settings";
 import { getServerConfig } from "@/server/config";
 
 export const COOKIE_NAMES = {
@@ -31,11 +31,15 @@ export type AuthenticatedAdmin = {
 
 export type AuthenticatedPilot = {
   id: string;
+  personId: string;
+  organizationId: string;
+  unitId: string;
   employeeNumber: string;
   displayName: string;
   mobile: string;
   sessionId: string;
   csrfToken: string;
+  authState: string;
 };
 
 export async function hashPassword(password: string) {
@@ -74,26 +78,99 @@ function sessionCookie(name: string, value: string, maxAge: number) {
   };
 }
 
-export async function createAdminSession(userId: string) {
+export async function createAdminSession(
+  userId: string,
+  policyOrVersion?: RuntimeSecurityPolicy | number,
+) {
   const db = getPrisma();
-  const policy = await getRuntimeSecurityPolicy();
+  const policy =
+    typeof policyOrVersion === "number" || policyOrVersion === undefined
+      ? await getRuntimeSecurityPolicy()
+      : policyOrVersion;
+  if (typeof policyOrVersion === "number" && policy.policyVersion !== policyOrVersion) {
+    throw new ApiError("SECURITY_POLICY_CHANGED", "安全策略已更新，请重新登录", 409);
+  }
   const rawToken = createOpaqueToken();
   const csrfToken = createOpaqueToken(24);
-  const expiresAt = new Date(Date.now() + policy.adminSessionTtlHours * 60 * 60 * 1000);
-  const session = await db.adminSession.create({
-    data: { userId, tokenHash: sha256(rawToken), csrfTokenHash: hashCsrf(csrfToken), expiresAt },
+  const session = await db.$transaction(async (tx) => {
+    // The row lock makes concurrent successful logins consume distinct summary
+    // boundaries. Read the prior timestamp only after the lock is held.
+    await tx.$queryRaw`SELECT "id" FROM "AdminUser" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+    const user = await tx.adminUser.findUnique({
+      where: { id: userId },
+      select: { active: true, lastSuccessfulLoginAt: true },
+    });
+    if (!user?.active) throw new ApiError("INVALID_CREDENTIALS", "账号不可用", 401);
+    const loginAt = new Date();
+    const expiresAt = new Date(loginAt.getTime() + policy.adminSessionTtlHours * 60 * 60 * 1000);
+    const { since, until } = adminSecuritySummaryInterval(user.lastSuccessfulLoginAt, loginAt);
+    const created = await tx.adminSession.create({
+      data: {
+        userId,
+        tokenHash: sha256(rawToken),
+        csrfTokenHash: hashCsrf(csrfToken),
+        expiresAt,
+        policyVersion: policy.policyVersion,
+        securitySummarySince: since,
+        securitySummaryUntil: until,
+      },
+    });
+    await tx.adminUser.update({
+      where: { id: userId },
+      data: { lastSuccessfulLoginAt: loginAt },
+    });
+    return created;
   });
-  return { id: session.id, rawToken, csrfToken, expiresAt };
+  return {
+    id: session.id,
+    rawToken,
+    csrfToken,
+    expiresAt: session.expiresAt,
+    securitySummarySince: session.securitySummarySince,
+    securitySummaryUntil: session.securitySummaryUntil,
+  };
 }
 
-export async function createPilotSession(pilotId: string) {
+const SECURITY_SUMMARY_MAX_MS = 30 * 24 * 60 * 60_000;
+const SECURITY_SUMMARY_FIRST_LOGIN_MS = 24 * 60 * 60_000;
+
+export function adminSecuritySummaryInterval(previousLoginAt: Date | null, loginAt: Date) {
+  const until = new Date(Math.floor(loginAt.getTime() / 60_000) * 60_000);
+  const earliest = until.getTime() - SECURITY_SUMMARY_MAX_MS;
+  const prior = previousLoginAt
+    ? Math.floor(previousLoginAt.getTime() / 60_000) * 60_000
+    : until.getTime() - SECURITY_SUMMARY_FIRST_LOGIN_MS;
+  return {
+    since: new Date(Math.min(until.getTime(), Math.max(earliest, prior))),
+    until,
+  };
+}
+
+export async function createPilotSession(
+  pilotId: string,
+  authState: "AUTHENTICATED" | "PENDING_SECOND_FACTOR" = "AUTHENTICATED",
+  policyOrVersion?: RuntimeSecurityPolicy | number,
+) {
   const db = getPrisma();
-  const policy = await getRuntimeSecurityPolicy();
+  const policy =
+    typeof policyOrVersion === "number" || policyOrVersion === undefined
+      ? await getRuntimeSecurityPolicy()
+      : policyOrVersion;
+  if (typeof policyOrVersion === "number" && policy.policyVersion !== policyOrVersion) {
+    throw new ApiError("SECURITY_POLICY_CHANGED", "安全策略已更新，请重新登录", 409);
+  }
   const rawToken = createOpaqueToken();
   const csrfToken = createOpaqueToken(24);
   const expiresAt = new Date(Date.now() + policy.pilotSessionTtlMinutes * 60 * 1000);
   await db.pilotSession.create({
-    data: { pilotId, tokenHash: sha256(rawToken), csrfTokenHash: hashCsrf(csrfToken), expiresAt },
+    data: {
+      pilotId,
+      tokenHash: sha256(rawToken),
+      csrfTokenHash: hashCsrf(csrfToken),
+      expiresAt,
+      authState,
+      policyVersion: policy.policyVersion,
+    },
   });
   return { rawToken, csrfToken, expiresAt };
 }
@@ -153,6 +230,16 @@ export async function authenticateAdmin(request?: NextRequest): Promise<Authenti
   });
   if (!session) throw new ApiError("UNAUTHENTICATED", "登录已失效，请重新登录", 401);
   const now = new Date();
+  if (now.getTime() - session.lastSeenAt.getTime() >= 15 * 60 * 1000) {
+    await db.adminSession.deleteMany({ where: { id: session.id } });
+    throw new ApiError("SESSION_IDLE_TIMEOUT", "会话已因长时间空闲而结束，请重新登录", 401);
+  }
+  const adminPolicy = await getRuntimeSecurityPolicy();
+  const adminSessionState = (session as typeof session & { policyVersion?: number }).policyVersion;
+  if (adminSessionState !== undefined && adminSessionState !== adminPolicy.policyVersion) {
+    await db.adminSession.deleteMany({ where: { id: session.id } });
+    throw new ApiError("UNAUTHENTICATED", "安全策略已更新，请重新登录", 401);
+  }
   const lastSeen = (session as typeof session & { lastSeenAt: Date }).lastSeenAt;
   if (now.getTime() - lastSeen.getTime() >= 5 * 60 * 1000) {
     await db.adminSession.updateMany({
@@ -182,7 +269,10 @@ export async function authenticateAdmin(request?: NextRequest): Promise<Authenti
   };
 }
 
-export async function authenticatePilot(request?: NextRequest): Promise<AuthenticatedPilot> {
+export async function authenticatePilot(
+  request?: NextRequest,
+  options: { allowPending?: boolean } = {},
+): Promise<AuthenticatedPilot> {
   const db = getPrisma();
   const cookieStore = request?.cookies ?? (await cookies());
   const memberToken = cookieStore.get(COOKIE_NAMES.member)?.value;
@@ -194,14 +284,61 @@ export async function authenticatePilot(request?: NextRequest): Promise<Authenti
       expiresAt: { gt: new Date() },
       pilot: { active: true },
     },
-    include: { pilot: true },
+    include: {
+      pilot: {
+        include: {
+          unit: true,
+          profile: true,
+          person: { include: { pilotProfile: true } },
+        },
+      },
+    },
   });
   if (!session) throw new ApiError("UNAUTHENTICATED", "访问链接已失效，请重新获取", 401);
+  const { pilot } = session;
+  const person = pilot.person;
+  const profile = person?.pilotProfile;
+  if (
+    !pilot.active ||
+    !person?.active ||
+    !pilot.personId ||
+    pilot.personId !== person.id ||
+    !person.organizationId ||
+    !person.unitId ||
+    person.unitId !== pilot.unitId ||
+    !pilot.unit ||
+    pilot.unit.id !== person.unitId ||
+    pilot.unit.organizationId !== person.organizationId ||
+    !profile ||
+    profile.personId !== person.id ||
+    profile.legacyPilotId !== pilot.id ||
+    !pilot.profile ||
+    pilot.profile.id !== profile.id ||
+    pilot.profile.personId !== person.id ||
+    pilot.profile.legacyPilotId !== pilot.id
+  ) {
+    throw new ApiError("MEMBER_IDENTITY_INVALID", "成员身份关联无效，请联系管理员", 403);
+  }
+  const pilotPolicy = await getRuntimeSecurityPolicy();
+  const authState =
+    (session as typeof session & { authState?: string }).authState ?? "AUTHENTICATED";
+  if (authState !== "AUTHENTICATED" && !options.allowPending) {
+    throw new ApiError("ADDITIONAL_FACTOR_REQUIRED", "请完成额外认证后再访问资质", 401);
+  }
+  const policyVersion = (session as typeof session & { policyVersion?: number }).policyVersion;
+  if (policyVersion !== undefined && policyVersion !== pilotPolicy.policyVersion) {
+    await db.pilotSession.deleteMany({ where: { id: session.id } });
+    throw new ApiError("UNAUTHENTICATED", "安全策略已更新，请重新登录", 401);
+  }
   if (!memberToken) observeCompatibilityPath("legacy_cookie");
   if (request && new URL(request.url).pathname.startsWith("/api/pilot/"))
     observeCompatibilityPath("legacy_api");
   const now = new Date();
   const lastSeen = (session as typeof session & { lastSeenAt: Date }).lastSeenAt;
+  if (now.getTime() - lastSeen.getTime() >= 30 * 60 * 1000) {
+    await db.pilotSession.deleteMany({ where: { id: session.id } });
+    throw new ApiError("SESSION_IDLE_TIMEOUT", "会话已因长时间空闲而结束，请重新登录", 401);
+  }
   if (now.getTime() - lastSeen.getTime() >= 5 * 60 * 1000) {
     await db.pilotSession.updateMany({
       where: { id: session.id, lastSeenAt: { lt: new Date(now.getTime() - 5 * 60 * 1000) } },
@@ -210,11 +347,69 @@ export async function authenticatePilot(request?: NextRequest): Promise<Authenti
   }
   return {
     id: session.pilot.id,
+    personId: person.id,
+    organizationId: person.organizationId,
+    unitId: person.unitId,
     employeeNumber: session.pilot.employeeNumber,
     displayName: session.pilot.displayName,
     mobile: session.pilot.mobile,
     sessionId: session.id,
     csrfToken: session.csrfTokenHash,
+    authState,
+  };
+}
+
+/**
+ * A magic link can open a restricted enrollment session when the active member
+ * policy requires a password, TOTP, or FIDO2. Promote that session only after
+ * every factor required by the policy has been bound. The enrollment session
+ * never grants access to member data while it is pending.
+ */
+export async function refreshPilotEnrollment(sessionId: string, pilotId: string) {
+  const db = getPrisma();
+  const [policy, pilot, fidoCount] = await Promise.all([
+    getRuntimeSecurityPolicy(),
+    db.pilot.findUnique({
+      where: { id: pilotId },
+      select: { passwordHash: true, totpSecretCiphertext: true, totpVerifiedAt: true },
+    }),
+    db.fidoCredential.count({ where: { pilotId } }),
+  ]);
+  if (!pilot) return false;
+  if (policy.memberLoginMode === "SMS_LINK") return true;
+  const passwordReady = Boolean(pilot.passwordHash);
+  const totpReady =
+    policy.memberLoginMode === "PASSWORD_TOTP"
+      ? Boolean(pilot.totpSecretCiphertext && pilot.totpVerifiedAt)
+      : true;
+  const fidoReady =
+    policy.memberFido2Required || policy.memberLoginMode === "PASSWORD_FIDO2"
+      ? fidoCount > 0
+      : true;
+  if (!passwordReady || !totpReady || !fidoReady) return false;
+  const promoted = await db.pilotSession.updateMany({
+    where: { id: sessionId, pilotId, authState: { not: "AUTHENTICATED" } },
+    data: { authState: "AUTHENTICATED" },
+  });
+  return promoted.count === 1;
+}
+
+export async function pilotHasFactors(pilotId: string) {
+  const db = getPrisma();
+  const [pilot, fidoCount] = await Promise.all([
+    db.pilot.findUnique({
+      where: { id: pilotId },
+      select: { passwordHash: true, totpSecretCiphertext: true },
+    }),
+    typeof (db as { fidoCredential?: { count?: unknown } }).fidoCredential?.count === "function"
+      ? db.fidoCredential.count({ where: { pilotId } })
+      : Promise.resolve(0),
+  ]);
+  return {
+    password: Boolean(pilot?.passwordHash),
+    totp: Boolean(pilot?.totpSecretCiphertext),
+    fido: fidoCount > 0,
+    any: Boolean(pilot?.passwordHash || pilot?.totpSecretCiphertext || fidoCount > 0),
   };
 }
 
@@ -270,6 +465,23 @@ export async function consumePilotAccessToken(rawToken: string, requestId: strin
       });
       return { error: new ApiError("PILOT_INACTIVE", "人员账号已停用", 403) };
     }
+    const tokenPolicyVersion = (token as typeof token & { policyVersion?: number }).policyVersion;
+    if (tokenPolicyVersion !== undefined && tokenPolicyVersion !== policy.policyVersion) {
+      await tx.auditEvent.create({
+        data: {
+          actorType: "pilot",
+          pilotId: token.pilot.id,
+          action: "pilot_access_token.policy_changed",
+          entityType: "PilotAccessToken",
+          entityId: token.id,
+          detail: { tokenPolicyVersion, activePolicyVersion: policy.policyVersion },
+          requestId,
+        },
+      });
+      return {
+        error: new ApiError("ACCESS_TOKEN_POLICY_CHANGED", "访问链接已失效，请重新获取", 401),
+      };
+    }
     if (token.consumedAt) {
       await tx.auditEvent.create({
         data: {
@@ -322,6 +534,8 @@ export async function consumePilotAccessToken(rawToken: string, requestId: strin
         tokenHash: sha256(rawSessionToken),
         csrfTokenHash: hashCsrf(csrfToken),
         expiresAt,
+        authState: policy.memberLoginMode === "SMS_LINK" ? "AUTHENTICATED" : "PENDING_ENROLLMENT",
+        policyVersion: policy.policyVersion,
       },
     });
     await tx.auditEvent.create({
@@ -331,11 +545,24 @@ export async function consumePilotAccessToken(rawToken: string, requestId: strin
         action: "pilot_access_token.consumed",
         entityType: "PilotAccessToken",
         entityId: token.id,
-        detail: { sessionExpiresAt: expiresAt.toISOString() },
+        detail: {
+          sessionExpiresAt: expiresAt.toISOString(),
+          authState: policy.memberLoginMode === "SMS_LINK" ? "AUTHENTICATED" : "PENDING_ENROLLMENT",
+        },
         requestId,
       },
     });
-    return { session: { rawToken: rawSessionToken, csrfToken, expiresAt } };
+    return {
+      session: {
+        rawToken: rawSessionToken,
+        csrfToken,
+        expiresAt,
+        authState: policy.memberLoginMode === "SMS_LINK" ? "AUTHENTICATED" : "PENDING_ENROLLMENT",
+        pilotId: token.pilot.id,
+        personId: token.pilot.personId,
+        unitId: token.pilot.unitId,
+      },
+    };
   });
   if ("error" in outcome) throw outcome.error;
   return outcome.session;

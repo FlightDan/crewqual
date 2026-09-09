@@ -56,7 +56,6 @@ async function assertNamedInteractiveControls(page: Page) {
 }
 
 async function assertNoSeriousA11yViolations(page: Page) {
-  await page.addScriptTag({ path: path.join(process.cwd(), "node_modules/axe-core/axe.min.js") });
   const violations = await page.evaluate(async () => {
     const axe = (
       window as Window & {
@@ -187,6 +186,12 @@ test.describe("production page responsive and accessibility smoke", () => {
   for (const route of productionPages) {
     test(`page has no critical or serious axe violations: ${route}`, async ({ page }) => {
       test.setTimeout(60_000);
+      // Browser init scripts are automation instrumentation and run before the
+      // document's CSP applies. Injecting a script tag after navigation would
+      // correctly be blocked by the production nonce policy.
+      await page.addInitScript({
+        path: path.join(process.cwd(), "node_modules/axe-core/axe.min.js"),
+      });
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(route);
       await expect(page.locator("main").first()).toBeVisible();

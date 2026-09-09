@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { requestAddress } from "@/server/rate-limit";
+import { rateLimitStorageKey, requestAddress } from "@/server/rate-limit";
 import { resetServerConfigForTests } from "@/server/config";
 
 const original = process.env.TRUSTED_PROXY_HOPS;
@@ -27,5 +27,22 @@ describe("trusted client address resolution", () => {
       headers: { "x-forwarded-for": "198.51.100.10, 10.0.0.4" },
     });
     expect(requestAddress(request)).toBe("198.51.100.10");
+  });
+});
+
+describe("rate-limit storage privacy", () => {
+  it("uses a stable HMAC key without retaining the raw dimension", () => {
+    const raw = "admin-login:account:captain@example.test";
+    const stored = rateLimitStorageKey(raw);
+    expect(stored).toBe(rateLimitStorageKey(raw));
+    expect(stored).not.toContain("captain");
+    expect(stored).not.toContain("example.test");
+    expect(stored).toMatch(/^v1:\d+:[0-9a-f]{64}$/);
+  });
+
+  it("separates namespaces that contain the same identifier", () => {
+    expect(rateLimitStorageKey("admin-login:account:same")).not.toBe(
+      rateLimitStorageKey("pilot-login:account:same"),
+    );
   });
 });

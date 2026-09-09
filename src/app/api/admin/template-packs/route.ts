@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError, getRequestId, jsonData, jsonError, parseJson } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { isSuperAdmin } from "@/server/admin-permissions";
+import { adminOrganizationWhere } from "@/server/admin-organization-scope";
 import { getPrisma } from "@/server/prisma";
 import { registerTemplatePack, templatePackSchema } from "@/server/template-packs";
 
@@ -12,17 +13,18 @@ export async function GET(request: NextRequest) {
   const requestId = getRequestId(request);
   try {
     const admin = await getAdmin(request, "settings.read");
-    const organizationId = admin.organizationId ?? admin.unitId;
+    const scope = adminOrganizationWhere(
+      admin,
+      new URL(request.url).searchParams.get("organizationId"),
+    );
     const packs = await getPrisma().templatePack.findMany({
       where: { active: true },
       orderBy: [{ code: "asc" }, { version: "desc" }],
       include: {
-        installations: organizationId
-          ? {
-              where: { organizationId },
-              select: { id: true, status: true, installedAt: true, result: true },
-            }
-          : false,
+        installations: {
+          where: scope,
+          select: { id: true, organizationId: true, status: true, installedAt: true, result: true },
+        },
       },
     });
     return jsonData(
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -54,6 +56,6 @@ export async function POST(request: NextRequest) {
     const input = await parseJson(request, registerSchema);
     return jsonData(await registerTemplatePack(input.pack), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

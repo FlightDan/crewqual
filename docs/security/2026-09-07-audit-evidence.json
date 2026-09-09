@@ -1,0 +1,227 @@
+{
+  "auditDate": "2026-09-07",
+  "codeCommit": "782a1d18c74ec26e4c1cae4a65d9e52c1b86c036",
+  "scope": "Product code, APIs, UI, bundled tools and product security decisions. Deployment responsibilities and non-applicable requirements omitted.",
+  "method": "Static review, counter-review and limited isolated unit tests; no full dynamic acceptance or penetration test.",
+  "standards": [
+    {
+      "name": "OWASP ASVS",
+      "version": "5.0.0",
+      "url": "https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.json",
+      "sha256": "bcdbec214d70abcfad9284a31d4f9e5134305831d628aad3aa85d7e26626cb35",
+      "sourceRequirementCount": 345,
+      "countMeaning": "Source rows screened, not requirements proven compliant."
+    },
+    {
+      "name": "GB/T 22239",
+      "version": "2019",
+      "url": "http://gat.gxzf.gov.cn/xxgk_68662/fdzdgknr/xzgfxwj/P020221122621251697787.pdf",
+      "sha256": "cf659b3d60b55412861c48c805365efbb3d7e3fba3db29f0660ec643af186814",
+      "printedPagesInspected": [14, 15, 28, 29, 30, 31]
+    }
+  ],
+  "cryptoObservation": {
+    "kind": "local-crypto-observation",
+    "generatedBase32Characters": 20,
+    "encodedEntropyBits": 100,
+    "effectiveDecodedKeyBytes": 12,
+    "effectiveDecodedKeyBits": 96,
+    "totpStepMilliseconds": 30000,
+    "codeCounter": 100,
+    "observations": [
+      {
+        "step": 99,
+        "acceptedCounter": 100
+      },
+      {
+        "step": 100,
+        "acceptedCounter": 100
+      },
+      {
+        "step": 101,
+        "acceptedCounter": 100
+      },
+      {
+        "step": 102,
+        "acceptedCounter": null
+      }
+    ],
+    "note": "Synthetic generated secret and code are not output. This calls the product verifier only; login replay prevention is a separate control."
+  },
+  "capturedUnitTestReports": [
+    {
+      "command": "./node_modules/.bin/vitest run src/server/backup-runner.test.ts src/server/backup-service.test.ts --reporter=json",
+      "success": true,
+      "passedTests": 29,
+      "failedTests": 0,
+      "files": [
+        {
+          "path": "src/server/backup-runner.test.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "offline restore archive validation requires an isolated database and object-storage bucket",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation requires a complete gallery baseline and checksum on every artifact",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation refuses missing or mismatched artifact checksums",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation accepts the shape the backup path produces",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation rejects traversal, absolute, backslash and control-character keys",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation rejects symlink and hardlink members that would escape via readFile",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation rejects archives without a manifest or with an unparseable listing",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation validates manifest object keys directly",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation applies tombstones and verifies the final object collection",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation requires the archive file set to exactly match its manifest",
+              "status": "passed"
+            },
+            {
+              "name": "offline restore archive validation rejects unsafe remote base paths",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation accepts the existing protocol credential formats",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation rejects non-object JSON credential values",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation rejects unknown fields and non-string fields per protocol",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation surfaces invalid credentials as a 422 API validation error",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation rejects control characters in every credential field",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation rejects ambiguous config values before saving them",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation accepts empty optional credentials and keeps the setup compatibility entry point",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation keeps artifact encryption independent from rotated remote credentials",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation re-resolves every remote endpoint before invoking rclone",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation requeues only stale RUNNING runs with an atomic state transition",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation uses a claim-specific artifact name to fence stale workers",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation decomposes PostgreSQL URLs and strips unrelated child-process secrets",
+              "status": "passed"
+            },
+            {
+              "name": "backup credential JSON validation rejects an unsafe historical local target again at execution time",
+              "status": "passed"
+            }
+          ]
+        },
+        {
+          "path": "src/server/backup-service.test.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "backup target updates rejects changing the protocol before validating or persisting credentials",
+              "status": "passed"
+            },
+            {
+              "name": "backup target updates preserves the legacy artifact key when transport credentials rotate",
+              "status": "passed"
+            },
+            {
+              "name": "backup target updates refuses an explicit encryption-key rotation on an encrypted target",
+              "status": "passed"
+            },
+            {
+              "name": "backup target updates preserves a legacy artifact key across encryption off and on",
+              "status": "passed"
+            },
+            {
+              "name": "backup target updates preserves the artifact key when credentials rotate while encryption is disabled",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "command": "./node_modules/.bin/vitest run src/app/api/admin/settings/security-mode.test.ts --reporter=json",
+      "success": true,
+      "passedTests": 3,
+      "failedTests": 0,
+      "files": [
+        {
+          "path": "src/app/api/admin/settings/security-mode.test.ts",
+          "status": "passed",
+          "assertions": [
+            {
+              "name": "security login mode changes requires the target mode credentials and revokes every session",
+              "status": "passed"
+            },
+            {
+              "name": "security login mode changes requires the current password when switching to password-only",
+              "status": "passed"
+            },
+            {
+              "name": "security login mode changes does not revoke sessions when only non-mode policy values change",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "capturedUnitTestText": "\n RUN  v3.2.7 .\n\n ✓ src/server/api.test.ts (6 tests) 32ms\n ✓ src/server/storage.test.ts (5 tests) 24ms\n\n Test Files  2 passed (2)\n      Tests  11 passed (11)\n   Start at  20:16:24\n   Duration  1.92s (transform 293ms, setup 351ms, collect 873ms, tests 56ms, environment 804ms, prepare 700ms)\n\n",
+  "cryptoObservationReproducer": {
+    "workingDirectory": ".",
+    "command": "node --import tsx <path-to-script.ts>",
+    "script": "import { createHmac } from \"node:crypto\";\nimport { createTotpSecret, verifyTotp } from \"./src/server/crypto.ts\";\n\nconst secret = createTotpSecret();\nconst alphabet = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567\";\nconst bits = Array.from(secret, (c) => alphabet.indexOf(c).toString(2).padStart(5, \"0\")).join(\"\");\nconst key = Buffer.from(Array.from({ length: Math.floor(bits.length / 8) }, (_, i) => parseInt(bits.slice(i * 8, i * 8 + 8), 2)));\nconst counter = 100;\nconst movingFactor = Buffer.alloc(8);\nmovingFactor.writeBigUInt64BE(BigInt(counter));\nconst digest = createHmac(\"sha1\", key).update(movingFactor).digest();\nconst offset = digest[digest.length - 1] & 15;\nconst code = ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, \"0\");\nconst observations = [99, 100, 101, 102].map((step) => ({ step, acceptedCounter: verifyTotp(secret, code, step * 30_000) }));\nconsole.log(JSON.stringify({\n  kind: \"local-crypto-observation\",\n  generatedBase32Characters: secret.length,\n  encodedEntropyBits: secret.length * 5,\n  effectiveDecodedKeyBytes: key.length,\n  effectiveDecodedKeyBits: key.length * 8,\n  totpStepMilliseconds: 30_000,\n  codeCounter: counter,\n  observations,\n  note: \"Synthetic generated secret and code are not output. This calls the product verifier only; login replay prevention is a separate control.\"\n}, null, 2));\n"
+  },
+  "concurrentWorktreeChangesObservedAtClose": [
+    "package.json",
+    "scripts/release/verify.ts",
+    "scripts/release/acceptance-config.ts"
+  ],
+  "concurrentChangesNote": "Other work added release acceptance configuration validation during the audit. These changes were inspected and left untouched; they do not modify the application paths supporting the reported findings. The audit does not claim to verify the added release configuration code."
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PilotIdentityForm } from "@/components/pilot/identity-form";
 import { localizedTitle } from "@/lib/server-locale";
+import { getRuntimeSecurityPolicy } from "@/server/runtime-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -9,5 +10,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function MemberIdentityPage() {
-  return <PilotIdentityForm portal="member" />;
+  return <MemberIdentityContent />;
+}
+
+async function MemberIdentityContent() {
+  const policy = await getRuntimeSecurityPolicy();
+  return (
+    <PilotIdentityForm
+      portal="member"
+      loginMode={policy.memberLoginMode}
+      fidoRequired={policy.memberFido2Required}
+    />
+  );
 }

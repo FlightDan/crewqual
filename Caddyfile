@@ -1,32 +1,84 @@
 {
 	{$CADDY_EMAIL_CONFIG}
+	metrics
+}
+
+# This listener is reachable only on the compose network (no host port). The
+# worker uses its bounded counters to invalidate telemetry completeness when
+# Caddy itself returns a handler error or restarts between observations.
+:2020 {
+	metrics /metrics
 }
 
 {$CADDY_SITE_ADDRESS} {
 	{$CADDY_TLS_CONFIG}
 	encode zstd gzip
+	@tls protocol https
 	handle_errors {
+		header @tls Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		header {
+			-Server
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "same-origin"
+			Permissions-Policy "camera=(), microphone=()"
+			X-Robots-Tag "noindex, nofollow"
+		}
 		respond "CrewQual 正在更新，请稍后刷新页面。" 503
 	}
 	request_body {
 		max_size 12MB
 	}
-	@tls protocol https
 	header @tls Strict-Transport-Security "max-age=31536000; includeSubDomains"
-	handle /api/internal/network-access {
-		respond 404
-	}
-	@public not remote_ip private_ranges
-	forward_auth @public web:3000 {
-		uri /api/internal/network-access
-		header_up X-Crewqual-Network-Secret {$NETWORK_ACCESS_SECRET}
-		header_up X-Crewqual-Remote-IP {http.request.remote.host}
-	}
-	reverse_proxy web:3000 {
-		header_up -X-Forwarded-For
-		header_up X-Forwarded-For {http.request.remote.host}
-		header_up -X-Real-IP
-		header_up X-Real-IP {http.request.remote.host}
+	route {
+		# Client-supplied ingress metadata is removed before the public preflight.
+		# A successful preflight copies back only the bounded request key and route class.
+		request_header -X-Request-Id
+		request_header -X-Crewqual-Network-Secret
+		request_header -X-Crewqual-Remote-IP
+		request_header -X-Crewqual-Original-Method
+		request_header -X-Crewqual-Original-Path
+		request_header -X-Crewqual-Request-Key
+		request_header -X-Crewqual-Route-Class
+		request_header -X-Forwarded-Method
+		request_header -X-Forwarded-Uri
+		request_header -X-Original-Url
+		request_header -X-Rewrite-Url
+		request_header -Proxy-Authorization
+		@public not remote_ip private_ranges
+		forward_auth @public web:3000 {
+			# An explicit empty query keeps credentials and tokens out of preflight.
+			uri /api/internal/network-access?
+			header_up -Cookie
+			header_up -Authorization
+			header_up -Proxy-Authorization
+			header_up -Referer
+			header_up -X-Csrf-Token
+			header_up -X-Api-Key
+			header_up -X-Original-Url
+			header_up -X-Rewrite-Url
+			header_up X-Forwarded-Method {http.request.method}
+			header_up X-Forwarded-Uri {http.request.uri.path}
+			header_up X-Request-Id {http.request.uuid}
+			header_up X-Crewqual-Network-Secret {$NETWORK_ACCESS_SECRET}
+			header_up X-Crewqual-Remote-IP {http.request.remote.host}
+			header_up X-Crewqual-Original-Method {http.request.method}
+			header_up X-Crewqual-Original-Path {http.request.uri.path}
+			header_up X-Crewqual-Request-Key {http.request.uuid}
+			copy_headers {
+				X-Crewqual-Request-Key
+				X-Crewqual-Route-Class
+			}
+		}
+		# Public requests reach the preflight above before this protected local 404.
+		handle /api/internal/network-access {
+			respond 404
+		}
+		reverse_proxy web:3000 {
+			# Caddy sets X-Forwarded-For/Host/Proto itself and ignores spoofed
+			# incoming values unless trusted proxies are explicitly configured.
+			header_up X-Real-IP {http.request.remote.host}
+		}
 	}
 	header {
 		-Server

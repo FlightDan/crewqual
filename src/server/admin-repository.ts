@@ -3,7 +3,7 @@ import type { Prisma, UpdateRequestStatus, VerificationStatus } from "@/generate
 import { listAdminPilotDirectory } from "@/server/admin-pilot-directory";
 import { ApiError, assertExpectedVersion } from "@/server/api";
 import { getPrisma } from "@/server/prisma";
-import { getPrivateEvidenceUrl } from "@/server/storage";
+import { assertEvidenceOwner } from "@/server/evidence-provenance";
 import {
   parseQualificationRuleSnapshot,
   validateQualificationRuleFields,
@@ -505,11 +505,24 @@ export async function getAdminReview(admin: AuthenticatedAdmin, id: string) {
     detail: formatAuditDetail(event.action, event.detail),
   }));
   const evidence = review.evidence?.[0]?.evidenceImage;
+  if (evidence) assertEvidenceOwner(evidence, review.pilot);
   return {
     ...mapped,
     audit,
-    ...(evidence ? { documentUrl: await getPrivateEvidenceUrl(evidence.objectKey, 300) } : {}),
+    // Keep the object store private. The browser follows this same-origin
+    // route with the authenticated admin session; the route rechecks the
+    // review scope and evidence provenance before streaming bytes.
+    ...(evidence ? { documentUrl: `/api/admin/reviews/${encodeURIComponent(id)}/evidence` } : {}),
   };
+}
+
+export async function getAdminReviewEvidence(admin: AuthenticatedAdmin, id: string) {
+  const review = await reviewWithRelations(admin, id);
+  if (!review) return null;
+  const evidence = review.evidence?.[0]?.evidenceImage;
+  if (!evidence) return null;
+  assertEvidenceOwner(evidence, review.pilot);
+  return evidence;
 }
 
 export async function approveReview(

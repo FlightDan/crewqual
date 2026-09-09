@@ -2,9 +2,16 @@ import { getServerConfig } from "@/server/config";
 import { decryptSettingSecret } from "@/server/crypto";
 import { getPrisma } from "@/server/prisma";
 import type { AdminLoginMode } from "@/types/admin-settings";
+import type { AuthenticationPreset, MemberLoginMode } from "@/generated/prisma/client";
 
 export type RuntimeSecurityPolicy = {
   adminLoginMode: AdminLoginMode;
+  authenticationPreset: AuthenticationPreset;
+  memberLoginMode: MemberLoginMode;
+  adminFido2Required: boolean;
+  memberFido2Required: boolean;
+  highRiskReauthEnabled: boolean;
+  policyVersion: number;
   adminSessionTtlHours: number;
   pilotAccessLinkTtlMinutes: number;
   pilotSessionTtlMinutes: number;
@@ -34,8 +41,14 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
   const config = getServerConfig();
   const fallback: RuntimeSecurityPolicy = {
     adminLoginMode: "PASSWORD_TOTP",
+    authenticationPreset: "CONVENIENCE",
+    memberLoginMode: "SMS_LINK",
+    adminFido2Required: false,
+    memberFido2Required: false,
+    highRiskReauthEnabled: true,
+    policyVersion: 1,
     adminSessionTtlHours: config.ADMIN_SESSION_TTL_HOURS,
-    pilotAccessLinkTtlMinutes: 15,
+    pilotAccessLinkTtlMinutes: 10,
     pilotSessionTtlMinutes: config.PILOT_SESSION_TTL_MINUTES,
     maxFailedAttempts: 5,
     lockoutMinutes: 15,
@@ -46,6 +59,12 @@ export async function getRuntimeSecurityPolicy(): Promise<RuntimeSecurityPolicy>
   return policy
     ? {
         adminLoginMode: policy.adminLoginMode,
+        authenticationPreset: policy.authenticationPreset,
+        memberLoginMode: policy.memberLoginMode,
+        adminFido2Required: policy.adminFido2Required,
+        memberFido2Required: policy.memberFido2Required,
+        highRiskReauthEnabled: policy.highRiskReauthEnabled,
+        policyVersion: policy.version,
         adminSessionTtlHours: policy.adminSessionTtlHours,
         pilotAccessLinkTtlMinutes: policy.pilotAccessLinkTtlMinutes,
         pilotSessionTtlMinutes: policy.pilotSessionTtlMinutes,

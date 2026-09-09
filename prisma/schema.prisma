@@ -21,6 +21,25 @@ enum AdminLoginMode {
   PASSWORD_ONLY
 }
 
+enum AuthenticationPreset {
+  ENHANCED_L3
+  COMBINED_L2
+  CONVENIENCE
+}
+
+enum MemberLoginMode {
+  PASSWORD_TOTP
+  PASSWORD_FIDO2
+  SMS_LINK
+}
+
+enum WebAuthnChallengeKind {
+  ADMIN_REGISTRATION
+  ADMIN_AUTHENTICATION
+  PILOT_REGISTRATION
+  PILOT_AUTHENTICATION
+}
+
 enum QualificationRecordStatus {
   ACTIVE
   REPLACED
@@ -140,6 +159,25 @@ enum UploadReservationStatus {
   RELEASED
 }
 
+enum SecuritySignalKind {
+  AUTH_FAILURE
+  AUTH_RATE_LIMIT
+  AUTH_SUCCESS
+  AUTHORIZATION_DENIED
+  CSRF_DENIED
+  KNOWN_PROBE
+  UNKNOWN_ROUTE
+  INVALID_METHOD
+  RESOURCE_NOT_FOUND
+  PUBLIC_ACCESS_DENIED
+}
+
+enum SecurityDetectionCategory {
+  PUBLIC_SCAN
+  CREDENTIAL_STUFFING
+  DISTRIBUTED_LOGIN_ATTEMPT
+}
+
 enum NotificationType {
   QUALIFICATION_EXPIRY
   UPGRADE_STAGE_REMINDER
@@ -246,32 +284,40 @@ model Person {
 }
 
 model Pilot {
-  id                 String                       @id @default(uuid()) @db.Uuid
-  employeeNumber     String                       @unique
-  mobile             String
-  displayName        String
-  initials           String
-  roleCode           String
-  aircraftType       String
-  rankLabel          String
-  unitId             String                       @db.Uuid
-  active             Boolean                      @default(true)
-  version            Int                          @default(1)
-  createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
-  updatedAt          DateTime                     @updatedAt @db.Timestamptz(3)
-  personId           String?                      @unique @db.Uuid
-  unit               OrganizationUnit             @relation(fields: [unitId], references: [id])
-  qualifications     QualificationRecord[]
-  updateRequests     QualificationUpdateRequest[]
-  accessTokens       PilotAccessToken[]
-  sessions           PilotSession[]
-  upgradePlans       UpgradePlan[]
-  notifications      NotificationDelivery[]
-  uploadReservations UploadReservation[]
-  evidenceImages     EvidenceImage[]
-  auditEvents        AuditEvent[]
-  person             Person?                      @relation(fields: [personId], references: [id])
-  profile            PilotProfile?
+  id                   String                       @id @default(uuid()) @db.Uuid
+  employeeNumber       String                       @unique
+  mobile               String
+  displayName          String
+  initials             String
+  roleCode             String
+  aircraftType         String
+  rankLabel            String
+  unitId               String                       @db.Uuid
+  active               Boolean                      @default(true)
+  passwordHash         String?                      @db.Text
+  passwordSetAt        DateTime?                    @db.Timestamptz(3)
+  totpSecretCiphertext String?                      @db.Text
+  totpVerifiedAt       DateTime?                    @db.Timestamptz(3)
+  lastTotpCounter      BigInt?
+  antiphishingCodeHash String?                      @db.Text
+  version              Int                          @default(1)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  personId             String?                      @unique @db.Uuid
+  unit                 OrganizationUnit             @relation(fields: [unitId], references: [id])
+  qualifications       QualificationRecord[]
+  updateRequests       QualificationUpdateRequest[]
+  accessTokens         PilotAccessToken[]
+  sessions             PilotSession[]
+  upgradePlans         UpgradePlan[]
+  notifications        NotificationDelivery[]
+  uploadReservations   UploadReservation[]
+  evidenceImages       EvidenceImage[]
+  auditEvents          AuditEvent[]
+  person               Person?                      @relation(fields: [personId], references: [id])
+  profile              PilotProfile?
+  fidoCredentials      FidoCredential[]
+  webAuthnChallenges   WebAuthnChallenge[]
 }
 
 model PilotProfile {
@@ -349,26 +395,32 @@ model Permission {
 }
 
 model AdminUser {
-  id                     String                 @id @default(uuid()) @db.Uuid
-  email                  String                 @unique
+  id                     String                    @id @default(uuid()) @db.Uuid
+  email                  String                    @unique
   displayName            String
   passwordHash           String
-  totpSecretCiphertext   String                 @db.Text
-  totpVerifiedAt         DateTime?              @db.Timestamptz(3)
+  totpSecretCiphertext   String                    @db.Text
+  totpVerifiedAt         DateTime?                 @db.Timestamptz(3)
   lastTotpCounter        BigInt?
-  active                 Boolean                @default(true)
-  failedAttempts         Int                    @default(0)
-  lockedUntil            DateTime?              @db.Timestamptz(3)
-  unitId                 String?                @db.Uuid
-  organizationId         String?                @db.Uuid
-  version                Int                    @default(1)
-  createdAt              DateTime               @default(now()) @db.Timestamptz(3)
-  updatedAt              DateTime               @updatedAt @db.Timestamptz(3)
-  unit                   OrganizationUnit?      @relation(fields: [unitId], references: [id])
-  organization           Organization?          @relation(fields: [organizationId], references: [id])
+  active                 Boolean                   @default(true)
+  failedAttempts         Int                       @default(0)
+  lockedUntil            DateTime?                 @db.Timestamptz(3)
+  antiphishingCodeHash   String?                   @db.Text
+  unitId                 String?                   @db.Uuid
+  organizationId         String?                   @db.Uuid
+  version                Int                       @default(1)
+  lastSuccessfulLoginAt  DateTime?                 @db.Timestamptz(3)
+  createdAt              DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                  @updatedAt @db.Timestamptz(3)
+  unit                   OrganizationUnit?         @relation(fields: [unitId], references: [id])
+  organization           Organization?             @relation(fields: [organizationId], references: [id])
   roles                  AdminUserRole[]
   sessions               AdminSession[]
   notificationDeliveries NotificationDelivery[]
+  fidoCredentials        FidoCredential[]
+  webAuthnChallenges     WebAuthnChallenge[]
+  passwordResetTargets   AdminPasswordResetToken[] @relation("AdminPasswordResetTarget")
+  passwordResetCreators  AdminPasswordResetToken[] @relation("AdminPasswordResetCreator")
 }
 
 model AdminUserRole {
@@ -390,26 +442,30 @@ model RolePermission {
 }
 
 model AdminSession {
-  id            String    @id @default(uuid()) @db.Uuid
-  userId        String    @db.Uuid
-  tokenHash     String    @unique
-  csrfTokenHash String
-  expiresAt     DateTime  @db.Timestamptz(3)
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
-  lastSeenAt    DateTime  @default(now()) @db.Timestamptz(3)
-  user          AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @db.Uuid
+  tokenHash            String    @unique
+  csrfTokenHash        String
+  expiresAt            DateTime  @db.Timestamptz(3)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  lastSeenAt           DateTime  @default(now()) @db.Timestamptz(3)
+  policyVersion        Int       @default(1)
+  securitySummarySince DateTime? @db.Timestamptz(3)
+  securitySummaryUntil DateTime? @db.Timestamptz(3)
+  user                 AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
 }
 
 model PilotAccessToken {
-  id         String    @id @default(uuid()) @db.Uuid
-  pilotId    String    @db.Uuid
-  tokenHash  String    @unique
-  expiresAt  DateTime  @db.Timestamptz(3)
-  consumedAt DateTime? @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
-  pilot      Pilot     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid()) @db.Uuid
+  pilotId       String    @db.Uuid
+  tokenHash     String    @unique
+  expiresAt     DateTime  @db.Timestamptz(3)
+  consumedAt    DateTime? @db.Timestamptz(3)
+  policyVersion Int       @default(1)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  pilot         Pilot     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
 
   @@index([pilotId, expiresAt])
 }
@@ -422,6 +478,8 @@ model PilotSession {
   expiresAt     DateTime @db.Timestamptz(3)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   lastSeenAt    DateTime @default(now()) @db.Timestamptz(3)
+  authState     String   @default("AUTHENTICATED")
+  policyVersion Int      @default(1)
   pilot         Pilot    @relation(fields: [pilotId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
@@ -606,25 +664,27 @@ model QualificationRecord {
 }
 
 model EvidenceImage {
-  id               String                  @id @default(uuid()) @db.Uuid
-  pilotId          String?                 @db.Uuid
-  personId         String?                 @db.Uuid
-  objectKey        String                  @unique
-  mimeType         String
-  width            Int
-  height           Int
-  byteSize         Int
-  sha256           String
-  status           String                  @default("orphaned")
-  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime                @updatedAt @db.Timestamptz(3)
-  linkedAt         DateTime?               @db.Timestamptz(3)
-  expiresAt        DateTime                @db.Timestamptz(3)
-  evidence         QualificationEvidence[]
-  recognitionTasks RecognitionTask[]
-  optimizationTask ImageOptimizationTask?
-  pilot            Pilot?                  @relation(fields: [pilotId], references: [id], onDelete: SetNull)
-  person           Person?                 @relation(fields: [personId], references: [id], onDelete: SetNull)
+  id                     String                  @id @default(uuid()) @db.Uuid
+  pilotId                String?                 @db.Uuid
+  personId               String?                 @db.Uuid
+  objectKey              String                  @unique
+  mimeType               String
+  width                  Int
+  height                 Int
+  byteSize               Int
+  sha256                 String
+  storageEncodingVersion Int                     @default(0)
+  sanitizedAt            DateTime?               @db.Timestamptz(3)
+  status                 String                  @default("orphaned")
+  createdAt              DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @db.Timestamptz(3)
+  linkedAt               DateTime?               @db.Timestamptz(3)
+  expiresAt              DateTime                @db.Timestamptz(3)
+  evidence               QualificationEvidence[]
+  recognitionTasks       RecognitionTask[]
+  optimizationTask       ImageOptimizationTask?
+  pilot                  Pilot?                  @relation(fields: [pilotId], references: [id], onDelete: SetNull)
+  person                 Person?                 @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([status, expiresAt])
 }
@@ -991,6 +1051,98 @@ model RateLimitBucket {
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 }
 
+model SecuritySignalBucket {
+  id              String                        @id @default(uuid()) @db.Uuid
+  kind            SecuritySignalKind
+  bucketStart     DateTime                      @db.Timestamptz(3)
+  keyVersion      Int                           @default(1)
+  dimensionKey    String
+  sourceHash      String?
+  maskedSource    String                        @default("来源不可判定")
+  accountHash     String?
+  adminUserId     String?                       @db.Uuid
+  pilotId         String?                       @db.Uuid
+  personId        String?                       @db.Uuid
+  unitId          String?                       @db.Uuid
+  organizationId  String?                       @db.Uuid
+  routeClass      String?
+  pathHash        String?
+  outcome         String
+  count           Int                           @default(0)
+  firstSeenAt     DateTime                      @db.Timestamptz(3)
+  lastSeenAt      DateTime                      @db.Timestamptz(3)
+  sampleRequestId String?
+  createdAt       DateTime                      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                      @updatedAt @db.Timestamptz(3)
+  receipts        SecuritySignalReceipt[]
+  detections      SecurityDetectionMembership[]
+
+  @@unique([bucketStart, kind, keyVersion, dimensionKey])
+  @@index([bucketStart])
+  @@index([kind, bucketStart])
+  @@index([sourceHash, bucketStart])
+  @@index([accountHash, bucketStart])
+}
+
+model SecuritySignalReceipt {
+  id             String               @id @default(uuid()) @db.Uuid
+  requestKey     String               @unique
+  signalBucketId String               @db.Uuid
+  expiresAt      DateTime             @db.Timestamptz(3)
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+  signalBucket   SecuritySignalBucket @relation(fields: [signalBucketId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model SecurityDetectionBucket {
+  id                   String                        @id @default(uuid()) @db.Uuid
+  category             SecurityDetectionCategory
+  ruleVersion          Int                           @default(1)
+  groupKey             String
+  dedupeKey            String                        @unique
+  windowStart          DateTime                      @db.Timestamptz(3)
+  windowEnd            DateTime                      @db.Timestamptz(3)
+  firstSeenAt          DateTime                      @db.Timestamptz(3)
+  lastSeenAt           DateTime                      @db.Timestamptz(3)
+  requestCount         Int                           @default(0)
+  sourceCount          Int                           @default(0)
+  accountCount         Int                           @default(0)
+  pathCount            Int                           @default(0)
+  truncatedByRetention Boolean                       @default(false)
+  sample               Json?
+  createdAt            DateTime                      @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                      @updatedAt @db.Timestamptz(3)
+  signals              SecurityDetectionMembership[]
+
+  @@index([category, firstSeenAt])
+  @@index([lastSeenAt])
+  @@index([groupKey, lastSeenAt])
+}
+
+model SecurityDetectionMembership {
+  detectionBucketId String                  @db.Uuid
+  signalBucketId    String                  @db.Uuid
+  createdAt         DateTime                @default(now()) @db.Timestamptz(3)
+  detectionBucket   SecurityDetectionBucket @relation(fields: [detectionBucketId], references: [id], onDelete: Cascade)
+  signalBucket      SecuritySignalBucket    @relation(fields: [signalBucketId], references: [id], onDelete: Cascade)
+
+  @@id([detectionBucketId, signalBucketId])
+  @@index([signalBucketId])
+}
+
+model SecurityTelemetryState {
+  id                String    @id @default("global")
+  processedThrough  DateTime? @db.Timestamptz(3)
+  lastCollectedAt   DateTime? @db.Timestamptz(3)
+  lastAggregatedAt  DateTime? @db.Timestamptz(3)
+  collectionHealthy Boolean   @default(true)
+  droppedCount      Int       @default(0)
+  lastError         String?
+  version           Int       @default(1)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+}
+
 model UploadReservation {
   id            String                  @id @default(uuid()) @db.Uuid
   pilotId       String                  @db.Uuid
@@ -1044,17 +1196,78 @@ model ObjectStorageSetting {
 }
 
 model SecurityPolicy {
-  id                        String         @id @default("global")
-  adminLoginMode            AdminLoginMode @default(PASSWORD_TOTP)
-  adminSessionTtlHours      Int            @default(8)
-  pilotAccessLinkTtlMinutes Int            @default(15)
-  pilotSessionTtlMinutes    Int            @default(60)
-  maxFailedAttempts         Int            @default(5)
-  lockoutMinutes            Int            @default(15)
-  allowPublicAccess         Boolean        @default(false)
-  version                   Int            @default(1)
-  createdAt                 DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt                 DateTime       @updatedAt @db.Timestamptz(3)
+  id                        String               @id @default("global")
+  adminLoginMode            AdminLoginMode       @default(PASSWORD_TOTP)
+  authenticationPreset      AuthenticationPreset @default(CONVENIENCE)
+  memberLoginMode           MemberLoginMode      @default(SMS_LINK)
+  adminFido2Required        Boolean              @default(false)
+  memberFido2Required       Boolean              @default(false)
+  highRiskReauthEnabled     Boolean              @default(true)
+  adminSessionTtlHours      Int                  @default(8)
+  pilotAccessLinkTtlMinutes Int                  @default(15)
+  pilotSessionTtlMinutes    Int                  @default(60)
+  maxFailedAttempts         Int                  @default(5)
+  lockoutMinutes            Int                  @default(15)
+  allowPublicAccess         Boolean              @default(false)
+  version                   Int                  @default(1)
+  createdAt                 DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime             @updatedAt @db.Timestamptz(3)
+}
+
+model FidoCredential {
+  id           String     @id @default(uuid()) @db.Uuid
+  credentialId String     @unique
+  publicKey    Bytes      @db.ByteA
+  counter      Int        @default(0)
+  transports   Json?
+  deviceType   String     @default("singleDevice")
+  backedUp     Boolean    @default(false)
+  userVerified Boolean    @default(false)
+  label        String     @default("")
+  adminUserId  String?    @db.Uuid
+  pilotId      String?    @db.Uuid
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  lastUsedAt   DateTime?  @db.Timestamptz(3)
+  adminUser    AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  pilot        Pilot?     @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([pilotId])
+}
+
+model WebAuthnChallenge {
+  id          String                @id @default(uuid()) @db.Uuid
+  challenge   String                @unique
+  kind        WebAuthnChallengeKind
+  adminUserId String?               @db.Uuid
+  pilotId     String?               @db.Uuid
+  sessionId   String?
+  expiresAt   DateTime              @db.Timestamptz(3)
+  consumedAt  DateTime?             @db.Timestamptz(3)
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  adminUser   AdminUser?            @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  pilot       Pilot?                @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([pilotId, expiresAt])
+  @@index([expiresAt])
+}
+
+model AdminPasswordResetToken {
+  id              String    @id @default(uuid()) @db.Uuid
+  adminUserId     String    @db.Uuid
+  createdById     String    @db.Uuid
+  tokenHash       String    @unique
+  tokenCiphertext String?   @db.Text
+  expiresAt       DateTime  @db.Timestamptz(3)
+  consumedAt      DateTime? @db.Timestamptz(3)
+  policyVersion   Int       @default(1)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  adminUser       AdminUser @relation("AdminPasswordResetTarget", fields: [adminUserId], references: [id], onDelete: Cascade)
+  createdBy       AdminUser @relation("AdminPasswordResetCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([createdById, createdAt])
 }
 
 model WorkerHeartbeat {

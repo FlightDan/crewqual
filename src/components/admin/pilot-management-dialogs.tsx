@@ -40,6 +40,7 @@ export function PilotManagementActions({ onCompleted }: { onCompleted: () => voi
   const { t } = useI18n();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
+  const importTriggerRef = React.useRef<HTMLButtonElement>(null);
   const [exportUnitId, setExportUnitId] = React.useState("");
   const [exportUnits, setExportUnits] = React.useState<Array<{ label: string; value: string }>>([]);
   React.useEffect(() => {
@@ -88,7 +89,12 @@ export function PilotManagementActions({ onCompleted }: { onCompleted: () => voi
         </Button>
         {hasPermission("pilots.write") ? (
           <>
-            <Button type="button" variant="secondary" onClick={() => setImportOpen(true)}>
+            <Button
+              ref={importTriggerRef}
+              type="button"
+              variant="secondary"
+              onClick={() => setImportOpen(true)}
+            >
               <Upload aria-hidden="true" className="size-4" />
               {t("pilotManagement.importBatch")}
             </Button>
@@ -111,6 +117,7 @@ export function PilotManagementActions({ onCompleted }: { onCompleted: () => voi
         open={importOpen}
         onOpenChange={setImportOpen}
         onCompleted={onCompleted}
+        triggerRef={importTriggerRef}
       />
     </>
   );
@@ -553,10 +560,12 @@ function PilotCsvImportDialog({
   open,
   onOpenChange,
   onCompleted,
+  triggerRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCompleted: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { pilotDirectory } = useApplicationServices();
   const { t } = useI18n();
@@ -568,6 +577,16 @@ function PilotCsvImportDialog({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [mode, setMode] = React.useState<"create_only" | "merge">("create_only");
+
+  const restoreTriggerFocus = React.useCallback(
+    (event: Event) => {
+      const trigger = triggerRef.current;
+      if (!trigger?.isConnected || trigger.disabled) return;
+      event.preventDefault();
+      trigger.focus();
+    },
+    [triggerRef],
+  );
 
   React.useEffect(() => {
     if (!open) return;
@@ -643,7 +662,10 @@ function PilotCsvImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl"
+        onCloseAutoFocus={restoreTriggerFocus}
+      >
         <DialogTitle className="flex items-center gap-2 text-lg font-bold">
           <FileSpreadsheet aria-hidden="true" className="size-5 text-brand" />
           {t("pilotManagement.importTitle")}

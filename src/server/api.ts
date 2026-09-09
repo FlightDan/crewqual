@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerConfig } from "@/server/config";
 import { ApiError } from "@/server/api-error";
+import { publicApiErrorSignal } from "@/server/security-request";
 
 export { ApiError } from "@/server/api-error";
 
@@ -40,7 +41,7 @@ export function jsonData<T>(data: T, requestId: string, status = 200) {
   );
 }
 
-export function jsonError(error: unknown, requestId: string) {
+export function jsonError(error: unknown, requestId: string, request?: Request) {
   const isPrismaUniqueConstraint =
     typeof error === "object" &&
     error !== null &&
@@ -81,6 +82,7 @@ export function jsonError(error: unknown, requestId: string) {
       requestId,
     },
   };
+  if (request) publicApiErrorSignal(request, normalized);
   const retryAfter =
     normalized.details &&
     typeof normalized.details === "object" &&

@@ -645,10 +645,6 @@ export type NullableIntFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type PositionCreateNestedOneWithoutAssignmentsInput = {
   create?: Prisma.XOR<Prisma.PositionCreateWithoutAssignmentsInput, Prisma.PositionUncheckedCreateWithoutAssignmentsInput>
   connectOrCreate?: Prisma.PositionCreateOrConnectWithoutAssignmentsInput

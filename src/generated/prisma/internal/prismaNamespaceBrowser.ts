@@ -93,10 +93,18 @@ export const ModelName = {
   NotificationAttempt: 'NotificationAttempt',
   AuditEvent: 'AuditEvent',
   RateLimitBucket: 'RateLimitBucket',
+  SecuritySignalBucket: 'SecuritySignalBucket',
+  SecuritySignalReceipt: 'SecuritySignalReceipt',
+  SecurityDetectionBucket: 'SecurityDetectionBucket',
+  SecurityDetectionMembership: 'SecurityDetectionMembership',
+  SecurityTelemetryState: 'SecurityTelemetryState',
   UploadReservation: 'UploadReservation',
   SystemIntegrationSetting: 'SystemIntegrationSetting',
   ObjectStorageSetting: 'ObjectStorageSetting',
   SecurityPolicy: 'SecurityPolicy',
+  FidoCredential: 'FidoCredential',
+  WebAuthnChallenge: 'WebAuthnChallenge',
+  AdminPasswordResetToken: 'AdminPasswordResetToken',
   WorkerHeartbeat: 'WorkerHeartbeat'
 } as const
 
@@ -179,6 +187,12 @@ export const PilotScalarFieldEnum = {
   rankLabel: 'rankLabel',
   unitId: 'unitId',
   active: 'active',
+  passwordHash: 'passwordHash',
+  passwordSetAt: 'passwordSetAt',
+  totpSecretCiphertext: 'totpSecretCiphertext',
+  totpVerifiedAt: 'totpVerifiedAt',
+  lastTotpCounter: 'lastTotpCounter',
+  antiphishingCodeHash: 'antiphishingCodeHash',
   version: 'version',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -269,9 +283,11 @@ export const AdminUserScalarFieldEnum = {
   active: 'active',
   failedAttempts: 'failedAttempts',
   lockedUntil: 'lockedUntil',
+  antiphishingCodeHash: 'antiphishingCodeHash',
   unitId: 'unitId',
   organizationId: 'organizationId',
   version: 'version',
+  lastSuccessfulLoginAt: 'lastSuccessfulLoginAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -302,7 +318,10 @@ export const AdminSessionScalarFieldEnum = {
   csrfTokenHash: 'csrfTokenHash',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  policyVersion: 'policyVersion',
+  securitySummarySince: 'securitySummarySince',
+  securitySummaryUntil: 'securitySummaryUntil'
 } as const
 
 export type AdminSessionScalarFieldEnum = (typeof AdminSessionScalarFieldEnum)[keyof typeof AdminSessionScalarFieldEnum]
@@ -314,6 +333,7 @@ export const PilotAccessTokenScalarFieldEnum = {
   tokenHash: 'tokenHash',
   expiresAt: 'expiresAt',
   consumedAt: 'consumedAt',
+  policyVersion: 'policyVersion',
   createdAt: 'createdAt'
 } as const
 
@@ -327,7 +347,9 @@ export const PilotSessionScalarFieldEnum = {
   csrfTokenHash: 'csrfTokenHash',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  authState: 'authState',
+  policyVersion: 'policyVersion'
 } as const
 
 export type PilotSessionScalarFieldEnum = (typeof PilotSessionScalarFieldEnum)[keyof typeof PilotSessionScalarFieldEnum]
@@ -492,6 +514,8 @@ export const EvidenceImageScalarFieldEnum = {
   height: 'height',
   byteSize: 'byteSize',
   sha256: 'sha256',
+  storageEncodingVersion: 'storageEncodingVersion',
+  sanitizedAt: 'sanitizedAt',
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -831,6 +855,92 @@ export const RateLimitBucketScalarFieldEnum = {
 export type RateLimitBucketScalarFieldEnum = (typeof RateLimitBucketScalarFieldEnum)[keyof typeof RateLimitBucketScalarFieldEnum]
 
 
+export const SecuritySignalBucketScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  bucketStart: 'bucketStart',
+  keyVersion: 'keyVersion',
+  dimensionKey: 'dimensionKey',
+  sourceHash: 'sourceHash',
+  maskedSource: 'maskedSource',
+  accountHash: 'accountHash',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  personId: 'personId',
+  unitId: 'unitId',
+  organizationId: 'organizationId',
+  routeClass: 'routeClass',
+  pathHash: 'pathHash',
+  outcome: 'outcome',
+  count: 'count',
+  firstSeenAt: 'firstSeenAt',
+  lastSeenAt: 'lastSeenAt',
+  sampleRequestId: 'sampleRequestId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecuritySignalBucketScalarFieldEnum = (typeof SecuritySignalBucketScalarFieldEnum)[keyof typeof SecuritySignalBucketScalarFieldEnum]
+
+
+export const SecuritySignalReceiptScalarFieldEnum = {
+  id: 'id',
+  requestKey: 'requestKey',
+  signalBucketId: 'signalBucketId',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
+} as const
+
+export type SecuritySignalReceiptScalarFieldEnum = (typeof SecuritySignalReceiptScalarFieldEnum)[keyof typeof SecuritySignalReceiptScalarFieldEnum]
+
+
+export const SecurityDetectionBucketScalarFieldEnum = {
+  id: 'id',
+  category: 'category',
+  ruleVersion: 'ruleVersion',
+  groupKey: 'groupKey',
+  dedupeKey: 'dedupeKey',
+  windowStart: 'windowStart',
+  windowEnd: 'windowEnd',
+  firstSeenAt: 'firstSeenAt',
+  lastSeenAt: 'lastSeenAt',
+  requestCount: 'requestCount',
+  sourceCount: 'sourceCount',
+  accountCount: 'accountCount',
+  pathCount: 'pathCount',
+  truncatedByRetention: 'truncatedByRetention',
+  sample: 'sample',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecurityDetectionBucketScalarFieldEnum = (typeof SecurityDetectionBucketScalarFieldEnum)[keyof typeof SecurityDetectionBucketScalarFieldEnum]
+
+
+export const SecurityDetectionMembershipScalarFieldEnum = {
+  detectionBucketId: 'detectionBucketId',
+  signalBucketId: 'signalBucketId',
+  createdAt: 'createdAt'
+} as const
+
+export type SecurityDetectionMembershipScalarFieldEnum = (typeof SecurityDetectionMembershipScalarFieldEnum)[keyof typeof SecurityDetectionMembershipScalarFieldEnum]
+
+
+export const SecurityTelemetryStateScalarFieldEnum = {
+  id: 'id',
+  processedThrough: 'processedThrough',
+  lastCollectedAt: 'lastCollectedAt',
+  lastAggregatedAt: 'lastAggregatedAt',
+  collectionHealthy: 'collectionHealthy',
+  droppedCount: 'droppedCount',
+  lastError: 'lastError',
+  version: 'version',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecurityTelemetryStateScalarFieldEnum = (typeof SecurityTelemetryStateScalarFieldEnum)[keyof typeof SecurityTelemetryStateScalarFieldEnum]
+
+
 export const UploadReservationScalarFieldEnum = {
   id: 'id',
   pilotId: 'pilotId',
@@ -886,6 +996,11 @@ export type ObjectStorageSettingScalarFieldEnum = (typeof ObjectStorageSettingSc
 export const SecurityPolicyScalarFieldEnum = {
   id: 'id',
   adminLoginMode: 'adminLoginMode',
+  authenticationPreset: 'authenticationPreset',
+  memberLoginMode: 'memberLoginMode',
+  adminFido2Required: 'adminFido2Required',
+  memberFido2Required: 'memberFido2Required',
+  highRiskReauthEnabled: 'highRiskReauthEnabled',
   adminSessionTtlHours: 'adminSessionTtlHours',
   pilotAccessLinkTtlMinutes: 'pilotAccessLinkTtlMinutes',
   pilotSessionTtlMinutes: 'pilotSessionTtlMinutes',
@@ -898,6 +1013,55 @@ export const SecurityPolicyScalarFieldEnum = {
 } as const
 
 export type SecurityPolicyScalarFieldEnum = (typeof SecurityPolicyScalarFieldEnum)[keyof typeof SecurityPolicyScalarFieldEnum]
+
+
+export const FidoCredentialScalarFieldEnum = {
+  id: 'id',
+  credentialId: 'credentialId',
+  publicKey: 'publicKey',
+  counter: 'counter',
+  transports: 'transports',
+  deviceType: 'deviceType',
+  backedUp: 'backedUp',
+  userVerified: 'userVerified',
+  label: 'label',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  createdAt: 'createdAt',
+  lastUsedAt: 'lastUsedAt'
+} as const
+
+export type FidoCredentialScalarFieldEnum = (typeof FidoCredentialScalarFieldEnum)[keyof typeof FidoCredentialScalarFieldEnum]
+
+
+export const WebAuthnChallengeScalarFieldEnum = {
+  id: 'id',
+  challenge: 'challenge',
+  kind: 'kind',
+  adminUserId: 'adminUserId',
+  pilotId: 'pilotId',
+  sessionId: 'sessionId',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type WebAuthnChallengeScalarFieldEnum = (typeof WebAuthnChallengeScalarFieldEnum)[keyof typeof WebAuthnChallengeScalarFieldEnum]
+
+
+export const AdminPasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  adminUserId: 'adminUserId',
+  createdById: 'createdById',
+  tokenHash: 'tokenHash',
+  tokenCiphertext: 'tokenCiphertext',
+  expiresAt: 'expiresAt',
+  consumedAt: 'consumedAt',
+  policyVersion: 'policyVersion',
+  createdAt: 'createdAt'
+} as const
+
+export type AdminPasswordResetTokenScalarFieldEnum = (typeof AdminPasswordResetTokenScalarFieldEnum)[keyof typeof AdminPasswordResetTokenScalarFieldEnum]
 
 
 export const WorkerHeartbeatScalarFieldEnum = {

@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     await requireStorageAdmin(request);
     return jsonData(await snapshot(), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
     return jsonData(await probe(input), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -168,6 +168,6 @@ export async function PATCH(request: NextRequest) {
     });
     return jsonData(await snapshot(), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

@@ -27,10 +27,12 @@ export type AggregatePilot = {
 }
 
 export type PilotAvgAggregateOutputType = {
+  lastTotpCounter: number | null
   version: number | null
 }
 
 export type PilotSumAggregateOutputType = {
+  lastTotpCounter: bigint | null
   version: number | null
 }
 
@@ -45,6 +47,12 @@ export type PilotMinAggregateOutputType = {
   rankLabel: string | null
   unitId: string | null
   active: boolean | null
+  passwordHash: string | null
+  passwordSetAt: Date | null
+  totpSecretCiphertext: string | null
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
+  antiphishingCodeHash: string | null
   version: number | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -62,6 +70,12 @@ export type PilotMaxAggregateOutputType = {
   rankLabel: string | null
   unitId: string | null
   active: boolean | null
+  passwordHash: string | null
+  passwordSetAt: Date | null
+  totpSecretCiphertext: string | null
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
+  antiphishingCodeHash: string | null
   version: number | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -79,6 +93,12 @@ export type PilotCountAggregateOutputType = {
   rankLabel: number
   unitId: number
   active: number
+  passwordHash: number
+  passwordSetAt: number
+  totpSecretCiphertext: number
+  totpVerifiedAt: number
+  lastTotpCounter: number
+  antiphishingCodeHash: number
   version: number
   createdAt: number
   updatedAt: number
@@ -88,10 +108,12 @@ export type PilotCountAggregateOutputType = {
 
 
 export type PilotAvgAggregateInputType = {
+  lastTotpCounter?: true
   version?: true
 }
 
 export type PilotSumAggregateInputType = {
+  lastTotpCounter?: true
   version?: true
 }
 
@@ -106,6 +128,12 @@ export type PilotMinAggregateInputType = {
   rankLabel?: true
   unitId?: true
   active?: true
+  passwordHash?: true
+  passwordSetAt?: true
+  totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
+  antiphishingCodeHash?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -123,6 +151,12 @@ export type PilotMaxAggregateInputType = {
   rankLabel?: true
   unitId?: true
   active?: true
+  passwordHash?: true
+  passwordSetAt?: true
+  totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
+  antiphishingCodeHash?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -140,6 +174,12 @@ export type PilotCountAggregateInputType = {
   rankLabel?: true
   unitId?: true
   active?: true
+  passwordHash?: true
+  passwordSetAt?: true
+  totpSecretCiphertext?: true
+  totpVerifiedAt?: true
+  lastTotpCounter?: true
+  antiphishingCodeHash?: true
   version?: true
   createdAt?: true
   updatedAt?: true
@@ -244,6 +284,12 @@ export type PilotGroupByOutputType = {
   rankLabel: string
   unitId: string
   active: boolean
+  passwordHash: string | null
+  passwordSetAt: Date | null
+  totpSecretCiphertext: string | null
+  totpVerifiedAt: Date | null
+  lastTotpCounter: bigint | null
+  antiphishingCodeHash: string | null
   version: number
   createdAt: Date
   updatedAt: Date
@@ -284,6 +330,12 @@ export type PilotWhereInput = {
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
   active?: Prisma.BoolFilter<"Pilot"> | boolean
+  passwordHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  passwordSetAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  totpSecretCiphertext?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"Pilot"> | bigint | number | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
   version?: Prisma.IntFilter<"Pilot"> | number
   createdAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
@@ -300,6 +352,8 @@ export type PilotWhereInput = {
   auditEvents?: Prisma.AuditEventListRelationFilter
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
   profile?: Prisma.XOR<Prisma.PilotProfileNullableScalarRelationFilter, Prisma.PilotProfileWhereInput> | null
+  fidoCredentials?: Prisma.FidoCredentialListRelationFilter
+  webAuthnChallenges?: Prisma.WebAuthnChallengeListRelationFilter
 }
 
 export type PilotOrderByWithRelationInput = {
@@ -313,6 +367,12 @@ export type PilotOrderByWithRelationInput = {
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   active?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  passwordSetAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  totpSecretCiphertext?: Prisma.SortOrderInput | Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrderInput | Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -329,6 +389,8 @@ export type PilotOrderByWithRelationInput = {
   auditEvents?: Prisma.AuditEventOrderByRelationAggregateInput
   person?: Prisma.PersonOrderByWithRelationInput
   profile?: Prisma.PilotProfileOrderByWithRelationInput
+  fidoCredentials?: Prisma.FidoCredentialOrderByRelationAggregateInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeOrderByRelationAggregateInput
 }
 
 export type PilotWhereUniqueInput = Prisma.AtLeast<{
@@ -346,6 +408,12 @@ export type PilotWhereUniqueInput = Prisma.AtLeast<{
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
   active?: Prisma.BoolFilter<"Pilot"> | boolean
+  passwordHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  passwordSetAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  totpSecretCiphertext?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"Pilot"> | bigint | number | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
   version?: Prisma.IntFilter<"Pilot"> | number
   createdAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
@@ -361,6 +429,8 @@ export type PilotWhereUniqueInput = Prisma.AtLeast<{
   auditEvents?: Prisma.AuditEventListRelationFilter
   person?: Prisma.XOR<Prisma.PersonNullableScalarRelationFilter, Prisma.PersonWhereInput> | null
   profile?: Prisma.XOR<Prisma.PilotProfileNullableScalarRelationFilter, Prisma.PilotProfileWhereInput> | null
+  fidoCredentials?: Prisma.FidoCredentialListRelationFilter
+  webAuthnChallenges?: Prisma.WebAuthnChallengeListRelationFilter
 }, "id" | "employeeNumber" | "personId">
 
 export type PilotOrderByWithAggregationInput = {
@@ -374,6 +444,12 @@ export type PilotOrderByWithAggregationInput = {
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   active?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  passwordSetAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  totpSecretCiphertext?: Prisma.SortOrderInput | Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrderInput | Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -399,6 +475,12 @@ export type PilotScalarWhereWithAggregatesInput = {
   rankLabel?: Prisma.StringWithAggregatesFilter<"Pilot"> | string
   unitId?: Prisma.UuidWithAggregatesFilter<"Pilot"> | string
   active?: Prisma.BoolWithAggregatesFilter<"Pilot"> | boolean
+  passwordHash?: Prisma.StringNullableWithAggregatesFilter<"Pilot"> | string | null
+  passwordSetAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Pilot"> | Date | string | null
+  totpSecretCiphertext?: Prisma.StringNullableWithAggregatesFilter<"Pilot"> | string | null
+  totpVerifiedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Pilot"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableWithAggregatesFilter<"Pilot"> | bigint | number | null
+  antiphishingCodeHash?: Prisma.StringNullableWithAggregatesFilter<"Pilot"> | string | null
   version?: Prisma.IntWithAggregatesFilter<"Pilot"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Pilot"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Pilot"> | Date | string
@@ -415,6 +497,12 @@ export type PilotCreateInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -430,6 +518,8 @@ export type PilotCreateInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateInput = {
@@ -443,6 +533,12 @@ export type PilotUncheckedCreateInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -457,6 +553,8 @@ export type PilotUncheckedCreateInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUpdateInput = {
@@ -469,6 +567,12 @@ export type PilotUpdateInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -484,6 +588,8 @@ export type PilotUpdateInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateInput = {
@@ -497,6 +603,12 @@ export type PilotUncheckedUpdateInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -511,6 +623,8 @@ export type PilotUncheckedUpdateInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateManyInput = {
@@ -524,6 +638,12 @@ export type PilotCreateManyInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -540,6 +660,12 @@ export type PilotUpdateManyMutationInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -556,6 +682,12 @@ export type PilotUncheckedUpdateManyInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -588,6 +720,12 @@ export type PilotCountOrderByAggregateInput = {
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   active?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  passwordSetAt?: Prisma.SortOrder
+  totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -595,6 +733,7 @@ export type PilotCountOrderByAggregateInput = {
 }
 
 export type PilotAvgOrderByAggregateInput = {
+  lastTotpCounter?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
 
@@ -609,6 +748,12 @@ export type PilotMaxOrderByAggregateInput = {
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   active?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  passwordSetAt?: Prisma.SortOrder
+  totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -626,6 +771,12 @@ export type PilotMinOrderByAggregateInput = {
   rankLabel?: Prisma.SortOrder
   unitId?: Prisma.SortOrder
   active?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  passwordSetAt?: Prisma.SortOrder
+  totpSecretCiphertext?: Prisma.SortOrder
+  totpVerifiedAt?: Prisma.SortOrder
+  lastTotpCounter?: Prisma.SortOrder
+  antiphishingCodeHash?: Prisma.SortOrder
   version?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -633,6 +784,7 @@ export type PilotMinOrderByAggregateInput = {
 }
 
 export type PilotSumOrderByAggregateInput = {
+  lastTotpCounter?: Prisma.SortOrder
   version?: Prisma.SortOrder
 }
 
@@ -713,6 +865,18 @@ export type PilotUncheckedUpdateOneWithoutPersonNestedInput = {
   delete?: Prisma.PilotWhereInput | boolean
   connect?: Prisma.PilotWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutPersonInput, Prisma.PilotUpdateWithoutPersonInput>, Prisma.PilotUncheckedUpdateWithoutPersonInput>
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
+export type NullableBigIntFieldUpdateOperationsInput = {
+  set?: bigint | number | null
+  increment?: bigint | number
+  decrement?: bigint | number
+  multiply?: bigint | number
+  divide?: bigint | number
 }
 
 export type PilotCreateNestedOneWithoutProfileInput = {
@@ -863,6 +1027,38 @@ export type PilotUpdateOneRequiredWithoutUploadReservationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutUploadReservationsInput, Prisma.PilotUpdateWithoutUploadReservationsInput>, Prisma.PilotUncheckedUpdateWithoutUploadReservationsInput>
 }
 
+export type PilotCreateNestedOneWithoutFidoCredentialsInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutFidoCredentialsInput, Prisma.PilotUncheckedCreateWithoutFidoCredentialsInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutFidoCredentialsInput
+  connect?: Prisma.PilotWhereUniqueInput
+}
+
+export type PilotUpdateOneWithoutFidoCredentialsNestedInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutFidoCredentialsInput, Prisma.PilotUncheckedCreateWithoutFidoCredentialsInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutFidoCredentialsInput
+  upsert?: Prisma.PilotUpsertWithoutFidoCredentialsInput
+  disconnect?: Prisma.PilotWhereInput | boolean
+  delete?: Prisma.PilotWhereInput | boolean
+  connect?: Prisma.PilotWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutFidoCredentialsInput, Prisma.PilotUpdateWithoutFidoCredentialsInput>, Prisma.PilotUncheckedUpdateWithoutFidoCredentialsInput>
+}
+
+export type PilotCreateNestedOneWithoutWebAuthnChallengesInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedCreateWithoutWebAuthnChallengesInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutWebAuthnChallengesInput
+  connect?: Prisma.PilotWhereUniqueInput
+}
+
+export type PilotUpdateOneWithoutWebAuthnChallengesNestedInput = {
+  create?: Prisma.XOR<Prisma.PilotCreateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedCreateWithoutWebAuthnChallengesInput>
+  connectOrCreate?: Prisma.PilotCreateOrConnectWithoutWebAuthnChallengesInput
+  upsert?: Prisma.PilotUpsertWithoutWebAuthnChallengesInput
+  disconnect?: Prisma.PilotWhereInput | boolean
+  delete?: Prisma.PilotWhereInput | boolean
+  connect?: Prisma.PilotWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PilotUpdateToOneWithWhereWithoutWebAuthnChallengesInput, Prisma.PilotUpdateWithoutWebAuthnChallengesInput>, Prisma.PilotUncheckedUpdateWithoutWebAuthnChallengesInput>
+}
+
 export type PilotCreateWithoutUnitInput = {
   id?: string
   employeeNumber: string
@@ -873,6 +1069,12 @@ export type PilotCreateWithoutUnitInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -887,6 +1089,8 @@ export type PilotCreateWithoutUnitInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutUnitInput = {
@@ -899,6 +1103,12 @@ export type PilotUncheckedCreateWithoutUnitInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -913,6 +1123,8 @@ export type PilotUncheckedCreateWithoutUnitInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutUnitInput = {
@@ -955,6 +1167,12 @@ export type PilotScalarWhereInput = {
   rankLabel?: Prisma.StringFilter<"Pilot"> | string
   unitId?: Prisma.UuidFilter<"Pilot"> | string
   active?: Prisma.BoolFilter<"Pilot"> | boolean
+  passwordHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  passwordSetAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  totpSecretCiphertext?: Prisma.StringNullableFilter<"Pilot"> | string | null
+  totpVerifiedAt?: Prisma.DateTimeNullableFilter<"Pilot"> | Date | string | null
+  lastTotpCounter?: Prisma.BigIntNullableFilter<"Pilot"> | bigint | number | null
+  antiphishingCodeHash?: Prisma.StringNullableFilter<"Pilot"> | string | null
   version?: Prisma.IntFilter<"Pilot"> | number
   createdAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Pilot"> | Date | string
@@ -971,6 +1189,12 @@ export type PilotCreateWithoutPersonInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -985,6 +1209,8 @@ export type PilotCreateWithoutPersonInput = {
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutPersonInput = {
@@ -998,6 +1224,12 @@ export type PilotUncheckedCreateWithoutPersonInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1011,6 +1243,8 @@ export type PilotUncheckedCreateWithoutPersonInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutPersonInput = {
@@ -1039,6 +1273,12 @@ export type PilotUpdateWithoutPersonInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1053,6 +1293,8 @@ export type PilotUpdateWithoutPersonInput = {
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutPersonInput = {
@@ -1066,6 +1308,12 @@ export type PilotUncheckedUpdateWithoutPersonInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1079,6 +1327,8 @@ export type PilotUncheckedUpdateWithoutPersonInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutProfileInput = {
@@ -1091,6 +1341,12 @@ export type PilotCreateWithoutProfileInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1105,6 +1361,8 @@ export type PilotCreateWithoutProfileInput = {
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutProfileInput = {
@@ -1118,6 +1376,12 @@ export type PilotUncheckedCreateWithoutProfileInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1131,6 +1395,8 @@ export type PilotUncheckedCreateWithoutProfileInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutProfileInput = {
@@ -1159,6 +1425,12 @@ export type PilotUpdateWithoutProfileInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1173,6 +1445,8 @@ export type PilotUpdateWithoutProfileInput = {
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutProfileInput = {
@@ -1186,6 +1460,12 @@ export type PilotUncheckedUpdateWithoutProfileInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1199,6 +1479,8 @@ export type PilotUncheckedUpdateWithoutProfileInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutAccessTokensInput = {
@@ -1211,6 +1493,12 @@ export type PilotCreateWithoutAccessTokensInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1225,6 +1513,8 @@ export type PilotCreateWithoutAccessTokensInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutAccessTokensInput = {
@@ -1238,6 +1528,12 @@ export type PilotUncheckedCreateWithoutAccessTokensInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1251,6 +1547,8 @@ export type PilotUncheckedCreateWithoutAccessTokensInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutAccessTokensInput = {
@@ -1279,6 +1577,12 @@ export type PilotUpdateWithoutAccessTokensInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1293,6 +1597,8 @@ export type PilotUpdateWithoutAccessTokensInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutAccessTokensInput = {
@@ -1306,6 +1612,12 @@ export type PilotUncheckedUpdateWithoutAccessTokensInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1319,6 +1631,8 @@ export type PilotUncheckedUpdateWithoutAccessTokensInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutSessionsInput = {
@@ -1331,6 +1645,12 @@ export type PilotCreateWithoutSessionsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1345,6 +1665,8 @@ export type PilotCreateWithoutSessionsInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutSessionsInput = {
@@ -1358,6 +1680,12 @@ export type PilotUncheckedCreateWithoutSessionsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1371,6 +1699,8 @@ export type PilotUncheckedCreateWithoutSessionsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutSessionsInput = {
@@ -1399,6 +1729,12 @@ export type PilotUpdateWithoutSessionsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1413,6 +1749,8 @@ export type PilotUpdateWithoutSessionsInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutSessionsInput = {
@@ -1426,6 +1764,12 @@ export type PilotUncheckedUpdateWithoutSessionsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1439,6 +1783,8 @@ export type PilotUncheckedUpdateWithoutSessionsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutQualificationsInput = {
@@ -1451,6 +1797,12 @@ export type PilotCreateWithoutQualificationsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1465,6 +1817,8 @@ export type PilotCreateWithoutQualificationsInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutQualificationsInput = {
@@ -1478,6 +1832,12 @@ export type PilotUncheckedCreateWithoutQualificationsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1491,6 +1851,8 @@ export type PilotUncheckedCreateWithoutQualificationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutQualificationsInput = {
@@ -1519,6 +1881,12 @@ export type PilotUpdateWithoutQualificationsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1533,6 +1901,8 @@ export type PilotUpdateWithoutQualificationsInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutQualificationsInput = {
@@ -1546,6 +1916,12 @@ export type PilotUncheckedUpdateWithoutQualificationsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1559,6 +1935,8 @@ export type PilotUncheckedUpdateWithoutQualificationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutEvidenceImagesInput = {
@@ -1571,6 +1949,12 @@ export type PilotCreateWithoutEvidenceImagesInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1585,6 +1969,8 @@ export type PilotCreateWithoutEvidenceImagesInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutEvidenceImagesInput = {
@@ -1598,6 +1984,12 @@ export type PilotUncheckedCreateWithoutEvidenceImagesInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1611,6 +2003,8 @@ export type PilotUncheckedCreateWithoutEvidenceImagesInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutEvidenceImagesInput = {
@@ -1639,6 +2033,12 @@ export type PilotUpdateWithoutEvidenceImagesInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1653,6 +2053,8 @@ export type PilotUpdateWithoutEvidenceImagesInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutEvidenceImagesInput = {
@@ -1666,6 +2068,12 @@ export type PilotUncheckedUpdateWithoutEvidenceImagesInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1679,6 +2087,8 @@ export type PilotUncheckedUpdateWithoutEvidenceImagesInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutUpdateRequestsInput = {
@@ -1691,6 +2101,12 @@ export type PilotCreateWithoutUpdateRequestsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1705,6 +2121,8 @@ export type PilotCreateWithoutUpdateRequestsInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutUpdateRequestsInput = {
@@ -1718,6 +2136,12 @@ export type PilotUncheckedCreateWithoutUpdateRequestsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1731,6 +2155,8 @@ export type PilotUncheckedCreateWithoutUpdateRequestsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutUpdateRequestsInput = {
@@ -1759,6 +2185,12 @@ export type PilotUpdateWithoutUpdateRequestsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1773,6 +2205,8 @@ export type PilotUpdateWithoutUpdateRequestsInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutUpdateRequestsInput = {
@@ -1786,6 +2220,12 @@ export type PilotUncheckedUpdateWithoutUpdateRequestsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1799,6 +2239,8 @@ export type PilotUncheckedUpdateWithoutUpdateRequestsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutUpgradePlansInput = {
@@ -1811,6 +2253,12 @@ export type PilotCreateWithoutUpgradePlansInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1825,6 +2273,8 @@ export type PilotCreateWithoutUpgradePlansInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutUpgradePlansInput = {
@@ -1838,6 +2288,12 @@ export type PilotUncheckedCreateWithoutUpgradePlansInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1851,6 +2307,8 @@ export type PilotUncheckedCreateWithoutUpgradePlansInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutUpgradePlansInput = {
@@ -1879,6 +2337,12 @@ export type PilotUpdateWithoutUpgradePlansInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1893,6 +2357,8 @@ export type PilotUpdateWithoutUpgradePlansInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutUpgradePlansInput = {
@@ -1906,6 +2372,12 @@ export type PilotUncheckedUpdateWithoutUpgradePlansInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1919,6 +2391,8 @@ export type PilotUncheckedUpdateWithoutUpgradePlansInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutNotificationsInput = {
@@ -1931,6 +2405,12 @@ export type PilotCreateWithoutNotificationsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1945,6 +2425,8 @@ export type PilotCreateWithoutNotificationsInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutNotificationsInput = {
@@ -1958,6 +2440,12 @@ export type PilotUncheckedCreateWithoutNotificationsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1971,6 +2459,8 @@ export type PilotUncheckedCreateWithoutNotificationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutNotificationsInput = {
@@ -1999,6 +2489,12 @@ export type PilotUpdateWithoutNotificationsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2013,6 +2509,8 @@ export type PilotUpdateWithoutNotificationsInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutNotificationsInput = {
@@ -2026,6 +2524,12 @@ export type PilotUncheckedUpdateWithoutNotificationsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2039,6 +2543,8 @@ export type PilotUncheckedUpdateWithoutNotificationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutAuditEventsInput = {
@@ -2051,6 +2557,12 @@ export type PilotCreateWithoutAuditEventsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2065,6 +2577,8 @@ export type PilotCreateWithoutAuditEventsInput = {
   evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutAuditEventsInput = {
@@ -2078,6 +2592,12 @@ export type PilotUncheckedCreateWithoutAuditEventsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2091,6 +2611,8 @@ export type PilotUncheckedCreateWithoutAuditEventsInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutAuditEventsInput = {
@@ -2119,6 +2641,12 @@ export type PilotUpdateWithoutAuditEventsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2133,6 +2661,8 @@ export type PilotUpdateWithoutAuditEventsInput = {
   evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutAuditEventsInput = {
@@ -2146,6 +2676,12 @@ export type PilotUncheckedUpdateWithoutAuditEventsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2159,6 +2695,8 @@ export type PilotUncheckedUpdateWithoutAuditEventsInput = {
   uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateWithoutUploadReservationsInput = {
@@ -2171,6 +2709,12 @@ export type PilotCreateWithoutUploadReservationsInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2185,6 +2729,8 @@ export type PilotCreateWithoutUploadReservationsInput = {
   auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
   person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
   profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
 }
 
 export type PilotUncheckedCreateWithoutUploadReservationsInput = {
@@ -2198,6 +2744,12 @@ export type PilotUncheckedCreateWithoutUploadReservationsInput = {
   rankLabel: string
   unitId: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2211,6 +2763,8 @@ export type PilotUncheckedCreateWithoutUploadReservationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
   auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
   profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
 }
 
 export type PilotCreateOrConnectWithoutUploadReservationsInput = {
@@ -2239,6 +2793,12 @@ export type PilotUpdateWithoutUploadReservationsInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2253,6 +2813,8 @@ export type PilotUpdateWithoutUploadReservationsInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutUploadReservationsInput = {
@@ -2266,6 +2828,12 @@ export type PilotUncheckedUpdateWithoutUploadReservationsInput = {
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   unitId?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2279,6 +2847,312 @@ export type PilotUncheckedUpdateWithoutUploadReservationsInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
+}
+
+export type PilotCreateWithoutFidoCredentialsInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  roleCode: string
+  aircraftType: string
+  rankLabel: string
+  active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit: Prisma.OrganizationUnitCreateNestedOneWithoutPilotsInput
+  qualifications?: Prisma.QualificationRecordCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
+  person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
+  profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeCreateNestedManyWithoutPilotInput
+}
+
+export type PilotUncheckedCreateWithoutFidoCredentialsInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  roleCode: string
+  aircraftType: string
+  rankLabel: string
+  unitId: string
+  active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  personId?: string | null
+  qualifications?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
+  profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedCreateNestedManyWithoutPilotInput
+}
+
+export type PilotCreateOrConnectWithoutFidoCredentialsInput = {
+  where: Prisma.PilotWhereUniqueInput
+  create: Prisma.XOR<Prisma.PilotCreateWithoutFidoCredentialsInput, Prisma.PilotUncheckedCreateWithoutFidoCredentialsInput>
+}
+
+export type PilotUpsertWithoutFidoCredentialsInput = {
+  update: Prisma.XOR<Prisma.PilotUpdateWithoutFidoCredentialsInput, Prisma.PilotUncheckedUpdateWithoutFidoCredentialsInput>
+  create: Prisma.XOR<Prisma.PilotCreateWithoutFidoCredentialsInput, Prisma.PilotUncheckedCreateWithoutFidoCredentialsInput>
+  where?: Prisma.PilotWhereInput
+}
+
+export type PilotUpdateToOneWithWhereWithoutFidoCredentialsInput = {
+  where?: Prisma.PilotWhereInput
+  data: Prisma.XOR<Prisma.PilotUpdateWithoutFidoCredentialsInput, Prisma.PilotUncheckedUpdateWithoutFidoCredentialsInput>
+}
+
+export type PilotUpdateWithoutFidoCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneRequiredWithoutPilotsNestedInput
+  qualifications?: Prisma.QualificationRecordUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
+  person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
+  profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
+}
+
+export type PilotUncheckedUpdateWithoutFidoCredentialsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  unitId?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualifications?: Prisma.QualificationRecordUncheckedUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
+  profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
+}
+
+export type PilotCreateWithoutWebAuthnChallengesInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  roleCode: string
+  aircraftType: string
+  rankLabel: string
+  active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  unit: Prisma.OrganizationUnitCreateNestedOneWithoutPilotsInput
+  qualifications?: Prisma.QualificationRecordCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventCreateNestedManyWithoutPilotInput
+  person?: Prisma.PersonCreateNestedOneWithoutLegacyPilotInput
+  profile?: Prisma.PilotProfileCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialCreateNestedManyWithoutPilotInput
+}
+
+export type PilotUncheckedCreateWithoutWebAuthnChallengesInput = {
+  id?: string
+  employeeNumber: string
+  mobile: string
+  displayName: string
+  initials: string
+  roleCode: string
+  aircraftType: string
+  rankLabel: string
+  unitId: string
+  active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
+  version?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  personId?: string | null
+  qualifications?: Prisma.QualificationRecordUncheckedCreateNestedManyWithoutPilotInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedCreateNestedManyWithoutPilotInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedCreateNestedManyWithoutPilotInput
+  sessions?: Prisma.PilotSessionUncheckedCreateNestedManyWithoutPilotInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedCreateNestedManyWithoutPilotInput
+  notifications?: Prisma.NotificationDeliveryUncheckedCreateNestedManyWithoutPilotInput
+  uploadReservations?: Prisma.UploadReservationUncheckedCreateNestedManyWithoutPilotInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedCreateNestedManyWithoutPilotInput
+  auditEvents?: Prisma.AuditEventUncheckedCreateNestedManyWithoutPilotInput
+  profile?: Prisma.PilotProfileUncheckedCreateNestedOneWithoutLegacyPilotInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedCreateNestedManyWithoutPilotInput
+}
+
+export type PilotCreateOrConnectWithoutWebAuthnChallengesInput = {
+  where: Prisma.PilotWhereUniqueInput
+  create: Prisma.XOR<Prisma.PilotCreateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedCreateWithoutWebAuthnChallengesInput>
+}
+
+export type PilotUpsertWithoutWebAuthnChallengesInput = {
+  update: Prisma.XOR<Prisma.PilotUpdateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedUpdateWithoutWebAuthnChallengesInput>
+  create: Prisma.XOR<Prisma.PilotCreateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedCreateWithoutWebAuthnChallengesInput>
+  where?: Prisma.PilotWhereInput
+}
+
+export type PilotUpdateToOneWithWhereWithoutWebAuthnChallengesInput = {
+  where?: Prisma.PilotWhereInput
+  data: Prisma.XOR<Prisma.PilotUpdateWithoutWebAuthnChallengesInput, Prisma.PilotUncheckedUpdateWithoutWebAuthnChallengesInput>
+}
+
+export type PilotUpdateWithoutWebAuthnChallengesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  unit?: Prisma.OrganizationUnitUpdateOneRequiredWithoutPilotsNestedInput
+  qualifications?: Prisma.QualificationRecordUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
+  person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
+  profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+}
+
+export type PilotUncheckedUpdateWithoutWebAuthnChallengesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  employeeNumber?: Prisma.StringFieldUpdateOperationsInput | string
+  mobile?: Prisma.StringFieldUpdateOperationsInput | string
+  displayName?: Prisma.StringFieldUpdateOperationsInput | string
+  initials?: Prisma.StringFieldUpdateOperationsInput | string
+  roleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
+  rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
+  unitId?: Prisma.StringFieldUpdateOperationsInput | string
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  personId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  qualifications?: Prisma.QualificationRecordUncheckedUpdateManyWithoutPilotNestedInput
+  updateRequests?: Prisma.QualificationUpdateRequestUncheckedUpdateManyWithoutPilotNestedInput
+  accessTokens?: Prisma.PilotAccessTokenUncheckedUpdateManyWithoutPilotNestedInput
+  sessions?: Prisma.PilotSessionUncheckedUpdateManyWithoutPilotNestedInput
+  upgradePlans?: Prisma.UpgradePlanUncheckedUpdateManyWithoutPilotNestedInput
+  notifications?: Prisma.NotificationDeliveryUncheckedUpdateManyWithoutPilotNestedInput
+  uploadReservations?: Prisma.UploadReservationUncheckedUpdateManyWithoutPilotNestedInput
+  evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
+  auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
+  profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotCreateManyUnitInput = {
@@ -2291,6 +3165,12 @@ export type PilotCreateManyUnitInput = {
   aircraftType: string
   rankLabel: string
   active?: boolean
+  passwordHash?: string | null
+  passwordSetAt?: Date | string | null
+  totpSecretCiphertext?: string | null
+  totpVerifiedAt?: Date | string | null
+  lastTotpCounter?: bigint | number | null
+  antiphishingCodeHash?: string | null
   version?: number
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2307,6 +3187,12 @@ export type PilotUpdateWithoutUnitInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2321,6 +3207,8 @@ export type PilotUpdateWithoutUnitInput = {
   auditEvents?: Prisma.AuditEventUpdateManyWithoutPilotNestedInput
   person?: Prisma.PersonUpdateOneWithoutLegacyPilotNestedInput
   profile?: Prisma.PilotProfileUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateWithoutUnitInput = {
@@ -2333,6 +3221,12 @@ export type PilotUncheckedUpdateWithoutUnitInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2347,6 +3241,8 @@ export type PilotUncheckedUpdateWithoutUnitInput = {
   evidenceImages?: Prisma.EvidenceImageUncheckedUpdateManyWithoutPilotNestedInput
   auditEvents?: Prisma.AuditEventUncheckedUpdateManyWithoutPilotNestedInput
   profile?: Prisma.PilotProfileUncheckedUpdateOneWithoutLegacyPilotNestedInput
+  fidoCredentials?: Prisma.FidoCredentialUncheckedUpdateManyWithoutPilotNestedInput
+  webAuthnChallenges?: Prisma.WebAuthnChallengeUncheckedUpdateManyWithoutPilotNestedInput
 }
 
 export type PilotUncheckedUpdateManyWithoutUnitInput = {
@@ -2359,6 +3255,12 @@ export type PilotUncheckedUpdateManyWithoutUnitInput = {
   aircraftType?: Prisma.StringFieldUpdateOperationsInput | string
   rankLabel?: Prisma.StringFieldUpdateOperationsInput | string
   active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  passwordSetAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  totpSecretCiphertext?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  totpVerifiedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastTotpCounter?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  antiphishingCodeHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   version?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2380,6 +3282,8 @@ export type PilotCountOutputType = {
   uploadReservations: number
   evidenceImages: number
   auditEvents: number
+  fidoCredentials: number
+  webAuthnChallenges: number
 }
 
 export type PilotCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2392,6 +3296,8 @@ export type PilotCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.
   uploadReservations?: boolean | PilotCountOutputTypeCountUploadReservationsArgs
   evidenceImages?: boolean | PilotCountOutputTypeCountEvidenceImagesArgs
   auditEvents?: boolean | PilotCountOutputTypeCountAuditEventsArgs
+  fidoCredentials?: boolean | PilotCountOutputTypeCountFidoCredentialsArgs
+  webAuthnChallenges?: boolean | PilotCountOutputTypeCountWebAuthnChallengesArgs
 }
 
 /**
@@ -2467,6 +3373,20 @@ export type PilotCountOutputTypeCountAuditEventsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.AuditEventWhereInput
 }
 
+/**
+ * PilotCountOutputType without action
+ */
+export type PilotCountOutputTypeCountFidoCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.FidoCredentialWhereInput
+}
+
+/**
+ * PilotCountOutputType without action
+ */
+export type PilotCountOutputTypeCountWebAuthnChallengesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WebAuthnChallengeWhereInput
+}
+
 
 export type PilotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2479,6 +3399,12 @@ export type PilotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   rankLabel?: boolean
   unitId?: boolean
   active?: boolean
+  passwordHash?: boolean
+  passwordSetAt?: boolean
+  totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
+  antiphishingCodeHash?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -2495,6 +3421,8 @@ export type PilotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   auditEvents?: boolean | Prisma.Pilot$auditEventsArgs<ExtArgs>
   person?: boolean | Prisma.Pilot$personArgs<ExtArgs>
   profile?: boolean | Prisma.Pilot$profileArgs<ExtArgs>
+  fidoCredentials?: boolean | Prisma.Pilot$fidoCredentialsArgs<ExtArgs>
+  webAuthnChallenges?: boolean | Prisma.Pilot$webAuthnChallengesArgs<ExtArgs>
   _count?: boolean | Prisma.PilotCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilot"]>
 
@@ -2509,6 +3437,12 @@ export type PilotSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   rankLabel?: boolean
   unitId?: boolean
   active?: boolean
+  passwordHash?: boolean
+  passwordSetAt?: boolean
+  totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
+  antiphishingCodeHash?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -2528,6 +3462,12 @@ export type PilotSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   rankLabel?: boolean
   unitId?: boolean
   active?: boolean
+  passwordHash?: boolean
+  passwordSetAt?: boolean
+  totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
+  antiphishingCodeHash?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -2547,13 +3487,19 @@ export type PilotSelectScalar = {
   rankLabel?: boolean
   unitId?: boolean
   active?: boolean
+  passwordHash?: boolean
+  passwordSetAt?: boolean
+  totpSecretCiphertext?: boolean
+  totpVerifiedAt?: boolean
+  lastTotpCounter?: boolean
+  antiphishingCodeHash?: boolean
   version?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   personId?: boolean
 }
 
-export type PilotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "employeeNumber" | "mobile" | "displayName" | "initials" | "roleCode" | "aircraftType" | "rankLabel" | "unitId" | "active" | "version" | "createdAt" | "updatedAt" | "personId", ExtArgs["result"]["pilot"]>
+export type PilotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "employeeNumber" | "mobile" | "displayName" | "initials" | "roleCode" | "aircraftType" | "rankLabel" | "unitId" | "active" | "passwordHash" | "passwordSetAt" | "totpSecretCiphertext" | "totpVerifiedAt" | "lastTotpCounter" | "antiphishingCodeHash" | "version" | "createdAt" | "updatedAt" | "personId", ExtArgs["result"]["pilot"]>
 export type PilotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   unit?: boolean | Prisma.OrganizationUnitDefaultArgs<ExtArgs>
   qualifications?: boolean | Prisma.Pilot$qualificationsArgs<ExtArgs>
@@ -2567,6 +3513,8 @@ export type PilotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   auditEvents?: boolean | Prisma.Pilot$auditEventsArgs<ExtArgs>
   person?: boolean | Prisma.Pilot$personArgs<ExtArgs>
   profile?: boolean | Prisma.Pilot$profileArgs<ExtArgs>
+  fidoCredentials?: boolean | Prisma.Pilot$fidoCredentialsArgs<ExtArgs>
+  webAuthnChallenges?: boolean | Prisma.Pilot$webAuthnChallengesArgs<ExtArgs>
   _count?: boolean | Prisma.PilotCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PilotIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2593,6 +3541,8 @@ export type $PilotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     auditEvents: Prisma.$AuditEventPayload<ExtArgs>[]
     person: Prisma.$PersonPayload<ExtArgs> | null
     profile: Prisma.$PilotProfilePayload<ExtArgs> | null
+    fidoCredentials: Prisma.$FidoCredentialPayload<ExtArgs>[]
+    webAuthnChallenges: Prisma.$WebAuthnChallengePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2605,6 +3555,12 @@ export type $PilotPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     rankLabel: string
     unitId: string
     active: boolean
+    passwordHash: string | null
+    passwordSetAt: Date | null
+    totpSecretCiphertext: string | null
+    totpVerifiedAt: Date | null
+    lastTotpCounter: bigint | null
+    antiphishingCodeHash: string | null
     version: number
     createdAt: Date
     updatedAt: Date
@@ -3015,6 +3971,8 @@ export interface Prisma__PilotClient<T, Null = never, ExtArgs extends runtime.Ty
   auditEvents<T extends Prisma.Pilot$auditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$auditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   person<T extends Prisma.Pilot$personArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$personArgs<ExtArgs>>): Prisma.Prisma__PersonClient<runtime.Types.Result.GetResult<Prisma.$PersonPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   profile<T extends Prisma.Pilot$profileArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$profileArgs<ExtArgs>>): Prisma.Prisma__PilotProfileClient<runtime.Types.Result.GetResult<Prisma.$PilotProfilePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  fidoCredentials<T extends Prisma.Pilot$fidoCredentialsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$fidoCredentialsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FidoCredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  webAuthnChallenges<T extends Prisma.Pilot$webAuthnChallengesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Pilot$webAuthnChallengesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WebAuthnChallengePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3054,6 +4012,12 @@ export interface PilotFieldRefs {
   readonly rankLabel: Prisma.FieldRef<"Pilot", 'String'>
   readonly unitId: Prisma.FieldRef<"Pilot", 'String'>
   readonly active: Prisma.FieldRef<"Pilot", 'Boolean'>
+  readonly passwordHash: Prisma.FieldRef<"Pilot", 'String'>
+  readonly passwordSetAt: Prisma.FieldRef<"Pilot", 'DateTime'>
+  readonly totpSecretCiphertext: Prisma.FieldRef<"Pilot", 'String'>
+  readonly totpVerifiedAt: Prisma.FieldRef<"Pilot", 'DateTime'>
+  readonly lastTotpCounter: Prisma.FieldRef<"Pilot", 'BigInt'>
+  readonly antiphishingCodeHash: Prisma.FieldRef<"Pilot", 'String'>
   readonly version: Prisma.FieldRef<"Pilot", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Pilot", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Pilot", 'DateTime'>
@@ -3710,6 +4674,54 @@ export type Pilot$profileArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   include?: Prisma.PilotProfileInclude<ExtArgs> | null
   where?: Prisma.PilotProfileWhereInput
+}
+
+/**
+ * Pilot.fidoCredentials
+ */
+export type Pilot$fidoCredentialsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FidoCredential
+   */
+  select?: Prisma.FidoCredentialSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FidoCredential
+   */
+  omit?: Prisma.FidoCredentialOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FidoCredentialInclude<ExtArgs> | null
+  where?: Prisma.FidoCredentialWhereInput
+  orderBy?: Prisma.FidoCredentialOrderByWithRelationInput | Prisma.FidoCredentialOrderByWithRelationInput[]
+  cursor?: Prisma.FidoCredentialWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.FidoCredentialScalarFieldEnum | Prisma.FidoCredentialScalarFieldEnum[]
+}
+
+/**
+ * Pilot.webAuthnChallenges
+ */
+export type Pilot$webAuthnChallengesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WebAuthnChallenge
+   */
+  select?: Prisma.WebAuthnChallengeSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WebAuthnChallenge
+   */
+  omit?: Prisma.WebAuthnChallengeOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WebAuthnChallengeInclude<ExtArgs> | null
+  where?: Prisma.WebAuthnChallengeWhereInput
+  orderBy?: Prisma.WebAuthnChallengeOrderByWithRelationInput | Prisma.WebAuthnChallengeOrderByWithRelationInput[]
+  cursor?: Prisma.WebAuthnChallengeWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WebAuthnChallengeScalarFieldEnum | Prisma.WebAuthnChallengeScalarFieldEnum[]
 }
 
 /**

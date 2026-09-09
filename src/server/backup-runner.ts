@@ -29,6 +29,13 @@ import { getServerConfig } from "@/server/config";
 import { decryptSettingSecret } from "@/server/crypto";
 import { getPrisma } from "@/server/prisma";
 import { putPrivateObjectAtKey, readPrivateEvidence } from "@/server/storage";
+import {
+  finalizeRestoredEvidence,
+  prepareRestoredEvidence,
+  resetRestoredEvidenceTrust,
+  type RebuiltRestoreObject,
+} from "@/server/evidence-restore";
+import { EVIDENCE_STORAGE_ENCODING_VERSION } from "@/server/evidence-provenance";
 import { getRuntimeStorageConfig, type RuntimeStorageConfig } from "@/server/runtime-storage";
 import { createPinnedS3Client } from "@/server/s3-client";
 import {
@@ -390,6 +397,8 @@ export type GalleryObjectEntry = {
   objectKey: string;
   mimeType: "image/jpeg" | "image/avif";
   sha256: string;
+  storageEncodingVersion?: number;
+  sanitizedAt?: string | null;
 };
 
 export type GalleryTombstone = {
@@ -415,16 +424,31 @@ function parseGalleryObject(value: unknown, label: string): GalleryObjectEntry {
   const objectKey = value.objectKey;
   const mimeType = value.mimeType;
   const sha256 = value.sha256;
+  const storageEncodingVersion = value.storageEncodingVersion ?? 0;
+  const sanitizedAt = value.sanitizedAt ?? null;
   if (
     typeof objectKey !== "string" ||
     (mimeType !== "image/jpeg" && mimeType !== "image/avif") ||
     typeof sha256 !== "string" ||
-    !/^[a-f0-9]{64}$/i.test(sha256)
+    !/^[a-f0-9]{64}$/i.test(sha256) ||
+    ![0, EVIDENCE_STORAGE_ENCODING_VERSION].includes(storageEncodingVersion as number) ||
+    (storageEncodingVersion === EVIDENCE_STORAGE_ENCODING_VERSION &&
+      (typeof sanitizedAt !== "string" || !Number.isFinite(Date.parse(sanitizedAt))))
   ) {
     throw new Error(`${label} 格式非法，拒绝恢复`);
   }
   assertSafeObjectKey(objectKey);
-  return { objectKey, mimeType, sha256: sha256.toLowerCase() };
+  return {
+    objectKey,
+    mimeType,
+    sha256: sha256.toLowerCase(),
+    ...(value.storageEncodingVersion === undefined
+      ? {}
+      : {
+          storageEncodingVersion: storageEncodingVersion as number,
+          sanitizedAt: sanitizedAt as string | null,
+        }),
+  };
 }
 
 function parseGalleryTombstone(value: unknown, label: string): GalleryTombstone {
@@ -1034,6 +1058,27 @@ export function postgresClientEnvironment(
   return postgresEnvironmentFromUrl(databaseUrl, minimalSubprocessEnvironment(environment));
 }
 
+export async function restorePostgresArchive(databaseUrl: string, archivePath: string) {
+  const env = postgresClientEnvironment(databaseUrl);
+  // pg_restore requires --dbname to enter database mode; PGDATABASE alone
+  // does not select it. Quote a dbname-only conninfo value so unusual database
+  // names cannot be interpreted as connection options. Credentials stay in env.
+  const database = env.PGDATABASE!.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  await execFileAsync(
+    "pg_restore",
+    [
+      "--dbname",
+      `dbname='${database}'`,
+      "--clean",
+      "--if-exists",
+      "--exit-on-error",
+      "--single-transaction",
+      archivePath,
+    ],
+    { timeout: 60 * 60 * 1000, env },
+  );
+}
+
 export async function executeBackupRun(runId: string) {
   const db = getPrisma();
   const run = await db.backupRun.findUnique({
@@ -1109,12 +1154,21 @@ export async function executeBackupRun(runId: string) {
     } else {
       const images = await db.evidenceImage.findMany({
         where: { status: { not: "orphaned" }, updatedAt: { lte: snapshotAt } },
-        select: { objectKey: true, sha256: true, mimeType: true, updatedAt: true },
+        select: {
+          objectKey: true,
+          sha256: true,
+          mimeType: true,
+          updatedAt: true,
+          storageEncodingVersion: true,
+          sanitizedAt: true,
+        },
       });
       const manifest = images.map((image) => ({
         objectKey: image.objectKey,
         sha256: image.sha256,
         mimeType: image.mimeType,
+        storageEncodingVersion: image.storageEncodingVersion,
+        sanitizedAt: image.sanitizedAt?.toISOString() ?? null,
       }));
       const changed =
         run.mode === "INCREMENTAL" && run.plan.lastSuccessfulAt
@@ -1124,6 +1178,8 @@ export async function executeBackupRun(runId: string) {
                 objectKey: image.objectKey,
                 sha256: image.sha256,
                 mimeType: image.mimeType,
+                storageEncodingVersion: image.storageEncodingVersion,
+                sanitizedAt: image.sanitizedAt?.toISOString() ?? null,
               }))
           : manifest;
       const tombstoneRows =
@@ -1403,15 +1459,18 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
       await writeFile(restoreFile, restored);
       // A fresh target plus a single transaction makes a failed restore
       // rollback instead of leaving a partially reconstructed database.
-      await execFileAsync(
-        "pg_restore",
-        ["--clean", "--if-exists", "--exit-on-error", "--single-transaction", restoreFile],
-        {
-          timeout: 60 * 60 * 1000,
-          env: postgresClientEnvironment(restoreDatabaseUrl),
-        },
-      );
-      return { source: "DATABASE", status: "restored" as const };
+      await restorePostgresArchive(restoreDatabaseUrl, restoreFile);
+      const restoredDb = createRestoreDatabaseClient(restoreDatabaseUrl);
+      try {
+        await resetRestoredEvidenceTrust(restoredDb);
+      } finally {
+        await restoredDb.$disconnect();
+      }
+      return {
+        source: "DATABASE",
+        status: "restored" as const,
+        evidenceStatus: "awaiting_gallery_rebuild",
+      };
     }
     const runs =
       run.mode === "INCREMENTAL"
@@ -1428,6 +1487,7 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
     );
     await assertEmptyRestoreBucket(restoreStorage);
     const expected = new Map<string, GalleryObjectEntry>();
+    const rebuiltObjects = new Map<string, RebuiltRestoreObject>();
     try {
       for (let index = 0; index < restoreRuns.length; index += 1) {
         const galleryRun = restoreRuns[index]!;
@@ -1464,6 +1524,7 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
         const next = applyGalleryManifest(expected, manifest);
         expected.clear();
         for (const [objectKey, object] of next) expected.set(objectKey, object);
+        for (const tombstone of manifest.tombstones) rebuiltObjects.delete(tombstone.objectKey);
         await deleteStorageObjectKeys(
           restoreStorage,
           manifest.tombstones.map((tombstone) => `${stagingPrefix}${tombstone.objectKey}`),
@@ -1473,22 +1534,30 @@ export async function restoreBackupRun(runId: string, confirmation: string) {
           if (createHash("sha256").update(bytes).digest("hex") !== image.sha256) {
             throw new Error(`备份证据校验失败，拒绝恢复：${image.objectKey}`);
           }
+          const rebuilt = await prepareRestoredEvidence(image, bytes);
+          rebuiltObjects.set(image.objectKey, rebuilt.object);
           await putPrivateObjectAtKey(
             `${stagingPrefix}${image.objectKey}`,
-            bytes,
-            image.mimeType,
-            image.sha256,
+            rebuilt.bytes,
+            rebuilt.object.mimeType,
+            rebuilt.object.sha256,
             restoreStorage,
           );
         }
       }
-      await verifyStorageObjectSet(restoreStorage, expected, stagingPrefix);
-      await promoteStorageObjectSet(restoreStorage, expected, stagingPrefix);
+      await verifyStorageObjectSet(restoreStorage, rebuiltObjects, stagingPrefix);
+      await promoteStorageObjectSet(restoreStorage, rebuiltObjects, stagingPrefix);
       await deleteStorageObjectKeys(
         restoreStorage,
         await listStorageObjectKeys(restoreStorage, stagingPrefix),
       );
-      await verifyStorageObjectSet(restoreStorage, expected);
+      await verifyStorageObjectSet(restoreStorage, rebuiltObjects);
+      const restoredDb = createRestoreDatabaseClient(restoreDatabaseUrl);
+      try {
+        await finalizeRestoredEvidence(restoredDb, expected, rebuiltObjects);
+      } finally {
+        await restoredDb.$disconnect();
+      }
       return {
         source: "GALLERY",
         restoredObjects: expected.size,

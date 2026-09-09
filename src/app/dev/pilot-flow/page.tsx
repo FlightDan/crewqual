@@ -20,6 +20,7 @@ const scenarios = [
   ["ambiguous", "多个日期候选"],
   ["conflict", "AI 与手动日期冲突"],
   ["mismatch", "AI 审核不一致"],
+  ["disabled", "自动识别未启用"],
   ["busy", "AI 服务繁忙"],
   ["modified", "AI 日期已手动修改"],
   ["confirm", "AI 未完成提交确认"],

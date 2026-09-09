@@ -16,6 +16,6 @@ export async function GET(
     if (!qualification) throw new ApiError("NOT_FOUND", "资质项目不存在或未分配给当前成员", 404);
     return jsonData(qualification, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

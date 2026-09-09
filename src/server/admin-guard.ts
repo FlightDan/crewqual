@@ -31,7 +31,7 @@ export async function getAdmin(request: NextRequest, permission?: string, mutate
 }
 
 export function routeFailure(error: unknown, request: NextRequest) {
-  return jsonError(error, getRequestId(request));
+  return jsonError(error, getRequestId(request), request);
 }
 
 /**

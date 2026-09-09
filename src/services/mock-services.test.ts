@@ -35,7 +35,7 @@ describe("pilot mock services", () => {
     expect(simulator?.remainingLabel).toBe("剩余 118 天");
   });
 
-  it("returns deterministic ambiguity, conflict, mismatch and busy states", async () => {
+  it("returns deterministic ambiguity, conflict, disabled and busy states", async () => {
     const file = { name: "credential.jpg", type: "image/jpeg", size: 1024 };
     await expect(
       mockDocumentIntelligenceService.recognizeDates(file, "ambiguous"),
@@ -46,6 +46,9 @@ describe("pilot mock services", () => {
     await expect(
       mockDocumentIntelligenceService.recognizeDates(file, "busy"),
     ).resolves.toMatchObject({ data: { kind: "busy" } });
+    await expect(
+      mockDocumentIntelligenceService.recognizeDates(file, "disabled"),
+    ).resolves.toMatchObject({ data: { kind: "disabled" } });
     const draft = { ...createEmptyDraft("medical-certificate"), expiryDate: "2026-10-09" };
     await expect(
       mockDocumentIntelligenceService.reviewDocument(draft, "mismatch"),

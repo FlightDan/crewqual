@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pil
     if (!pilot) throw new ApiError("NOT_FOUND", "飞行员档案不存在", 404);
     return jsonData(pilot, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -30,6 +30,6 @@ export async function PATCH(
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

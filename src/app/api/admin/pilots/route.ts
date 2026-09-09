@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const query = querySchema.parse(Object.fromEntries(url.searchParams.entries()));
     return jsonData(await listAdminPilots(admin, query), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }
 
@@ -36,6 +36,6 @@ export async function POST(request: NextRequest) {
     const input = await parseJson(request, pilotManagementInputSchema);
     return jsonData(await createAdminPilot(admin, input, requestId), requestId, 201);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

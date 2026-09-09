@@ -16,6 +16,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (!item) throw new ApiError("NOT_FOUND", "通知记录不存在", 404);
     return jsonData(serializeNotification(item), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

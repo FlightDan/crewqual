@@ -58,6 +58,7 @@ export type SetupCompleteInput = {
     requireTotp: boolean;
     verifiedTotpToken?: string;
   };
+  authenticationPreset?: "ENHANCED_L3" | "COMBINED_L2" | "CONVENIENCE";
   templatePackIds: string[];
   backup: {
     enabled: boolean;
@@ -89,6 +90,7 @@ export type SetupCompleteInput = {
 export type SetupCompleteResult = {
   completed: true;
   adminEmail: string;
+  requiresFidoBinding: boolean;
   installedTemplateCount: number;
   installedPositionCount: number;
   storageMode: "builtin" | "s3";

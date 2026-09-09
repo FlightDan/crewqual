@@ -17,6 +17,6 @@ export async function POST(request: NextRequest) {
     await assertSetupOpen();
     return jsonData(validateSetupBackupTarget(await parseJson(request, schema)), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

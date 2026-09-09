@@ -32,15 +32,14 @@ on:
         type: boolean
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: crewqual-release-acceptance-sandbox
   cancel-in-progress: false
 
 env:
-  # Non-secret run parameters only. All secrets are scoped to the acceptance
-  # job (the only consumer) so other jobs and any added steps cannot read them.
+  # Non-secret run parameters only. Secrets are scoped to individual
+  # validation, signing, and acceptance steps; setup/install steps receive none.
   RELEASE_TAG: ${{ inputs.tag }}
   RELEASE_PROFILE: ${{ inputs.profile }}
   RELEASE_ACCEPTANCE_SCOPE: ${{ inputs.acceptance_scope }}
@@ -53,7 +52,267 @@ env:
   VLM_ADAPTER: disabled
 
 jobs:
+  validate-inputs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      target: ${{ steps.inputs.outputs.target }}
+      baseline: ${{ steps.inputs.outputs.baseline }}
+      mode: ${{ steps.inputs.outputs.mode }}
+    steps:
+      # This intentionally runs without checkout, dependency installation,
+      # environment access, credentials, or OIDC permissions.
+      - name: Validate release tag, profile, and upgrade baseline
+        id: inputs
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import os, re
+          def fail(message):
+              raise SystemExit(message)
+          def version(tag):
+              match = re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-rc\.(0|[1-9][0-9]*))?", tag)
+              if not match:
+                  fail("release tags must be vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N")
+              major, minor, patch, rc = match.groups()
+              number = lambda value: (len(value), value)
+              return (number(major), number(minor), number(patch), rc is None, number(rc or "0"))
+          tag = os.environ["RELEASE_TAG"]
+          profile = os.environ["RELEASE_PROFILE"]
+          scope = os.environ["RELEASE_ACCEPTANCE_SCOPE"]
+          baseline = os.environ["RELEASE_UPGRADE_FROM_TAG"]
+          target = version(tag)
+          if profile not in ("rc", "final") or (profile == "final") != target[3]:
+              fail("release profile does not match tag channel")
+          if scope not in ("local", "full"):
+              fail("invalid acceptance scope")
+          if profile == "final" and scope != "full":
+              fail("final releases require full acceptance")
+          if baseline:
+              previous = version(baseline)
+              if previous[3] != target[3] or previous >= target:
+                  fail("upgrade baseline must be a strictly lower release in the same channel")
+          mode = "upgrade" if baseline else "fresh"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"target={tag}\nbaseline={baseline}\nmode={mode}\n")
+          print("release inputs valid: " + mode)
+          PYTHON
+
+  acceptance-config:
+    needs: validate-inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    environment: release-sandbox
+    outputs:
+      commit: ${{ steps.tag.outputs.commit }}
+      tag_object: ${{ steps.tag.outputs.tag_object }}
+      baseline_commit: ${{ steps.tag.outputs.baseline_commit }}
+      baseline_tag_object: ${{ steps.tag.outputs.baseline_tag_object }}
+    steps:
+      - name: Checkout requested release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+      - name: Verify annotated tag and signer allowlist
+        id: tag
+        env:
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          GNUPGHOME: ${{ runner.temp }}/release-gnupg
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s' "$RELEASE_TAG_SIGNING_PUBLIC_KEY_B64" | base64 --decode > "$RUNNER_TEMP/tag-signing-key.asc"
+          gpg --batch --homedir "$GNUPGHOME" --import "$RUNNER_TEMP/tag-signing-key.asc"
+          verify_signed_tag() {
+            local tag="$1" raw signing_fpr primary_fpr allowed=0 allowed_fpr
+            [[ "$(git cat-file -t "$tag")" == tag ]] || { echo "release tag must be annotated: $tag"; return 1; }
+            raw="$(git verify-tag --raw "$tag" 2>&1)"
+            printf '%s\n' "$raw" | grep -q '\[GNUPG:\] VALIDSIG '
+            signing_fpr="$(printf '%s\n' "$raw" | awk '$2=="VALIDSIG" {print $3; exit}')"
+            primary_fpr="$(printf '%s\n' "$raw" | awk '$2=="VALIDSIG" {print $NF; exit}')"
+            [[ -n "$signing_fpr" && -n "$primary_fpr" ]]
+            IFS=',' read -r -a fingerprints <<< "$RELEASE_SIGNER_FINGERPRINTS"
+            for allowed_fpr in "${fingerprints[@]}"; do
+              allowed_fpr="${allowed_fpr//[[:space:]]/}"
+              [[ -n "$allowed_fpr" ]] || continue
+              [[ "${allowed_fpr,,}" == "${signing_fpr,,}" || "${allowed_fpr,,}" == "${primary_fpr,,}" ]] && allowed=1
+            done
+            ((allowed == 1)) || { echo "tag signing primary/subkey is not allowlisted: $tag"; return 1; }
+            VERIFIED_COMMIT="$(git rev-parse "$tag^{commit}")"
+            VERIFIED_TAG_OBJECT="$(git rev-parse "$tag")"
+            [[ "$VERIFIED_COMMIT" =~ ^[0-9a-f]{40}$ && "$VERIFIED_TAG_OBJECT" =~ ^[0-9a-f]{40}$ ]]
+          }
+          verify_signed_tag "$RELEASE_TAG"
+          commit="$VERIFIED_COMMIT"
+          tag_object="$VERIFIED_TAG_OBJECT"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ && "$tag_object" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$commit" ]] || { echo 'checked-out commit does not match signed tag'; exit 1; }
+          baseline_commit=""
+          baseline_tag_object=""
+          if [[ -n "$RELEASE_UPGRADE_FROM_TAG" ]]; then
+            verify_signed_tag "$RELEASE_UPGRADE_FROM_TAG"
+            baseline_commit="$VERIFIED_COMMIT"
+            baseline_tag_object="$VERIFIED_TAG_OBJECT"
+          fi
+          printf 'commit=%s\ntag_object=%s\nbaseline_commit=%s\nbaseline_tag_object=%s\n' \
+            "$commit" "$tag_object" "$baseline_commit" "$baseline_tag_object" >> "$GITHUB_OUTPUT"
+      - name: Confirm checked-out input validator agrees with the early gate
+        env:
+          VALIDATED_MODE: ${{ needs.validate-inputs.outputs.mode }}
+        run: |
+          set -euo pipefail
+          mode="$(bash scripts/release/validate-release-inputs.sh "$RELEASE_TAG" "$RELEASE_PROFILE" "$RELEASE_ACCEPTANCE_SCOPE" "$RELEASE_UPGRADE_FROM_TAG")"
+          [[ "$mode" == "$VALIDATED_MODE" ]] || { echo 'release input validators disagree'; exit 1; }
+      - name: Preflight signed upgrade baseline release
+        if: inputs.upgrade_from_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_BASELINE_TAG_OBJECT: ${{ steps.tag.outputs.baseline_tag_object }}
+        run: |
+          set -euo pipefail
+          remote_tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_UPGRADE_FROM_TAG" --jq .object.sha)"
+          [[ "$remote_tag_object" == "$VALIDATED_BASELINE_TAG_OBJECT" ]] || {
+            echo 'upgrade baseline tag differs from the validated signed object'
+            exit 1
+          }
+          release="$(gh release view "$RELEASE_UPGRADE_FROM_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName)"
+          expected_prerelease=false
+          [[ "$RELEASE_UPGRADE_FROM_TAG" == *-rc.* ]] && expected_prerelease=true
+          jq -e --arg tag "$RELEASE_UPGRADE_FROM_TAG" --argjson prerelease "$expected_prerelease" \
+            '.tagName == $tag and .isDraft == false and .isPrerelease == $prerelease' <<< "$release" >/dev/null
+          required_assets=(
+            update-manifest-v1.json update-manifest-v1.json.sig SHA256SUMS SHA256SUMS.sig
+            crewqual-updater-linux-amd64 crewqual-updater-linux-arm64
+            docker-compose.install.yml Caddyfile configure-domain.sh
+            evidence.json evidence.json.sig evidence.bundle.json
+          )
+          for asset in "${required_assets[@]}"; do
+            jq -e --arg name "$asset" \
+              '[.assets[] | select(.name == $name and .size > 0)] | length == 1' \
+              <<< "$release" >/dev/null || {
+                echo "upgrade baseline is missing a non-empty signed release asset: $asset"
+                exit 1
+              }
+          done
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate local release acceptance configuration
+        if: inputs.acceptance_scope == 'local'
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
+        run: pnpm release:validate-config
+      - name: Validate full release acceptance configuration
+        if: inputs.acceptance_scope == 'full'
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
+          S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
+          S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
+          BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
+          BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
+          BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
+          BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
+          BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
+          RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm release:validate-config
+
+  build-platform-images:
+    needs: acceptance-config
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          ref: ${{ needs.acceptance-config.outputs.commit }}
+      - name: Login to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build native platform manifests
+        env:
+          RELEASE_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          case "$(uname -m):$RELEASE_ARCH" in
+            x86_64:amd64|aarch64:arm64) ;;
+            *) echo 'native build runner architecture mismatch'; exit 1 ;;
+          esac
+          docker buildx create --use --driver docker-container
+          mkdir -p "$RUNNER_TEMP/image-digests"
+          for component in web runtime; do
+            image="ghcr.io/${GITHUB_REPOSITORY,,}-$component"
+            tag="$RELEASE_TAG-$RELEASE_ARCH-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            docker buildx build --pull --platform "linux/$RELEASE_ARCH" \
+              --target "$component-runner" \
+              --build-arg VCS_REF="$(git rev-parse HEAD)" \
+              --build-arg VERSION="$RELEASE_TAG" \
+              --build-arg SOURCE_URL="https://github.com/$GITHUB_REPOSITORY" \
+              --provenance=false --sbom=false \
+              --output "type=image,name=$image:$tag,push=true,oci-mediatypes=true" \
+              --metadata-file "$RUNNER_TEMP/build-metadata.json" .
+            digest="$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/build-metadata.json")"
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+            if [[ "$component" == runtime ]]; then
+              docker run --rm --network none --platform "linux/$RELEASE_ARCH" \
+                --env NODE_ENV=development --env SERVICE_MODE=mock \
+                --env NEXT_PUBLIC_SERVICE_MODE=mock "$image@$digest" |
+                grep -q '"event":"worker_disabled"'
+            fi
+            jq -n --arg image "$image@$digest" --arg arch "$RELEASE_ARCH" \
+              --arg commit "$(git rev-parse HEAD)" \
+              '{image:$image,arch:$arch,commit:$commit}' \
+              > "$RUNNER_TEMP/image-digests/$component-$RELEASE_ARCH.json"
+          done
+      - name: Upload platform digest records
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/image-digests
+          if-no-files-found: error
+
   build-images:
+    needs: [acceptance-config, build-platform-images]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -64,87 +323,28 @@ jobs:
       web_image: ${{ steps.images.outputs.web_image }}
       runtime_image: ${{ steps.images.outputs.runtime_image }}
     steps:
-      - name: Require full acceptance for final releases
-        if: inputs.profile == 'final' && inputs.acceptance_scope != 'full'
-        run: |
-          echo 'final releases require acceptance_scope=full'
-          exit 1
-      - name: Checkout signed release
+      - name: Checkout release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.acceptance-config.outputs.commit }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: image-digests-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/image-digests
       - name: Login to GHCR
         env:
           GH_TOKEN: ${{ github.token }}
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Install image signing and SBOM tools
         run: sudo ./scripts/release/install-tools.sh
-      - name: Build, push, sign, and attest release images
+      - name: Assemble, sign, and verify OCI indexes and platform evidence
         id: images
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
-          IMAGE_OWNER: ${{ github.repository_owner }}
-          IMAGE_REPOSITORY: ${{ github.event.repository.name }}
-        run: |
-          set -euo pipefail
-          RELEASE_COMMIT="$(git rev-parse HEAD)"
-          owner="${IMAGE_OWNER,,}"
-          repository="${IMAGE_REPOSITORY,,}"
-          web="ghcr.io/$owner/${repository}-web"
-          runtime="ghcr.io/$owner/${repository}-runtime"
-          source_url="https://github.com/${GITHUB_REPOSITORY}"
-
-          docker build --pull --platform linux/amd64 \
-            --target web-runner \
-            --build-arg VCS_REF="$RELEASE_COMMIT" \
-            --build-arg VERSION="$RELEASE_TAG" \
-            --build-arg SOURCE_URL="$source_url" \
-            --tag "$web:$RELEASE_TAG" .
-          docker build --pull --platform linux/amd64 \
-            --target runtime-runner \
-            --build-arg VCS_REF="$RELEASE_COMMIT" \
-            --build-arg VERSION="$RELEASE_TAG" \
-            --build-arg SOURCE_URL="$source_url" \
-            --tag "$runtime:$RELEASE_TAG" .
-          docker run --rm --network none \
-            --env NODE_ENV=development \
-            --env SERVICE_MODE=mock \
-            --env NEXT_PUBLIC_SERVICE_MODE=mock \
-            "$runtime:$RELEASE_TAG" | grep -q '"event":"worker_disabled"'
-          docker push "$web:$RELEASE_TAG"
-          docker push "$runtime:$RELEASE_TAG"
-
-          web_digest="$(docker image inspect "$web:$RELEASE_TAG" --format '{{index .RepoDigests 0}}')"
-          runtime_digest="$(docker image inspect "$runtime:$RELEASE_TAG" --format '{{index .RepoDigests 0}}')"
-          [[ "$web_digest" == "$web@sha256:"* ]]
-          [[ "$runtime_digest" == "$runtime@sha256:"* ]]
-
-          syft "$web:$RELEASE_TAG" -o cyclonedx-json=/tmp/crewqual-web-sbom.json
-          syft "$runtime:$RELEASE_TAG" -o cyclonedx-json=/tmp/crewqual-runtime-sbom.json
-          jq -n \
-            --arg repo "$GITHUB_REPOSITORY" \
-            --arg commit "$RELEASE_COMMIT" \
-            --arg tag "$RELEASE_TAG" \
-            --arg workflow "$GITHUB_WORKFLOW_REF" \
-            '{buildType:"https://github.com/FlightDan/crewqual/release-build", invocation:{configSource:{uri:$repo,digest:{sha1:$commit},entryPoint:$workflow},parameters:{tag:$tag}}, metadata:{buildInvocationId:env.GITHUB_RUN_ID}, materials:[{uri:$repo,digest:{sha1:$commit}}]}' \
-            > /tmp/crewqual-provenance.json
-
-          for image_and_sbom in \
-            "$web_digest /tmp/crewqual-web-sbom.json" \
-            "$runtime_digest /tmp/crewqual-runtime-sbom.json"; do
-            image="${image_and_sbom%% *}"
-            sbom="${image_and_sbom#* }"
-            cosign sign --yes "$image"
-            cosign attest --yes --type cyclonedx --predicate "$sbom" "$image"
-            cosign attest --yes --type slsaprovenance --predicate /tmp/crewqual-provenance.json "$image"
-          done
-
-          echo "web_image=$web_digest" >> "$GITHUB_OUTPUT"
-          echo "runtime_image=$runtime_digest" >> "$GITHUB_OUTPUT"
+        run: ./scripts/release/assemble-image-indexes.sh "$RUNNER_TEMP/image-digests"
 
   acceptance:
-    needs: build-images
+    needs: [acceptance-config, build-images]
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     permissions:
@@ -157,39 +357,22 @@ jobs:
       RELEASE_RUNTIME_IMAGE: ${{ needs.build-images.outputs.runtime_image }}
       COSIGN_CERT_IDENTITY_REGEXP: ^https://github\.com/FlightDan/crewqual/\.github/workflows/release-acceptance\.yml@.*$
       COSIGN_OIDC_ISSUER: https://token.actions.githubusercontent.com
-      UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
-      UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
-      RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_MANIFEST_SIGNING_PUBLIC_KEY_B64 }}
-      RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
-      RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-      EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
-      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
-      RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
-      S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
-      S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
-      BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
-      BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
-      BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
-      BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
-      BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
-      RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout signed release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.acceptance-config.outputs.commit }}
       - name: Login to GHCR
         env:
           GH_TOKEN: ${{ github.token }}
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
       - name: Verify annotated tag and signer allowlist
         env:
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          VALIDATED_COMMIT: ${{ needs.acceptance-config.outputs.commit }}
+          VALIDATED_TAG_OBJECT: ${{ needs.acceptance-config.outputs.tag_object }}
           GNUPGHOME: ${{ runner.temp }}/release-gnupg
         run: |
           set -euo pipefail
@@ -209,6 +392,9 @@ jobs:
             [[ "${allowed_fpr,,}" == "${signing_fpr,,}" || "${allowed_fpr,,}" == "${primary_fpr,,}" ]] && allowed=1
           done
           ((allowed == 1)) || { echo 'tag signing primary/subkey is not allowlisted'; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$VALIDATED_COMMIT" ]]
+          [[ "$(git rev-parse "$RELEASE_TAG^{commit}")" == "$VALIDATED_COMMIT" ]]
+          [[ "$(git rev-parse "$RELEASE_TAG")" == "$VALIDATED_TAG_OBJECT" ]]
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
       - name: Setup pnpm
         uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
@@ -224,6 +410,9 @@ jobs:
       - name: Install release verification tools
         run: sudo ./scripts/release/install-tools.sh
       - name: Verify keyring and build signed release assets
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
         id: release-assets
         run: |
           set -euo pipefail
@@ -264,17 +453,46 @@ jobs:
           fi
           pnpm release:manifest .artifacts/migration-checksums.json
           echo "MIGRATION_CHECKSUM_MANIFEST=$GITHUB_WORKSPACE/.artifacts/migration-checksums.json" >> "$GITHUB_ENV"
-      - name: Run release acceptance gates
+      - name: Run local release acceptance gates
+        if: inputs.acceptance_scope == 'local'
         env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
           RELEASE_DEFER_ARTIFACT: "1"
-        run: |
-          set -euo pipefail
-          if [[ "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
-            pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
-          else
-            node --import tsx scripts/release/verify.ts local --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
-          fi
+        run: node --import tsx scripts/release/verify.ts local --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+      - name: Run full release acceptance gates
+        if: inputs.acceptance_scope == 'full'
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          EVIDENCE_S3_BUCKET: ${{ secrets.EVIDENCE_S3_BUCKET }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          RESTORE_S3_BUCKET: ${{ secrets.RESTORE_S3_BUCKET }}
+          S3_KMS_KEY_ARN: ${{ secrets.S3_KMS_KEY_ARN }}
+          S3_FORBIDDEN_PREFIX: ${{ secrets.S3_FORBIDDEN_PREFIX }}
+          BACKUP_RECOVERY_SET_ID: ${{ secrets.BACKUP_RECOVERY_SET_ID }}
+          BACKUP_DATABASE_RUN_ID: ${{ secrets.BACKUP_DATABASE_RUN_ID }}
+          BACKUP_GALLERY_RUN_ID: ${{ secrets.BACKUP_GALLERY_RUN_ID }}
+          BACKUP_TAMPER_ARTIFACT_KEYS: ${{ secrets.BACKUP_TAMPER_ARTIFACT_KEYS }}
+          BACKUP_TAMPER_BLOB_SHA256: ${{ secrets.BACKUP_TAMPER_BLOB_SHA256 }}
+          RESTORE_DATABASE_URL: ${{ secrets.RESTORE_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RELEASE_DEFER_ARTIFACT: "1"
+        run: pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
       - name: Assemble evidence and sign every release asset
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
         run: |
           set -euo pipefail
           evidence_dir=".artifacts/release/$RELEASE_RUN_ID"
@@ -309,8 +527,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: acceptance
-    if: inputs.acceptance_scope == 'full'
+    needs: [acceptance-config, acceptance]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -322,10 +539,20 @@ jobs:
       - name: Create or validate prerelease
         env:
           GH_TOKEN: ${{ github.token }}
+          VALIDATED_TAG_OBJECT: ${{ needs.acceptance-config.outputs.tag_object }}
         run: |
           set -euo pipefail
-          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          remote_tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
+          [[ "$remote_tag_object" == "$VALIDATED_TAG_OBJECT" ]] || { echo 'release tag moved after validation'; exit 1; }
+          release_lookup_error="$RUNNER_TEMP/release-lookup.err"
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --silent 2>"$release_lookup_error"; then
+            : # An existing release is handled by the hash-preserving upload step.
+          elif grep -Fq '(HTTP 404)' "$release_lookup_error"; then
             gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "CrewQual $RELEASE_TAG" --notes "Signed release assets" --prerelease --latest=false
+          else
+            cat "$release_lookup_error" >&2
+            echo 'unable to prove the GitHub Release is absent' >&2
+            exit 1
           fi
       - name: Upload assets without clobber and verify remote hashes
         env:
@@ -381,8 +608,16 @@ jobs:
             fi
           done
   post-publish-host-acceptance:
-    needs: publish
-    runs-on: ubuntu-24.04
+    needs: [acceptance-config, publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     permissions:
       contents: read
@@ -391,8 +626,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.acceptance-config.outputs.commit }}
           fetch-depth: 1
+      - name: Confirm the published tag still names the validated object
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_TAG_OBJECT: ${{ needs.acceptance-config.outputs.tag_object }}
+        run: |
+          remote_tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
+          [[ "$remote_tag_object" == "$VALIDATED_TAG_OBJECT" ]] || { echo 'release tag moved after publication'; exit 1; }
       - name: Login to GHCR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -401,11 +643,20 @@ jobs:
         env:
           TARGET_TAG: ${{ inputs.tag }}
           UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
-        run: sudo -E ./scripts/release/post-publish-acceptance.sh
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          EXPECTED_COMMIT: ${{ needs.acceptance-config.outputs.commit }}
+          EXPECTED_BASELINE_COMMIT: ${{ needs.acceptance-config.outputs.baseline_commit }}
+        run: |
+          set -euo pipefail
+          case "$(uname -m):$EXPECTED_ARCH" in
+            x86_64:amd64|aarch64:arm64) ;;
+            *) echo 'native acceptance runner architecture mismatch'; exit 1 ;;
+          esac
+          sudo -E ./scripts/release/post-publish-acceptance.sh
 
   promote-final:
     needs: post-publish-host-acceptance
-    if: inputs.profile == 'final' && inputs.acceptance_scope == 'full'
+    if: inputs.profile == 'final'
     runs-on: ubuntu-24.04
     permissions:
       contents: write

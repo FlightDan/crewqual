@@ -42,7 +42,9 @@ async function main() {
       active: true,
     },
   });
-  await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: "admin-login:" } } });
+  // Rate-limit dimensions are HMACed before storage, so the disposable E2E
+  // database is reset as a whole instead of searching for a plaintext prefix.
+  await prisma.rateLimitBucket.deleteMany({});
   await prisma.adminUser.updateMany({
     where: { email: process.env.E2E_ADMIN_EMAIL ?? "admin@example.com" },
     // The configuration scenario targets DEMO's PILOT position. A bootstrap

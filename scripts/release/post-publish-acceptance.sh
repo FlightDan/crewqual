@@ -4,35 +4,17 @@ set -Eeuo pipefail
 target="${TARGET_TAG:-}"
 baseline="${UPGRADE_FROM_TAG:-}"
 repo="${GITHUB_REPOSITORY:-FlightDan/crewqual}"
+expected_commit="${EXPECTED_COMMIT:-}"
+expected_baseline_commit="${EXPECTED_BASELINE_COMMIT:-}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fresh_dir="/opt/crewqual-acceptance-fresh"
 upgrade_dir="/opt/crewqual-acceptance-upgrade"
+target_updater=""
+wrapper_dir=""
+server_pid=""
 
 die() { echo "post-publish acceptance: $*" >&2; exit 1; }
-version_parts() {
-  [[ "$1" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$ ]] || return 1
-  printf '%d %d %d %d %d\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-999999999}"
-}
-compare_version() {
-  local left right i
-  read -r -a left <<<"$(version_parts "$1")"
-  read -r -a right <<<"$(version_parts "$2")"
-  for i in 0 1 2 3; do
-    ((left[i] < right[i])) && { echo -1; return; }
-    ((left[i] > right[i])) && { echo 1; return; }
-  done
-  echo 0
-}
 channel_for() { [[ "$1" == *-rc.* ]] && printf rc || printf stable; }
-
-[[ -n "$target" ]] || die "TARGET_TAG is required"
-version_parts "$target" >/dev/null || die "invalid target tag: $target"
-if [[ -n "$baseline" ]]; then
-  version_parts "$baseline" >/dev/null || die "invalid upgrade baseline tag: $baseline"
-  [[ "$(compare_version "$baseline" "$target")" == -1 ]] || die "upgrade baseline must be lower than target"
-  if [[ "$target" == *-rc.* ]]; then
-    [[ "$baseline" == *-rc.* ]] || die "RC acceptance requires an RC baseline"
-  fi
-fi
 
 install_from_tag() {
   local tag="$1" dir="$2" channel
@@ -46,106 +28,216 @@ install_from_tag() {
 }
 
 image_id_checks() {
-  local dir="$1" ref id service
-  [[ -s "$dir/.env" ]] || die "missing env file: $dir/.env"
-  grep -Eq "^CREWQUAL_WEB_IMAGE='ghcr\.io/flightdan/crewqual-web@sha256:[a-f0-9]{64}'$" "$dir/.env" || die "web image is not a signed digest"
-  grep -Eq "^CREWQUAL_RUNTIME_IMAGE='ghcr\.io/flightdan/crewqual-runtime@sha256:[a-f0-9]{64}'$" "$dir/.env" || die "runtime image is not a signed digest"
+  local dir="$1" expected_revision="$2" ref id service native_arch revision
+  [[ "$expected_revision" =~ ^[0-9a-f]{40}$ ]] || die "expected image revision must be a validated commit"
+  case "$(uname -m)" in x86_64) native_arch=amd64 ;; aarch64|arm64) native_arch=arm64 ;; *) die "unsupported native architecture" ;; esac
+  sudo test -s "$dir/.env" || die "missing env file: $dir/.env"
+  sudo grep -Eq "^CREWQUAL_WEB_IMAGE='ghcr\.io/flightdan/crewqual-web@sha256:[a-f0-9]{64}'$" "$dir/.env" || die "web image is not a signed digest"
+  sudo grep -Eq "^CREWQUAL_RUNTIME_IMAGE='ghcr\.io/flightdan/crewqual-runtime@sha256:[a-f0-9]{64}'$" "$dir/.env" || die "runtime image is not a signed digest"
   for service in web worker; do
-    ref="$(sed -n "s/^CREWQUAL_$( [[ "$service" == web ]] && echo WEB || echo RUNTIME )_IMAGE='\([^']*\)'.*/\1/p" "$dir/.env")"
+    ref="$(sudo sed -n "s/^CREWQUAL_$( [[ "$service" == web ]] && echo WEB || echo RUNTIME )_IMAGE='\([^']*\)'.*/\1/p" "$dir/.env")"
     id="$(sudo docker compose --project-directory "$dir" --env-file "$dir/.env" -f "$dir/compose.yaml" ps -q "$service")"
     [[ -n "$id" ]] || die "missing running container for $service"
+    [[ "$(sudo docker image inspect --format '{{.Os}}/{{.Architecture}}' "$ref")" == "linux/$native_arch" ]] || die "image does not match native architecture"
+    revision="$(sudo docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$ref")"
+    [[ "$revision" == "$expected_revision" ]] || die "image revision does not match the validated release commit"
     [[ "$(sudo docker inspect --format '{{.Image}}' "$id")" == "$(sudo docker image inspect --format '{{.Id}}' "$ref")" ]] || die "container image ID does not match digest reference for $service"
   done
 }
 
-sudo docker compose --project-directory "$fresh_dir" --env-file "$fresh_dir/.env" -f "$fresh_dir/compose.yaml" down >/dev/null 2>&1 || true
-sudo rm -rf -- "$fresh_dir" "$upgrade_dir"
+# Each request uses a new nonce, including readiness probes and polling.
+api_request() {
+  local method="$1" path="$2" body="${3:-}" timestamp nonce signature
+  timestamp="$(date +%s%3N)"
+  nonce="$(openssl rand -hex 16)"
+  signature="$(printf '%s' "$timestamp.$nonce.$body" | openssl dgst -sha256 -hmac "$shared" -hex | awk '{print $2}')"
+  curl --fail --silent --show-error --max-time 15 --unix-socket /run/crewqual-updater/api.sock \
+    -X "$method" -H "X-Crewqual-Timestamp: $timestamp" -H "X-Crewqual-Nonce: $nonce" \
+    -H "X-Crewqual-Signature: $signature" -H 'Content-Type: application/json' \
+    --data-binary "$body" "http://localhost$path"
+}
+
+wait_api() {
+  local attempt
+  for ((attempt=0; attempt<30; attempt++)); do
+    if api_request GET /v1/status 2>/dev/null | jq -e '.data.mode == "managed"' >/dev/null; then return; fi
+    sleep 1
+  done
+  die "updater API did not become ready"
+}
+
+request_install() {
+  local response
+  response="$(api_request POST /v1/install "$(jq -nc --arg version "$target" '{version:$version,actorId:"release-acceptance",actorName:"release-acceptance"}')")" || die "install request failed"
+  jq -er --arg target "$target" '.data.job | select(.requestedVersion == $target) | .id | select(type == "string" and length > 0)' <<<"$response" || die "install response lacks the requested job"
+}
+
+wait_job() {
+  local job_id="$1" expected="$2" current="$3" status phase attempt
+  for ((attempt=0; attempt<${ACCEPTANCE_POLL_ATTEMPTS:-180}; attempt++)); do
+    status="$(api_request GET /v1/status)" || die "job status request failed"
+    jq -e --arg id "$job_id" --arg target "$target" '.data.job.id == $id and .data.job.requestedVersion == $target' <<<"$status" >/dev/null || die "job ID or requested version mismatch"
+    phase="$(jq -er '.data.job.phase' <<<"$status")" || die "missing job phase"
+    case "$phase" in
+      SUCCEEDED|FAILED|ROLLED_BACK|NEEDS_MANUAL_RECOVERY)
+        [[ "$phase" == "$expected" ]] || die "job $job_id ended as $phase; expected $expected"
+        jq -e --arg current "$current" '.data.currentVersion == $current and (.data.job.completedAt | type == "string" and length > 0)' <<<"$status" >/dev/null || die "terminal job has wrong current version or no completion timestamp"
+        if [[ "$expected" == FAILED ]]; then
+          jq -e '.data.job.errorCode == "RESTART_FAILED"' <<<"$status" >/dev/null || die "injected job failed for an unexpected reason"
+        fi
+        return 0 ;;
+    esac
+    sleep "${ACCEPTANCE_POLL_INTERVAL:-2}"
+  done
+  die "job $job_id timed out before $expected"
+}
+
+compose_upgrade() {
+  sudo docker compose --project-directory "$upgrade_dir" --env-file "$upgrade_dir/.env" -f "$upgrade_dir/compose.yaml" "$@"
+}
+
+stop_test_server() {
+  if [[ -n "${server_pid:-}" ]]; then
+    local privileged_pid=""
+    if [[ -s "$wrapper_dir/server.pid" ]]; then
+      privileged_pid="$(cat "$wrapper_dir/server.pid")"
+      sudo kill -TERM "$privileged_pid" 2>/dev/null || true
+    fi
+    for _ in {1..30}; do
+      [[ -n "$privileged_pid" ]] || break
+      sudo kill -0 "$privileged_pid" 2>/dev/null || break
+      sleep 1
+    done
+    if [[ -n "$privileged_pid" ]] && sudo kill -0 "$privileged_pid" 2>/dev/null; then
+      sudo kill -KILL "$privileged_pid" 2>/dev/null || true
+    fi
+    wait "$server_pid" 2>/dev/null || true
+    server_pid=''
+  fi
+}
+
+cleanup_acceptance() {
+  stop_test_server
+  [[ -z "$wrapper_dir" ]] || sudo rm -rf -- "$wrapper_dir"
+  [[ -z "$target_updater" ]] || sudo rm -f -- "$target_updater"
+}
+
+# Sourceable helpers support fixture tests without touching Docker or the host.
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return; fi
+command -v jq >/dev/null || die "jq is required"
+[[ "${UPGRADE_FROM_TAG+x}" == x ]] || die "UPGRADE_FROM_TAG must be explicit (empty for the first release)"
+[[ -n "$target" ]] || die "TARGET_TAG is required"
+[[ "$expected_commit" =~ ^[0-9a-f]{40}$ ]] || die "EXPECTED_COMMIT must be the validated release commit"
+if [[ -n "$baseline" ]]; then
+  [[ "$expected_baseline_commit" =~ ^[0-9a-f]{40}$ ]] ||
+    die "EXPECTED_BASELINE_COMMIT must be the validated baseline commit"
+else
+  [[ -z "$expected_baseline_commit" ]] || die "EXPECTED_BASELINE_COMMIT must be empty for a fresh install"
+fi
+profile=final
+[[ "$target" == *-rc.* ]] && profile=rc
+acceptance_scope="${RELEASE_ACCEPTANCE_SCOPE:-}"
+if [[ -z "$acceptance_scope" ]]; then
+  [[ "$profile" == final ]] && acceptance_scope=full || acceptance_scope=local
+fi
+bash "$script_dir/validate-release-inputs.sh" "$target" "$profile" "$acceptance_scope" "$baseline" >/dev/null ||
+  die "invalid target/baseline release inputs"
+trap cleanup_acceptance EXIT
+
+sudo systemctl stop crewqual-caddy-recovery.service crewqual-updater.service crewqual-updater.socket >/dev/null 2>&1 || true
+for stale_dir in "$fresh_dir" "$upgrade_dir"; do
+  sudo docker compose --project-directory "$stale_dir" --env-file "$stale_dir/.env" \
+    -f "$stale_dir/compose.yaml" down -v --remove-orphans >/dev/null 2>&1 || true
+done
+sudo rm -rf -- "$fresh_dir" "$upgrade_dir" /var/lib/crewqual-updater
+sudo rm -f /run/crewqual-updater/api.sock
 install_from_tag "$target" "$fresh_dir"
-image_id_checks "$fresh_dir"
-grep -q '^S3_ENDPOINT=http://minio:9000$' "$fresh_dir/.env" || die "builtin storage endpoint is not internal-only"
-grep -q "APP_ORIGIN='http://172.20.0.1:" "$fresh_dir/.env" || die "LAN mode exposed a non-private origin"
+image_id_checks "$fresh_dir" "$expected_commit"
+target_updater="$(mktemp "${RUNNER_TEMP:-/tmp}/crewqual-target-updater.XXXXXX")"
+# The target installer has already verified this native binary against the
+# signed manifest and SHA256SUMS. Preserve it for entrance reconciliation even
+# when the upgrade baseline predates the reconcile-caddy subcommand.
+sudo install -m 0700 /usr/local/libexec/crewqual-updater "$target_updater"
+sudo grep -q '^S3_ENDPOINT=http://minio:9000$' "$fresh_dir/.env" || die "builtin storage endpoint is not internal-only"
+sudo grep -q "APP_ORIGIN='http://172.20.0.1:" "$fresh_dir/.env" || die "LAN mode exposed a non-private origin"
 bad_env="$(mktemp)"
-sed "s/^SESSION_SECRET=.*/SESSION_SECRET=''/" "$fresh_dir/.env" >"$bad_env"
+sudo sed "s/^SESSION_SECRET=.*/SESSION_SECRET=''/" "$fresh_dir/.env" >"$bad_env"
 if sudo docker compose --project-directory "$fresh_dir" --env-file "$bad_env" -f "$fresh_dir/compose.yaml" config --quiet >/dev/null 2>&1; then
   rm -f "$bad_env"
   die "Compose accepted an empty production secret"
 fi
 rm -f "$bad_env"
-sudo docker compose --project-directory "$fresh_dir" --env-file "$fresh_dir/.env" -f "$fresh_dir/compose.yaml" down >/dev/null 2>&1 || true
-sudo rm -rf -- "$fresh_dir"
+# A managed install owns one host updater and socket. Stop the fresh-install
+# instance before removing its files so the baseline install starts a new
+# process with its own config and shared secret.
+sudo systemctl stop crewqual-caddy-recovery.service crewqual-updater.service crewqual-updater.socket
+sudo docker compose --project-directory "$fresh_dir" --env-file "$fresh_dir/.env" \
+  -f "$fresh_dir/compose.yaml" down -v --remove-orphans >/dev/null 2>&1 || true
+sudo rm -rf -- "$fresh_dir" /var/lib/crewqual-updater
+sudo rm -f /run/crewqual-updater/api.sock
 
 if [[ -z "$baseline" ]]; then
   echo "first-release fresh-install acceptance passed"
   exit 0
 fi
 
-# The first repaired RC is a bootstrap release by design. It still requires
-# an explicit lower tag in workflow input, but that historical RC is not a
-# usable upgrade baseline because it has no complete signed asset set.
-if [[ "$target" == *-rc.2 ]]; then
-  echo "bootstrap RC fresh-install acceptance passed"
-  exit 0
-fi
-
 install_from_tag "$baseline" "$upgrade_dir"
-image_id_checks "$upgrade_dir"
-sudo /usr/local/libexec/crewqual-updater check
+image_id_checks "$upgrade_dir" "$expected_baseline_commit"
+shared="$(sudo sed -n "s/^CREWQUAL_UPDATER_SHARED_SECRET='\([^']*\)'/\1/p" "$upgrade_dir/.env")"
+[[ -n "$shared" ]] || die "missing updater shared secret"
 
-body='{"version":"'"$target"'","actorId":"release-acceptance","actorName":"release-acceptance"}'
-timestamp="$(date +%s%3N)"
-nonce="$(openssl rand -hex 16)"
-shared="$(sed -n "s/^CREWQUAL_UPDATER_SHARED_SECRET='\([^']*\)'/\1/p" "$upgrade_dir/.env")"
-signature="$(printf '%s' "$timestamp.$nonce.$body" | openssl dgst -sha256 -hmac "$shared" -hex | awk '{print $2}')"
-request_install() {
-  curl --fail --silent --show-error --unix-socket /run/crewqual-updater/api.sock \
-    -H "X-Crewqual-Timestamp: $timestamp" -H "X-Crewqual-Nonce: $nonce" \
-    -H "X-Crewqual-Signature: $signature" -H 'Content-Type: application/json' \
-    -d "$body" http://localhost/v1/install
-}
-
-# Run the managed updater through a one-shot Docker wrapper. The wrapper fails
-# only the first web/worker restart, so a successful rollback is observable.
 wrapper_dir="$(mktemp -d)"
+# Preserve baseline files without printing their contents (the env contains secrets).
+for file in .env compose.yaml Caddyfile; do sudo cp "$upgrade_dir/$file" "$wrapper_dir/baseline-$file"; done
+# A disposable SQL sentinel proves rollback restored data, not just managed files.
+compose_upgrade exec -T postgres psql -U crewqual -d crewqual -v ON_ERROR_STOP=1 -c \
+  "CREATE TABLE public.release_acceptance_sentinel (value text PRIMARY KEY); INSERT INTO public.release_acceptance_sentinel VALUES ('baseline');" >/dev/null
+
 cat >"$wrapper_dir/docker" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-if [[ "${1:-}" == "compose" && "$*" == *" up "* && "$*" == *" web "* && "$*" == *" worker"* && ! -e /tmp/crewqual-acceptance-restart-seen ]]; then
-  touch /tmp/crewqual-acceptance-restart-seen
+marker_dir="$(dirname "$0")"
+touch "$marker_dir/invoked"
+args=" $* "
+if [[ "${1:-}" == compose && "$args" == *" up "* && "$args" == *" web "* && "$args" == *" worker "* && ! -e "$marker_dir/restart-seen" ]]; then
+  touch "$marker_dir/restart-seen"
+  # Mutate after the updater backup: successful recovery must undo this change.
+  "$ACCEPTANCE_REAL_DOCKER" compose --project-directory "$ACCEPTANCE_UPGRADE_DIR" --env-file "$ACCEPTANCE_UPGRADE_DIR/.env" -f "$ACCEPTANCE_UPGRADE_DIR/compose.yaml" exec -T postgres psql -U crewqual -d crewqual -v ON_ERROR_STOP=1 -c "UPDATE public.release_acceptance_sentinel SET value = 'mutated';" >/dev/null
+  touch "$marker_dir/data-mutated"
   echo 'intentional one-shot restart failure' >&2
   exit 17
 fi
-exec /usr/bin/docker "$@"
+exec "$ACCEPTANCE_REAL_DOCKER" "$@"
 EOF
 chmod 700 "$wrapper_dir/docker"
-sudo systemctl stop crewqual-updater.service
-sudo rm -f /tmp/crewqual-acceptance-restart-seen
-PATH="$wrapper_dir:$PATH" sudo -E /usr/local/libexec/crewqual-updater serve >/tmp/crewqual-updater-acceptance.log 2>&1 &
+# Stop socket activation too, so readiness cannot accidentally reach another process.
+sudo systemctl stop crewqual-updater.service crewqual-updater.socket
+sudo rm -f /run/crewqual-updater/api.sock
+sudo env PATH="$wrapper_dir:$PATH" ACCEPTANCE_REAL_DOCKER="$(command -v docker)" ACCEPTANCE_UPGRADE_DIR="$upgrade_dir" \
+  bash -c 'echo $$ > "$1/server.pid"; exec /usr/local/libexec/crewqual-updater serve' bash "$wrapper_dir" \
+  >"$wrapper_dir/server.log" 2>&1 &
 server_pid=$!
-trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$wrapper_dir"' EXIT
-for _ in $(seq 1 30); do [[ -S /run/crewqual-updater/api.sock ]] && break; sleep 1; done
-request_install >/dev/null
-for _ in $(seq 1 180); do
-  status="$(sudo /usr/local/libexec/crewqual-updater status 2>/dev/null || true)"
-  grep -q 'ROLLED_BACK' <<<"$status" && break
-  sleep 2
-done
-grep -q "CREWQUAL_VERSION='$baseline'" "$upgrade_dir/.env" || die "failed update did not roll back env"
-grep -q 'ROLLED_BACK' <<<"$status" || die "rollback was not observed"
-kill "$server_pid" 2>/dev/null || true
-sudo systemctl start crewqual-updater.service
-rm -f /tmp/crewqual-acceptance-restart-seen
-sudo /usr/local/libexec/crewqual-updater check
-timestamp="$(date +%s%3N)"; nonce="$(openssl rand -hex 16)"
-signature="$(printf '%s' "$timestamp.$nonce.$body" | openssl dgst -sha256 -hmac "$shared" -hex | awk '{print $2}')"
-request_install >/dev/null
-for _ in $(seq 1 180); do
-  status="$(sudo /usr/local/libexec/crewqual-updater status 2>/dev/null || true)"
-  grep -q 'SUCCEEDED' <<<"$status" && break
-  sleep 2
-done
-grep -q "CREWQUAL_VERSION='$target'" "$upgrade_dir/.env" || die "retry did not reach target"
-image_id_checks "$upgrade_dir"
-sudo docker compose --project-directory "$upgrade_dir" --env-file "$upgrade_dir/.env" -f "$upgrade_dir/compose.yaml" --profile ops run --rm --no-deps ops
-sudo docker compose --project-directory "$upgrade_dir" --env-file "$upgrade_dir/.env" -f "$upgrade_dir/compose.yaml" run --rm --no-deps migrate
-sudo docker compose --project-directory "$upgrade_dir" --env-file "$upgrade_dir/.env" -f "$upgrade_dir/compose.yaml" run --rm --no-deps bootstrap
+wait_api
+api_request POST /v1/check >/dev/null
+failed_job="$(request_install)"
+wait_job "$failed_job" FAILED "$baseline"
+[[ -f "$wrapper_dir/invoked" && -f "$wrapper_dir/restart-seen" && -f "$wrapper_dir/data-mutated" ]] || die "failure injection did not run completely"
+for file in .env compose.yaml Caddyfile; do sudo cmp -s "$wrapper_dir/baseline-$file" "$upgrade_dir/$file" || die "rollback changed $file"; done
+[[ "$(compose_upgrade exec -T postgres psql -U crewqual -d crewqual -Atc 'SELECT value FROM public.release_acceptance_sentinel')" == baseline ]] || die "rollback did not restore database sentinel"
+image_id_checks "$upgrade_dir" "$expected_baseline_commit"
+sudo "$target_updater" reconcile-caddy --timeout 60s
+stop_test_server
+sudo systemctl start crewqual-updater.socket crewqual-updater.service
+wait_api
+api_request POST /v1/check >/dev/null
+retry_job="$(request_install)"
+[[ "$retry_job" != "$failed_job" ]] || die "retry reused failed job ID"
+wait_job "$retry_job" SUCCEEDED "$target"
+sudo grep -qx "CREWQUAL_VERSION='$target'" "$upgrade_dir/.env" || die "retry did not reach target"
+image_id_checks "$upgrade_dir" "$expected_commit"
+sudo "$target_updater" reconcile-caddy --timeout 60s
+compose_upgrade --profile ops run --rm --no-deps ops
+compose_upgrade run --rm --no-deps migrate
+compose_upgrade run --rm --no-deps bootstrap
+compose_upgrade exec -T postgres psql -U crewqual -d crewqual -v ON_ERROR_STOP=1 -c 'DROP TABLE public.release_acceptance_sentinel' >/dev/null
 echo "post-publish install, digest, upgrade, rollback, retry, db-check and idempotence acceptance passed"

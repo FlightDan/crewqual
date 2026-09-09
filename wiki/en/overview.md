@@ -38,6 +38,7 @@ The member page groups qualifications into expired, due within 30 days, due with
 
 - For the member portal, read the [member guide](member-guide.md).
 - For personnel management and reviews, read the [administrator guide](admin-guide.md).
+- For authentication targets, sessions, and security boundaries, read [Security and authentication](security.md).
 - For installation, SMS, or storage setup, read the [technical documentation](../../docs/en/README.md).
 
 ## Implementation references

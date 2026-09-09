@@ -16,6 +16,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (updated.count !== 1) throw new ApiError("NOT_FOUND", "通知不存在", 404);
     return jsonData({ read: true }, requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

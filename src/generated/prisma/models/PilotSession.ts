@@ -20,8 +20,18 @@ export type PilotSessionModel = runtime.Types.Result.DefaultSelection<Prisma.$Pi
 
 export type AggregatePilotSession = {
   _count: PilotSessionCountAggregateOutputType | null
+  _avg: PilotSessionAvgAggregateOutputType | null
+  _sum: PilotSessionSumAggregateOutputType | null
   _min: PilotSessionMinAggregateOutputType | null
   _max: PilotSessionMaxAggregateOutputType | null
+}
+
+export type PilotSessionAvgAggregateOutputType = {
+  policyVersion: number | null
+}
+
+export type PilotSessionSumAggregateOutputType = {
+  policyVersion: number | null
 }
 
 export type PilotSessionMinAggregateOutputType = {
@@ -32,6 +42,8 @@ export type PilotSessionMinAggregateOutputType = {
   expiresAt: Date | null
   createdAt: Date | null
   lastSeenAt: Date | null
+  authState: string | null
+  policyVersion: number | null
 }
 
 export type PilotSessionMaxAggregateOutputType = {
@@ -42,6 +54,8 @@ export type PilotSessionMaxAggregateOutputType = {
   expiresAt: Date | null
   createdAt: Date | null
   lastSeenAt: Date | null
+  authState: string | null
+  policyVersion: number | null
 }
 
 export type PilotSessionCountAggregateOutputType = {
@@ -52,9 +66,19 @@ export type PilotSessionCountAggregateOutputType = {
   expiresAt: number
   createdAt: number
   lastSeenAt: number
+  authState: number
+  policyVersion: number
   _all: number
 }
 
+
+export type PilotSessionAvgAggregateInputType = {
+  policyVersion?: true
+}
+
+export type PilotSessionSumAggregateInputType = {
+  policyVersion?: true
+}
 
 export type PilotSessionMinAggregateInputType = {
   id?: true
@@ -64,6 +88,8 @@ export type PilotSessionMinAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  authState?: true
+  policyVersion?: true
 }
 
 export type PilotSessionMaxAggregateInputType = {
@@ -74,6 +100,8 @@ export type PilotSessionMaxAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  authState?: true
+  policyVersion?: true
 }
 
 export type PilotSessionCountAggregateInputType = {
@@ -84,6 +112,8 @@ export type PilotSessionCountAggregateInputType = {
   expiresAt?: true
   createdAt?: true
   lastSeenAt?: true
+  authState?: true
+  policyVersion?: true
   _all?: true
 }
 
@@ -125,6 +155,18 @@ export type PilotSessionAggregateArgs<ExtArgs extends runtime.Types.Extensions.I
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: PilotSessionAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: PilotSessionSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: PilotSessionMinAggregateInputType
@@ -155,6 +197,8 @@ export type PilotSessionGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   _count?: PilotSessionCountAggregateInputType | true
+  _avg?: PilotSessionAvgAggregateInputType
+  _sum?: PilotSessionSumAggregateInputType
   _min?: PilotSessionMinAggregateInputType
   _max?: PilotSessionMaxAggregateInputType
 }
@@ -167,7 +211,11 @@ export type PilotSessionGroupByOutputType = {
   expiresAt: Date
   createdAt: Date
   lastSeenAt: Date
+  authState: string
+  policyVersion: number
   _count: PilotSessionCountAggregateOutputType | null
+  _avg: PilotSessionAvgAggregateOutputType | null
+  _sum: PilotSessionSumAggregateOutputType | null
   _min: PilotSessionMinAggregateOutputType | null
   _max: PilotSessionMaxAggregateOutputType | null
 }
@@ -198,6 +246,8 @@ export type PilotSessionWhereInput = {
   expiresAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
+  authState?: Prisma.StringFilter<"PilotSession"> | string
+  policyVersion?: Prisma.IntFilter<"PilotSession"> | number
   pilot?: Prisma.XOR<Prisma.PilotScalarRelationFilter, Prisma.PilotWhereInput>
 }
 
@@ -209,6 +259,8 @@ export type PilotSessionOrderByWithRelationInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  authState?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   pilot?: Prisma.PilotOrderByWithRelationInput
 }
 
@@ -223,6 +275,8 @@ export type PilotSessionWhereUniqueInput = Prisma.AtLeast<{
   expiresAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
+  authState?: Prisma.StringFilter<"PilotSession"> | string
+  policyVersion?: Prisma.IntFilter<"PilotSession"> | number
   pilot?: Prisma.XOR<Prisma.PilotScalarRelationFilter, Prisma.PilotWhereInput>
 }, "id" | "tokenHash">
 
@@ -234,9 +288,13 @@ export type PilotSessionOrderByWithAggregationInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  authState?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
   _count?: Prisma.PilotSessionCountOrderByAggregateInput
+  _avg?: Prisma.PilotSessionAvgOrderByAggregateInput
   _max?: Prisma.PilotSessionMaxOrderByAggregateInput
   _min?: Prisma.PilotSessionMinOrderByAggregateInput
+  _sum?: Prisma.PilotSessionSumOrderByAggregateInput
 }
 
 export type PilotSessionScalarWhereWithAggregatesInput = {
@@ -250,6 +308,8 @@ export type PilotSessionScalarWhereWithAggregatesInput = {
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"PilotSession"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"PilotSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeWithAggregatesFilter<"PilotSession"> | Date | string
+  authState?: Prisma.StringWithAggregatesFilter<"PilotSession"> | string
+  policyVersion?: Prisma.IntWithAggregatesFilter<"PilotSession"> | number
 }
 
 export type PilotSessionCreateInput = {
@@ -259,6 +319,8 @@ export type PilotSessionCreateInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
   pilot: Prisma.PilotCreateNestedOneWithoutSessionsInput
 }
 
@@ -270,6 +332,8 @@ export type PilotSessionUncheckedCreateInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
 }
 
 export type PilotSessionUpdateInput = {
@@ -279,6 +343,8 @@ export type PilotSessionUpdateInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   pilot?: Prisma.PilotUpdateOneRequiredWithoutSessionsNestedInput
 }
 
@@ -290,6 +356,8 @@ export type PilotSessionUncheckedUpdateInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PilotSessionCreateManyInput = {
@@ -300,6 +368,8 @@ export type PilotSessionCreateManyInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
 }
 
 export type PilotSessionUpdateManyMutationInput = {
@@ -309,6 +379,8 @@ export type PilotSessionUpdateManyMutationInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PilotSessionUncheckedUpdateManyInput = {
@@ -319,6 +391,8 @@ export type PilotSessionUncheckedUpdateManyInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PilotSessionListRelationFilter = {
@@ -339,6 +413,12 @@ export type PilotSessionCountOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  authState?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+}
+
+export type PilotSessionAvgOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type PilotSessionMaxOrderByAggregateInput = {
@@ -349,6 +429,8 @@ export type PilotSessionMaxOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  authState?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
 }
 
 export type PilotSessionMinOrderByAggregateInput = {
@@ -359,6 +441,12 @@ export type PilotSessionMinOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   lastSeenAt?: Prisma.SortOrder
+  authState?: Prisma.SortOrder
+  policyVersion?: Prisma.SortOrder
+}
+
+export type PilotSessionSumOrderByAggregateInput = {
+  policyVersion?: Prisma.SortOrder
 }
 
 export type PilotSessionCreateNestedManyWithoutPilotInput = {
@@ -410,6 +498,8 @@ export type PilotSessionCreateWithoutPilotInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
 }
 
 export type PilotSessionUncheckedCreateWithoutPilotInput = {
@@ -419,6 +509,8 @@ export type PilotSessionUncheckedCreateWithoutPilotInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
 }
 
 export type PilotSessionCreateOrConnectWithoutPilotInput = {
@@ -458,6 +550,8 @@ export type PilotSessionScalarWhereInput = {
   expiresAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
   lastSeenAt?: Prisma.DateTimeFilter<"PilotSession"> | Date | string
+  authState?: Prisma.StringFilter<"PilotSession"> | string
+  policyVersion?: Prisma.IntFilter<"PilotSession"> | number
 }
 
 export type PilotSessionCreateManyPilotInput = {
@@ -467,6 +561,8 @@ export type PilotSessionCreateManyPilotInput = {
   expiresAt: Date | string
   createdAt?: Date | string
   lastSeenAt?: Date | string
+  authState?: string
+  policyVersion?: number
 }
 
 export type PilotSessionUpdateWithoutPilotInput = {
@@ -476,6 +572,8 @@ export type PilotSessionUpdateWithoutPilotInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PilotSessionUncheckedUpdateWithoutPilotInput = {
@@ -485,6 +583,8 @@ export type PilotSessionUncheckedUpdateWithoutPilotInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PilotSessionUncheckedUpdateManyWithoutPilotInput = {
@@ -494,6 +594,8 @@ export type PilotSessionUncheckedUpdateManyWithoutPilotInput = {
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastSeenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  authState?: Prisma.StringFieldUpdateOperationsInput | string
+  policyVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -506,6 +608,8 @@ export type PilotSessionSelect<ExtArgs extends runtime.Types.Extensions.Internal
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  authState?: boolean
+  policyVersion?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotSession"]>
 
@@ -517,6 +621,8 @@ export type PilotSessionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  authState?: boolean
+  policyVersion?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotSession"]>
 
@@ -528,6 +634,8 @@ export type PilotSessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  authState?: boolean
+  policyVersion?: boolean
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["pilotSession"]>
 
@@ -539,9 +647,11 @@ export type PilotSessionSelectScalar = {
   expiresAt?: boolean
   createdAt?: boolean
   lastSeenAt?: boolean
+  authState?: boolean
+  policyVersion?: boolean
 }
 
-export type PilotSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "tokenHash" | "csrfTokenHash" | "expiresAt" | "createdAt" | "lastSeenAt", ExtArgs["result"]["pilotSession"]>
+export type PilotSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "pilotId" | "tokenHash" | "csrfTokenHash" | "expiresAt" | "createdAt" | "lastSeenAt" | "authState" | "policyVersion", ExtArgs["result"]["pilotSession"]>
 export type PilotSessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pilot?: boolean | Prisma.PilotDefaultArgs<ExtArgs>
 }
@@ -565,6 +675,8 @@ export type $PilotSessionPayload<ExtArgs extends runtime.Types.Extensions.Intern
     expiresAt: Date
     createdAt: Date
     lastSeenAt: Date
+    authState: string
+    policyVersion: number
   }, ExtArgs["result"]["pilotSession"]>
   composites: {}
 }
@@ -996,6 +1108,8 @@ export interface PilotSessionFieldRefs {
   readonly expiresAt: Prisma.FieldRef<"PilotSession", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"PilotSession", 'DateTime'>
   readonly lastSeenAt: Prisma.FieldRef<"PilotSession", 'DateTime'>
+  readonly authState: Prisma.FieldRef<"PilotSession", 'String'>
+  readonly policyVersion: Prisma.FieldRef<"PilotSession", 'Int'>
 }
     
 

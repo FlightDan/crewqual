@@ -9,6 +9,6 @@ export async function GET(request: NextRequest) {
     const admin = await getAdmin(request, "pilots.write");
     return jsonData(await getPilotCsvTemplate(admin), requestId);
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

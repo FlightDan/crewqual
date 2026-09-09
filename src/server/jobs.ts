@@ -9,6 +9,8 @@ export const QUEUES = {
   cleanup: "crewqual.cleanup",
   mediaOptimization: "crewqual.media-optimization",
   backups: "crewqual.backups",
+  securityDetection: "crewqual.security-detection",
+  securityCleanup: "crewqual.security-cleanup",
 } as const;
 
 export function createBoss() {

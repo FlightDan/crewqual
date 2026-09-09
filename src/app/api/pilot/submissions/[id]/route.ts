@@ -29,6 +29,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

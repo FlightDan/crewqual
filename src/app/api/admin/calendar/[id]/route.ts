@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { ApiError, getRequestId, jsonData, jsonError } from "@/server/api";
 import { getAdmin } from "@/server/admin-guard";
 import { getPrisma } from "@/server/prisma";
@@ -13,11 +14,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const admin = await getAdmin(request, "operations.read");
     const unitId = requireAssignedUnit(admin);
     const id = (await context.params).id;
+    const match = /^(qualification|stage):(.+)$/.exec(id);
+    if (!match) throw new ApiError("VALIDATION_ERROR", "日历事件 ID 无效", 422);
+    const recordId = z.string().uuid().parse(match[2]);
     const db = getPrisma();
-    if (id.startsWith("qualification:")) {
+    if (match[1] === "qualification") {
       const record = await db.qualificationRecord.findFirst({
         where: {
-          id: id.slice(13),
+          id: recordId,
           status: "ACTIVE",
           ...(unitId ? { pilot: { unitId } } : {}),
         },
@@ -90,7 +94,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     const stage = await db.upgradeStage.findFirst({
       where: {
-        id: id.replace("stage:", ""),
+        id: recordId,
         ...(unitId ? { plan: { pilot: { unitId } } } : {}),
       },
       include: { plan: { include: { pilot: { include: { unit: true } } } } },
@@ -125,6 +129,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       requestId,
     );
   } catch (error) {
-    return jsonError(error, requestId);
+    return jsonError(error, requestId, request);
   }
 }

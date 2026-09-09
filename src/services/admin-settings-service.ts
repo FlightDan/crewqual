@@ -6,6 +6,10 @@ import type {
   NotificationChannelSetting,
   NotificationRoute,
   SecurityPolicy,
+  SecurityRiskRange,
+  SecurityRiskSummary,
+  SecurityLoginSummary,
+  SecurityRiskDetectionPage,
   SettingsAdminAccount,
   SettingsAdminRole,
   SettingsPosition,
@@ -29,6 +33,12 @@ export class AdminSettingsServiceError extends Error {
     this.code = options?.code;
     this.details = options?.details;
   }
+}
+
+export function isSecurityRiskSummaryComplete(summary: SecurityRiskSummary) {
+  return (
+    summary.complete && summary.collectionHealthy && !summary.delayed && summary.droppedCount === 0
+  );
 }
 
 const now = "2026-08-15T00:30:00.000Z";
@@ -280,6 +290,11 @@ export const defaultAdminSettingsSnapshot: AdminSettingsSnapshot = {
     appOrigin: "https://crewqual.example.com",
     appPort: 443,
     adminLoginMode: "PASSWORD_TOTP",
+    authenticationPreset: "CONVENIENCE",
+    memberLoginMode: "SMS_LINK",
+    adminFido2Required: false,
+    memberFido2Required: false,
+    highRiskReauthEnabled: true,
     adminSessionTtlHours: 8,
     pilotAccessLinkTtlMinutes: 15,
     pilotSessionTtlMinutes: 60,
@@ -404,6 +419,8 @@ export type AdminCredentialResult = SettingsAdminAccount & {
   /** Returned only by account provisioning/reset endpoints; never persisted in snapshots. */
   oneTimeTotpSecret?: string;
   oneTimeTotpUri?: string;
+  passwordResetExpiresAt?: string;
+  passwordResetPending?: boolean;
 };
 export type SecuritySaveResult = {
   policy: SecurityPolicy;
@@ -412,6 +429,8 @@ export type SecuritySaveResult = {
 export type SecuritySaveInput = SecurityPolicy & {
   currentPassword?: string;
   currentTotpCode?: string;
+  currentFidoChallengeId?: string;
+  currentFidoResponse?: unknown;
 };
 export type NotificationInput = {
   unitId: string;
@@ -435,13 +454,24 @@ export interface AdminSettingsService {
   deletePosition(input: DeletePositionInput): Promise<DeletePositionResult>;
   saveAdmin(input: AdminInput): Promise<SettingsAdminAccount>;
   createAdmin(input: Omit<AdminInput, "id">): Promise<AdminCredentialResult>;
-  runAdminAction(id: string, action: AdminAction, value?: string): Promise<AdminCredentialResult>;
+  runAdminAction(
+    id: string,
+    action: AdminAction,
+    value?: string,
+    reauthentication?: { currentPassword?: string; currentTotpCode?: string },
+  ): Promise<AdminCredentialResult>;
   saveNotifications(input: NotificationInput): Promise<NotificationInput>;
   saveIntegration(
     input: IntegrationInput,
   ): Promise<NotificationChannelSetting | AiIntegrationSetting>;
   testIntegration(key: IntegrationKey): Promise<{ ok: boolean; message: string; testedAt: string }>;
   saveSecurity(input: SecuritySaveInput): Promise<SecuritySaveResult>;
+  loadSecurityTrends(range: SecurityRiskRange): Promise<SecurityRiskSummary>;
+  loadSecuritySummary(): Promise<SecurityLoginSummary>;
+  loadSecurityDetections(
+    range: SecurityRiskRange,
+    page: number,
+  ): Promise<SecurityRiskDetectionPage>;
   revokeSession(id: string): Promise<void>;
   loadMediaOptimization(): Promise<MediaOptimizationSetting>;
   saveMediaOptimization(input: MediaOptimizationSetting): Promise<MediaOptimizationSetting>;
@@ -737,6 +767,39 @@ const mockService: AdminSettingsService = {
       snapshot.sessions = snapshot.sessions.filter((item) => item.id !== id);
     });
   },
+  async loadSecurityTrends(range) {
+    const until = new Date(Math.floor(Date.now() / 60_000) * 60_000);
+    const hours = { "24h": 24, "7d": 168, "30d": 720 }[range];
+    const counts = () => ({ batches: 0, requests: 0, sources: 0, sourceSegments: {} });
+    return {
+      ...counts(),
+      since: new Date(until.getTime() - hours * 3_600_000).toISOString(),
+      until: until.toISOString(),
+      keyRotation: false,
+      unknownSourceRequests: 0,
+      categories: {
+        PUBLIC_SCAN: counts(),
+        CREDENTIAL_STUFFING: counts(),
+        DISTRIBUTED_LOGIN_ATTEMPT: counts(),
+      },
+      trend: [],
+      trendBucketSeconds: range === "30d" ? 86400 : 3600,
+      complete: false,
+      collectionHealthy: false,
+      processedThrough: null,
+      lastCollectedAt: null,
+      lastAggregatedAt: null,
+      droppedCount: 0,
+      lastError: "PREVIEW_MODE",
+      delayed: false,
+    };
+  },
+  async loadSecuritySummary() {
+    return { ...(await mockService.loadSecurityTrends("24h")), sessionId: "preview-session" };
+  },
+  async loadSecurityDetections(_range, page) {
+    return { items: [], total: 0, page, pageSize: 20, totalPages: 0 };
+  },
   async loadMediaOptimization() {
     return { id: "global", enabled: false, idleMinutes: 5, batchSize: 5, version: 1 };
   },
@@ -791,6 +854,21 @@ async function mediaRequest<T>(method: string, body?: unknown) {
   return payload.data;
 }
 
+async function securityRiskRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`/api/admin/security/${path}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<T>;
+  if (!response.ok || !payload.data) {
+    throw new AdminSettingsServiceError("Security statistics unavailable", {
+      code: payload.error?.code,
+    });
+  }
+  return payload.data;
+}
+
 const remoteService: AdminSettingsService = {
   load: (unitId) =>
     request<AdminSettingsSnapshot>(
@@ -808,12 +886,21 @@ const remoteService: AdminSettingsService = {
   deletePosition: (input) => request("POST", { action: "position.delete", input }),
   saveAdmin: (input) => request("PATCH", { action: "admin.save", input }),
   createAdmin: (input) => request("POST", { action: "admin.create", input }),
-  runAdminAction: (id, action, value) =>
-    request("POST", { action: "admin.action", input: { id, action, value } }),
+  runAdminAction: (id, action, value, reauthentication) =>
+    request("POST", {
+      action: "admin.action",
+      input: { id, action, value, ...reauthentication },
+    }),
   saveNotifications: (input) => request("PATCH", { action: "notifications.save", input }),
   saveIntegration: (input) => request("PATCH", { action: "integration.save", input }),
   testIntegration: (key) => request("POST", { action: "integration.test", input: { key } }),
   saveSecurity: (input) => request("PATCH", { action: "security.save", input }),
+  loadSecurityTrends: (range) => securityRiskRequest<SecurityRiskSummary>(`trends?range=${range}`),
+  loadSecuritySummary: () => securityRiskRequest<SecurityLoginSummary>("summary"),
+  loadSecurityDetections: (range, page) =>
+    securityRiskRequest<SecurityRiskDetectionPage>(
+      `detections?range=${range}&page=${Math.max(1, Math.floor(page))}&pageSize=20`,
+    ),
   revokeSession: async (id) => {
     await request<{ revoked: boolean }>("POST", { action: "session.revoke", input: { id } });
   },

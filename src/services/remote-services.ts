@@ -118,6 +118,21 @@ function remote<T>(data: Promise<T>): Promise<ServiceResult<T>> {
   return data.then((value) => ({ data: value, source: "remote" as const }));
 }
 
+/** Serialize optional service filters without sending JavaScript sentinels. */
+function serializeQuery(query: object) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === "") continue;
+    params.set(key, String(value));
+  }
+  return params.toString();
+}
+
+function appendQuery(path: string, query: object) {
+  const serialized = serializeQuery(query);
+  return serialized ? `${path}?${serialized}` : path;
+}
+
 const noProfile: PilotProfile | null = null;
 
 export const remotePilotIdentityService: PilotIdentityService = {
@@ -176,12 +191,19 @@ export const remoteQualificationService: QualificationService = {
 export const remoteDocumentIntelligenceService: DocumentIntelligenceService = {
   async recognizeDates(input) {
     if (typeof input !== "string") return { data: { kind: "skipped" }, source: "remote" };
-    const task = await apiRequest<{ id: string; status: string }>(
+    const task = await apiRequest<{ id?: string; status: string }>(
       `/api/evidence-images/${input}/recognitions`,
       {
         method: "POST",
       },
     );
+    if (task.status.toLowerCase() === "disabled")
+      return { data: { kind: "disabled" }, source: "remote" };
+    if (!task.id)
+      return {
+        data: { kind: "busy", operation: "recognize", retryable: true },
+        source: "remote",
+      };
     for (let attempt = 0; attempt < 60; attempt += 1) {
       const result = await apiRequest<{
         id: string;
@@ -191,9 +213,13 @@ export const remoteDocumentIntelligenceService: DocumentIntelligenceService = {
           confidence?: number;
           fields?: Record<string, string | null>;
           summary?: string;
+          provider?: string;
         };
       }>(`/api/recognitions/${task.id}`);
-      if (["queued", "running"].includes(result.status.toLowerCase())) {
+      const status = result.status.toLowerCase();
+      if (status === "disabled" || result.result?.provider?.toLowerCase() === "disabled")
+        return { data: { kind: "disabled" }, source: "remote" };
+      if (["queued", "running"].includes(status)) {
         await new Promise((resolve) => setTimeout(resolve, 250));
         continue;
       }
@@ -275,9 +301,7 @@ export const remoteAdminDashboardService: ApplicationServices["adminDashboard"] 
 };
 export const remotePilotDirectoryService: ApplicationServices["pilotDirectory"] = {
   list(query: PilotDirectoryQuery) {
-    return admin<PaginatedResult<AdminPilotListItem>>(
-      `/api/admin/pilots?${new URLSearchParams(query as Record<string, string>).toString()}`,
-    );
+    return admin<PaginatedResult<AdminPilotListItem>>(appendQuery("/api/admin/pilots", query));
   },
   getById(id) {
     return admin<AdminPilotDetail | null>(`/api/admin/pilots/${id}`);
@@ -332,9 +356,7 @@ export const remotePilotDirectoryService: ApplicationServices["pilotDirectory"] 
 
 export const remoteReviewService: ReviewService = {
   list(query: ReviewListQuery) {
-    return admin<PaginatedResult<QualificationReview>>(
-      `/api/admin/reviews?${new URLSearchParams(query as Record<string, string>).toString()}`,
-    );
+    return admin<PaginatedResult<QualificationReview>>(appendQuery("/api/admin/reviews", query));
   },
   getById(id) {
     return admin<QualificationReview | null>(`/api/admin/reviews/${id}`);
@@ -378,16 +400,14 @@ export const remoteReviewService: ReviewService = {
 
 export const remoteCalendarService: ApplicationServices["calendar"] = {
   listEvents(query: CalendarQuery) {
-    return admin<AdminCalendarEvent[]>(
-      `/api/admin/calendar?${new URLSearchParams(query as Record<string, string>).toString()}`,
-    );
+    return admin<AdminCalendarEvent[]>(appendQuery("/api/admin/calendar", query));
   },
   getEvent(id) {
     return admin<AdminCalendarEvent | null>(`/api/admin/calendar/${id}`);
   },
   getDayQualificationRoster(query: CalendarDayQualificationQuery) {
     return admin<CalendarDayQualificationRoster>(
-      `/api/admin/calendar/qualifications?${new URLSearchParams(query as Record<string, string>).toString()}`,
+      appendQuery("/api/admin/calendar/qualifications", query),
     );
   },
 };
@@ -395,7 +415,7 @@ export const remoteCalendarService: ApplicationServices["calendar"] = {
 export const remoteUpgradePlanService: UpgradePlanService = {
   list(query: UpgradePlanQuery) {
     return admin<PaginatedResult<UpgradePlanRecord>>(
-      `/api/admin/upgrade-plans?${new URLSearchParams(query as Record<string, string>).toString()}`,
+      appendQuery("/api/admin/upgrade-plans", query),
     );
   },
   getById(id) {
@@ -490,9 +510,7 @@ export const remoteNotificationService: ApplicationServices["notifications"] = {
     return admin<NotificationSummary>("/api/admin/notifications/summary");
   },
   list(query: NotificationQuery) {
-    return admin<PaginatedResult<NotificationLog>>(
-      `/api/admin/notifications?${new URLSearchParams(query as Record<string, string>).toString()}`,
-    );
+    return admin<PaginatedResult<NotificationLog>>(appendQuery("/api/admin/notifications", query));
   },
   getById(id) {
     return admin<NotificationLog | null>(`/api/admin/notifications/${id}`);
