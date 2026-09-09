@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type APIResponse } from "@playwright/test";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import sharp from "sharp";
 
 // Only a disposable, explicitly opted-in test stack may receive fixtures.
 // DIRECT_URL is the fixture owner connection; HTTP still uses the app's runtime role.
@@ -41,6 +42,7 @@ function memberFixture() {
     recordId: randomUUID(),
     submissionId: randomUUID(),
     imageId: randomUUID(),
+    objectKey: "",
     orphanId: randomUUID(),
     recognitionId: randomUUID(),
     session: session(),
@@ -60,12 +62,12 @@ async function dataFrom(response: APIResponse) {
   return (await response.json()).data;
 }
 
-function expectSignedImageUrl(value: unknown, imageId: string) {
+function expectSignedImageUrl(value: unknown, objectKey: string) {
   let matches = false;
   try {
     const url = new URL(typeof value === "string" ? value : "");
     matches =
-      decodeURIComponent(url.pathname).endsWith(`/${imageId}.jpg`) &&
+      decodeURIComponent(url.pathname).endsWith(`/${objectKey}`) &&
       url.searchParams.has("X-Amz-Signature");
   } catch {
     // Keep malformed URLs out of assertion output as well.
@@ -152,6 +154,11 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
             `INSERT INTO "Pilot" (id, "personId", "unitId", "employeeNumber", mobile, "displayName", initials, "roleCode", "aircraftType", "rankLabel", "updatedAt")
              VALUES ($1::uuid, $2, $3, $1::text, '13800000000', $1::text, 'SE', 'CAPTAIN', 'A320', 'E2E', now())`,
             [member.pilotId, member.personId, member.unitId],
+          );
+          await client.query(
+            `INSERT INTO "PilotProfile" (id, "personId", "legacyPilotId", "aircraftType", "dutyCode", "rankLabel", "updatedAt")
+             VALUES ($1, $2, $3, 'A320', 'CAPTAIN', 'E2E', now())`,
+            [randomUUID(), member.personId, member.pilotId],
           );
           await client.query(
             `INSERT INTO "QualificationType" (id, code, name, "validityRule", reminders, "parameterRestriction", "ocrChecks", "updatedAt")
@@ -244,6 +251,54 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
         client.release();
       }
 
+      // Exercise the real sanitizer and object store before testing signed access.
+      for (const member of members) {
+        const http = await authenticatedContext(playwright.request, "member", member.session);
+        contexts.push(http);
+        const bytes = await sharp({
+          create: { width: 24, height: 24, channels: 3, background: "#eef6ff" },
+        })
+          .jpeg()
+          .toBuffer();
+        const uploaded = await http.post("/api/evidence-images", {
+          multipart: { file: { name: "fixture.jpg", mimeType: "image/jpeg", buffer: bytes } },
+        });
+        expect(uploaded.status()).toBe(201);
+        const uploadedId = (await uploaded.json()).data.id;
+        const transfer = await db.connect();
+        try {
+          await transfer.query("BEGIN");
+          // Release the unique object key before attaching its provenance to
+          // the existing linked fixture. Keep both changes atomic.
+          const source = await transfer.query(
+            `DELETE FROM "EvidenceImage" WHERE id = $1 RETURNING *`,
+            [uploadedId],
+          );
+          const image = source.rows[0]!;
+          await transfer.query(
+            `UPDATE "EvidenceImage" SET "objectKey" = $2, "mimeType" = $3, width = $4, height = $5, "byteSize" = $6, sha256 = $7, "storageEncodingVersion" = $8, "sanitizedAt" = $9 WHERE id = $1`,
+            [
+              member.imageId,
+              image.objectKey,
+              image.mimeType,
+              image.width,
+              image.height,
+              image.byteSize,
+              image.sha256,
+              image.storageEncodingVersion,
+              image.sanitizedAt,
+            ],
+          );
+          await transfer.query("COMMIT");
+          member.objectKey = image.objectKey;
+        } catch (error) {
+          await transfer.query("ROLLBACK");
+          throw error;
+        } finally {
+          transfer.release();
+        }
+      }
+
       for (const [index, member] of members.entries()) {
         const other = members[1 - index]!;
         const http = await authenticatedContext(playwright.request, "member", member.session);
@@ -281,7 +336,7 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
           );
         }
         const ownUrl = await dataFrom(await http.get(`/api/evidence-images/${member.imageId}/url`));
-        expectSignedImageUrl(ownUrl.url, member.imageId);
+        expectSignedImageUrl(ownUrl.url, member.objectKey);
         await expectNotFound(await http.get(`/api/evidence-images/${other.imageId}/url`));
         const recognition = await dataFrom(
           await http.get(`/api/recognitions/${member.recognitionId}`),
@@ -373,6 +428,10 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
               members.map((member) => member.typeId),
             ]);
             await cleanup.query(`DELETE FROM "AdminUser" WHERE id = $1`, [adminId]);
+            await cleanup.query(
+              `DELETE FROM "PilotProfile" WHERE "legacyPilotId" = ANY($1::uuid[])`,
+              [pilotIds],
+            );
             await cleanup.query(`DELETE FROM "Pilot" WHERE id = ANY($1::uuid[])`, [pilotIds]);
             await cleanup.query(`DELETE FROM "Person" WHERE id = ANY($1::uuid[])`, [
               members.map((member) => member.personId),

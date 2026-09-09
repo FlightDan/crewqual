@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { securityHasher } from "../../src/server/security-source";
 import sharp from "sharp";
 import { UPGRADE_STAGE_CODES } from "../../src/types/services";
 
@@ -113,10 +114,14 @@ async function loginAdmin(page: Page) {
     `UPDATE "AdminUser" SET "lastTotpCounter" = NULL, "failedAttempts" = 0, "lockedUntil" = NULL WHERE email = $1`,
     [adminEmail],
   );
-  await auditDb.query(`DELETE FROM "RateLimitBucket" WHERE "key" IN ($1, $2)`, [
+  const hasher = securityHasher();
+  const bucketKeys = [
     `admin-login:address:${e2eRequestAddress}`,
+    // Direct candidate connections may run with forwarding disabled.
+    "admin-login:address:direct-client",
     `admin-login:account:${adminEmail.toLowerCase()}`,
-  ]);
+  ].map((key) => `v1:${hasher.keyVersion}:${hasher.hash("dimension", `rate-limit:${key}`)}`);
+  await auditDb.query(`DELETE FROM "RateLimitBucket" WHERE "key" = ANY($1::text[])`, [bucketKeys]);
   const response = await page.request.post("/api/admin/login", {
     headers: {
       origin: appOrigin,
@@ -161,7 +166,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("button", { name: "确认裁切并上传" }).click();
     await expect(page.getByText("已成功上传")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("AI识别系统繁忙")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("暂未启用证照识别")).toBeVisible({ timeout: 30_000 });
 
     await page.getByLabel("证件编号").fill(e2eCredentialNumber);
     await page.getByLabel("签发日期").fill("2026-08-14");
@@ -581,6 +586,9 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
         ),
       ).rejects.toMatchObject({ code: "23505" });
 
+      await auditDb.query(`UPDATE "AdminUser" SET "lastTotpCounter" = NULL WHERE id = $1`, [
+        currentAdmin.id,
+      ]);
       const reset = await page.request.post("/api/admin/settings", {
         headers: { origin: appOrigin, "x-csrf-token": csrf },
         data: {
@@ -589,6 +597,8 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
             id: currentAdmin.id,
             action: "resetPassword",
             value: "Temporary-E2E-Password-2026!",
+            currentPassword: adminPassword,
+            currentTotpCode: totp(adminTotpSecret),
           },
         },
       });
