@@ -11,6 +11,40 @@ grep -q 'signed manifest and SHA256SUMS' <<<"$post_source"
 grep -q '"\$target_updater" reconcile-caddy' <<<"$post_source"
 ! grep -q '/usr/local/libexec/crewqual-updater reconcile-caddy' <<<"$post_source"
 grep -q 'tail -n 120 "\$wrapper_dir/server.log"' <<<"$post_source"
+bootstrap_call_file="$(mktemp)"
+bootstrap_stdin_file="$(mktemp)"
+openssl() {
+  if [[ "$*" == 'rand -base64 32' ]]; then
+    printf 'fixture-password-with-more-than-12-characters\n'
+  elif [[ "$*" == 'rand 20' ]]; then
+    printf 'fixture-random-bytes'
+  else
+    return 2
+  fi
+}
+base32() { printf 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP\n'; }
+compose_upgrade() {
+  cat >"$bootstrap_stdin_file"
+  printf '%q\n' "$@" >"$bootstrap_call_file"
+}
+bootstrap_acceptance_admin
+mapfile -t bootstrap_args <"$bootstrap_call_file"
+[[ "${#bootstrap_args[@]}" == 9 ]]
+[[ "${bootstrap_args[*]:0:8}" == 'run --rm --no-deps -T --entrypoint /bin/sh bootstrap -c' ]]
+[[ "${bootstrap_args[8]}" == *'read -r INITIAL_ADMIN_EMAIL'* ]]
+[[ "${bootstrap_args[8]}" == *'exec node scripts/container-entrypoint.mjs bootstrap'* ]]
+[[ "$(cat "$bootstrap_stdin_file")" == $'release-acceptance@example.invalid\nfixture-password-with-more-than-12-characters\nJBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP' ]]
+! grep -q 'fixture-password' "$bootstrap_call_file"
+compose_upgrade() { cat >/dev/null; return 17; }
+if bootstrap_acceptance_admin; then echo 'bootstrap failure was ignored' >&2; exit 1; fi
+bootstrap_call_line="$(grep -n '^bootstrap_acceptance_admin$' <<<"$post_source" | cut -d: -f1)"
+sentinel_line="$(grep -n 'CREATE TABLE public.release_acceptance_sentinel' <<<"$post_source" | cut -d: -f1)"
+[[ "$bootstrap_call_line" -lt "$sentinel_line" ]]
+final_bootstrap_line="$(grep -n '^compose_upgrade run --rm --no-deps bootstrap$' <<<"$post_source" | cut -d: -f1)"
+final_ops_line="$(grep -n '^compose_upgrade --profile ops run --rm --no-deps ops$' <<<"$post_source" | tail -1 | cut -d: -f1)"
+[[ "$final_bootstrap_line" -lt "$final_ops_line" ]]
+rm -f "$bootstrap_call_file" "$bootstrap_stdin_file"
+unset -f openssl base32 compose_upgrade
 target=v1.2.0-rc.2
 ACCEPTANCE_POLL_ATTEMPTS=2
 ACCEPTANCE_POLL_INTERVAL=0

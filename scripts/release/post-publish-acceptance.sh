@@ -97,6 +97,25 @@ compose_upgrade() {
   sudo docker compose --project-directory "$upgrade_dir" --env-file "$upgrade_dir/.env" -f "$upgrade_dir/compose.yaml" "$@"
 }
 
+bootstrap_acceptance_admin() {
+  local email password totp_secret
+  email='release-acceptance@example.invalid'
+  password="$(openssl rand -base64 32 | tr -d '\n')"
+  totp_secret="$(openssl rand 20 | base32 | tr -d '=\n')"
+  printf '%s\n' "$email" "$password" "$totp_secret" | \
+    compose_upgrade run --rm --no-deps -T --entrypoint /bin/sh bootstrap -c \
+      'IFS= read -r INITIAL_ADMIN_EMAIL &&
+       IFS= read -r INITIAL_ADMIN_PASSWORD &&
+       IFS= read -r INITIAL_ADMIN_TOTP_SECRET &&
+       export INITIAL_ADMIN_EMAIL INITIAL_ADMIN_PASSWORD INITIAL_ADMIN_TOTP_SECRET &&
+       exec node scripts/container-entrypoint.mjs bootstrap' >/dev/null
+}
+
+admin_fingerprint() {
+  compose_upgrade exec -T postgres psql -U crewqual -d crewqual -At -v ON_ERROR_STOP=1 -c \
+    'SELECT md5(id::text || chr(58) || "passwordHash") FROM "AdminUser" ORDER BY "createdAt" LIMIT 1'
+}
+
 stop_test_server() {
   if [[ -n "${server_pid:-}" ]]; then
     local privileged_pid=""
@@ -190,6 +209,14 @@ fi
 
 install_from_tag "$baseline" "$upgrade_dir"
 image_id_checks "$upgrade_dir" "$expected_baseline_commit"
+# The production installer intentionally leaves a new deployment in web-setup
+# mode. Seed the disposable acceptance database through the real production
+# bootstrap so the database verifier can prove the complete initialized state
+# survives backup, rollback, and retry. Keep these credentials out of .env.
+bootstrap_acceptance_admin
+compose_upgrade --profile ops run --rm --no-deps ops >/dev/null
+baseline_admin_fingerprint="$(admin_fingerprint)"
+[[ "$baseline_admin_fingerprint" =~ ^[0-9a-f]{32}$ ]] || die "acceptance bootstrap did not create one verifiable admin"
 shared="$(sudo sed -n "s/^CREWQUAL_UPDATER_SHARED_SECRET='\([^']*\)'/\1/p" "$upgrade_dir/.env")"
 [[ -n "$shared" ]] || die "missing updater shared secret"
 
@@ -231,6 +258,7 @@ wait_job "$failed_job" FAILED "$baseline"
 [[ -f "$wrapper_dir/invoked" && -f "$wrapper_dir/restart-seen" && -f "$wrapper_dir/data-mutated" ]] || die "failure injection did not run completely"
 for file in .env compose.yaml Caddyfile; do sudo cmp -s "$wrapper_dir/baseline-$file" "$upgrade_dir/$file" || die "rollback changed $file"; done
 [[ "$(compose_upgrade exec -T postgres psql -U crewqual -d crewqual -Atc 'SELECT value FROM public.release_acceptance_sentinel')" == baseline ]] || die "rollback did not restore database sentinel"
+[[ "$(admin_fingerprint)" == "$baseline_admin_fingerprint" ]] || die "rollback did not restore the baseline admin"
 image_id_checks "$upgrade_dir" "$expected_baseline_commit"
 sudo "$target_updater" reconcile-caddy --timeout 60s
 stop_test_server
@@ -241,10 +269,12 @@ retry_job="$(request_install)"
 [[ "$retry_job" != "$failed_job" ]] || die "retry reused failed job ID"
 wait_job "$retry_job" SUCCEEDED "$target"
 sudo grep -qx "CREWQUAL_VERSION='$target'" "$upgrade_dir/.env" || die "retry did not reach target"
+[[ "$(admin_fingerprint)" == "$baseline_admin_fingerprint" ]] || die "retry changed the baseline admin"
 image_id_checks "$upgrade_dir" "$expected_commit"
 sudo "$target_updater" reconcile-caddy --timeout 60s
-compose_upgrade --profile ops run --rm --no-deps ops
 compose_upgrade run --rm --no-deps migrate
 compose_upgrade run --rm --no-deps bootstrap
+[[ "$(admin_fingerprint)" == "$baseline_admin_fingerprint" ]] || die "idempotence check changed the baseline admin"
+compose_upgrade --profile ops run --rm --no-deps ops
 compose_upgrade exec -T postgres psql -U crewqual -d crewqual -v ON_ERROR_STOP=1 -c 'DROP TABLE public.release_acceptance_sentinel' >/dev/null
 echo "post-publish install, digest, upgrade, rollback, retry, db-check and idempotence acceptance passed"
