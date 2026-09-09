@@ -83,14 +83,12 @@ function databaseIdentity(value: string) {
   return `${hostname}:${port}/${database}?host=${socketHost}&service=${service}`;
 }
 
-type PostgresIdentity = {
+export type PostgresIdentity = {
   databaseName: string;
   databaseOid: string | null;
   serverAddress: string | null;
   serverPort: number | null;
-  dataDirectory: string | null;
   systemIdentifier: string | null;
-  clusterIdentity: string;
 };
 
 function createRestoreDatabaseClient(databaseUrl: string) {
@@ -112,14 +110,12 @@ async function readPostgresIdentity(client: PrismaClient): Promise<PostgresIdent
       databaseOid: string | null;
       serverAddress: string | null;
       serverPort: number | null;
-      dataDirectory: string | null;
     }>
   >`
     SELECT current_database() AS "databaseName",
            (SELECT oid::text FROM pg_catalog.pg_database WHERE datname = current_database()) AS "databaseOid",
            inet_server_addr()::text AS "serverAddress",
-           inet_server_port() AS "serverPort",
-           current_setting('data_directory', true) AS "dataDirectory"
+           inet_server_port() AS "serverPort"
   `;
   if (!row) throw new Error("无法读取 PostgreSQL 实例身份，拒绝恢复");
 
@@ -137,10 +133,29 @@ async function readPostgresIdentity(client: PrismaClient): Promise<PostgresIdent
     // The fallback still compares the identity observed by PostgreSQL, never
     // the caller-supplied hostname or connection string.
   }
-  const clusterIdentity = systemIdentifier
-    ? `control:${systemIdentifier}`
-    : `server:${row.serverAddress ?? "local"}:${row.serverPort ?? 0}:${row.dataDirectory ?? "unknown"}`;
-  return { ...row, systemIdentifier, clusterIdentity };
+  return { ...row, systemIdentifier };
+}
+
+export function samePostgresDatabase(source: PostgresIdentity, restore: PostgresIdentity) {
+  let sameCluster: boolean;
+  if (source.systemIdentifier && restore.systemIdentifier) {
+    sameCluster = source.systemIdentifier === restore.systemIdentifier;
+  } else {
+    if (
+      !source.serverAddress ||
+      source.serverPort === null ||
+      !restore.serverAddress ||
+      restore.serverPort === null
+    ) {
+      throw new Error("无法确认 PostgreSQL 实例身份，拒绝恢复");
+    }
+    sameCluster =
+      source.serverAddress === restore.serverAddress && source.serverPort === restore.serverPort;
+  }
+  if (!sameCluster) return false;
+  return source.databaseOid && restore.databaseOid
+    ? source.databaseOid === restore.databaseOid
+    : source.databaseName === restore.databaseName;
 }
 
 async function assertActualRestoreDatabaseIsolation(
@@ -153,12 +168,9 @@ async function assertActualRestoreDatabaseIsolation(
       readPostgresIdentity(sourceDb),
       readPostgresIdentity(restoreDb),
     ]);
-    const sameDatabase =
-      source.clusterIdentity === restore.clusterIdentity &&
-      (source.databaseOid && restore.databaseOid
-        ? source.databaseOid === restore.databaseOid
-        : source.databaseName === restore.databaseName);
-    if (sameDatabase) throw new Error("RESTORE_DATABASE_URL 不得指向在线数据库");
+    if (samePostgresDatabase(source, restore)) {
+      throw new Error("RESTORE_DATABASE_URL 不得指向在线数据库");
+    }
   } finally {
     await restoreDb.$disconnect();
   }

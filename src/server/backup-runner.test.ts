@@ -31,6 +31,7 @@ import {
   parseGalleryManifest,
   postgresClientEnvironment,
   recoverStaleBackupRuns,
+  samePostgresDatabase,
   selectGalleryRestoreRuns,
   testBackupTarget,
 } from "@/server/backup-runner";
@@ -46,6 +47,39 @@ const verboseFor = (names: string[], types: string[]) =>
   names.map((name, index) => `${types[index]} root/root 1 2024-01-01 00:00 ${name}`).join("\n");
 
 describe("offline restore archive validation", () => {
+  it("compares PostgreSQL identity safely across unequal monitoring privileges", () => {
+    const source = {
+      databaseName: "crewqual",
+      databaseOid: "16384",
+      serverAddress: "10.0.0.2",
+      serverPort: 5432,
+      systemIdentifier: null,
+    };
+    expect(
+      samePostgresDatabase(source, {
+        ...source,
+        systemIdentifier: "7543210987654321000",
+      }),
+    ).toBe(true);
+    expect(
+      samePostgresDatabase(source, {
+        ...source,
+        databaseName: "crewqual_restore",
+        databaseOid: "16385",
+        systemIdentifier: "7543210987654321000",
+      }),
+    ).toBe(false);
+    expect(
+      samePostgresDatabase(
+        { ...source, systemIdentifier: "111" },
+        { ...source, systemIdentifier: "222" },
+      ),
+    ).toBe(false);
+    expect(() =>
+      samePostgresDatabase({ ...source, serverAddress: null }, { ...source, serverAddress: null }),
+    ).toThrow("无法确认 PostgreSQL 实例身份");
+  });
+
   it("requires an isolated database and object-storage bucket", () => {
     expect(() =>
       assertRestoreIsolation({
