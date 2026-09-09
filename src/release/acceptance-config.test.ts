@@ -91,7 +91,7 @@ describe("release acceptance configuration", () => {
     ).toEqual([]);
   });
 
-  it("requires full acceptance for a final release", () => {
+  it("requires isolated or full acceptance for a final release", () => {
     const environment = validEnvironment();
     for (const name of RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS) delete environment[name];
     expect(
@@ -100,8 +100,75 @@ describe("release acceptance configuration", () => {
         profile: "final",
         keyring: testKeyring,
       }).join("\n"),
-    ).toContain("final releases require full acceptance");
+    ).toContain("final releases require isolated or full acceptance");
   });
+
+  it("accepts isolated final acceptance without external infrastructure secrets", () => {
+    const environment = validEnvironment();
+    for (const name of RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS) delete environment[name];
+    expect(acceptanceConfigIssues(environment, { ...options, scope: "isolated" })).toEqual([]);
+    delete environment.LICENSE_APPROVALS_JSON;
+    delete environment.UPDATE_MANIFEST_PRIVATE_KEY_B64;
+    const issues = acceptanceConfigIssues(environment, { ...options, scope: "isolated" }).join(
+      "\n",
+    );
+    expect(issues).toContain("LICENSE_APPROVALS_JSON");
+    expect(issues).toContain("UPDATE_MANIFEST_PRIVATE_KEY_B64");
+    for (const name of RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS) expect(issues).not.toContain(name);
+  });
+
+  it.each(["local", "isolated", "unknown"])(
+    "checks external secrets only for full scope (%s)",
+    (scope) => {
+      const script = path.resolve(process.cwd(), "scripts/release/crewqual-release-publish");
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source "$1"; gh() { echo "unexpected gh call" >&2; return 77; }; validate_release_environment_secrets "$2"',
+          "test",
+          script,
+          scope,
+        ],
+        { encoding: "utf8" },
+      );
+      expect(result.status).toBe(scope === "unknown" ? 1 : 0);
+      expect(result.stderr).not.toContain("unexpected gh call");
+    },
+  );
+
+  it.each([
+    ["v1.0.6", false, false, true],
+    ["v1.0.5", false, false, false],
+    ["v1.0.6", true, false, false],
+    ["v1.0.6", false, true, false],
+  ])(
+    "requires exact public stable discovery (%s / %s / %s)",
+    (latest, prerelease, wrongManifest, accepted) => {
+      const script = path.resolve("scripts/release/crewqual-release-publish");
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source "$1"; curl() { printf "%s" "$MANIFEST"; }; gh() { printf "%s" "$LATEST"; }; verify_final_discovery v1.0.6',
+          "test",
+          script,
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            LATEST: JSON.stringify({ tag_name: latest, prerelease, draft: false }),
+            MANIFEST: JSON.stringify({
+              version: wrongManifest ? "v1.0.5" : "v1.0.6",
+              channel: "stable",
+            }),
+          },
+        },
+      );
+      expect(result.status === 0).toBe(accepted);
+    },
+  );
 
   it("aggregates malformed and non-isolated full acceptance values", () => {
     const environment = validEnvironment();
@@ -150,7 +217,7 @@ describe("release acceptance configuration", () => {
       { encoding: "utf8" },
     );
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("final releases require full acceptance");
+    expect(result.stderr).toContain("final releases require isolated or full acceptance");
   });
 
   it("aggregates missing release-sandbox secret names without printing values", () => {
@@ -172,12 +239,40 @@ describe("release acceptance configuration", () => {
   });
 });
 
+describe("release workflow compatibility", () => {
+  it.each([false, true])(
+    "requires alternate input before dispatch even when unset (%s)",
+    (declared) => {
+      const result = spawnSync(
+        "bash",
+        [
+          "-c",
+          'source "$1"; git() { printf "%s" "$WORKFLOW"; }; unset RELEASE_ARM64_BOOTSTRAP_FROM_TAG; workflow_has_release_inputs fixture',
+          "test",
+          path.resolve("scripts/release/crewqual-release-publish"),
+        ],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            WORKFLOW: `      acceptance_scope:\n${declared ? "      arm64_bootstrap_from_tag:\n" : ""}`,
+          },
+        },
+      );
+      expect(result.status === 0).toBe(declared);
+    },
+  );
+});
+
 describe("release input safeguards", () => {
   const script = path.resolve("scripts/release/crewqual-release-publish");
   const helper = path.resolve("scripts/release/validate-release-inputs.sh");
   it.each([
     ["v1.0.6-rc.1", "rc", "local", "", "fresh"],
     ["v1.0.6", "final", "full", "", "fresh"],
+    ["v1.0.6", "final", "isolated", "", "fresh"],
+    ["v1.0.6", "final", "isolated", "v1.0.5", "upgrade"],
+    ["v1.0.6-rc.1", "rc", "isolated", "", "fresh"],
     ["v1.0.6-rc.2", "rc", "local", "v1.0.6-rc.1", "upgrade"],
     ["v1.0.6", "final", "full", "v1.0.5", "upgrade"],
     ["v1.0.6-rc.100000000000000000000", "rc", "local", "v1.0.6-rc.99999999999999999999", "upgrade"],

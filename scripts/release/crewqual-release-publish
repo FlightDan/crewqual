@@ -50,7 +50,9 @@ Usage:
   crewqual-release-publish [--dry-run] release TAG (--upgrade-from BASELINE|--first-release) [options]
 
 Release options:
-  --acceptance-scope local|full   Default: local; final releases require full
+  --arm64-bootstrap-from TAG     Same-version positive RC baseline for final arm64 only
+  --acceptance-scope local|isolated|full
+                                Default: local; final releases require isolated or full
   --first-release                Run fresh-install acceptance only; do not upgrade or roll back
   --upgrade-from BASELINE        Use a lower same-channel release; explicit "" means fresh install
   --strict-clean                  Refuse a dirty worktree
@@ -119,7 +121,7 @@ current_branch() {
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/validate-release-inputs.sh"
 
 validate_release_args() {
-  validate_release_inputs "$1" "${4:-$(profile_for_tag "$1")}" "$3" "$2" >/dev/null ||
+  validate_release_inputs "$1" "${4:-$(profile_for_tag "$1")}" "$3" "$2" "${RELEASE_ARM64_BOOTSTRAP_FROM_TAG:-}" >/dev/null ||
     die "release 输入校验失败"
 }
 
@@ -151,8 +153,10 @@ workflow_has_release_inputs() {
   local commit="$1"
   local workflow_path="$WORKFLOW_FILE"
   [[ "$workflow_path" == .github/workflows/* ]] || workflow_path=".github/workflows/$workflow_path"
-  git -C "$REPO_DIR" show "$commit:$workflow_path" 2>/dev/null |
-    grep -Eq '^[[:space:]]+acceptance_scope:'
+  local workflow
+  workflow="$(git -C "$REPO_DIR" show "$commit:$workflow_path" 2>/dev/null)" || return 1
+  grep -Eq '^[[:space:]]+acceptance_scope:' <<<"$workflow" || return 1
+  grep -Eq '^[[:space:]]+arm64_bootstrap_from_tag:' <<<"$workflow" || return 1
 }
 
 auth_scopes() {
@@ -187,7 +191,11 @@ ensure_gh_auth() {
 validate_release_environment_secrets() {
   local scope="$1" names name
   local -a missing=()
-  [[ "$scope" == full ]] || return 0
+  case "$scope" in
+    local|isolated) return 0 ;;
+    full) ;;
+    *) die "scope must be local, isolated or full" ;;
+  esac
   names="$(gh secret list --repo "$GITHUB_REPOSITORY" --env "$RELEASE_ENVIRONMENT" 2>/dev/null)" ||
     die "无法读取 GitHub Environment $RELEASE_ENVIRONMENT 的 secret 清单"
   for name in "${RELEASE_SANDBOX_INFRASTRUCTURE_SECRETS[@]}"; do
@@ -296,7 +304,7 @@ dispatch_and_wait() {
   started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   output="$(gh workflow run "$(workflow_name)" --repo "$GITHUB_REPOSITORY" --ref "$tag" \
     -f "tag=$tag" -f "profile=$profile" -f "acceptance_scope=$scope" \
-    -f "upgrade_from_tag=$baseline" -f "replace_existing_assets=$([[ "$replace_tag" == 1 ]] && printf true || printf false)" 2>&1)" || {
+    -f "upgrade_from_tag=$baseline" -f "arm64_bootstrap_from_tag=${RELEASE_ARM64_BOOTSTRAP_FROM_TAG:-}" -f "replace_existing_assets=$([[ "$replace_tag" == 1 ]] && printf true || printf false)" 2>&1)" || {
       printf '%s\n' "$output" >&2
       die "无法触发 release-acceptance workflow"
     }
@@ -381,8 +389,18 @@ release() {
     announce "Actions 成功后将把 crewqual-web 和 crewqual-runtime 设为 public"
   else
     make_public
+    verify_final_discovery "$tag"
   fi
   announce "发布编排完成: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag"
+}
+
+verify_final_discovery() {
+  local tag="$1" latest manifest
+  [[ "$tag" != *-rc.* ]] || return 0
+  latest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")" || die "无法读取 stable latest release"
+  jq -e --arg tag "$tag" '.tag_name == $tag and .prerelease == false and .draft == false' <<<"$latest" >/dev/null || die "stable latest release 未指向目标"
+  manifest="$(curl -fsSL --retry 3 "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/update-manifest-v1.json")" || die "无法读取 stable manifest"
+  jq -e --arg tag "$tag" '.version == $tag and .channel == "stable"' <<<"$manifest" >/dev/null || die "stable manifest 与目标不匹配"
 }
 
 status() {
@@ -410,9 +428,11 @@ parse_release() {
   local tag="$1" baseline="" scope=local strict_clean=0 replace_tag=0 first_release=0 baseline_set=0 validate_only=0
   shift
   RELEASE_YES=0
+  RELEASE_ARM64_BOOTSTRAP_FROM_TAG=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --upgrade-from) [[ $# -ge 2 ]] || die "--upgrade-from 需要参数"; baseline="$2"; baseline_set=1; shift 2 ;;
+      --arm64-bootstrap-from) [[ $# -ge 2 ]] || die "--arm64-bootstrap-from 需要参数"; RELEASE_ARM64_BOOTSTRAP_FROM_TAG="$2"; shift 2 ;;
       --first-release) [[ "$baseline_set" == 0 ]] || die "--first-release 不能与 --upgrade-from 同时使用"; first_release=1; shift ;;
       --acceptance-scope) [[ $# -ge 2 ]] || die "--acceptance-scope 需要参数"; scope="$2"; shift 2 ;;
       --validate-only) validate_only=1; shift ;;
@@ -432,7 +452,7 @@ parse_release() {
   fi
   validate_release_args "$tag" "$baseline" "$scope"
   if ((validate_only)); then
-    validate_release_inputs "$tag" "$(profile_for_tag "$tag")" "$scope" "$baseline"
+    validate_release_inputs "$tag" "$(profile_for_tag "$tag")" "$scope" "$baseline" "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG"
     return
   fi
   release "$tag" "$baseline" "$scope" "$strict_clean" "$replace_tag"

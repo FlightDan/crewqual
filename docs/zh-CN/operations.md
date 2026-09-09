@@ -58,9 +58,13 @@ curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh 
 
 ## 正式发布验收配置
 
-正式版必须使用 `acceptance_scope=full`。full 验收运行静态检查、容器 bootstrap、供应链验证、真实 S3 灾备和隔离恢复，以及发布后的全新安装、升级和回滚测试，通过后才能发布并提升为 latest。RC 可以使用 `acceptance_scope=local`；local 模式使用临时 MinIO 运行静态、bootstrap、供应链及发布后安装/升级/回滚检查，不要求 S3、AWS 或外部灾备配置。
+正式版必须使用 `acceptance_scope=isolated` 或 `acceptance_scope=full`，不能使用 `local`。isolated 验收使用临时 PostgreSQL 和 MinIO 运行静态检查、容器 bootstrap、候选镜像浏览器检查、供应链验证、真实应用数据库与图库备份、隔离恢复和篡改拒绝，并执行发布后的全新安装、升级和回滚测试。它验证软件自身的备份恢复链路，不验证真实 AWS IAM、SSE-KMS、跨区域或生产环境灾备配置。full 在这些软件门禁之外增加真实 S3 基础设施控制与外部灾备检查。对应未验证范围列在项目 Roadmap 中。
 
-`acceptance_scope=full` 也可供需要完整基础设施检查的 RC 使用。如果使用 full，S3、AWS 和灾备配置只存放在 GitHub Environment `release-sandbox`，不要依赖仓库级同名 secrets。正式发布应通过 `crewqual-release-publish` 发起，不要在 Actions 页面直接 dispatch；GitHub 的 workflow secret context 会合并环境和仓库作用域，只有发布器的环境清单检查能够阻止误用仓库级同名 secret。发布器会在签署或推送 tag 之前检查这些 secret 名称；Actions workflow 随后在构建、推送镜像之前聚合校验值、OpenPGP 公钥与签名者对应关系和隔离约束，且不会输出 secret 值。
+由于早期正式版没有 arm64 镜像，`v1.0.6` 在 amd64 上使用上一正式版进行升级、回滚与重试验收，在 arm64 上使用与正式版同一提交的已通过 RC 进行提升验收。这覆盖 arm64 全新安装、RC 到正式版升级、回滚与重试，不代表已经验证 arm64 正式版到正式版升级；后续正式版具备 arm64 基线后再补齐该项。
+
+RC 可以使用 `acceptance_scope=local`；local 模式使用临时 MinIO 运行静态、bootstrap、供应链及发布后安装、升级和回滚检查，不运行应用备份恢复门禁，也不要求 S3、AWS 或外部灾备配置。
+
+`acceptance_scope=isolated` 和 `acceptance_scope=full` 也可用于需要对应门禁的 RC。如果使用 full，S3、AWS 和灾备配置只存放在 GitHub Environment `release-sandbox`，不要依赖仓库级同名 secrets。正式发布应通过 `crewqual-release-publish` 发起，不要在 Actions 页面直接 dispatch；GitHub 的 workflow secret context 会合并环境和仓库作用域，只有发布器的环境清单检查能够阻止误用仓库级同名 secret。发布器会在签署或推送 tag 之前检查 full 所需的 secret 名称；Actions workflow 随后在构建、推送镜像之前聚合校验值、OpenPGP 公钥与签名者对应关系和隔离约束，且不会输出 secret 值。
 
 只有选择 full 时，`release-sandbox` 才需要以下基础设施 secrets：
 

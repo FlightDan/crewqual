@@ -4,7 +4,7 @@
 
 ## 安装发布版
 
-安装器面向 amd64 Linux，以及使用 Docker Desktop Linux containers 的 Windows x86_64 + WSL2 Ubuntu。普通 Linux 部署需要 systemd，以安装宿主机更新服务。arm64 和 macOS 尚未完成完整测试。
+安装器面向 Linux amd64/arm64，以及 Windows x86_64 上使用 Docker Desktop Linux containers 的 WSL2 Ubuntu。普通 Linux 部署需要 systemd，以安装宿主机更新服务。macOS 支持尚未完成。
 
 在目标主机运行：
 

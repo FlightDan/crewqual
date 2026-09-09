@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { activeKey, parseKeyringJSON, type KeyringDocument } from "./keyring-utils";
 
-export type AcceptanceScope = "local" | "full";
+export type AcceptanceScope = "local" | "isolated" | "full";
 export type ReleaseProfile = "rc" | "final";
 type AcceptanceEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -202,6 +202,7 @@ export function acceptanceInputIssues(
       options.profile,
       options.scope,
       environment.RELEASE_UPGRADE_FROM_TAG,
+      environment.RELEASE_ARM64_BOOTSTRAP_FROM_TAG ?? "",
     ],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   );
@@ -264,7 +265,7 @@ export function assertAcceptanceConfig(
 async function main() {
   const scope = (process.env.RELEASE_ACCEPTANCE_SCOPE ?? "local") as AcceptanceScope;
   const profile = (process.env.RELEASE_PROFILE ?? "rc") as ReleaseProfile;
-  if (!(["local", "full"] as const).includes(scope))
+  if (!(["local", "isolated", "full"] as const).includes(scope))
     throw new Error(`无效 acceptance scope：${scope}`);
   if (!(["rc", "final"] as const).includes(profile))
     throw new Error(`无效 release profile：${profile}`);

@@ -4,7 +4,7 @@
 
 ## Install a release
 
-The installer targets amd64 Linux and Windows x86_64 with WSL2 Ubuntu and Docker Desktop Linux containers. Regular Linux deployments need systemd for the host updater service. arm64 and macOS have not completed full testing.
+The installer targets Linux amd64/arm64 and WSL2 Ubuntu on Windows x86_64 with Docker Desktop Linux containers. Regular Linux deployments need systemd for the host updater service. macOS support is not yet complete.
 
 Run this on the target host:
 

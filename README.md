@@ -85,7 +85,7 @@ CrewQual 更适合将资质合规作为长期、关键业务进行系统化管�
 
 ## 快速开始
 
-支持 amd64 Linux 主机，以及使用 Docker Desktop Linux containers 的 Windows x86_64 + WSL2 Ubuntu 环境。arm64 和 macOS 尚未完成完整测试。
+支持 Linux amd64/arm64 主机，以及 Windows x86_64 上使用 Docker Desktop Linux containers 的 WSL2 Ubuntu 环境。macOS 支持尚未完成。
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash
@@ -191,7 +191,10 @@ CrewQual 可自行部署，也提供面向企业和小型团队的托管服务�
 
 - [ ] 从多维表格一键迁移
 - [ ] Node.js 22 → 24
-- [ ] arm 架构与 macOS 完整支持
+- [ ] macOS 完整支持
+- [ ] arm64 正式版到正式版升级验收（目前没有更早的 arm64 正式版基线）
+- [ ] 真实 AWS IAM、SSE-KMS 与存储桶策略验收（未验证）
+- [ ] 跨区域与生产环境灾备恢复演练（未验证）
 
 ## 隐私与安全
 
@@ -200,6 +203,18 @@ CrewQual 以自托管为默认设计。除非部署方主动配置外部服务�
 AI 辅助核验是可选能力，不影响核心流程；启用外部 AI 服务前，部署方应根据适用法律、保密要求与数据处理政策选择供应商。
 
 CrewQual 本身不会在未经配置的情况下主动将业务数据发送至第三方服务。
+
+### 安全控制与标准参考
+
+项目以 OWASP ASVS 5.0.0 L2 和 GB/T 22239—2019《信息安全技术 网络安全等级保护基本要求》三级相关要求作为产品安全设计和工程改进的参考。
+
+> <sub>这不表示 CrewQual 已完成全部 ASVS 条款验证、渗透测试、正式等保测评或第三方安全认证。最终符合性还取决于具体版本、认证策略、部署环境、外部服务和组织自身的运维控制。当前实现及边界见[“安全与认证” Wiki](./wiki/zh-CN/security.md)，历史审查和改进记录见[安全文档](./docs/security/)。</sub>
+
+CrewQual 提供可配置的密码、TOTP 和 WebAuthn/FIDO2 身份鉴别，并在服务端执行角色、权限及组织/单位范围校验。产品还实现了会话空闲与绝对有效期、登录限流和锁定、面向高敏操作的再次认证机制、同源与 CSRF 校验、逐响应 nonce CSP、操作审计和只读风险统计。密码使用 Argon2id；敏感集成设置使用 AES-256-GCM 加密。数据库、对象存储、备份和主机磁盘的静态加密由部署方配置。
+
+实际认证强度取决于所选策略。便捷模式下，成员使用工号、登记手机号和短信一次性链接登录，属于单因素认证，不满足 OWASP ASVS L2 或等保三级的组合身份鉴别要求。组合模式要求密码和 TOTP；增强模式再要求通过 WebAuthn/FIDO2 完成用户验证。
+
+官方发布流程会检查 GPG 签名标签、签名清单、SHA-256 校验和、容器镜像签名、SBOM 和来源证明。候选版本 `v1.0.6-rc.14` 的[发布验收工作流](https://github.com/FlightDan/crewqual/actions/runs/34344021582)已在 amd64 与 arm64 主机上通过，覆盖发布制品构建、发布后安装、升级、故障回滚与重试检查；该证据仅适用于此候选版本，不构成 `v1.0.6` 正式版或任何安全标准的验收结论。
 
 发现可能影响 CrewQual 的安全问题时，请勿在公开 Issue 中披露利用细节。请阅读 [SECURITY.md](./SECURITY.md) 或联系 `CrewQual@devdan.cc`。
 

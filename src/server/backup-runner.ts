@@ -915,14 +915,20 @@ async function runRclone(
     const lines = ["[crewqual]"];
     if (credentials.type === "S3") {
       const values = credentials.values;
-      assertRcloneSafeValue(values.accessKeyId ?? values.username ?? "", "访问密钥 ID");
+      const accessKeyId = values.accessKeyId ?? values.username ?? "";
+      const secretAccessKey = values.secretAccessKey ?? values.password ?? "";
+      assertRcloneSafeValue(accessKeyId, "访问密钥 ID");
+      assertRcloneSafeValue(secretAccessKey, "访问密钥");
       lines.push(
         "type = s3",
         "provider = Other",
         "force_path_style = true",
         "endpoint = " + target.endpoint,
-        "access_key_id = " + (values.accessKeyId ?? values.username ?? ""),
-        "secret_access_key = " + (await obscured(values.secretAccessKey ?? values.password ?? "")),
+        "access_key_id = " + accessKeyId,
+        // Unlike password fields in the SMB/FTP/WebDAV backends, rclone's S3
+        // backend passes this value directly to the AWS signer and does not
+        // reveal values produced by `rclone obscure`.
+        "secret_access_key = " + secretAccessKey,
       );
     } else if (credentials.type === "SMB") {
       const values = credentials.values;

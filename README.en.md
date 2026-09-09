@@ -85,7 +85,7 @@ CrewQual is a better fit when qualification compliance is a long-term, business-
 
 ## Quick start
 
-Supports amd64 Linux hosts and Windows x86_64 with WSL2 Ubuntu using Docker Desktop Linux containers. Full arm64 and macOS testing is not yet complete.
+Supports Linux amd64/arm64 hosts and WSL2 Ubuntu on Windows x86_64 with Docker Desktop Linux containers. macOS support is not yet complete.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash
@@ -192,7 +192,10 @@ Contact: `CrewQual@devdan.cc`
 
 - [ ] One-click migration from multidimensional table tools
 - [ ] Node.js 22 → 24
-- [ ] Full support for ARM architectures and macOS
+- [ ] Full macOS support
+- [ ] arm64 stable-to-stable upgrade acceptance (no earlier arm64 stable baseline exists yet)
+- [ ] Real AWS IAM, SSE-KMS, and bucket-policy acceptance (not yet validated)
+- [ ] Cross-region and production disaster-recovery drills (not yet validated)
 
 ## Privacy and security
 
@@ -201,6 +204,18 @@ CrewQual is self-hosted by design. Unless the deployment owner explicitly config
 AI-assisted verification is optional and does not affect the core workflow. Before enabling an external AI service, deployment owners should select a provider that meets applicable laws, confidentiality requirements, and data-processing policies.
 
 CrewQual does not proactively send business data to third-party services unless configured to do so.
+
+### Security controls and standards references
+
+The project uses OWASP ASVS 5.0.0 Level 2 and the Level 3 requirements in GB/T 22239—2019 as references for product security design and engineering improvements.
+
+> <sub>This does not mean that CrewQual has completed verification against every ASVS requirement, passed a penetration test or formal MLPS assessment, or obtained third-party security certification. Final compliance also depends on the exact version, authentication policy, deployment environment, external services, and the organization's own operational controls. See the [Security and authentication Wiki](./wiki/en/security.md) for current implementation boundaries and the [security documentation](./docs/security/) for historical reviews and improvement records.</sub>
+
+CrewQual supports configurable password, TOTP, and WebAuthn/FIDO2 authentication, while the server enforces roles, permissions, and organization or unit scope. The product also implements idle and absolute session limits, login rate limits and lockouts, reauthentication mechanisms for sensitive operations, same-origin and CSRF checks, a per-response nonce CSP, audit records, and read-only risk statistics. Passwords use Argon2id; sensitive integration settings use AES-256-GCM encryption. The deployment owner configures encryption at rest for the database, object storage, backups, and host disks.
+
+The effective authentication strength depends on the selected policy. In Convenience mode, members sign in with an employee number, registered phone number, and one-time SMS link. This is single-factor authentication and does not meet the combined-authentication requirements of OWASP ASVS Level 2 or MLPS Level 3. Combined mode requires a password and TOTP; Enhanced mode also requires WebAuthn/FIDO2 user verification.
+
+The official release process checks GPG-signed tags, signed manifests, SHA-256 checksums, container image signatures, SBOMs, and provenance attestations. The [release-acceptance workflow](https://github.com/FlightDan/crewqual/actions/runs/34344021582) for candidate `v1.0.6-rc.14` succeeded on amd64 and arm64 hosts, covering release-asset builds, post-publish installation, upgrade, failure rollback, and retry checks. This evidence applies only to that candidate and does not constitute acceptance of the `v1.0.6` final release or any security standard.
 
 If you discover a security issue that may affect CrewQual, do not disclose exploitation details through a public Issue. Read [SECURITY.md](./SECURITY.md) or contact `CrewQual@devdan.cc`.
 

@@ -11,6 +11,70 @@ grep -q 'signed manifest and SHA256SUMS' <<<"$post_source"
 grep -q '"\$target_updater" reconcile-caddy' <<<"$post_source"
 ! grep -q '/usr/local/libexec/crewqual-updater reconcile-caddy' <<<"$post_source"
 grep -q 'tail -n 120 "\$wrapper_dir/server.log"' <<<"$post_source"
+# Exercise the real scope/input gate before any privileged host mutation.
+scope_gate="$(awk '/^profile=final$/ {copy=1} copy && /^trap cleanup_acceptance EXIT$/ {exit} copy {print}' <<<"$post_source")"
+for scope in local isolated full missing invalid; do
+  result=0
+  (
+    target=v1.0.6
+    baseline=v1.0.5
+    if [[ "$scope" == missing ]]; then unset RELEASE_ACCEPTANCE_SCOPE; else export RELEASE_ACCEPTANCE_SCOPE="$scope"; fi
+    eval "$scope_gate"
+  ) >/dev/null 2>&1 || result=$?
+  if [[ "$scope" == isolated || "$scope" == full ]]; then
+    [[ "$result" == 0 ]]
+  else
+    [[ "$result" != 0 ]]
+  fi
+done
+# RC promotion is only valid on arm64 with the separately validated stable baseline.
+for arch in amd64 arm64; do
+  result=0
+  (
+    target=v1.0.6 baseline=v1.0.6-rc.14
+    expected_commit="$(printf 'a%.0s' {1..40})" expected_baseline_commit="$(printf 'a%.0s' {1..40})"
+    export BASELINE_KIND=rc-promotion EXPECTED_ARCH="$arch" RELEASE_ACCEPTANCE_SCOPE=isolated
+    export RELEASE_UPGRADE_FROM_TAG=v1.0.4 RELEASE_ARM64_BOOTSTRAP_FROM_TAG=v1.0.6-rc.14
+    eval "$scope_gate"
+  ) >/dev/null 2>&1 || result=$?
+  if [[ "$arch" == arm64 ]]; then [[ "$result" == 0 ]]; else [[ "$result" != 0 ]]; fi
+done
+# A same-version RC from a different commit cannot claim final promotion coverage.
+if (
+  target=v1.0.6 baseline=v1.0.6-rc.14
+  expected_commit="$(printf 'a%.0s' {1..40})" expected_baseline_commit="$(printf 'b%.0s' {1..40})"
+  export BASELINE_KIND=rc-promotion EXPECTED_ARCH=arm64 RELEASE_ACCEPTANCE_SCOPE=isolated
+  export RELEASE_UPGRADE_FROM_TAG=v1.0.4 RELEASE_ARM64_BOOTSTRAP_FROM_TAG=v1.0.6-rc.14
+  eval "$scope_gate"
+) >/dev/null 2>&1; then echo 'mismatched promotion commit accepted' >&2; exit 1; fi
+# Fetch installer source by validated immutable commit, retaining version/channel args.
+installer_calls="$(mktemp)"
+curl() { printf '%s\n' "$@" > "$installer_calls"; }
+sudo() { printf '%s\n' "$@" >> "$installer_calls"; }
+installer_commit="$(printf 'a%.0s' {1..40})"
+install_from_tag v1.0.6 /fixture "$installer_commit"
+grep -qx "https://raw.githubusercontent.com/FlightDan/crewqual/$installer_commit/install.sh" "$installer_calls"
+grep -qx 'v1.0.6' "$installer_calls"
+grep -qx 'stable' "$installer_calls"
+if (install_from_tag v1.0.6 /fixture v1.0.6) >/dev/null 2>&1; then echo 'mutable installer source accepted' >&2; exit 1; fi
+rm -f "$installer_calls"
+unset -f curl sudo
+# Pin exact final manifest without changing either stable or RC baseline channel.
+sudo() { "$@"; }
+pin_config="$(mktemp)"
+for pin_channel in stable rc; do
+  printf '{"channel":"%s","sharedSecret":"fixture"}\n' "$pin_channel" > "$pin_config"
+  target=v1.0.6
+  pin_final_acceptance_manifest "$pin_config"
+  jq -e --arg channel "$pin_channel" '.channel == $channel and .sharedSecret == "fixture" and .manifestURL == "https://github.com/FlightDan/crewqual/releases/download/v1.0.6/update-manifest-v1.json"' "$pin_config" >/dev/null
+  [[ "$(stat -c %a "$pin_config")" == 600 ]]
+done
+printf '{"channel":"rc"}' > "$pin_config"
+target=v1.0.6-rc.15
+pin_final_acceptance_manifest "$pin_config"
+[[ "$(cat "$pin_config")" == '{"channel":"rc"}' ]]
+rm -f "$pin_config"
+unset -f sudo
 bootstrap_call_file="$(mktemp)"
 bootstrap_stdin_file="$(mktemp)"
 openssl() {
@@ -22,7 +86,7 @@ openssl() {
     return 2
   fi
 }
-base32() { printf 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP\n'; }
+base32() { cat >/dev/null; printf 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP\n'; }
 compose_upgrade() {
   cat >"$bootstrap_stdin_file"
   printf '%q\n' "$@" >"$bootstrap_call_file"

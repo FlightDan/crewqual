@@ -32,6 +32,13 @@ import {
   sha256File,
   writeJson,
   type ReleaseEvidence,
+  RELEASE_POLICY_VERSION,
+  requiredReleaseGates,
+  assertRequiredGates,
+  isPermissionDenial,
+  assertTlsOnlyBucketPolicy,
+  withCleanup,
+  cleanupAcceptanceProject,
 } from "./verify-common";
 
 function envOr(name: string, fallback: string) {
@@ -591,7 +598,7 @@ async function bootstrap(evidence: ReleaseEvidence) {
   const project = `crewqual-acceptance-${id}`;
   const port = envOr("ACCEPTANCE_WEB_PORT", String(30_000 + Math.floor(Math.random() * 1_000)));
   const dbPort = envOr("ACCEPTANCE_DB_PORT", "55432");
-  const localAcceptance = process.env.RELEASE_ACCEPTANCE_SCOPE === "local";
+  const localAcceptance = evidence.acceptanceScope !== "full";
   const envPath = join("/tmp", `crewqual-release-${id}.env`);
   const password = randomBytes(24).toString("base64url");
   const appPassword = randomBytes(24).toString("base64url");
@@ -612,9 +619,7 @@ async function bootstrap(evidence: ReleaseEvidence) {
     `SESSION_SECRET=${randomBytes(48).toString("hex")}`,
     `READINESS_PROBE_SECRET=${readinessProbeSecret}`,
     `SETTINGS_ENCRYPTION_KEY=${randomBytes(32).toString("hex")}`,
-    // Local validation only needs a syntactically valid storage configuration;
-    // the destructive-recovery and production E2E gates remain in the full
-    // profile and require real, isolated infrastructure.
+    // Local and isolated scope use disposable MinIO; full additionally exercises external S3.
     `STORAGE_MODE=${localAcceptance ? "builtin" : envOr("STORAGE_MODE", "external")}`,
     `OUTBOUND_ALLOWED_HOSTS=${storageAuthority}`,
     "OUTBOUND_ALLOWED_CIDRS=",
@@ -702,8 +707,7 @@ async function expectDenied(action: () => Promise<unknown>, name: string) {
     await action();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/AccessDenied|Forbidden|InvalidRequest|NotImplemented|MethodNotAllowed|ACL/i.test(message))
-      return;
+    if (isPermissionDenial(error)) return;
     throw new Error(`${name} 失败但不是权限拒绝：${message}`);
   }
   throw new Error(`${name} 未被拒绝`);
@@ -741,8 +745,7 @@ async function s3Dr(evidence: ReleaseEvidence) {
       !rules.some(
         (rule) =>
           rule.ApplyServerSideEncryptionByDefault?.SSEAlgorithm === "aws:kms" &&
-          (!rule.ApplyServerSideEncryptionByDefault.KMSMasterKeyID ||
-            rule.ApplyServerSideEncryptionByDefault.KMSMasterKeyID === kmsArn),
+          rule.ApplyServerSideEncryptionByDefault.KMSMasterKeyID === kmsArn,
       )
     ) {
       throw new Error(`bucket ${bucket} 未配置目标 SSE-KMS key`);
@@ -750,15 +753,15 @@ async function s3Dr(evidence: ReleaseEvidence) {
     const policy = await client
       .send(new GetBucketPolicyCommand({ Bucket: bucket }))
       .catch(() => ({ Policy: "" }));
-    if (!String(policy.Policy ?? "").includes("aws:SecureTransport"))
-      throw new Error(`bucket ${bucket} 缺少 TLS-only policy`);
+    assertTlsOnlyBucketPolicy(String(policy.Policy ?? ""), bucket);
   }
   const lock = await client.send(new GetObjectLockConfigurationCommand({ Bucket: backupBucket }));
   const retention = lock.ObjectLockConfiguration?.Rule?.DefaultRetention;
   if (
     lock.ObjectLockConfiguration?.ObjectLockEnabled !== "Enabled" ||
     !retention ||
-    (retention.Days ?? 0) < 30
+    retention.Mode !== "GOVERNANCE" ||
+    ((retention.Days ?? 0) < 30 && (retention.Years ?? 0) < 1)
   ) {
     throw new Error("backup bucket 未启用至少 30 天 Object Lock Governance");
   }
@@ -798,10 +801,16 @@ async function s3Dr(evidence: ReleaseEvidence) {
   if (!before.ok) throw new Error(`签名 URL 立即访问失败：${before.status}`);
   await new Promise((resolve) => setTimeout(resolve, 2_500));
   const after = await fetch(url);
-  if (after.ok) throw new Error("签名 URL 过期后仍可访问");
+  const expiredBody = await after.text();
+  if (
+    after.status !== 403 ||
+    !/<Code>(AccessDenied|ExpiredToken|RequestExpired)<\/Code>/.test(expiredBody)
+  ) {
+    throw new Error(`签名 URL 过期未返回明确认证/过期拒绝：${after.status}`);
+  }
   const lockedKey = `${prefix}locked-${randomBytes(8).toString("hex")}.txt`;
   const retainUntil = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
-  await client.send(
+  const lockedPut = await client.send(
     new PutObjectCommand({
       Bucket: backupBucket,
       Key: lockedKey,
@@ -810,10 +819,31 @@ async function s3Dr(evidence: ReleaseEvidence) {
       ObjectLockRetainUntilDate: retainUntil,
     }),
   );
+  if (!lockedPut.VersionId || lockedPut.VersionId === "null")
+    throw new Error("Object Lock PutObject 缺少 VersionId");
   await expectDenied(
-    () => client.send(new DeleteObjectCommand({ Bucket: backupBucket, Key: lockedKey })),
-    "Object Lock 删除",
+    () =>
+      client.send(
+        new DeleteObjectCommand({
+          Bucket: backupBucket,
+          Key: lockedKey,
+          VersionId: lockedPut.VersionId,
+        }),
+      ),
+    "Object Lock 指定版本删除",
   );
+  const lockedRead = await client.send(
+    new GetObjectCommand({ Bucket: backupBucket, Key: lockedKey, VersionId: lockedPut.VersionId }),
+  );
+  if (
+    !lockedRead.Body ||
+    !Buffer.from(await lockedRead.Body.transformToByteArray()).equals(body) ||
+    lockedRead.ObjectLockMode !== "GOVERNANCE" ||
+    !lockedRead.ObjectLockRetainUntilDate ||
+    lockedRead.ObjectLockRetainUntilDate.getTime() < retainUntil.getTime() - 1000
+  ) {
+    throw new Error("Object Lock 指定版本复读或 retention 校验失败");
+  }
   const recoverySetId = required("BACKUP_RECOVERY_SET_ID");
   const databaseRunId = required("BACKUP_DATABASE_RUN_ID");
   const galleryRunId = required("BACKUP_GALLERY_RUN_ID");
@@ -908,22 +938,32 @@ async function s3Dr(evidence: ReleaseEvidence) {
     await client.send(new DeleteObjectCommand({ Bucket: backupBucket, Key: tamperedKey }));
     tamperResults[kind] = `${key} -> ${mutatedSha256}`;
   }
-  reports.tamper = { results: tamperResults, restoreRefusal: "verified_by_hash_before_restore" };
+  reports.tamper = {
+    results: tamperResults,
+    coverage:
+      "artifact mutation and checksum divergence only; actual restore refusal is verified by isolated-recovery gate",
+  };
   reports.probe = {
     objectKey,
     versionId: head.VersionId,
     kms: head.SSEKMSKeyId,
     lockedKey,
+    lockedVersionId: lockedPut.VersionId,
     retainUntil: retainUntil.toISOString(),
   };
   const report = await writeGateEvidence(artifactDir(evidence.runId), "s3-dr", reports);
   return { evidence: [report], detail: `buckets=${evidenceBucket},${backupBucket}` };
 }
 
-async function e2e(evidence: ReleaseEvidence) {
+async function isolatedRecovery(evidence: ReleaseEvidence) {
+  return e2e(evidence, true);
+}
+
+async function e2e(evidence: ReleaseEvidence, recoveryOnly = false) {
   const normalizedId = evidence.runId.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  if (!normalizedId) throw new Error("Acceptance run ID must include letters or digits");
   const fixtureId = normalizedId.toUpperCase().slice(-16);
-  const project = `crewqual-e2e-${normalizedId}`;
+  const project = `crewqual-${recoveryOnly ? "recovery" : "e2e"}-${normalizedId}`;
   const webPort = envOr(
     "ACCEPTANCE_E2E_WEB_PORT",
     String(31_000 + Math.floor(Math.random() * 1_000)),
@@ -969,6 +1009,7 @@ async function e2e(evidence: ReleaseEvidence) {
     `S3_ACCESS_KEY_ID=${storageAccessKey}`,
     `S3_SECRET_ACCESS_KEY=${storageSecretKey}`,
     "S3_FORCE_PATH_STYLE=true",
+    "S3_SSE_KMS_KEY_ID=",
     `INITIAL_ADMIN_EMAIL=${adminEmail}`,
     `INITIAL_ADMIN_PASSWORD=${adminPassword}`,
     `INITIAL_ADMIN_TOTP_SECRET=${adminTotpSecret}`,
@@ -990,156 +1031,203 @@ async function e2e(evidence: ReleaseEvidence) {
   };
   const compose = (args: string[]) =>
     command("docker", composeArgs(project, envPath, args), { env: composeEnv });
-  try {
-    compose(["run", "--rm", "migrate"]);
-    compose(["run", "--rm", "bootstrap"]);
-    const e2eDatabaseUrl = `postgresql://crewqual:${databasePassword}@127.0.0.1:${dbPort}/crewqual`;
-    const e2eEnv = {
-      ...process.env,
-      CI: "1",
-      NODE_ENV: "development",
-      SERVICE_MODE: "remote",
-      NEXT_PUBLIC_SERVICE_MODE: "remote",
-      APP_ORIGIN: baseUrl,
-      RELEASE_BASE_URL: baseUrl,
-      DATABASE_URL: e2eDatabaseUrl,
-      DIRECT_URL: e2eDatabaseUrl,
-      E2E_DATABASE_URL: e2eDatabaseUrl,
-      SETTINGS_ENCRYPTION_KEY: settingsEncryptionKey,
-      SESSION_SECRET: sessionSecret,
-      READINESS_PROBE_SECRET: readinessProbeSecret,
-      INITIAL_ADMIN_EMAIL: adminEmail,
-      INITIAL_ADMIN_PASSWORD: adminPassword,
-      INITIAL_ADMIN_TOTP_SECRET: adminTotpSecret,
-      E2E_ADMIN_EMAIL: adminEmail,
-      E2E_ADMIN_PASSWORD: adminPassword,
-      E2E_ADMIN_TOTP_SECRET: adminTotpSecret,
-      E2E_PILOT_EMPLOYEE_NUMBER: `CQ-E2E-${fixtureId}`,
-      E2E_CREDENTIAL_NUMBER: `E2E-CN-${fixtureId}`,
-      E2E_DIRECT_DB_PILOT_TOKEN: "1",
-      E2E_CANDIDATE_STACK: "1",
-    };
-    const seed = pnpmCommand(["db:seed"], { allowFailure: true, env: e2eEnv });
-    if (seed.status !== 0) throw new Error(`candidate E2E seed 失败：${seed.output}`);
-    const prepare = pnpmCommand(["db:e2e:prepare"], { allowFailure: true, env: e2eEnv });
-    if (prepare.status !== 0) throw new Error(`candidate E2E 数据准备失败：${prepare.output}`);
-    compose(["up", "-d", "web", "worker"]);
-    await waitFor(`${baseUrl}/api/health?probe=readiness`, 200, 180_000, {
-      "x-crewqual-readiness-secret": readinessProbeSecret,
-    });
-
-    for (const [service, expectedImage] of [
-      ["web", required("RELEASE_WEB_IMAGE")],
-      ["worker", required("RELEASE_RUNTIME_IMAGE")],
-    ] as const) {
-      const containerId = compose(["ps", "-q", service]).output.trim();
-      if (!containerId) throw new Error(`candidate ${service} 容器未运行`);
-      const actualImage = command("docker", [
-        "inspect",
-        "--format",
-        "{{.Config.Image}}",
-        containerId,
-      ]).output.trim();
-      if (actualImage !== expectedImage) {
-        throw new Error(`candidate ${service} 镜像不匹配：${actualImage}`);
+  return withCleanup(
+    async () => {
+      compose(["run", "--rm", "migrate"]);
+      compose(["run", "--rm", "bootstrap"]);
+      const e2eDatabaseUrl = `postgresql://crewqual:${databasePassword}@127.0.0.1:${dbPort}/crewqual`;
+      const e2eEnv = {
+        ...process.env,
+        CI: "1",
+        NODE_ENV: "development",
+        SERVICE_MODE: "remote",
+        NEXT_PUBLIC_SERVICE_MODE: "remote",
+        APP_ORIGIN: baseUrl,
+        RELEASE_BASE_URL: baseUrl,
+        DATABASE_URL: e2eDatabaseUrl,
+        DIRECT_URL: e2eDatabaseUrl,
+        E2E_DATABASE_URL: e2eDatabaseUrl,
+        SETTINGS_ENCRYPTION_KEY: settingsEncryptionKey,
+        SESSION_SECRET: sessionSecret,
+        READINESS_PROBE_SECRET: readinessProbeSecret,
+        INITIAL_ADMIN_EMAIL: adminEmail,
+        INITIAL_ADMIN_PASSWORD: adminPassword,
+        INITIAL_ADMIN_TOTP_SECRET: adminTotpSecret,
+        E2E_ADMIN_EMAIL: adminEmail,
+        E2E_ADMIN_PASSWORD: adminPassword,
+        E2E_ADMIN_TOTP_SECRET: adminTotpSecret,
+        E2E_PILOT_EMPLOYEE_NUMBER: `CQ-E2E-${fixtureId}`,
+        E2E_CREDENTIAL_NUMBER: `E2E-CN-${fixtureId}`,
+        E2E_DIRECT_DB_PILOT_TOKEN: "1",
+        E2E_CANDIDATE_STACK: "1",
+      };
+      const seed = pnpmCommand(["db:seed"], { allowFailure: true, env: e2eEnv });
+      if (seed.status !== 0) throw new Error(`candidate E2E seed 失败：${seed.output}`);
+      const prepare = pnpmCommand(["db:e2e:prepare"], { allowFailure: true, env: e2eEnv });
+      if (prepare.status !== 0) throw new Error(`candidate E2E 数据准备失败：${prepare.output}`);
+      if (recoveryOnly) {
+        const recovery = command(
+          "docker",
+          composeArgs(project, envPath, [
+            "run",
+            "--rm",
+            "--no-deps",
+            "-e",
+            "CREWQUAL_ISOLATED_ACCEPTANCE=1",
+            "-e",
+            "ISOLATED_OWNER_DATABASE_URL",
+            "ops",
+            "node",
+            "--import",
+            "tsx",
+            "scripts/release/isolated-recovery-fixture.ts",
+          ]),
+          {
+            allowFailure: true,
+            env: { ...composeEnv, ISOLATED_OWNER_DATABASE_URL: composeEnv.DIRECT_URL },
+          },
+        );
+        if (recovery.status !== 0) throw new Error(`isolated recovery failed: ${recovery.output}`);
+        const resultLine = recovery.output
+          .split("\n")
+          .find((line) => line.startsWith('{"event":"isolated_recovery_complete"'));
+        if (!resultLine) throw new Error("isolated recovery omitted completion evidence");
+        const report = await writeGateEvidence(artifactDir(evidence.runId), "isolated-recovery", {
+          ...JSON.parse(resultLine),
+          project,
+          candidateRuntimeImage: required("RELEASE_RUNTIME_IMAGE"),
+        });
+        return {
+          evidence: [report],
+          detail:
+            "encrypted database/gallery backup, isolated recovery, three tamper refusals and source invariance",
+        };
       }
-    }
-    const devEndpoint = await fetch(`${baseUrl}/api/dev/pilot-access?employeeNumber=CQ-1049`);
-    if (devEndpoint.status !== 404) throw new Error("生产候选镜像暴露了开发访问端点");
-
-    const result = pnpmCommand(
-      [
-        "exec",
-        "playwright",
-        "test",
-        "--config",
-        "playwright.release.config.ts",
-        "--project=chromium",
-        "--project=firefox",
-        "--project=webkit",
-        "--repeat-each=3",
-      ],
-      { allowFailure: true, env: e2eEnv },
-    );
-    if (result.status !== 0) throw new Error(`production E2E 失败：${result.output}`);
-    const webkit = pnpmCommand(
-      [
-        "exec",
-        "playwright",
-        "test",
-        "--config",
-        "playwright.release.config.ts",
-        "--project=webkit",
-        "--grep",
-        "admin navigation",
-        "--repeat-each=10",
-      ],
-      { allowFailure: true, env: e2eEnv },
-    );
-    if (webkit.status !== 0) throw new Error(`WebKit 管理导航专项失败：${webkit.output}`);
-    const remote = pnpmCommand(
-      [
-        "exec",
-        "playwright",
-        "test",
-        "--config",
-        "playwright.release-remote.config.ts",
-        "--project=chromium",
-        "--project=firefox",
-        "--project=webkit",
-        "--repeat-each=3",
-      ],
-      { allowFailure: true, env: e2eEnv },
-    );
-    if (remote.status !== 0) throw new Error(`remote production E2E 失败：${remote.output}`);
-    const qualificationAuditDb = new PrismaClient({ adapter: new PrismaPg(e2eDatabaseUrl) });
-    const qualificationAudit = await collectQualificationAudit(qualificationAuditDb).finally(() =>
-      qualificationAuditDb.$disconnect(),
-    );
-    const qualificationAuditReport = await writeGateEvidence(
-      artifactDir(evidence.runId),
-      "qualification-data-audit",
-      {
-        source: "isolated_candidate_fixtures",
-        report: qualificationAudit,
-      },
-    );
-    if (process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1") {
-      const reconciliation = pnpmCommand(["db:reconcile:members"], {
-        allowFailure: true,
-        env: e2eEnv,
+      compose(["up", "-d", "web", "worker"]);
+      await waitFor(`${baseUrl}/api/health?probe=readiness`, 200, 180_000, {
+        "x-crewqual-readiness-secret": readinessProbeSecret,
       });
-      if (reconciliation.status !== 0)
-        throw new Error("member compatibility removal requires zero reconciliation findings");
-    }
-    const report = await writeGateEvidence(artifactDir(evidence.runId), "e2e", {
-      project,
-      candidateImages: {
-        web: required("RELEASE_WEB_IMAGE"),
-        runtime: required("RELEASE_RUNTIME_IMAGE"),
-      },
-      browsers: ["chromium", "firefox", "webkit"],
-      repeatEach: 3,
-      webkitNavigationRepeatEach: 10,
-      remoteBrowsers: ["chromium", "firefox", "webkit"],
-      remotePilotEmployeeNumber: e2eEnv.E2E_PILOT_EMPLOYEE_NUMBER,
-      devEndpointStatus: devEndpoint.status,
-      qualificationAuditReport,
-      compatibilityRemovalGate:
-        process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1" ? "passed" : "not_requested",
-    });
-    return { evidence: [report, qualificationAuditReport], detail: `candidate compose=${project}` };
-  } finally {
-    command("docker", composeArgs(project, envPath, ["down", "-v", "--remove-orphans"]), {
-      allowFailure: true,
-      env: composeEnv,
-    });
-    try {
-      unlinkSync(envPath);
-    } catch {
-      // Best-effort removal of the temporary candidate-stack secret file.
-    }
-  }
+
+      for (const [service, expectedImage] of [
+        ["web", required("RELEASE_WEB_IMAGE")],
+        ["worker", required("RELEASE_RUNTIME_IMAGE")],
+      ] as const) {
+        const containerId = compose(["ps", "-q", service]).output.trim();
+        if (!containerId) throw new Error(`candidate ${service} 容器未运行`);
+        const actualImage = command("docker", [
+          "inspect",
+          "--format",
+          "{{.Config.Image}}",
+          containerId,
+        ]).output.trim();
+        if (actualImage !== expectedImage) {
+          throw new Error(`candidate ${service} 镜像不匹配：${actualImage}`);
+        }
+      }
+      const devEndpoint = await fetch(`${baseUrl}/api/dev/pilot-access?employeeNumber=CQ-1049`);
+      if (devEndpoint.status !== 404) throw new Error("生产候选镜像暴露了开发访问端点");
+
+      const result = pnpmCommand(
+        [
+          "exec",
+          "playwright",
+          "test",
+          "--config",
+          "playwright.release.config.ts",
+          "--project=chromium",
+          "--project=firefox",
+          "--project=webkit",
+          "--repeat-each=3",
+        ],
+        { allowFailure: true, env: e2eEnv },
+      );
+      if (result.status !== 0) throw new Error(`production E2E 失败：${result.output}`);
+      const webkit = pnpmCommand(
+        [
+          "exec",
+          "playwright",
+          "test",
+          "--config",
+          "playwright.release.config.ts",
+          "--project=webkit",
+          "--grep",
+          "admin navigation",
+          "--repeat-each=10",
+        ],
+        { allowFailure: true, env: e2eEnv },
+      );
+      if (webkit.status !== 0) throw new Error(`WebKit 管理导航专项失败：${webkit.output}`);
+      const remote = pnpmCommand(
+        [
+          "exec",
+          "playwright",
+          "test",
+          "--config",
+          "playwright.release-remote.config.ts",
+          "--project=chromium",
+          "--project=firefox",
+          "--project=webkit",
+          "--repeat-each=3",
+        ],
+        { allowFailure: true, env: e2eEnv },
+      );
+      if (remote.status !== 0) throw new Error(`remote production E2E 失败：${remote.output}`);
+      const qualificationAuditDb = new PrismaClient({ adapter: new PrismaPg(e2eDatabaseUrl) });
+      const qualificationAudit = await collectQualificationAudit(qualificationAuditDb).finally(() =>
+        qualificationAuditDb.$disconnect(),
+      );
+      const qualificationAuditReport = await writeGateEvidence(
+        artifactDir(evidence.runId),
+        "qualification-data-audit",
+        {
+          source: "isolated_candidate_fixtures",
+          report: qualificationAudit,
+        },
+      );
+      if (process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1") {
+        const reconciliation = pnpmCommand(["db:reconcile:members"], {
+          allowFailure: true,
+          env: e2eEnv,
+        });
+        if (reconciliation.status !== 0)
+          throw new Error("member compatibility removal requires zero reconciliation findings");
+      }
+      const report = await writeGateEvidence(artifactDir(evidence.runId), "e2e", {
+        project,
+        candidateImages: {
+          web: required("RELEASE_WEB_IMAGE"),
+          runtime: required("RELEASE_RUNTIME_IMAGE"),
+        },
+        browsers: ["chromium", "firefox", "webkit"],
+        repeatEach: 3,
+        webkitNavigationRepeatEach: 10,
+        remoteBrowsers: ["chromium", "firefox", "webkit"],
+        remotePilotEmployeeNumber: e2eEnv.E2E_PILOT_EMPLOYEE_NUMBER,
+        devEndpointStatus: devEndpoint.status,
+        qualificationAuditReport,
+        compatibilityRemovalGate:
+          process.env.RELEASE_REMOVE_MEMBER_COMPATIBILITY === "1" ? "passed" : "not_requested",
+      });
+      return {
+        evidence: [report, qualificationAuditReport],
+        detail: `candidate compose=${project}`,
+      };
+    },
+    async () => {
+      await withCleanup(
+        async () => {
+          cleanupAcceptanceProject(project, envPath, composeEnv);
+        },
+        async () => {
+          try {
+            unlinkSync(envPath);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          }
+        },
+      );
+    },
+  );
 }
 
 async function toolVersion(name: string, args: string[] = ["--version"]) {
@@ -1438,6 +1526,7 @@ async function supplyChain(evidence: ReleaseEvidence) {
 }
 
 async function artifact(evidence: ReleaseEvidence) {
+  assertRequiredGates(evidence);
   const dir = artifactDir(evidence.runId);
   const manifestPath = join(dir, "evidence.json");
   if (!existsSync(manifestPath)) {
@@ -1494,7 +1583,7 @@ async function main() {
   if ((profile === "final" && !stableTag) || (profile === "rc" && !releaseCandidateTag)) {
     throw new Error(`无效 ${profile} release tag：${tag}`);
   }
-  if (scope !== "local" && scope !== "full") {
+  if (scope !== "local" && scope !== "isolated" && scope !== "full") {
     throw new Error(`无效 RELEASE_ACCEPTANCE_SCOPE：${scope}`);
   }
   if (["all", "checks", "local"].includes(operation)) {
@@ -1503,6 +1592,23 @@ async function main() {
   const id = runId();
   const evidence: ReleaseEvidence = {
     schemaVersion: 1,
+    acceptanceScope: scope,
+    policyVersion: RELEASE_POLICY_VERSION,
+    requiredGates: requiredReleaseGates(scope),
+    coverageLimitations:
+      scope === "full"
+        ? [
+            "Production disaster recovery and production RPO/RTO not verified",
+            "Cross-region recovery topology not verified",
+          ]
+        : [
+            "AWS IAM/KMS and Object Lock enforcement not verified",
+            "Cross-region recovery not verified",
+            "Production disaster recovery and production RPO/RTO not verified",
+            ...(scope === "local"
+              ? ["Database/gallery disaster recovery and browser E2E not verified"]
+              : []),
+          ],
     runId: id,
     profile,
     tag,
@@ -1514,18 +1620,45 @@ async function main() {
   if (operation === "artifact") {
     const existingPath = join(artifactDir(id), "evidence.json");
     if (existsSync(existingPath)) {
-      Object.assign(evidence, JSON.parse(await readFile(existingPath, "utf8")) as ReleaseEvidence);
+      const existing = JSON.parse(await readFile(existingPath, "utf8")) as ReleaseEvidence;
+      for (const key of [
+        "runId",
+        "profile",
+        "tag",
+        "commit",
+        "acceptanceScope",
+        "policyVersion",
+      ] as const) {
+        if (existing[key] !== evidence[key])
+          throw new Error(`Existing evidence identity mismatch: ${key}`);
+      }
+      assertRequiredGates(existing);
+      Object.assign(evidence, existing);
     }
   }
   const operations: Record<
     string,
     (item: ReleaseEvidence) => Promise<{ detail?: string; evidence?: string[] }>
-  > = { preflight, bootstrap, "s3-dr": s3Dr, e2e, "supply-chain": supplyChain, artifact };
+  > = {
+    preflight,
+    bootstrap,
+    "s3-dr": s3Dr,
+    e2e: (item) => e2e(item),
+    "isolated-recovery": isolatedRecovery,
+    "supply-chain": supplyChain,
+    artifact,
+  };
   const selected =
     operation === "local"
       ? ["preflight", "bootstrap", "supply-chain"]
       : operation === "all" || operation === "checks"
-        ? ["preflight", "bootstrap", "s3-dr", "e2e", "supply-chain"]
+        ? [
+            "preflight",
+            "bootstrap",
+            ...(scope === "full" ? ["s3-dr"] : []),
+            ...(scope !== "local" ? ["isolated-recovery", "e2e"] : []),
+            "supply-chain",
+          ]
         : [operation];
   if (operation === "all" && process.env.RELEASE_DEFER_ARTIFACT !== "1") selected.push("artifact");
   for (const name of selected) {
@@ -1534,6 +1667,12 @@ async function main() {
     await gate(evidence, name, () => fn(evidence));
     await writeJson(join(artifactDir(id), "evidence.json"), evidence);
     if (evidence.gates.at(-1)?.status === "FAIL") break;
+  }
+  if (["all", "checks", "local", "artifact"].includes(operation)) {
+    await gate(evidence, "acceptance-policy", async () => {
+      assertRequiredGates(evidence);
+      return { detail: `${scope}: all required gates passed` };
+    });
   }
   evidence.finishedAt = new Date().toISOString();
   await writeJson(join(artifactDir(id), "evidence.json"), evidence);

@@ -28,16 +28,21 @@ release_version_is_lower() {
 }
 
 validate_release_inputs() {
-  [[ $# == 4 ]] || { release_input_error 'expected TAG PROFILE SCOPE BASELINE (explicit empty baseline for fresh install)'; return 1; }
-  local tag="$1" profile="$2" scope="$3" baseline="$4"
+  [[ $# == 4 || $# == 5 ]] || { release_input_error 'expected TAG PROFILE SCOPE BASELINE (explicit empty baseline for fresh install)'; return 1; }
+  local tag="$1" profile="$2" scope="$3" baseline="$4" alternate="${5:-}"
   release_version_parts "$tag" >/dev/null || { release_input_error "invalid release tag: $tag"; return 1; }
-  [[ "$scope" == local || "$scope" == full ]] || { release_input_error 'scope must be local or full'; return 1; }
+  [[ "$scope" == local || "$scope" == isolated || "$scope" == full ]] || { release_input_error 'scope must be local, isolated or full'; return 1; }
   [[ "$profile" == rc || "$profile" == final ]] || { release_input_error 'profile must be rc or final'; return 1; }
-  [[ "$profile" != final || "$scope" == full ]] || { release_input_error 'final releases require full acceptance'; return 1; }
+  [[ "$profile" != final || "$scope" == isolated || "$scope" == full ]] || { release_input_error 'final releases require isolated or full acceptance'; return 1; }
   if [[ "$tag" == *-rc.* ]]; then
     [[ "$profile" == rc ]] || { release_input_error 'RC tag requires rc profile'; return 1; }
   else
     [[ "$profile" == final ]] || { release_input_error 'stable tag requires final profile'; return 1; }
+  fi
+  if [[ -n "$alternate" ]]; then
+    [[ "$profile" == final && -n "$baseline" ]] || { release_input_error 'arm64 bootstrap requires final with a stable upgrade baseline'; return 1; }
+    release_version_parts "$alternate" >/dev/null || { release_input_error 'invalid arm64 bootstrap tag'; return 1; }
+    [[ "$alternate" == "$tag"-rc.* && "${alternate##*-rc.}" != 0 ]] || { release_input_error 'arm64 bootstrap must be a positive RC of the target version'; return 1; }
   fi
   if [[ -z "$baseline" ]]; then
     printf 'fresh\n'

@@ -17,11 +17,26 @@ server_pid=""
 die() { echo "post-publish acceptance: $*" >&2; exit 1; }
 channel_for() { [[ "$1" == *-rc.* ]] && printf rc || printf stable; }
 
+pin_final_acceptance_manifest() {
+  local config="${1:-/etc/crewqual-updater/config.json}" pin channel temporary
+  [[ "$target" != *-rc.* ]] || return 0
+  pin="https://github.com/$repo/releases/download/$target/update-manifest-v1.json"
+  channel="$(sudo jq -er '.channel' "$config")"
+  temporary="$(mktemp)"
+  chmod 600 "$temporary"
+  sudo jq --arg pin "$pin" '.manifestURL = $pin' "$config" > "$temporary"
+  sudo install -m 0600 "$temporary" "$config"
+  rm -f "$temporary"
+  sudo jq -e --arg pin "$pin" --arg channel "$channel" '.manifestURL == $pin and .channel == $channel' "$config" >/dev/null || die "final acceptance manifest pin was not retained"
+  echo "final acceptance manifest pin: $pin (channel=$channel)"
+}
+
 install_from_tag() {
-  local tag="$1" dir="$2" channel
+  local tag="$1" dir="$2" commit="$3" channel
+  [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || die "installer requires validated commit"
   channel="$(channel_for "$tag")"
   local script="$(mktemp)"
-  curl -fsSL --retry 3 "https://raw.githubusercontent.com/${repo}/${tag}/install.sh" -o "$script"
+  curl -fsSL --retry 3 "https://raw.githubusercontent.com/${repo}/${commit}/install.sh" -o "$script"
   chmod 700 "$script"
   sudo -E CREWQUAL_INSTALL_DIR="$dir" bash "$script" --version "$tag" --channel "$channel" \
     --network-mode lan --lan-address 172.20.0.1 --non-interactive
@@ -163,11 +178,19 @@ fi
 profile=final
 [[ "$target" == *-rc.* ]] && profile=rc
 acceptance_scope="${RELEASE_ACCEPTANCE_SCOPE:-}"
-if [[ -z "$acceptance_scope" ]]; then
-  [[ "$profile" == final ]] && acceptance_scope=full || acceptance_scope=local
-fi
-bash "$script_dir/validate-release-inputs.sh" "$target" "$profile" "$acceptance_scope" "$baseline" >/dev/null ||
-  die "invalid target/baseline release inputs"
+[[ -n "$acceptance_scope" ]] || die "RELEASE_ACCEPTANCE_SCOPE must be explicit"
+case "${BASELINE_KIND:-stable-upgrade}" in
+  rc-promotion)
+    [[ "$expected_baseline_commit" == "$expected_commit" && "$expected_commit" =~ ^[0-9a-f]{40}$ ]] || die "arm64 promotion must use the final target commit"
+    [[ "${EXPECTED_ARCH:-}" == arm64 && "$baseline" == "${RELEASE_ARM64_BOOTSTRAP_FROM_TAG:-}" && -n "$baseline" ]] || die "invalid arm64 promotion baseline"
+    bash "$script_dir/validate-release-inputs.sh" "$target" "$profile" "$acceptance_scope" "${RELEASE_UPGRADE_FROM_TAG:-}" "$baseline" >/dev/null || die "invalid arm64 promotion inputs"
+    ;;
+  stable-upgrade)
+    bash "$script_dir/validate-release-inputs.sh" "$target" "$profile" "$acceptance_scope" "$baseline" >/dev/null || die "invalid target/baseline release inputs"
+    ;;
+  *) die "invalid baseline kind" ;;
+esac
+echo "baseline acceptance: kind=${BASELINE_KIND:-stable-upgrade} tag=$baseline target=$target"
 trap cleanup_acceptance EXIT
 
 sudo systemctl stop crewqual-caddy-recovery.service crewqual-updater.service crewqual-updater.socket >/dev/null 2>&1 || true
@@ -177,7 +200,7 @@ for stale_dir in "$fresh_dir" "$upgrade_dir"; do
 done
 sudo rm -rf -- "$fresh_dir" "$upgrade_dir" /var/lib/crewqual-updater
 sudo rm -f /run/crewqual-updater/api.sock
-install_from_tag "$target" "$fresh_dir"
+install_from_tag "$target" "$fresh_dir" "$expected_commit"
 image_id_checks "$fresh_dir" "$expected_commit"
 target_updater="$(mktemp "${RUNNER_TEMP:-/tmp}/crewqual-target-updater.XXXXXX")"
 # The target installer has already verified this native binary against the
@@ -207,7 +230,8 @@ if [[ -z "$baseline" ]]; then
   exit 0
 fi
 
-install_from_tag "$baseline" "$upgrade_dir"
+install_from_tag "$baseline" "$upgrade_dir" "$expected_baseline_commit"
+pin_final_acceptance_manifest
 image_id_checks "$upgrade_dir" "$expected_baseline_commit"
 # The production installer intentionally leaves a new deployment in web-setup
 # mode. Seed the disposable acceptance database through the real production

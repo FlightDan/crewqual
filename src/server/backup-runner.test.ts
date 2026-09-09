@@ -362,6 +362,12 @@ describe("backup credential JSON validation", () => {
     expect(() => parseBackupCredentials("S3", '{"accessKeyId":"access "}')).toThrow(
       "凭据格式不合法",
     );
+    expect(() =>
+      parseBackupCredentials("S3", '{"accessKeyId":"access","secretAccessKey":" secret "}'),
+    ).toThrow("凭据格式不合法");
+    expect(() =>
+      parseBackupCredentials("S3", '{"username":"access","password":" secret "}'),
+    ).toThrow("凭据格式不合法");
     expect(() => parseBackupCredentials("FTP", '{"tls":"yes"}')).toThrow("凭据格式不合法");
     expect(() => parseBackupCredentials("FTP", '{"passivePortRange":"21-20"}')).toThrow(
       "凭据格式不合法",

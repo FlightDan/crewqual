@@ -58,10 +58,10 @@ const webdavCredentialSchema = z
 const s3CredentialSchema = z
   .object({
     accessKeyId: configCredentialValue.optional(),
-    secretAccessKey: credentialValue.optional(),
+    secretAccessKey: configCredentialValue.optional(),
     // Keep the legacy username/password spelling used by existing targets.
     username: configCredentialValue.optional(),
-    password: credentialValue.optional(),
+    password: configCredentialValue.optional(),
     ...encryptionKey,
   })
   .strict();

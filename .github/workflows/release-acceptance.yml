@@ -14,12 +14,17 @@ on:
         default: rc
         type: choice
         options: [rc, final]
+      arm64_bootstrap_from_tag:
+        description: Optional same-version positive RC for final arm64 bootstrap; requires stable upgrade baseline
+        required: false
+        default: ""
+        type: string
       acceptance_scope:
-        description: local runs static/bootstrap gates; full also runs S3 DR and isolated candidate-image E2E
+        description: local runs static/bootstrap gates; isolated runs temporary DR and candidate-image E2E; full uses external S3 DR
         required: true
         default: local
         type: choice
-        options: [local, full]
+        options: [local, isolated, full]
       upgrade_from_tag:
         description: Existing lower release for upgrade/rollback; leave blank for the first deployable release
         required: false
@@ -45,6 +50,7 @@ env:
   RELEASE_ACCEPTANCE_SCOPE: ${{ inputs.acceptance_scope }}
   RELEASE_UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
   RELEASE_REPLACE_EXISTING_ASSETS: ${{ inputs.replace_existing_assets }}
+  RELEASE_ARM64_BOOTSTRAP_FROM_TAG: ${{ inputs.arm64_bootstrap_from_tag }}
   RELEASE_RUN_ID: ${{ github.run_id }}
   LICENSE_APPROVALS_FILE: /tmp/license-approvals.json
   SMS_ADAPTER: disabled
@@ -82,17 +88,22 @@ jobs:
           profile = os.environ["RELEASE_PROFILE"]
           scope = os.environ["RELEASE_ACCEPTANCE_SCOPE"]
           baseline = os.environ["RELEASE_UPGRADE_FROM_TAG"]
+          alternate = os.environ.get("RELEASE_ARM64_BOOTSTRAP_FROM_TAG", "")
           target = version(tag)
           if profile not in ("rc", "final") or (profile == "final") != target[3]:
               fail("release profile does not match tag channel")
-          if scope not in ("local", "full"):
+          if scope not in ("local", "isolated", "full"):
               fail("invalid acceptance scope")
-          if profile == "final" and scope != "full":
-              fail("final releases require full acceptance")
+          if profile == "final" and scope not in ("isolated", "full"):
+              fail("final releases require isolated or full acceptance")
           if baseline:
               previous = version(baseline)
               if previous[3] != target[3] or previous >= target:
                   fail("upgrade baseline must be a strictly lower release in the same channel")
+          if alternate:
+              candidate = version(alternate)
+              if profile != "final" or not baseline or candidate[3] or candidate[:3] != target[:3] or candidate[4] == (1, "0"):
+                  fail("arm64 bootstrap must be a positive RC of the final target with a stable baseline")
           mode = "upgrade" if baseline else "fresh"
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write(f"target={tag}\nbaseline={baseline}\nmode={mode}\n")
@@ -102,7 +113,7 @@ jobs:
   acceptance-config:
     needs: validate-inputs
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: read
     environment: release-sandbox
@@ -111,6 +122,8 @@ jobs:
       tag_object: ${{ steps.tag.outputs.tag_object }}
       baseline_commit: ${{ steps.tag.outputs.baseline_commit }}
       baseline_tag_object: ${{ steps.tag.outputs.baseline_tag_object }}
+      arm64_baseline_commit: ${{ steps.tag.outputs.arm64_baseline_commit }}
+      arm64_baseline_tag_object: ${{ steps.tag.outputs.arm64_baseline_tag_object }}
     steps:
       - name: Checkout requested release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -159,6 +172,15 @@ jobs:
             baseline_commit="$VERIFIED_COMMIT"
             baseline_tag_object="$VERIFIED_TAG_OBJECT"
           fi
+          arm64_baseline_commit=""
+          arm64_baseline_tag_object=""
+          if [[ -n "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG" ]]; then
+            verify_signed_tag "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG"
+            [[ "$VERIFIED_COMMIT" == "$commit" ]] || { echo 'arm64 promotion RC must name the final target commit'; exit 1; }
+            arm64_baseline_commit="$VERIFIED_COMMIT"
+            arm64_baseline_tag_object="$VERIFIED_TAG_OBJECT"
+          fi
+          printf 'arm64_baseline_commit=%s\narm64_baseline_tag_object=%s\n' "$arm64_baseline_commit" "$arm64_baseline_tag_object" >> "$GITHUB_OUTPUT"
           printf 'commit=%s\ntag_object=%s\nbaseline_commit=%s\nbaseline_tag_object=%s\n' \
             "$commit" "$tag_object" "$baseline_commit" "$baseline_tag_object" >> "$GITHUB_OUTPUT"
       - name: Confirm checked-out input validator agrees with the early gate
@@ -166,7 +188,7 @@ jobs:
           VALIDATED_MODE: ${{ needs.validate-inputs.outputs.mode }}
         run: |
           set -euo pipefail
-          mode="$(bash scripts/release/validate-release-inputs.sh "$RELEASE_TAG" "$RELEASE_PROFILE" "$RELEASE_ACCEPTANCE_SCOPE" "$RELEASE_UPGRADE_FROM_TAG")"
+          mode="$(bash scripts/release/validate-release-inputs.sh "$RELEASE_TAG" "$RELEASE_PROFILE" "$RELEASE_ACCEPTANCE_SCOPE" "$RELEASE_UPGRADE_FROM_TAG" "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG")"
           [[ "$mode" == "$VALIDATED_MODE" ]] || { echo 'release input validators disagree'; exit 1; }
       - name: Preflight signed upgrade baseline release
         if: inputs.upgrade_from_tag != ''
@@ -200,6 +222,79 @@ jobs:
                 exit 1
               }
           done
+      - name: Preflight signed arm64 bootstrap release
+        if: inputs.arm64_bootstrap_from_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_BASELINE_TAG_OBJECT: ${{ steps.tag.outputs.arm64_baseline_tag_object }}
+        run: |
+          set -euo pipefail
+          remote_tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_ARM64_BOOTSTRAP_FROM_TAG" --jq .object.sha)"
+          [[ "$remote_tag_object" == "$VALIDATED_BASELINE_TAG_OBJECT" ]] || {
+            echo 'upgrade baseline tag differs from the validated signed object'
+            exit 1
+          }
+          release="$(gh release view "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName)"
+          expected_prerelease=false
+          [[ "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG" == *-rc.* ]] && expected_prerelease=true
+          jq -e --arg tag "$RELEASE_ARM64_BOOTSTRAP_FROM_TAG" --argjson prerelease "$expected_prerelease" \
+            '.tagName == $tag and .isDraft == false and .isPrerelease == $prerelease' <<< "$release" >/dev/null
+          required_assets=(
+            update-manifest-v1.json update-manifest-v1.json.sig SHA256SUMS SHA256SUMS.sig
+            crewqual-updater-linux-amd64 crewqual-updater-linux-arm64
+            docker-compose.install.yml Caddyfile configure-domain.sh
+            evidence.json evidence.json.sig evidence.bundle.json
+          )
+          for asset in "${required_assets[@]}"; do
+            jq -e --arg name "$asset" \
+              '[.assets[] | select(.name == $name and .size > 0)] | length == 1' \
+              <<< "$release" >/dev/null || {
+                echo "upgrade baseline is missing a non-empty signed release asset: $asset"
+                exit 1
+              }
+          done
+      - name: Verify signed baseline manifests and native image platforms
+        if: inputs.upgrade_from_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          verify_baseline_platform() {
+            local tag="$1" arch="$2" directory image actual
+            directory="$(mktemp -d)"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$directory" \
+              --pattern update-manifest-v1.json --pattern update-manifest-v1.json.sig \
+              --pattern SHA256SUMS --pattern SHA256SUMS.sig
+            node - "$directory" "$tag" <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [directory, tag] = process.argv.slice(2);
+          const read = name => fs.readFileSync(`${directory}/${name}`);
+          const manifest = JSON.parse(read('update-manifest-v1.json'));
+          const keyring = JSON.parse(fs.readFileSync('security/update-manifest-keyring.json'));
+          const keys = keyring.keys.filter(key => key.id === manifest.signingKeyId && ['active', 'next'].includes(key.status));
+          if (keys.length !== 1) throw new Error('baseline manifest key is not trusted');
+          const key = crypto.createPublicKey({key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(keys[0].publicKey, 'base64')]), format: 'der', type: 'spki'});
+          for (const name of ['update-manifest-v1.json', 'SHA256SUMS']) {
+            if (!crypto.verify(null, read(name), key, Buffer.from(read(`${name}.sig`).toString().trim(), 'base64'))) throw new Error(`invalid baseline signature: ${name}`);
+          }
+          if (manifest.version !== tag || manifest.channel !== (tag.includes('-rc.') ? 'rc' : 'stable')) throw new Error('baseline manifest version/channel mismatch');
+          const entries = read('SHA256SUMS').toString().split('\n').filter(line => /^[a-f0-9]{64}  update-manifest-v1\.json$/.test(line));
+          if (entries.length !== 1 || entries[0].slice(0, 64) !== crypto.createHash('sha256').update(read('update-manifest-v1.json')).digest('hex')) throw new Error('baseline manifest checksum mismatch');
+          for (const [field, suffix] of [['webImage', 'web'], ['runtimeImage', 'runtime']]) {
+            if (!new RegExp(`^ghcr\\.io/flightdan/crewqual-${suffix}@sha256:[a-f0-9]{64}$`).test(manifest[field])) throw new Error('baseline image reference must be an official digest');
+          }
+          NODE
+            while IFS= read -r image; do
+              docker pull --platform "linux/$arch" "$image" >/dev/null
+              actual="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image")"
+              [[ "$actual" == "linux/$arch" ]] || { echo "baseline $tag image lacks linux/$arch"; return 1; }
+            done < <(jq -r '.webImage, .runtimeImage' "$directory/update-manifest-v1.json")
+            rm -rf -- "$directory"
+          }
+          verify_baseline_platform "$RELEASE_UPGRADE_FROM_TAG" amd64
+          verify_baseline_platform "${RELEASE_ARM64_BOOTSTRAP_FROM_TAG:-$RELEASE_UPGRADE_FROM_TAG}" arm64
       - name: Setup pnpm
         uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
       - name: Setup Node
@@ -209,8 +304,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Validate local release acceptance configuration
-        if: inputs.acceptance_scope == 'local'
+      - name: Validate local or isolated release acceptance configuration
+        if: inputs.acceptance_scope == 'local' || inputs.acceptance_scope == 'isolated'
         env:
           UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
           UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
@@ -442,7 +537,7 @@ jobs:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
         run: |
           set -euo pipefail
-          if [[ "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
+          if [[ "$RELEASE_PROFILE" == final || "$RELEASE_ACCEPTANCE_SCOPE" == full ]]; then
             printf '%s' "$LICENSE_APPROVALS_JSON" > "$LICENSE_APPROVALS_FILE"
           else
             if [[ -n "$LICENSE_APPROVALS_JSON" ]]; then
@@ -463,6 +558,16 @@ jobs:
           LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
           RELEASE_DEFER_ARTIFACT: "1"
         run: node --import tsx scripts/release/verify.ts local --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
+      - name: Run isolated release acceptance gates
+        if: inputs.acceptance_scope == 'isolated'
+        env:
+          UPDATE_MANIFEST_PRIVATE_KEY_B64: ${{ secrets.UPDATE_MANIFEST_PRIVATE_KEY_B64 }}
+          UPDATE_MANIFEST_SIGNING_KEY_ID: ${{ secrets.UPDATE_MANIFEST_SIGNING_KEY_ID }}
+          RELEASE_TAG_SIGNING_PUBLIC_KEY_B64: ${{ secrets.RELEASE_TAG_SIGNING_PUBLIC_KEY_B64 }}
+          RELEASE_SIGNER_FINGERPRINTS: ${{ secrets.RELEASE_SIGNER_FINGERPRINTS }}
+          LICENSE_APPROVALS_JSON: ${{ secrets.LICENSE_APPROVALS_JSON }}
+          RELEASE_DEFER_ARTIFACT: "1"
+        run: pnpm release:verify -- --tag "$RELEASE_TAG" --profile "$RELEASE_PROFILE"
       - name: Run full release acceptance gates
         if: inputs.acceptance_scope == 'full'
         env:
@@ -632,9 +737,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VALIDATED_TAG_OBJECT: ${{ needs.acceptance-config.outputs.tag_object }}
+          SELECTED_BASELINE: ${{ matrix.arch == 'arm64' && inputs.arm64_bootstrap_from_tag != '' && inputs.arm64_bootstrap_from_tag || inputs.upgrade_from_tag }}
+          VALIDATED_BASELINE_OBJECT: ${{ matrix.arch == 'arm64' && inputs.arm64_bootstrap_from_tag != '' && needs.acceptance-config.outputs.arm64_baseline_tag_object || needs.acceptance-config.outputs.baseline_tag_object }}
         run: |
+          set -euo pipefail
           remote_tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
           [[ "$remote_tag_object" == "$VALIDATED_TAG_OBJECT" ]] || { echo 'release tag moved after publication'; exit 1; }
+          if [[ -n "$SELECTED_BASELINE" ]]; then
+            remote_baseline="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$SELECTED_BASELINE" --jq .object.sha)"
+            [[ "$remote_baseline" == "$VALIDATED_BASELINE_OBJECT" ]] || { echo 'baseline tag moved before host acceptance'; exit 1; }
+          fi
       - name: Login to GHCR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -642,10 +754,11 @@ jobs:
       - name: Install published release on a clean host and exercise upgrade/rollback
         env:
           TARGET_TAG: ${{ inputs.tag }}
-          UPGRADE_FROM_TAG: ${{ inputs.upgrade_from_tag }}
+          UPGRADE_FROM_TAG: ${{ matrix.arch == 'arm64' && inputs.arm64_bootstrap_from_tag != '' && inputs.arm64_bootstrap_from_tag || inputs.upgrade_from_tag }}
+          BASELINE_KIND: ${{ matrix.arch == 'arm64' && inputs.arm64_bootstrap_from_tag != '' && 'rc-promotion' || 'stable-upgrade' }}
           EXPECTED_ARCH: ${{ matrix.arch }}
           EXPECTED_COMMIT: ${{ needs.acceptance-config.outputs.commit }}
-          EXPECTED_BASELINE_COMMIT: ${{ needs.acceptance-config.outputs.baseline_commit }}
+          EXPECTED_BASELINE_COMMIT: ${{ matrix.arch == 'arm64' && inputs.arm64_bootstrap_from_tag != '' && needs.acceptance-config.outputs.arm64_baseline_commit || needs.acceptance-config.outputs.baseline_commit }}
         run: |
           set -euo pipefail
           case "$(uname -m):$EXPECTED_ARCH" in
@@ -665,6 +778,51 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest=true
+
+  verify-final-discovery:
+    needs: [acceptance-config, promote-final]
+    if: inputs.profile == 'final'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.acceptance-config.outputs.commit }}
+          fetch-depth: 1
+      - name: Verify stable latest discovery after promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source scripts/release/crewqual-release-publish
+          verify_final_discovery "$RELEASE_TAG"
+          directory="$(mktemp -d)"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$directory" \
+            --pattern update-manifest-v1.json --pattern update-manifest-v1.json.sig
+          node - "$directory" "$RELEASE_TAG" <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [directory, tag] = process.argv.slice(2);
+          const raw = fs.readFileSync(`${directory}/update-manifest-v1.json`);
+          const manifest = JSON.parse(raw);
+          const keyring = JSON.parse(fs.readFileSync('security/update-manifest-keyring.json'));
+          const keys = keyring.keys.filter(key => key.id === manifest.signingKeyId && ['active', 'next'].includes(key.status));
+          if (keys.length !== 1 || manifest.version !== tag || manifest.channel !== 'stable') throw new Error('stable discovery manifest identity mismatch');
+          const key = crypto.createPublicKey({key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(keys[0].publicKey, 'base64')]), format: 'der', type: 'spki'});
+          const signature = Buffer.from(fs.readFileSync(`${directory}/update-manifest-v1.json.sig`).toString().trim(), 'base64');
+          if (!crypto.verify(null, raw, key, signature)) throw new Error('invalid stable discovery manifest signature');
+          NODE
+          # Exercise production unpinned discovery against /releases, including
+          # its selection ordering and signature verification using built-in keys.
+          (cd updater && go build -trimpath -o "$directory/crewqual-updater" .)
+          jq -n --arg root "$directory" --arg api "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
+            '{installDir:$root,dataDir:($root+"/state"),composeFile:($root+"/compose.yaml"),envFile:($root+"/.env"),sharedSecret:"disposable-discovery",channel:"stable",releaseAPIURL:$api,manifestURL:""}' > "$directory/config.json"
+          jq -e '.channel == "stable" and .manifestURL == ""' "$directory/config.json" >/dev/null
+          CREWQUAL_UPDATER_CONFIG="$directory/config.json" "$directory/crewqual-updater" check
+          CREWQUAL_UPDATER_CONFIG="$directory/config.json" "$directory/crewqual-updater" status > "$directory/status.json"
+          jq -e --arg tag "$RELEASE_TAG" '.latestVersion == $tag and (.releasePublishedAt | length > 0)' "$directory/status.json" >/dev/null
+          rm -rf -- "$directory"
 
   keep-rc-prerelease:
     needs: post-publish-host-acceptance

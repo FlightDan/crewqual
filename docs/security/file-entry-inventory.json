@@ -82,12 +82,18 @@
       "gate": "Dedicated evidence/backup acceptance probes; no production download handler"
     },
     {
+      "path": "scripts/release/isolated-recovery-fixture.ts",
+      "kind": "isolated-recovery-acceptance",
+      "gate": "Release-only generated JPEG fixtures in disposable database/buckets; production backup/restore checksums, reconstruction, tamper refusal and project teardown are mandatory"
+    },
+    {
       "path": "scripts/recognition-pgboss-e2e.ts",
       "kind": "isolated-queue-fixture",
       "gate": "Locally generated JPEG and temporary owner/database rows; provider boundary stub, no object storage access"
     }
   ],
   "storageImporters": [
+    "scripts/release/isolated-recovery-fixture.ts",
     "src/app/api/evidence-images/[id]/url/route.ts",
     "src/app/api/evidence-images/route.ts",
     "src/app/api/admin/reviews/[reviewId]/evidence/route.ts",
@@ -98,6 +104,7 @@
     "src/server/worker-handlers.ts"
   ],
   "directObjectIo": [
+    "scripts/release/isolated-recovery-fixture.ts",
     "scripts/release/verify.ts",
     "src/server/backup-runner.ts",
     "src/server/health.ts",
