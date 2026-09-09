@@ -50,7 +50,19 @@ LABEL org.opencontainers.image.revision="$VCS_REF" \
       org.opencontainers.image.source="$SOURCE_URL"
 RUN apt-get update \
   && apt-get upgrade -y \
-  && apt-get install -y --no-install-recommends ca-certificates wget gnupg rclone \
+  && apt-get install -y --no-install-recommends ca-certificates wget gnupg \
+  && rclone_arch="$(dpkg --print-architecture)" \
+  && case "$rclone_arch" in \
+       amd64) rclone_sha256=266598b5c66a42b821571332013cc85a88ffcff8939cf0643861c8d033dd3a4a ;; \
+       arm64) rclone_sha256=081c605cbf47ade3114e78db2130766a23281a12b79cdd5774b11dad6c6c0931 ;; \
+       *) echo "Unsupported rclone architecture: $rclone_arch" >&2; exit 1 ;; \
+     esac \
+  && wget -qO /tmp/rclone.deb "https://downloads.rclone.org/v1.75.0/rclone-v1.75.0-linux-${rclone_arch}.deb" \
+  && printf '%s  %s\n' "$rclone_sha256" /tmp/rclone.deb | sha256sum -c - \
+  && dpkg -i /tmp/rclone.deb \
+  && rm /tmp/rclone.deb \
+  && rclone version | grep -Fx 'rclone v1.75.0' \
+  && rclone help flags | grep -E -- '^[[:space:]]*--http-proxy[[:space:]]' \
   && install -d /usr/share/postgresql-common/pgdg \
   && wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
   && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \

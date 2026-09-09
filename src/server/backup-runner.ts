@@ -964,26 +964,37 @@ async function runRclone(
       );
     }
     await writeFile(configPath, `${lines.join("\n")}\n`, { mode: 0o600 });
-    const proxyArgs = proxy && credentials.type !== "FTP" ? ["--http-proxy", proxy.url] : [];
-    const childEnvironment = minimalSubprocessEnvironment();
-    return await execFileAsync("rclone", ["--config", configPath, ...proxyArgs, ...args], {
+    const invocation = rcloneInvocation(configPath, args, proxy?.url);
+    return await execFileAsync("rclone", invocation.args, {
       timeout: 60 * 60 * 1000,
-      env: proxy
-        ? {
-            ...childEnvironment,
-            HTTP_PROXY: proxy.url,
-            HTTPS_PROXY: proxy.url,
-            http_proxy: proxy.url,
-            https_proxy: proxy.url,
-            NO_PROXY: "",
-            no_proxy: "",
-          }
-        : childEnvironment,
+      env: invocation.env,
     });
   } finally {
     await proxy?.close();
     await rm(configDir, { recursive: true, force: true });
   }
+}
+
+export function rcloneInvocation(configPath: string, args: string[], proxyUrl?: string) {
+  const childEnvironment = minimalSubprocessEnvironment();
+  return {
+    args: ["--config", configPath, ...args],
+    env: proxyUrl
+      ? {
+          ...childEnvironment,
+          // rclone's explicit proxy uses http.ProxyURL, avoiding the automatic
+          // localhost/loopback bypass in Go's HTTP_PROXY handling. Keep the
+          // authenticated URL out of argv and command-failure diagnostics.
+          RCLONE_HTTP_PROXY: proxyUrl,
+          HTTP_PROXY: proxyUrl,
+          HTTPS_PROXY: proxyUrl,
+          http_proxy: proxyUrl,
+          https_proxy: proxyUrl,
+          NO_PROXY: "",
+          no_proxy: "",
+        }
+      : childEnvironment,
+  };
 }
 
 function rcloneDestination(target: BackupTargetRecord, name: string) {
