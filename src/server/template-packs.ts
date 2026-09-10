@@ -270,6 +270,55 @@ export type InstallTemplateResult = {
   skippedExisting: number;
 };
 
+/**
+ * Restore the legacy qualification projection for template definitions that
+ * predate the canonical member architecture. This deliberately leaves an
+ * existing QualificationType untouched so operator customizations survive an
+ * upgrade; it only creates a missing type and links the existing definition.
+ *
+ * Keep this repair independent of template-pack activation. Database
+ * migrations must be able to repair an already-installed pack even when an
+ * administrator has since deactivated that pack for new installations.
+ */
+export async function repairLegacyQualificationTypes(
+  db: Prisma.TransactionClient,
+  organizationId: string,
+  definitions: TemplatePack["qualificationDefinitions"],
+) {
+  for (const definition of definitions) {
+    const existingDefinition = await db.qualificationDefinition.findUnique({
+      where: { organizationId_code: { organizationId, code: definition.code } },
+      select: { id: true, legacyQualificationTypeId: true },
+    });
+    if (!existingDefinition || existingDefinition.legacyQualificationTypeId) continue;
+
+    const legacyType = await db.qualificationType.findUnique({
+      where: { code: definition.code },
+      select: { id: true },
+    });
+    const type =
+      legacyType ??
+      (await db.qualificationType.create({
+        data: {
+          code: definition.code,
+          name: definition.name,
+          translations: definition.translations,
+          core: true,
+          active: definition.active,
+          parameterRestriction: definition.parameterRestriction,
+          validityRule: definition.validityRule,
+          reminders: definition.reminders,
+          ocrChecks: definition.ocrChecks,
+        },
+        select: { id: true },
+      }));
+    await db.qualificationDefinition.update({
+      where: { id: existingDefinition.id },
+      data: { legacyQualificationTypeId: type.id },
+    });
+  }
+}
+
 export async function installTemplatePack(
   organizationId: string,
   templatePackId: string,
@@ -304,37 +353,7 @@ export async function installTemplatePackInTransaction(
     // architecture was introduced. Repair the compatibility links on a
     // repeat setup call so the legacy pilot-management endpoints remain
     // usable without requiring a destructive re-install.
-    for (const definition of pack.qualificationDefinitions) {
-      const existingDefinition = await db.qualificationDefinition.findUnique({
-        where: { organizationId_code: { organizationId, code: definition.code } },
-        select: { id: true, legacyQualificationTypeId: true },
-      });
-      if (!existingDefinition || existingDefinition.legacyQualificationTypeId) continue;
-      const legacyType = await db.qualificationType.findUnique({
-        where: { code: definition.code },
-        select: { id: true },
-      });
-      const type =
-        legacyType ??
-        (await db.qualificationType.create({
-          data: {
-            code: definition.code,
-            name: definition.name,
-            translations: definition.translations,
-            core: true,
-            active: definition.active,
-            parameterRestriction: definition.parameterRestriction,
-            validityRule: definition.validityRule,
-            reminders: definition.reminders,
-            ocrChecks: definition.ocrChecks,
-          },
-          select: { id: true },
-        }));
-      await db.qualificationDefinition.update({
-        where: { id: existingDefinition.id },
-        data: { legacyQualificationTypeId: type.id },
-      });
-    }
+    await repairLegacyQualificationTypes(db, organizationId, pack.qualificationDefinitions);
     const result = (existingInstallation.result ?? {}) as Record<string, number>;
     return {
       installationId: existingInstallation.id,

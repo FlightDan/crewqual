@@ -17,8 +17,64 @@ import {
   ensureMigrationPerson,
   linkMutablePilotProjections,
 } from "../../scripts/migrate-member-architecture";
+import { PILOT_TEMPLATE_PACK, repairLegacyQualificationTypes } from "./template-packs";
 
 describe("member architecture migration audit safety", () => {
+  it("repairs the v1.0.4 empty legacy qualification projection", async () => {
+    const definitions = PILOT_TEMPLATE_PACK.qualificationDefinitions;
+    const qualificationDefinition = {
+      findUnique: vi.fn(
+        async ({ where }: { where: { organizationId_code: { code: string } } }) => ({
+          id: `definition-${where.organizationId_code.code}`,
+          legacyQualificationTypeId: null,
+        }),
+      ),
+      update: vi.fn(),
+    };
+    const qualificationType = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn(async ({ data }: { data: { code: string } }) => ({ id: `type-${data.code}` })),
+    };
+
+    await repairLegacyQualificationTypes(
+      { qualificationDefinition, qualificationType } as never,
+      "organization-1",
+      definitions,
+    );
+
+    expect(qualificationType.create).toHaveBeenCalledTimes(definitions.length);
+    expect(qualificationDefinition.update).toHaveBeenCalledTimes(definitions.length);
+    expect(
+      qualificationDefinition.update.mock.calls.map(
+        ([call]) => call.data.legacyQualificationTypeId,
+      ),
+    ).toEqual(definitions.map((definition) => `type-${definition.code}`));
+  });
+
+  it("preserves an existing customized legacy type and is idempotent", async () => {
+    const [definition] = PILOT_TEMPLATE_PACK.qualificationDefinitions;
+    const findDefinition = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "definition-1", legacyQualificationTypeId: null })
+      .mockResolvedValue({ id: "definition-1", legacyQualificationTypeId: "type-1" });
+    const qualificationType = {
+      findUnique: vi.fn().mockResolvedValue({ id: "type-1" }),
+      create: vi.fn(),
+    };
+    const qualificationDefinition = { findUnique: findDefinition, update: vi.fn() };
+    const tx = { qualificationDefinition, qualificationType };
+
+    await repairLegacyQualificationTypes(tx as never, "organization-1", [definition]);
+    await repairLegacyQualificationTypes(tx as never, "organization-1", [definition]);
+
+    expect(qualificationType.create).not.toHaveBeenCalled();
+    expect(qualificationDefinition.update).toHaveBeenCalledTimes(1);
+    expect(qualificationDefinition.update).toHaveBeenCalledWith({
+      where: { id: "definition-1" },
+      data: { legacyQualificationTypeId: "type-1" },
+    });
+  });
+
   it("does not update immutable AuditEvent rows", async () => {
     const tx = {
       evidenceImage: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },

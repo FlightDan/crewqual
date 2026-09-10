@@ -2,7 +2,11 @@ import { loadEnvConfig } from "@next/env";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { CORE_QUALIFICATION_CATALOG } from "../src/types/services";
-import { PILOT_TEMPLATE_PACK, templatePackChecksum } from "../src/server/template-packs";
+import {
+  PILOT_TEMPLATE_PACK,
+  repairLegacyQualificationTypes,
+  templatePackChecksum,
+} from "../src/server/template-packs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -562,6 +566,15 @@ export async function migrate() {
           result: { migrated: true },
         },
       });
+      // v1.0.4 and earlier installed the canonical definitions without the
+      // legacy QualificationType projection. Repair it after the migration's
+      // definition/install upserts so upgrades retain the old endpoints even
+      // when an existing admin makes production bootstrap return early.
+      await repairLegacyQualificationTypes(
+        tx,
+        organization.id,
+        PILOT_TEMPLATE_PACK.qualificationDefinitions,
+      );
     });
   }
   console.log(JSON.stringify({ dryRun: false, ...summary }, null, 2));
