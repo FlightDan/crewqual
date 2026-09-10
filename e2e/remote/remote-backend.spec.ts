@@ -46,6 +46,9 @@ if (!databaseUrl) {
 }
 const auditDb = new Pool({ connectionString: databaseUrl, max: 2 });
 
+// Authentication and private reset responses must not enter browser artifacts.
+test.use({ trace: "off", video: "off", screenshot: "off" });
+
 test.afterAll(async () => auditDb.end());
 
 async function createPilotAccessTokenInDatabase() {
@@ -465,7 +468,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       const id = randomUUID();
       await auditDb.query(
         `INSERT INTO "QualificationType" (id, code, name, core, active, "parameterRestriction", "validityRule", reminders, "ocrChecks", version, "updatedAt")
-         VALUES ($1, $2, $3, false, true, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, 1, now())`,
+       VALUES ($1, $2, $3, false, true, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, 1, now())`,
         [
           id,
           code,
@@ -482,7 +485,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       const id = randomUUID();
       await auditDb.query(
         `INSERT INTO "QualificationUpdateRequest" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "submittedFields", "qualificationRuleSnapshot", "expectedVersion", "expectedQualificationRecordId", "baselineCapturedAt")
-         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $8::jsonb, $9, (SELECT id FROM "QualificationRecord" WHERE "pilotId" = $2 AND "qualificationTypeId" = $3 AND status = 'ACTIVE'), now())`,
+       VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $8::jsonb, $9, (SELECT id FROM "QualificationRecord" WHERE "pilotId" = $2 AND "qualificationTypeId" = $3 AND status = 'ACTIVE'), now())`,
         [
           id,
           pilot.id,
@@ -512,11 +515,12 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
     ).rows[0]!;
     const conflictType = await createType(`e2e-conflict-${suffix}`);
     const raceType = await createType(`e2e-race-${suffix}`);
+    let resetTokenId: string | undefined;
     try {
       const original = { id: randomUUID(), version: 1 };
       await auditDb.query(
         `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", "lineageId", version, "updatedAt")
-         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
+       VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
         [
           original.id,
           pilot.id,
@@ -573,7 +577,7 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
       await expect(
         auditDb.query(
           `INSERT INTO "QualificationRecord" (id, "pilotId", "qualificationTypeId", "credentialNumber", "issueDate", "expiryDate", "issuingAuthority", "levelOrParameter", "qualificationRuleSnapshot", "lineageId", version, "updatedAt")
-           VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
+         VALUES ($1, $2, $3, $4, DATE '2026-01-01', DATE '2028-01-01', $5, $6, $7::jsonb, $1, 1, now())`,
           [
             randomUUID(),
             pilot.id,
@@ -596,15 +600,66 @@ test.describe("remote PostgreSQL/S3/pg-boss workflow", () => {
           input: {
             id: currentAdmin.id,
             action: "resetPassword",
-            value: "Temporary-E2E-Password-2026!",
             currentPassword: adminPassword,
             currentTotpCode: totp(adminTotpSecret),
           },
         },
       });
       expect(reset.ok(), `reset password HTTP ${reset.status()}`).toBeTruthy();
+      resetTokenId = (
+        await auditDb.query<{ id: string }>(
+          `SELECT id FROM "AdminPasswordResetToken" WHERE "adminUserId" = $1 AND "createdById" = $1 AND "consumedAt" IS NULL ORDER BY "createdAt" DESC LIMIT 1`,
+          [currentAdmin.id],
+        )
+      ).rows[0]?.id;
+      expect(Boolean(resetTokenId), "pending reset token persisted").toBe(true);
+      expect((await reset.json()).data.passwordResetPending).toBe(true);
+      expect((await page.request.get("/api/admin/session")).status()).toBe(200);
+      const pendingUser = (
+        await auditDb.query<{ passwordHash: string }>(
+          `SELECT "passwordHash" FROM "AdminUser" WHERE id = $1`,
+          [currentAdmin.id],
+        )
+      ).rows[0]!;
+      expect(
+        pendingUser.passwordHash === currentAdmin.passwordHash,
+        "password unchanged until completion",
+      ).toBe(true);
+
+      const handoff = await page.request.get("/api/admin/password-reset");
+      expect(handoff.status(), "private reset handoff HTTP status").toBe(200);
+      const token: unknown = (await handoff.json()).data.token;
+      expect(
+        typeof token === "string" && /^[A-Za-z0-9_-]{32,64}$/.test(token),
+        "private reset token available",
+      ).toBe(true);
+      const completionInput = {
+        token,
+        newPassword: "Temporary-E2E-Password-2026!",
+        currentTotpCode: totp(adminTotpSecret),
+      };
+      const completion = await page.request.post("/api/admin/password-reset", {
+        headers: { origin: appOrigin },
+        data: completionInput,
+      });
+      expect(completion.status(), "reset completion HTTP status").toBe(200);
+      expect((await completion.json()).data.completed).toBe(true);
       expect((await page.request.get("/api/admin/session")).status()).toBe(401);
+      const remainingSessions = await auditDb.query<{ count: string }>(
+        `SELECT count(*) FROM "AdminSession" WHERE "userId" = $1`,
+        [currentAdmin.id],
+      );
+      expect(Number(remainingSessions.rows[0]!.count)).toBe(0);
+      const replay = await page.request.post("/api/admin/password-reset", {
+        headers: { origin: appOrigin },
+        data: completionInput,
+      });
+      expect(replay.status(), "consumed reset token replay HTTP status").toBe(422);
+      expect((await replay.json()).error.code).toBe("INVALID_PASSWORD_RESET");
     } finally {
+      if (resetTokenId) {
+        await auditDb.query(`DELETE FROM "AdminPasswordResetToken" WHERE id = $1`, [resetTokenId]);
+      }
       await auditDb.query(
         `UPDATE "AdminUser" SET "passwordHash" = $1, "failedAttempts" = 0, "lockedUntil" = NULL, "updatedAt" = now() WHERE email = $2`,
         [currentAdmin.passwordHash, adminEmail],

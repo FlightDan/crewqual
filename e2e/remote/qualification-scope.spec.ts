@@ -130,7 +130,6 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
     const adminSession = session();
     const members = [memberFixture(), memberFixture()];
     const contexts: APIRequestContext[] = [];
-    let seeded = false;
     try {
       const client = await db.connect();
       try {
@@ -243,7 +242,6 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
           [randomUUID(), adminId, hash(adminSession.token), hash(adminSession.csrf)],
         );
         await client.query("COMMIT");
-        seeded = true;
       } catch (error) {
         await client.query("ROLLBACK");
         throw error;
@@ -251,8 +249,11 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
         client.release();
       }
 
-      // Exercise the real sanitizer and object store before testing signed access.
-      for (const member of members) {
+      // Both linked and orphan fixtures need real sanitized objects: otherwise
+      // a denied cross-owner operation could pass only because provenance is invalid.
+      for (const { member, fixtureImageId } of members.flatMap((member) =>
+        [member.imageId, member.orphanId].map((fixtureImageId) => ({ member, fixtureImageId })),
+      )) {
         const http = await authenticatedContext(playwright.request, "member", member.session);
         contexts.push(http);
         const bytes = await sharp({
@@ -269,7 +270,7 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
         try {
           await transfer.query("BEGIN");
           // Release the unique object key before attaching its provenance to
-          // the existing linked fixture. Keep both changes atomic.
+          // the existing fixture. Keep both changes atomic.
           const source = await transfer.query(
             `DELETE FROM "EvidenceImage" WHERE id = $1 RETURNING *`,
             [uploadedId],
@@ -278,7 +279,7 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
           await transfer.query(
             `UPDATE "EvidenceImage" SET "objectKey" = $2, "mimeType" = $3, width = $4, height = $5, "byteSize" = $6, sha256 = $7, "storageEncodingVersion" = $8, "sanitizedAt" = $9 WHERE id = $1`,
             [
-              member.imageId,
+              fixtureImageId,
               image.objectKey,
               image.mimeType,
               image.width,
@@ -290,7 +291,7 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
             ],
           );
           await transfer.query("COMMIT");
-          member.objectKey = image.objectKey;
+          if (fixtureImageId === member.imageId) member.objectKey = image.objectKey;
         } catch (error) {
           await transfer.query("ROLLBACK");
           throw error;
@@ -347,8 +348,13 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
         const ownRecognition = await http.post(
           `/api/evidence-images/${member.imageId}/recognitions`,
         );
-        expect(ownRecognition.status()).toBe(202);
-        expect((await ownRecognition.json()).data.id).toBe(member.recognitionId);
+        expect(ownRecognition.status()).toBe(200);
+        expect((await ownRecognition.json()).data).toEqual({ status: "DISABLED" });
+        const tasks = await db.query<{ id: string; status: string }>(
+          `SELECT id, status FROM "RecognitionTask" WHERE "evidenceImageId" = $1`,
+          [member.imageId],
+        );
+        expect(tasks.rows).toEqual([{ id: member.recognitionId, status: "COMPLETED" }]);
         await expectNotFound(
           await http.post(`/api/evidence-images/${other.orphanId}/recognitions`),
         );
@@ -384,73 +390,39 @@ test.describe("qualification material scope over HTTP and PostgreSQL", () => {
         );
         expect(submissions.rows.map((row) => row.id)).toEqual([member.submissionId]);
       }
+      const audit = await db.query<{
+        action: string;
+        pilotId: string;
+        actorType: string;
+        entityType: string;
+        entityId: string;
+      }>(
+        `SELECT action, "pilotId", "actorType", "entityType", "entityId" FROM "AuditEvent"
+         WHERE "actorId" = ANY($1::uuid[]) OR "pilotId" = ANY($2::uuid[]) ORDER BY "entityId"`,
+        [
+          [adminId, ...members.map((member) => member.pilotId)],
+          members.map((member) => member.pilotId),
+        ],
+      );
+      // Successful signed reads are audited; denied cross-owner operations
+      // must not create either business mutations or additional audit events.
+      expect(audit.rows).toEqual(
+        members
+          .map((member) => ({
+            action: "evidence.read",
+            pilotId: member.pilotId,
+            actorType: "pilot",
+            entityType: "EvidenceImage",
+            entityId: member.imageId,
+          }))
+          .sort((a, b) => a.entityId.localeCompare(b.entityId)),
+      );
     } finally {
       await Promise.allSettled(contexts.map((context) => context.dispose()));
-      try {
-        if (seeded) {
-          const pilotIds = members.map((member) => member.pilotId);
-          const imageIds = members.flatMap((member) => [member.imageId, member.orphanId]);
-          const cleanup = await db.connect();
-          try {
-            await cleanup.query("BEGIN");
-            // Reads and rejected writes should create no audit events. Preserve
-            // unexpected audit records and fixtures for diagnosis; never bypass integrity triggers.
-            const audit = await cleanup.query<{ count: string }>(
-              `SELECT count(*) FROM "AuditEvent" WHERE "actorId" = ANY($1::uuid[]) OR "pilotId" = ANY($2::uuid[])`,
-              [[adminId, ...pilotIds], pilotIds],
-            );
-            expect(audit.rows[0]?.count, "scope operations must not emit mutation audit").toBe("0");
-            await cleanup.query(
-              `DELETE FROM "RecognitionTask" WHERE "evidenceImageId" = ANY($1::uuid[])`,
-              [imageIds],
-            );
-            await cleanup.query(`DELETE FROM "PilotSession" WHERE "pilotId" = ANY($1::uuid[])`, [
-              pilotIds,
-            ]);
-            await cleanup.query(`DELETE FROM "AdminSession" WHERE "userId" = $1`, [adminId]);
-            await cleanup.query(`DELETE FROM "AdminUserRole" WHERE "userId" = $1`, [adminId]);
-            await cleanup.query(
-              `DELETE FROM "QualificationEvidence" WHERE "evidenceImageId" = ANY($1::uuid[])`,
-              [imageIds],
-            );
-            await cleanup.query(`DELETE FROM "EvidenceImage" WHERE id = ANY($1::uuid[])`, [
-              imageIds,
-            ]);
-            await cleanup.query(
-              `DELETE FROM "QualificationUpdateRequest" WHERE "pilotId" = ANY($1::uuid[])`,
-              [pilotIds],
-            );
-            await cleanup.query(
-              `DELETE FROM "QualificationRecord" WHERE "pilotId" = ANY($1::uuid[])`,
-              [pilotIds],
-            );
-            await cleanup.query(`DELETE FROM "QualificationType" WHERE id = ANY($1::uuid[])`, [
-              members.map((member) => member.typeId),
-            ]);
-            await cleanup.query(`DELETE FROM "AdminUser" WHERE id = $1`, [adminId]);
-            await cleanup.query(
-              `DELETE FROM "PilotProfile" WHERE "legacyPilotId" = ANY($1::uuid[])`,
-              [pilotIds],
-            );
-            await cleanup.query(`DELETE FROM "Pilot" WHERE id = ANY($1::uuid[])`, [pilotIds]);
-            await cleanup.query(`DELETE FROM "Person" WHERE id = ANY($1::uuid[])`, [
-              members.map((member) => member.personId),
-            ]);
-            await cleanup.query(`DELETE FROM "OrganizationUnit" WHERE id = ANY($1::uuid[])`, [
-              members.map((member) => member.unitId),
-            ]);
-            await cleanup.query(`DELETE FROM "Organization" WHERE id = $1`, [organizationId]);
-            await cleanup.query("COMMIT");
-          } catch (error) {
-            await cleanup.query("ROLLBACK");
-            throw error;
-          } finally {
-            cleanup.release();
-          }
-        }
-      } finally {
-        await db.end();
-      }
+      // Audit rows are append-only and reference these fixtures. Retain them
+      // together until the opted-in disposable stack is destroyed; deleting
+      // a pilot would mutate its audit FK, and cleanup must not mask a failure.
+      await db.end();
     }
   });
 });
