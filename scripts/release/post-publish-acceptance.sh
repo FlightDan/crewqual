@@ -17,9 +17,8 @@ server_pid=""
 die() { echo "post-publish acceptance: $*" >&2; exit 1; }
 channel_for() { [[ "$1" == *-rc.* ]] && printf rc || printf stable; }
 
-pin_final_acceptance_manifest() {
+pin_acceptance_manifest() {
   local config="${1:-/etc/crewqual-updater/config.json}" pin channel temporary
-  [[ "$target" != *-rc.* ]] || return 0
   pin="https://github.com/$repo/releases/download/$target/update-manifest-v1.json"
   channel="$(sudo jq -er '.channel' "$config")"
   temporary="$(mktemp)"
@@ -27,8 +26,8 @@ pin_final_acceptance_manifest() {
   sudo jq --arg pin "$pin" '.manifestURL = $pin' "$config" > "$temporary"
   sudo install -m 0600 "$temporary" "$config"
   rm -f "$temporary"
-  sudo jq -e --arg pin "$pin" --arg channel "$channel" '.manifestURL == $pin and .channel == $channel' "$config" >/dev/null || die "final acceptance manifest pin was not retained"
-  echo "final acceptance manifest pin: $pin (channel=$channel)"
+  sudo jq -e --arg pin "$pin" --arg channel "$channel" '.manifestURL == $pin and .channel == $channel' "$config" >/dev/null || die "acceptance manifest pin was not retained"
+  echo "acceptance manifest pin: $pin (channel=$channel)"
 }
 
 install_from_tag() {
@@ -84,10 +83,18 @@ api_request() {
   timestamp="$(date +%s%3N)"
   nonce="$(openssl rand -hex 16)"
   signature="$(printf '%s' "$timestamp.$nonce.$body" | openssl dgst -sha256 -hmac "$shared" -hex | awk '{print $2}')"
-  curl --fail --silent --show-error --max-time 15 --unix-socket /run/crewqual-updater/api.sock \
+  local response status
+  if response="$(curl --fail-with-body --silent --show-error --max-time 15 --unix-socket /run/crewqual-updater/api.sock \
     -X "$method" -H "X-Crewqual-Timestamp: $timestamp" -H "X-Crewqual-Nonce: $nonce" \
     -H "X-Crewqual-Signature: $signature" -H 'Content-Type: application/json' \
-    --data-binary "$body" "http://localhost$path"
+    --data-binary "$body" "http://localhost$path")"; then
+    printf '%s\n' "$response"
+  else
+    status=$?
+    # Only report the error field, never successful payloads or signed URLs.
+    jq -c '.error | select(type == "string") | gsub("https?://[^ ]+"; "[redacted URL]") | .[0:400]' <<<"$response" >&2 || true
+    return "$status"
+  fi
 }
 
 wait_api() {
@@ -258,7 +265,7 @@ compose_upgrade --profile ops run --rm --no-deps ops >/dev/null
 baseline_admin_fingerprint="$(admin_fingerprint)"
 [[ "$baseline_admin_fingerprint" =~ ^[0-9a-f]{32}$ ]] || die "acceptance bootstrap did not create one verifiable admin"
 repair_updater_from_tag
-pin_final_acceptance_manifest
+pin_acceptance_manifest
 image_id_checks "$upgrade_dir" "$expected_baseline_commit"
 shared="$(sudo sed -n "s/^CREWQUAL_UPDATER_SHARED_SECRET='\([^']*\)'/\1/p" "$upgrade_dir/.env")"
 [[ -n "$shared" ]] || die "missing updater shared secret"

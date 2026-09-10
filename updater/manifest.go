@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -318,6 +319,8 @@ func newReleaseHTTPClient() *boundedHTTPClient {
 	return &boundedHTTPClient{client: &http.Client{
 		Timeout: 60 * time.Second,
 		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			// A CI API credential must never follow release download redirects.
+			req.Header.Del("Authorization")
 			if !isAllowedReleaseHost(req.URL.Hostname()) {
 				return errors.New("release redirect target is not allowlisted")
 			}
@@ -340,7 +343,18 @@ func (c *boundedHTTPClient) get(urlValue string, limit int64) ([]byte, error) {
 	if err != nil || parsed.Scheme != "https" || !isAllowedReleaseHost(parsed.Hostname()) {
 		return nil, errors.New("release URL must use HTTPS")
 	}
-	response, err := c.client.Get(urlValue)
+	request, err := http.NewRequest(http.MethodGet, urlValue, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Explicit opt-in for CI discovery; do not consume ambient GH_TOKEN or send
+	// credentials to asset hosts, other repositories, or arbitrary API routes.
+	if parsed.Host == "api.github.com" && parsed.Path == "/repos/"+officialRepository+"/releases" {
+		if token := strings.TrimSpace(os.Getenv("CREWQUAL_RELEASE_API_TOKEN")); token != "" {
+			request.Header.Set("Authorization", "Bearer "+token)
+		}
+	}
+	response, err := c.client.Do(request)
 	if err != nil {
 		return nil, err
 	}

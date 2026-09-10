@@ -824,7 +824,7 @@ jobs:
           jq -n --arg root "$directory" --arg api "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
             '{installDir:$root,dataDir:($root+"/state"),composeFile:($root+"/compose.yaml"),envFile:($root+"/.env"),sharedSecret:"disposable-discovery",channel:"stable",releaseAPIURL:$api,manifestURL:""}' > "$directory/config.json"
           jq -e '.channel == "stable" and .manifestURL == ""' "$directory/config.json" >/dev/null
-          CREWQUAL_UPDATER_CONFIG="$directory/config.json" "$directory/crewqual-updater" check
+          CREWQUAL_RELEASE_API_TOKEN="$GH_TOKEN" CREWQUAL_UPDATER_CONFIG="$directory/config.json" "$directory/crewqual-updater" check
           CREWQUAL_UPDATER_CONFIG="$directory/config.json" "$directory/crewqual-updater" status > "$directory/status.json"
           jq -e --arg tag "$RELEASE_TAG" '.latestVersion == $tag and (.releasePublishedAt | length > 0)' "$directory/status.json" >/dev/null
           rm -rf -- "$directory"

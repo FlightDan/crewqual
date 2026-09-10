@@ -59,22 +59,35 @@ grep -qx 'stable' "$installer_calls"
 if (install_from_tag v1.0.6 /fixture v1.0.6) >/dev/null 2>&1; then echo 'mutable installer source accepted' >&2; exit 1; fi
 rm -f "$installer_calls"
 unset -f curl sudo
-# Pin exact final manifest without changing either stable or RC baseline channel.
+# Pin the exact candidate manifest without changing its baseline channel.
 sudo() { "$@"; }
 pin_config="$(mktemp)"
 for pin_channel in stable rc; do
   printf '{"channel":"%s","sharedSecret":"fixture"}\n' "$pin_channel" > "$pin_config"
   target=v1.0.6
-  pin_final_acceptance_manifest "$pin_config"
+  pin_acceptance_manifest "$pin_config"
   jq -e --arg channel "$pin_channel" '.channel == $channel and .sharedSecret == "fixture" and .manifestURL == "https://github.com/FlightDan/crewqual/releases/download/v1.0.6/update-manifest-v1.json"' "$pin_config" >/dev/null
   [[ "$(stat -c %a "$pin_config")" == 600 ]]
 done
 printf '{"channel":"rc"}' > "$pin_config"
 target=v1.0.6-rc.15
-pin_final_acceptance_manifest "$pin_config"
-[[ "$(cat "$pin_config")" == '{"channel":"rc"}' ]]
+pin_acceptance_manifest "$pin_config"
+jq -e '.channel == "rc" and .manifestURL == "https://github.com/FlightDan/crewqual/releases/download/v1.0.6-rc.15/update-manifest-v1.json"' "$pin_config" >/dev/null
 rm -f "$pin_config"
 unset -f sudo
+# HTTP failure diagnostics preserve the cause but exclude payloads and URLs.
+(
+  shared=fixture
+  curl() { printf '%s' '{"error":"release request returned 403 Forbidden https://github.com/private?token=secret","data":{"secret":"must-not-print"}}'; return 22; }
+  error_log="$(mktemp)"
+  result=0
+  api_request POST /v1/check 2>"$error_log" || result=$?
+  [[ "$result" == 22 ]]
+  grep -q '403 Forbidden' "$error_log"
+  ! grep -q 'token=secret\|must-not-print' "$error_log"
+  rm -f "$error_log"
+)
+
 bootstrap_call_file="$(mktemp)"
 bootstrap_stdin_file="$(mktemp)"
 openssl() {
