@@ -856,7 +856,12 @@ func (a *App) run(job *Job, manifest Manifest) {
 		fail("ENV_READ_FAILED", readErr)
 		return
 	}
-	if err = os.WriteFile(stagedEnv, []byte(updateEnv(string(currentEnv), map[string]string{"CREWQUAL_VERSION": manifest.Version, "CREWQUAL_WEB_IMAGE": manifest.WebImage, "CREWQUAL_RUNTIME_IMAGE": manifest.RuntimeImage})), 0600); err != nil {
+	candidateEnv, err := prepareUpgradeEnv(currentEnv, manifest)
+	if err != nil {
+		fail("ENV_MIGRATION_FAILED", err)
+		return
+	}
+	if err = os.WriteFile(stagedEnv, candidateEnv, 0600); err != nil {
 		fail("STAGED_ENV_FAILED", err)
 		return
 	}
@@ -955,7 +960,7 @@ func (a *App) applyUpgrade(job *Job, manifest Manifest, composePath, caddyPath, 
 		rollbackDatabase("BOOTSTRAP_FAILED", err, backup)
 		return
 	}
-	if err = writeManagedFiles(a.cfg, composePath, caddyPath, configureDomainPath, manifest); err != nil {
+	if err = writeManagedFiles(a.cfg, composePath, caddyPath, configureDomainPath, stagedEnv, manifest); err != nil {
 		rollbackInstallation("ATOMIC_INSTALL_FAILED", err, previousFiles, backup, false, true)
 		return
 	}
@@ -1320,7 +1325,7 @@ func (a *App) restoreDatabase(backupPath string) error {
 	return nil
 }
 
-func writeManagedFiles(cfg Config, composePath, caddyPath, configureDomainPath string, m Manifest) error {
+func writeManagedFiles(cfg Config, composePath, caddyPath, configureDomainPath, stagedEnv string, m Manifest) error {
 	compose, err := os.ReadFile(composePath)
 	if err != nil {
 		return err
@@ -1336,11 +1341,12 @@ func writeManagedFiles(cfg Config, composePath, caddyPath, configureDomainPath s
 			return err
 		}
 	}
-	env, err := os.ReadFile(cfg.EnvFile)
+	// Persist the exact environment used for pulling and migrating. Generating
+	// credentials here again would disagree with the already-provisioned role.
+	env, err := os.ReadFile(stagedEnv)
 	if err != nil {
 		return err
 	}
-	envText := updateEnv(string(env), map[string]string{"CREWQUAL_VERSION": m.Version, "CREWQUAL_WEB_IMAGE": m.WebImage, "CREWQUAL_RUNTIME_IMAGE": m.RuntimeImage})
 	if err = atomicWrite(cfg.ComposeFile, compose, 0644); err != nil {
 		return err
 	}
@@ -1352,7 +1358,7 @@ func writeManagedFiles(cfg Config, composePath, caddyPath, configureDomainPath s
 			return err
 		}
 	}
-	return atomicWrite(cfg.EnvFile, []byte(envText), 0600)
+	return atomicWrite(cfg.EnvFile, env, 0600)
 }
 
 func atomicWrite(path string, data []byte, mode os.FileMode) error {
@@ -1413,6 +1419,10 @@ func readEnv(path, key string) string {
 	if err != nil {
 		return ""
 	}
+	return envValue(raw, key)
+}
+
+func envValue(raw []byte, key string) string {
 	for _, line := range strings.Split(string(raw), "\n") {
 		if strings.HasPrefix(line, key+"=") {
 			return strings.Trim(strings.TrimPrefix(line, key+"="), "'\"")

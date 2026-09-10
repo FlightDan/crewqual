@@ -92,7 +92,8 @@ async function main() {
     runtimeImage,
     updater,
     minimumVersion: process.env.UPDATE_MINIMUM_VERSION ?? "",
-    minimumUpdaterVersion: process.env.MINIMUM_UPDATER_VERSION ?? "0.1.0",
+    // Earlier updaters cannot stage the new runtime-role and readiness secrets.
+    minimumUpdaterVersion: process.env.MINIMUM_UPDATER_VERSION ?? "1.0.7",
     migrationPolicy: process.env.UPDATE_MIGRATION_POLICY ?? "backward-compatible",
   };
   await mkdir(dirname(output), { recursive: true });

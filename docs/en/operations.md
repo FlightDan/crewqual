@@ -49,6 +49,14 @@ Start troubleshooting with configuration errors, database connectivity, object s
 
 Check that recent database and gallery backups succeeded, and save `.env`, certificates, and updater configuration. On regular Linux, System settings can check for and install updates, subject to account permissions and host updater availability. WSL2 uses manual updates.
 
+Older host updaters, including v1.0.4, cannot update themselves or prepare the new readiness secret and separate database runtime account. New release manifests refuse these updater versions. First run the target installer's `--repair-updater` mode to verify signatures and update the host updater, then upgrade the application through System settings. Repair replaces only the updater and its version metadata; it preserves the application environment, Compose files, data, and current version. This is a recovered-updater upgrade path, not evidence that the unmodified old updater can upgrade directly. Post-publish host acceptance exercises this recovery step before application upgrade, injected rollback, and retry.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash -s -- --repair-updater --version v1.0.7 --channel stable --non-interactive
+```
+
+Custom external databases are not silently redirected and require an explicit migration plan. External S3 and private model or notification endpoints require explicit outbound allowlists; the updater does not broaden those restrictions automatically.
+
 Rerun the installation command to upgrade an existing deployment:
 
 ```bash

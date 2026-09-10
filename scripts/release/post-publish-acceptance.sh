@@ -43,6 +43,23 @@ install_from_tag() {
   rm -f "$script"
 }
 
+repair_updater_from_tag() {
+  local script before after
+  before="$(sudo sha256sum "$upgrade_dir/.env" "$upgrade_dir/compose.yaml" "$upgrade_dir/Caddyfile")"
+  script="$(mktemp)"
+  curl -fsSL --retry 3 "https://raw.githubusercontent.com/${repo}/${expected_commit}/install.sh" -o "$script"
+  chmod 700 "$script"
+  sudo -E CREWQUAL_INSTALL_DIR="$upgrade_dir" bash "$script" --version "$target" \
+    --channel "$(channel_for "$target")" --repair-updater --non-interactive
+  rm -f "$script"
+  after="$(sudo sha256sum "$upgrade_dir/.env" "$upgrade_dir/compose.yaml" "$upgrade_dir/Caddyfile")"
+  [[ "$before" == "$after" ]] || die "updater repair changed the baseline application configuration"
+  local expected_updater_version="${target#v}"
+  expected_updater_version="${expected_updater_version%%-rc.*}"
+  sudo jq -e --arg version "$expected_updater_version" '.updaterVersion == $version' /etc/crewqual-updater/config.json >/dev/null || die "updater recovery did not install the target capability version"
+  echo "upgrade acceptance path: signed updater recovery from $baseline to $target, then application upgrade"
+}
+
 image_id_checks() {
   local dir="$1" expected_revision="$2" ref id service native_arch revision
   [[ "$expected_revision" =~ ^[0-9a-f]{40}$ ]] || die "expected image revision must be a validated commit"
@@ -231,7 +248,6 @@ if [[ -z "$baseline" ]]; then
 fi
 
 install_from_tag "$baseline" "$upgrade_dir" "$expected_baseline_commit"
-pin_final_acceptance_manifest
 image_id_checks "$upgrade_dir" "$expected_baseline_commit"
 # The production installer intentionally leaves a new deployment in web-setup
 # mode. Seed the disposable acceptance database through the real production
@@ -241,6 +257,9 @@ bootstrap_acceptance_admin
 compose_upgrade --profile ops run --rm --no-deps ops >/dev/null
 baseline_admin_fingerprint="$(admin_fingerprint)"
 [[ "$baseline_admin_fingerprint" =~ ^[0-9a-f]{32}$ ]] || die "acceptance bootstrap did not create one verifiable admin"
+repair_updater_from_tag
+pin_final_acceptance_manifest
+image_id_checks "$upgrade_dir" "$expected_baseline_commit"
 shared="$(sudo sed -n "s/^CREWQUAL_UPDATER_SHARED_SECRET='\([^']*\)'/\1/p" "$upgrade_dir/.env")"
 [[ -n "$shared" ]] || die "missing updater shared secret"
 

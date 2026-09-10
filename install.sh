@@ -51,6 +51,11 @@ NON_INTERACTIVE=0
 PLAIN_OUTPUT=0
 AUTO_INSTALL_DOCKER=0
 PULL_IMAGES=1
+REPAIR_UPDATER=0
+REPAIR_PENDING=0
+REPAIR_TARGET=""
+REPAIR_CONFIG=""
+REPAIR_ACTIVE_UNITS=()
 TEMP_DIR=""
 ENV_FILE=""
 COMPOSE_FILE=""
@@ -98,6 +103,7 @@ Usage: install.sh [options]
 Install or upgrade CrewQual with public GHCR images.
 
 Options:
+  --repair-updater    Repair only an existing host updater from a signed release.
   --version VERSION   Install an exact GitHub Release (for example v1.0.1).
   --channel CHANNEL   Release channel: stable (default) or rc.
   --domain HOSTNAME   Public hostname used by CrewQual and Caddy.
@@ -1196,7 +1202,7 @@ atomic_install() {
   local target="$2"
   local mode="$3"
   local staged="${target}.new"
-  install -m "$mode" "$source" "$staged"
+  install -m "$mode" "$source" "$staged" || return $?
   mv -f -- "$staged" "$target"
 }
 
@@ -1325,6 +1331,7 @@ compose() {
 
 cleanup() {
   ui_shutdown || true
+  if ((REPAIR_PENDING)); then restore_updater_repair || true; fi
   release_deployment_lock
   if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
     rm -rf -- "$TEMP_DIR"
@@ -2205,6 +2212,135 @@ prepare_updater_verifier() {
   UPDATER_VERIFIER="$tmp"
 }
 
+updater_capability_version() {
+  local version="${RELEASE_VERSION#v}"
+  printf '%s' "${version%%-rc.*}"
+}
+
+validate_repair_file() {
+  local path="$1" owner mode parent
+  [[ -f "$path" && ! -L "$path" ]] || die "updater repair requires a regular managed file: $path"
+  [[ "$(realpath -m -- "$path")" == "$path" ]] || die "unsafe updater repair path: $path"
+  owner="$(stat -c '%u' -- "$path")"
+  mode="$(stat -c '%a' -- "$path")"
+  [[ "$owner" == "$(id -u)" && "$mode" =~ ^[0-7]{3,4}$ ]] || die "unsafe updater repair file: $path"
+  (((8#$mode & 0022) == 0)) || die "writable updater repair file: $path"
+  parent="$(dirname -- "$path")"
+  while :; do
+    owner="$(stat -c '%u' -- "$parent")"
+    mode="$(stat -c '%a' -- "$parent")"
+    [[ "$owner" == "0" || "$owner" == "$(id -u)" ]] || die "unsafe updater repair parent: $parent"
+    if (((8#$mode & 0022) != 0)); then
+      [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" && "$owner" == "0" ]] &&
+        (((8#$mode & 01000) != 0)) || die "writable updater repair parent: $parent"
+    fi
+    [[ "$parent" == / ]] && break
+    parent="$(dirname -- "$parent")"
+  done
+}
+
+wait_for_repaired_updater() {
+  local unit attempt code service_was_active=0
+  for unit in "${REPAIR_ACTIVE_UNITS[@]}"; do
+    [[ "$unit" != crewqual-updater.service ]] || service_was_active=1
+  done
+  ((service_was_active)) || return 0
+  # A simple systemd service can fail just after start returns. Probe its Unix
+  # API without sending credentials; the expected 401 proves it is serving.
+  for ((attempt = 1; attempt <= 10; attempt++)); do
+    if systemctl is-active --quiet crewqual-updater.service; then
+      code="$(curl --silent --max-time 2 --unix-socket /run/crewqual-updater/api.sock \
+        --output /dev/null --write-out '%{http_code}' http://localhost/v1/status)" || code=""
+      [[ "$code" != 401 ]] || return 0
+    fi
+    sleep 1
+  done
+  echo "Repaired updater did not become ready." >&2
+  return 1
+}
+
+restore_updater_repair() {
+  local failed=0
+  # A failed start may leave a live process using the candidate executable.
+  # Stop it before restoring files, otherwise another start can be a no-op.
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
+    run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl stop crewqual-updater.service crewqual-updater.socket || failed=1
+  fi
+  if ((failed == 0)); then
+    atomic_install "$TEMP_DIR/repair-binary.before" "$REPAIR_TARGET" 0755 || failed=1
+    atomic_install "$TEMP_DIR/repair-config.before" "$REPAIR_CONFIG" 0600 || failed=1
+  fi
+  if ((failed == 0)) && [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" && ${#REPAIR_ACTIVE_UNITS[@]} -gt 0 ]]; then
+    run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl start "${REPAIR_ACTIVE_UNITS[@]}" || failed=1
+    if ((failed == 0)); then wait_for_repaired_updater || failed=1; fi
+  fi
+  REPAIR_PENDING=0
+  if ((failed)); then
+    echo "Updater repair rollback failed; protected recovery files retained at: $TEMP_DIR" >&2
+    # cleanup must not delete the only remaining copies needed for recovery.
+    TEMP_DIR=""
+    return 1
+  fi
+}
+
+repair_existing_updater() {
+  [[ "$UPDATER_MODE" == "managed" ]] || die "updater repair requires a managed Linux installation"
+  local path unit config_version_count key expected configured
+  for path in "$INSTALL_DIR/.crewqual-official-install" "$ENV_FILE" "$COMPOSE_FILE" "$INSTALL_DIR/Caddyfile"; do
+    validate_repair_file "$path"
+  done
+  [[ "$(env_value CREWQUAL_UPDATER_MODE)" == "managed" ]] || die "updater repair requires managed updater mode"
+  REPAIR_TARGET="$UPDATER_BINARY_DIR/crewqual-updater"
+  REPAIR_CONFIG="$UPDATER_CONFIG_DIR/config.json"
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" == "1" ]]; then
+    REPAIR_TARGET="${CREWQUAL_INSTALL_TEST_UNIT_DIR:-$INSTALL_DIR/.updater-units}/crewqual-updater"
+    REPAIR_CONFIG="${CREWQUAL_INSTALL_TEST_UNIT_DIR:-$INSTALL_DIR/.updater-units}/config.json"
+  else
+    require_command systemctl
+    validate_repair_file /etc/systemd/system/crewqual-updater.service
+    validate_repair_file /etc/systemd/system/crewqual-updater.socket
+  fi
+  validate_repair_file "$REPAIR_TARGET"
+  validate_repair_file "$REPAIR_CONFIG"
+  for key in installDir envFile composeFile caddyFile; do
+    case "$key" in
+      installDir) expected="$INSTALL_DIR" ;;
+      envFile) expected="$ENV_FILE" ;;
+      composeFile) expected="$COMPOSE_FILE" ;;
+      caddyFile) expected="$INSTALL_DIR/Caddyfile" ;;
+    esac
+    configured="$(sed -nE 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"([^"\]*)".*/\1/p' "$REPAIR_CONFIG")"
+    [[ "$configured" == "$expected" ]] || die "updater config does not match this installation: $key"
+  done
+  config_version_count="$(grep -o '"updaterVersion"[[:space:]]*:[[:space:]]*"[^"\]*"' "$REPAIR_CONFIG" | wc -l)"
+  [[ "$config_version_count" == "1" ]] || die "updater repair requires one updaterVersion field"
+  # Preserve the original config, including channel, trust, paths and secrets.
+  # The signed target is selected independently from that existing channel.
+  sed -E 's/("updaterVersion"[[:space:]]*:[[:space:]]*)"[^"\]*"/\1"'"$(updater_capability_version)"'"/' \
+    "$REPAIR_CONFIG" >"$TEMP_DIR/repair-config.updated"
+  chmod 0600 "$TEMP_DIR/repair-config.updated"
+  prepare_updater_verifier
+  cp -p -- "$REPAIR_TARGET" "$TEMP_DIR/repair-binary.before"
+  cp -p -- "$REPAIR_CONFIG" "$TEMP_DIR/repair-config.before"
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
+    for unit in crewqual-updater.socket crewqual-updater.service; do
+      if systemctl is-active --quiet "$unit"; then REPAIR_ACTIVE_UNITS+=("$unit"); fi
+    done
+  fi
+  REPAIR_PENDING=1
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" ]]; then
+    run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl stop crewqual-updater.service crewqual-updater.socket
+  fi
+  atomic_install "$UPDATER_VERIFIER" "$REPAIR_TARGET" 0755
+  atomic_install "$TEMP_DIR/repair-config.updated" "$REPAIR_CONFIG" 0600
+  if [[ "${CREWQUAL_INSTALL_TEST_MODE:-0}" != "1" && ${#REPAIR_ACTIVE_UNITS[@]} -gt 0 ]]; then
+    run_with_timeout "$DOCKER_COMMAND_TIMEOUT_SECONDS" systemctl start "${REPAIR_ACTIVE_UNITS[@]}"
+    wait_for_repaired_updater
+  fi
+  REPAIR_PENDING=0
+  log "Host updater repaired to $(updater_capability_version); application version is unchanged."
+}
+
 disable_existing_wsl_updater() {
   local unit_found=0 unit_path
   for unit_path in \
@@ -2254,7 +2390,7 @@ install_updater_service() {
   [[ -n "$trusted" ]] || { echo "$(msg updater_trust_missing)" >&2; return 1; }
   umask 077
   printf '{"installDir":"%s","dataDir":"%s","composeFile":"%s","envFile":"%s","caddyFile":"%s","socket":"/run/crewqual-updater/api.sock","sharedSecret":"%s","backupKey":"%s","channel":"%s","releaseAPIURL":"https://api.github.com/repos/%s/releases","trustedPublicKeys":[{"id":"%s","publicKey":"%s","status":"active"}],"updaterVersion":"%s"}\n' \
-    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$CHANNEL_INPUT" "$GITHUB_REPOSITORY" "$TRUSTED_KEY_ID_VALUE" "$trusted" "${RELEASE_VERSION#v}" >"$config_path"
+    "$INSTALL_DIR" "$UPDATER_DATA_DIR" "$COMPOSE_FILE" "$ENV_FILE" "$INSTALL_DIR/Caddyfile" "$shared" "$backup" "$CHANNEL_INPUT" "$GITHUB_REPOSITORY" "$TRUSTED_KEY_ID_VALUE" "$trusted" "$(updater_capability_version)" >"$config_path"
   chmod 600 "$config_path"
   cat >"$unit_dir/crewqual-updater.service" <<EOF
 [Unit]
@@ -2517,6 +2653,10 @@ start_application_services() {
 
 while (($# > 0)); do
   case "$1" in
+    --repair-updater)
+      REPAIR_UPDATER=1
+      shift
+      ;;
     --version)
       (($# >= 2)) || die "$(msg missing_option_value --version)"
       RELEASE_VERSION="$2"
@@ -2622,8 +2762,10 @@ trap on_error ERR
 select_language
 
 ui_task_run 1 "$(msg task_preflight)" run_preflight_checks
-ui_task_run 2 "$(msg task_docker)" ensure_docker_engine
-ui_task_run 3 "$(msg task_compose)" ensure_compose_plugin
+if ((!REPAIR_UPDATER)); then
+  ui_task_run 2 "$(msg task_docker)" ensure_docker_engine
+  ui_task_run 3 "$(msg task_compose)" ensure_compose_plugin
+fi
 ui_task_run 4 "$(msg task_release)" resolve_release_version
 ui_task_run 5 "$(msg task_download)" download_release_files
 ui_task_run 6 "$(msg task_verify)" verify_downloaded_release
@@ -2633,6 +2775,11 @@ ui_task_run 6 "$(msg task_verify)" verify_downloaded_release
 # that will eventually be committed.
 prepare_install_directory
 acquire_deployment_lock || die "$(msg deployment_lock_failed)"
+
+if ((REPAIR_UPDATER)); then
+  repair_existing_updater
+  exit 0
+fi
 
 if [[ -f "$ENV_FILE" ]]; then
   EXISTING_INSTALL=1
@@ -2732,6 +2879,9 @@ if [[ -f "$TEMP_DIR/env.updated" ]]; then
   fi
   set_env_key CREWQUAL_WEB_IMAGE "$MANIFEST_WEB_IMAGE"
   set_env_key CREWQUAL_RUNTIME_IMAGE "$MANIFEST_RUNTIME_IMAGE"
+  if [[ -z "$(env_value READINESS_PROBE_SECRET)" ]]; then
+    set_env_key READINESS_PROBE_SECRET "$(openssl rand -hex 32)"
+  fi
   # Existing official installs used the owner login for both application and
   # migration traffic. Generate the new runtime secret once, then normalize
   # both URLs while preserving the owner secret and database volume.

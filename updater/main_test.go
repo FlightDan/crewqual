@@ -218,7 +218,7 @@ func TestApplyUpgradeFailureRecoveryStateMachine(t *testing.T) {
 				composePath:   "target-compose\n",
 				caddyPath:     "target-caddy\n",
 				configurePath: "target-script\n",
-				stagedEnv:     "CREWQUAL_VERSION='v1.1.0'\n",
+				stagedEnv:     "CREWQUAL_VERSION='v1.1.0'\nCREWQUAL_WEB_IMAGE='target-web'\nCREWQUAL_RUNTIME_IMAGE='target-runtime'\nREADINESS_PROBE_SECRET='staged-probe'\nPOSTGRES_APP_PASSWORD='staged-app-password'\n",
 			}
 			for path, contents := range target {
 				if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
@@ -303,17 +303,11 @@ esac
 				wantFiles = map[string]string{
 					cfg.ComposeFile: "target-compose\n",
 					cfg.CaddyFile:   "target-caddy\n",
-					cfg.EnvFile:     "",
+					cfg.EnvFile:     target[stagedEnv],
 					filepath.Join(installDirectory, "configure-domain.sh"): "target-script\n",
 				}
 			}
 			for path, expected := range wantFiles {
-				if test.wantTargetFiles && path == cfg.EnvFile {
-					if readEnv(path, "CREWQUAL_VERSION") != "v1.1.0" || readEnv(path, "CREWQUAL_WEB_IMAGE") != "target-web" || readEnv(path, "CREWQUAL_RUNTIME_IMAGE") != "target-runtime" {
-						t.Fatalf("target environment was not installed: %s", path)
-					}
-					continue
-				}
 				raw, err := os.ReadFile(path)
 				if err != nil || string(raw) != expected {
 					t.Fatalf("unexpected managed file %s: contents=%q err=%v", path, raw, err)

@@ -46,6 +46,14 @@ sudo systemctl enable --now crewqual-caddy-recovery.service
 
 先确认近期数据库与图库备份成功，并保存 `.env`、证书和更新器配置。普通 Linux 的设置中心可检查并安装更新，具体操作取决于账号权限和宿主机更新器状态。WSL2 使用手动升级。
 
+v1.0.4 等旧版宿主机更新器不会自更新，也不能补齐新版所需的探针密钥和独立数据库账号。新版发布清单会拒绝这些更新器。请先用目标版本安装器的 `--repair-updater` 模式校验签名并更新宿主机更新器，再从设置中心执行应用升级。此步骤只替换更新器及其版本配置，保留应用的 `.env`、Compose、数据和当前版本；它不是旧更新器直接升级成功的证明。发布后的主机验收会真实执行这一恢复步骤，再验证应用升级、故障回滚和重试。
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/FlightDan/crewqual/main/install.sh | sudo bash -s -- --repair-updater --version v1.0.7 --channel stable --non-interactive
+```
+
+自定义外部数据库不会被自动重定向；应先明确迁移方式。外部 S3 和私有模型/通知服务还须配置明确的出站允许列表，更新器不会自动放宽这些限制。
+
 重新运行安装命令可升级现有部署：
 
 ```bash

@@ -29,6 +29,7 @@ cleanup() {
   rm -rf -- "$TEST_DIR"
 }
 trap cleanup EXIT
+trap 'echo "installer test failed at line $LINENO" >&2' ERR
 
 mkdir -p "$FAKE_BIN" "$FIXTURE_DIR" "$TEST_KEY_DIR"
 mkdir -p "$TEST_DIR/custom-cert"
@@ -131,6 +132,7 @@ EOF
 cat >"$FAKE_BIN/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ -n "${CREWQUAL_TEST_DOCKER_CALL_LOG:-}" ]]; then printf "%s\n" "$*" >>"$CREWQUAL_TEST_DOCKER_CALL_LOG"; fi
 if [[ "${1:-}" == "info" ]]; then
   [[ "${CREWQUAL_TEST_DOCKER_INFO_FAIL:-0}" != "1" ]]
   exit
@@ -272,6 +274,106 @@ grep -q '^RuntimeDirectoryMode=0755$' "$INSTALL_DIR/.updater-units/crewqual-upda
 grep -q '^RuntimeDirectoryPreserve=yes$' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
 grep -q 'ReadWritePaths=.* -/run/crewqual-updater' "$INSTALL_DIR/.updater-units/crewqual-updater.service"
 grep -q '^DirectoryMode=0755$' "$INSTALL_DIR/.updater-units/crewqual-updater.socket"
+
+# Repair a legacy host controller independently of the application release.
+repair_env_before="$TEST_DIR/repair-env.before"
+repair_config_before="$TEST_DIR/repair-config.before"
+cp "$INSTALL_DIR/.env" "$repair_env_before"
+cp "$INSTALL_DIR/.updater-units/config.json" "$repair_config_before"
+repair_compose_before="$(sha256sum "$INSTALL_DIR/compose.yaml" "$INSTALL_DIR/Caddyfile")"
+printf '#!/bin/sh\nexit 0\n' >"$INSTALL_DIR/.updater-units/crewqual-updater"
+repair_binary_before="$(sha256sum "$INSTALL_DIR/.updater-units/crewqual-updater")"
+repair_calls="$TEST_DIR/repair-docker.log"
+# Verification failure must leave the old updater and deployment intact.
+cp "$FIXTURE_DIR/crewqual-updater-linux-amd64" "$TEST_DIR/repair-signed-binary"
+printf '\n# tampered\n' >>"$FIXTURE_DIR/crewqual-updater-linux-amd64"
+if CREWQUAL_TEST_DOCKER_CALL_LOG="$repair_calls" run_installer --repair-updater --version v9.8.8 --non-interactive >"$TEST_DIR/repair-failed.log" 2>&1; then
+  echo "expected updater repair verification failure" >&2; exit 1
+fi
+cp "$TEST_DIR/repair-signed-binary" "$FIXTURE_DIR/crewqual-updater-linux-amd64"
+[[ "$repair_binary_before" == "$(sha256sum "$INSTALL_DIR/.updater-units/crewqual-updater")" ]]
+cmp -s "$repair_config_before" "$INSTALL_DIR/.updater-units/config.json"
+# Inject a one-shot config replacement failure after installing the new binary.
+cat >"$FAKE_BIN/mv" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${CREWQUAL_TEST_REPAIR_FAIL_MARKER:-}" && "${!#}" == */.updater-units/config.json && ! -e "$CREWQUAL_TEST_REPAIR_FAIL_MARKER" ]]; then
+  touch "$CREWQUAL_TEST_REPAIR_FAIL_MARKER"
+  exit 17
+fi
+exec /usr/bin/mv "$@"
+EOF
+chmod 755 "$FAKE_BIN/mv"
+if CREWQUAL_TEST_REPAIR_FAIL_MARKER="$TEST_DIR/repair-failure-injected" CREWQUAL_TEST_DOCKER_CALL_LOG="$repair_calls" \
+  run_installer --repair-updater --version v9.8.8 --non-interactive >"$TEST_DIR/repair-write-failed.log" 2>&1; then
+  echo "expected updater repair replacement failure" >&2; exit 1
+fi
+[[ -f "$TEST_DIR/repair-failure-injected" ]]
+[[ "$repair_binary_before" == "$(sha256sum "$INSTALL_DIR/.updater-units/crewqual-updater")" ]]
+cmp -s "$repair_config_before" "$INSTALL_DIR/.updater-units/config.json"
+CREWQUAL_TEST_DOCKER_CALL_LOG="$repair_calls" run_installer --repair-updater --version v9.8.7-rc.2 --non-interactive >/dev/null
+cmp -s "$FIXTURE_DIR/crewqual-updater-linux-amd64" "$INSTALL_DIR/.updater-units/crewqual-updater"
+grep -q '"updaterVersion":"9.8.7"' "$INSTALL_DIR/.updater-units/config.json"
+# Selecting an RC updater preserves the baseline stable channel and secrets.
+cmp -s "$repair_config_before" "$INSTALL_DIR/.updater-units/config.json"
+CREWQUAL_TEST_DOCKER_CALL_LOG="$repair_calls" run_installer --repair-updater --version v9.8.8 --non-interactive >/dev/null
+sed 's/"updaterVersion":"9.8.7"/"updaterVersion":"9.8.8"/' "$repair_config_before" >"$TEST_DIR/repair-config.expected"
+cmp -s "$TEST_DIR/repair-config.expected" "$INSTALL_DIR/.updater-units/config.json"
+cmp -s "$repair_env_before" "$INSTALL_DIR/.env"
+[[ "$repair_compose_before" == "$(sha256sum "$INSTALL_DIR/compose.yaml" "$INSTALL_DIR/Caddyfile")" ]]
+[[ ! -s "$repair_calls" ]]
+
+# Rollback invokes this helper in an OR-list, where errexit is disabled.
+# A failed copy must never rename a partial staging file over the live binary.
+(
+  eval "$(sed -n '/^atomic_install()/,/^}/p' "$PROJECT_DIR/install.sh")"
+  printf 'baseline' >"$TEST_DIR/atomic-target"
+  install() { printf 'partial' >"${@: -1}"; return 17; }
+  failure=0
+  atomic_install unused "$TEST_DIR/atomic-target" 0755 || failure=$?
+  [[ "$failure" == 17 && "$(cat "$TEST_DIR/atomic-target")" == baseline ]]
+)
+
+# Exercise rollback after a partial systemd start, including retained recovery
+# material when stopping the candidate process itself fails.
+(
+  eval "$(sed -n '/^restore_updater_repair()/,/^}/p' "$PROJECT_DIR/install.sh")"
+  eval "$(sed -n '/^wait_for_repaired_updater()/,/^}/p' "$PROJECT_DIR/install.sh")"
+  CREWQUAL_INSTALL_TEST_MODE=0
+  DOCKER_COMMAND_TIMEOUT_SECONDS=1
+  TEMP_DIR="$TEST_DIR/repair-service-rollback"
+  mkdir -m 700 "$TEMP_DIR"
+  printf old >"$TEMP_DIR/repair-binary.before"
+  printf config >"$TEMP_DIR/repair-config.before"
+  REPAIR_TARGET="$TEMP_DIR/live-binary"
+  REPAIR_CONFIG="$TEMP_DIR/live-config"
+  printf candidate >"$REPAIR_TARGET"
+  REPAIR_ACTIVE_UNITS=(crewqual-updater.socket crewqual-updater.service)
+  service_state=candidate
+  run_with_timeout() { shift; "$@"; }
+  atomic_install() { cp "$1" "$2"; }
+  systemctl() {
+    case "$1" in
+      stop) service_state=stopped ;;
+      start) [[ "$service_state" != stopped ]] || service_state="$(cat "$REPAIR_TARGET")" ;;
+      is-active) [[ "$service_state" != stopped ]] ;;
+    esac
+  }
+  curl() { printf 401; }
+  REPAIR_PENDING=1
+  restore_updater_repair
+  [[ "$service_state" == old && "$REPAIR_PENDING" == 0 ]]
+  # An active process with an unresponsive API must not count as repaired.
+  curl() { printf 000; }
+  sleep() { :; }
+  if wait_for_repaired_updater 2>/dev/null; then exit 1; fi
+  retained_dir="$TEMP_DIR"
+  systemctl() { return 1; }
+  REPAIR_PENDING=1
+  if restore_updater_repair 2>"$TEST_DIR/repair-retained.log"; then exit 1; fi
+  [[ -z "$TEMP_DIR" && -f "$retained_dir/repair-binary.before" && -f "$retained_dir/repair-config.before" ]]
+  grep -Fq "$retained_dir" "$TEST_DIR/repair-retained.log"
+)
 
 before_secrets="$(sed -n '/^POSTGRES_PASSWORD=/p;/^POSTGRES_APP_PASSWORD=/p;/^SESSION_SECRET=/p;/^SETTINGS_ENCRYPTION_KEY=/p' "$INSTALL_DIR/.env")"
 run_installer --version v9.8.8 --non-interactive
