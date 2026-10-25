@@ -4,6 +4,8 @@
 
 These commands target the installer's default deployment at `/opt/crewqual`. Replace paths for a custom installation directory. Source deployments use the repository's Compose file.
 
+For existing data, see the [qualification audit and compatibility retirement conditions](../qualification-migration-gates.md) and [evidence source rebuild and recovery guide](../security/evidence-source-reconciliation.md), currently available in Chinese. Confirm that backups can be restored before running operations that modify data or stored objects.
+
 ## Check services
 
 ```bash

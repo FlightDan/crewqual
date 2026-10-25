@@ -4,6 +4,8 @@
 
 以下命令针对安装器生成的默认部署 `/opt/crewqual`。自定义安装目录需要替换路径；源码部署使用仓库的 Compose 文件。
 
+存量数据维护另见[资质数据核查与兼容退出条件](../qualification-migration-gates.md)和[证照来源重建与恢复](../security/evidence-source-reconciliation.md)。执行会修改数据或对象的操作前，先确认备份可恢复。
+
 ## 检查服务
 
 ```bash
