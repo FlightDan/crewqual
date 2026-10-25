@@ -2,7 +2,7 @@
 
 [Wiki 目录](../README.md) · [English](../en/security.md) · [技术文档](../../docs/zh-CN/README.md)
 
-本页说明当前实现中的认证和安全行为。初始化页与系统设置中的“认证目标”只配置身份鉴别方式，不代表 CrewQual 已经通过 ASVS 或等保的全部条款。仍待验证和待实现的项目列在[安全改进计划](../../docs/security/2026-09-07-security-improvement-plan.md)和[安全差距审计](../../docs/security/2026-09-07-product-security-gap-audit.md)中。
+本页说明当前实现中的认证和安全行为。初始化页与系统设置中的“认证目标”只配置身份鉴别方式，不代表 CrewQual 已经通过 ASVS 或等保的全部条款。仍待验证和待实现的项目见本页“当前边界”。
 
 ## 认证目标
 

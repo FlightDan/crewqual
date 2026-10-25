@@ -2,7 +2,7 @@
 
 [Wiki index](../README.md) · [简体中文](../zh-CN/security.md) · [Technical documentation](../../docs/en/README.md)
 
-This page describes authentication and security behavior in the current implementation. The Authentication target in setup and System settings configures identity factors; it does not mean that CrewQual has passed every ASVS or Level 3 requirement. The [security improvement plan](../../docs/security/2026-09-07-security-improvement-plan.md) and [security gap audit](../../docs/security/2026-09-07-product-security-gap-audit.md) list work that is still pending or needs validation.
+This page describes authentication and security behavior in the current implementation. The Authentication target in setup and System settings configures identity factors; it does not mean that CrewQual has passed every ASVS or Level 3 requirement. Work that is still pending or needs validation is listed under Current boundaries on this page.
 
 ## Authentication targets
 

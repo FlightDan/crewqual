@@ -33,3 +33,21 @@ test-results
 
 # Security review working artifacts (repo-security-review skill)
 .security-review/
+
+# Local AI instructions and handoff documents
+[Aa][Gg][Ee][Nn][Tt].md
+[Aa][Gg][Ee][Nn][Tt][Ss].md
+[Cc][Ll][Aa][Uu][Dd][Ee].md
+[Cc][Ll][Oo][Uu][Dd].md
+[Gg][Ee][Mm][Ii][Nn][Ii].md
+*[Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.md
+*[Hh][Aa][Nn][Dd][Ss][-_][Oo][Ff][Ff]*.md
+*交接*.md
+*提示词*.md
+
+# Internal audit, implementation plans, and acceptance records
+/docs/qualification-repair-verification-*.md
+/docs/security/*-audit.md
+/docs/security/*-plan.md
+/docs/security/*-acceptance.md
+/docs/security/subject-object-access-control.md
